@@ -30,12 +30,28 @@ Tài liệu đặc tả A-Z tính năng Quản lý thông tin cá nhân (Profile
 #### C. Thông báo xác nhận qua Email
 *   Khi có yêu cầu xóa tài khoản, hệ thống tạo sự kiện `ACCOUNT_DELETION_REQUESTED` trong bảng `outbox_events` để Kafka gửi email thông báo tới hòm thư người dùng, xác nhận thời điểm tài khoản sẽ bị ẩn danh hóa vĩnh viễn và cách thức hủy yêu cầu (đăng nhập lại trước 30 ngày).
 
-#### D. Thu hồi phiên đăng nhập (Session Revocation)
-*   Sau khi chuyển trạng thái sang `PENDING_DELETION`, Backend **bắt buộc** thu hồi toàn bộ phiên đăng nhập đang hoạt động của người dùng trên Redis (xóa ZSet `user:sessions:{userId}`, tất cả `session:refresh_token:{token}` và `session:metadata:{token}`) để buộc tất cả thiết bị đăng xuất lập tức.
+#### D. Thu hồi phiên đăng nhập & Metadata lịch sử (Session & Metadata Revocation)
+*   Sau khi chuyển trạng thái sang `PENDING_DELETION`, Backend **bắt buộc** thu hồi toàn bộ phiên đăng nhập đang hoạt động của người dùng trên Redis để buộc tất cả thiết bị đăng xuất lập tức.
+*   Để giải phóng hoàn toàn bộ nhớ đệm và bảo vệ quyền được lãng quên (Right to be Forgotten), hệ thống sử dụng Redis Pipeline để dọn sạch:
+    *   Khóa ZSet quản lý phiên: `user:sessions:{userId}`.
+    *   Tất cả khóa Refresh Token hoạt động: `session:refresh_token:{token}`.
+    *   Tất cả khóa Metadata thiết bị/IP tương ứng: `session:metadata:{token}`.
+    *   Khóa Hash metadata đăng nhập cuối cùng: `user:last_login:{userId}` (đặc tả tại Usecase 02 - Đăng nhập).
 *   Khi người dùng đăng nhập lại trong vòng 30 ngày, hệ thống sẽ ép điều hướng sang màn hình khôi phục tài khoản (như đặc tả ở Usecase 2).
 
-#### E. Xác nhận bảo mật khi xóa (Future Enhancement)
-*   Trong phiên bản hiện tại, API `DELETE /account` sử dụng xác nhận qua dialog UI (nhập text "XÁC NHẬN XÓA"). Trong các giai đoạn tiếp theo, có thể bổ sung xác thực bằng mật khẩu (Local accounts) hoặc Re-authentication (OAuth accounts) để tăng cường chống CSRF/XSS.
+#### E. Xác nhận bảo mật bắt buộc (Re-authentication Requirement)
+*   Để chống lại các cuộc tấn công chiếm quyền điều khiển Access Token (như XSS, Session Hijacking, hoặc người dùng quên khóa máy ở nơi công cộng), API `DELETE /api/v1/auth/account` **bắt buộc** phải xác thực lại người dùng trước khi tiến hành đóng băng tài khoản:
+    *   **Đối với tài khoản Local**: Gửi kèm `password` trong Request Body để Backend thực hiện đối khớp bằng BCrypt.
+    *   **Đối với tài khoản Google OAuth**: Frontend bắt buộc phải trigger luồng sinh mã `idToken` tươi (Re-authentication) từ Google Client SDK để gửi lên Request Body, Backend sẽ giải mã và kiểm tra chữ ký số để xác minh người dùng thực sự đang thao tác.
+*   **Chống Brute-force mật khẩu**: Khi xác thực lại thất bại do sai mật khẩu tại API `DELETE /account`, hệ thống bắt buộc phải thực hiện tăng bộ đếm số lần đăng nhập sai `login_attempts:{userId}` và kiểm tra/kích hoạt trạng thái khóa tài khoản tạm thời `login_lockout:{userId}` trên Redis tương tự như luồng Đăng nhập (Usecase 02). Điều này ngăn kẻ tấn công sử dụng JWT chiếm đoạt để brute-force mật khẩu của người dùng.
+*   Cơ chế gõ chữ `"XÁC NHẬN XÓA"` ở giao diện (UI) chỉ có tác dụng chống click nhầm, không thay thế được Request Body bảo mật này.
+
+#### F. Chính sách ẩn dữ liệu nghiệp vụ lập tức (Immediate Soft-Hide)
+*   Ngay khi trạng thái tài khoản chuyển sang `PENDING_DELETION`, toàn bộ dữ liệu phân phối công cộng thuộc sở hữu của User (như nhạc demo đã đăng tải, live room đang hoạt động, danh sách phát công khai) sẽ **lập tức bị hệ thống ẩn tạm thời (Soft-Hide)** khỏi tất cả các trang tìm kiếm, trang chủ và bảng xếp hạng trên ứng dụng.
+*   **Tránh vi phạm ranh giới Module (Domain Boundary)**: Module IAM tuyệt đối không viết trực tiếp xuống DB của module khác để cập nhật trạng thái ẩn (chống Tight Coupling). Luồng Soft-Hide sẽ thực hiện bất đồng bộ theo cơ chế hướng sự kiện (**Event-Driven Architecture**):
+    *   Module IAM phát sự kiện `ACCOUNT_DELETION_REQUESTED` sang Apache Kafka.
+    *   Các module chuyên trách (module Music quản lý nhạc demo, module Live quản lý live room) sẽ đăng ký lắng nghe (Consume) sự kiện này và tự thực hiện cập nhật Soft-Hide trên phân vùng dữ liệu do chúng quản lý.
+*   Nếu người dùng đăng nhập lại trong vòng 30 ngày để khôi phục tài khoản, các dữ liệu này sẽ tự động được hiển thị lại bình thường (thông qua sự kiện khôi phục tài khoản gửi qua Kafka). Nếu quá hạn 30 ngày, các dữ liệu này sẽ bị ẩn danh hóa hoặc xử lý vĩnh viễn cùng tài khoản.
 
 ---
 
@@ -69,54 +85,72 @@ sequenceDiagram
     actor User as Client User
     participant FE as Frontend App
     participant BE as Backend (Spring Boot)
+    participant Redis as Redis Cache
     participant DB as PostgreSQL
     participant Kafka as Apache Kafka
+    participant MusicLive as Music/Live Modules
     participant Worker as Mail Worker Service
 
-    User->>FE: Nhập xác nhận & nhấn "Xóa tài khoản"
-    FE->>BE: DELETE /api/v1/auth/account (Kèm JWT)
+    User->>FE: Nhập xác nhận & xác thực lại (Nhập Password hoặc Re-auth Google SDK)
+    FE->>BE: DELETE /api/v1/auth/account (Kèm JWT & DeleteAccountRequest)
     
-    BE->>BE: Xác thực Access Token, lấy userId
+    BE->>BE: Xác thực Access Token, lấy userId & authProvider
     BE->>DB: Truy vấn User theo userId
     
-    alt Trạng thái User đã là PENDING_DELETION
-        BE-->>FE: HTTP 400 Bad Request (DELETION_ALREADY_REQUESTED)
-    else Trạng thái User là ACTIVE
-        Note over BE, DB: Bắt đầu Transaction
-        BE->>DB: Cập nhật User (status='PENDING_DELETION', deletion_requested_at=now)
-        BE->>DB: Lưu OutboxEvent (event_type='ACCOUNT_DELETION_REQUESTED', payload chứa email & ngày hết hạn)
-        Note over BE, DB: Commit Transaction
-        
-        Note over BE, Redis: Thu hồi toàn bộ phiên đăng nhập (Redis Pipeline)
-        BE->>Redis: Lấy danh sách token từ ZSet 'user:sessions:{userId}'
-        loop Duyệt từng token
-            BE->>Redis: DEL 'session:refresh_token:{token}'
-            BE->>Redis: DEL 'session:metadata:{token}'
-        end
-        BE->>Redis: DEL 'user:sessions:{userId}'
-        Note over BE, Redis: Kết thúc Pipeline
-        
-        par Phản hồi nhanh về Client
-            BE-->>FE: HTTP 200 OK (Yêu cầu xóa thành công, tài khoản đóng băng 30 ngày)
-            FE->>FE: Xóa phiên hiện tại ở Zustand & Cookie
-            FE-->>User: Điều hướng về /login kèm thông báo
-        and Xử lý gửi Mail xác nhận
-            BE->>BE: @TransactionalEventListener (After Commit) bắt sự kiện
-            BE->>Kafka: Phát sự kiện 'ACCOUNT_DELETION_REQUESTED' sang 'notification-events'
-            BE->>DB: Cập nhật outbox_event -> 'PROCESSED'
+    alt Xác thực lại thất bại (Sai Password hoặc idToken không hợp lệ)
+        Note over BE, Redis: Tăng attempts & check lockout (nếu sai mật khẩu)
+        BE->>Redis: INCR 'login_attempts:{userId}'
+        BE->>Redis: SET 'login_lockout:{userId}' (nếu attempts >= 5)
+        BE-->>FE: HTTP 400 Bad Request (INVALID_PASSWORD / INVALID_OAUTH_TOKEN / ACCOUNT_LOCKOUT)
+    else Xác thực lại thành công
+        alt Trạng thái User đã là PENDING_DELETION
+            BE-->>FE: HTTP 400 Bad Request (DELETION_ALREADY_REQUESTED)
+        else Trạng thái User là ACTIVE
+            Note over BE, DB: Bắt đầu Transaction
+            BE->>DB: Cập nhật User (status='PENDING_DELETION', deletion_requested_at=now)
+            BE->>DB: Lưu OutboxEvent (event_type='ACCOUNT_DELETION_REQUESTED', payload chứa email & ngày hết hạn)
+            Note over BE, DB: Commit Transaction
             
-            Kafka->>Worker: Consume sự kiện
-            Worker->>User: Gửi Email xác nhận lịch xóa tài khoản sau 30 ngày
+            Note over BE, Redis: Thu hồi toàn bộ phiên & dọn dẹp Metadata (Redis Pipeline)
+            BE->>Redis: Lấy danh sách token từ ZSet 'user:sessions:{userId}'
+            loop Duyệt từng token
+                BE->>Redis: DEL 'session:refresh_token:{token}'
+                BE->>Redis: DEL 'session:metadata:{token}'
+            end
+            BE->>Redis: DEL 'user:sessions:{userId}'
+            BE->>Redis: DEL 'user:last_login:{userId}'
+            Note over BE, Redis: Kết thúc Pipeline
+            
+            par Phản hồi nhanh về Client
+                BE-->>FE: HTTP 200 OK (Yêu cầu xóa thành công, tài khoản đóng băng 30 ngày)
+                FE->>FE: Xóa phiên hiện tại ở Zustand & Cookie
+                FE-->>User: Điều hướng về /login kèm thông báo
+            and Xử lý gửi Mail xác nhận & Soft-Hide bất đồng bộ
+                BE->>BE: @TransactionalEventListener (After Commit) bắt sự kiện
+                BE->>Kafka: Phát sự kiện 'ACCOUNT_DELETION_REQUESTED' sang 'notification-events'
+                BE->>DB: Cập nhật outbox_event -> 'PROCESSED'
+                
+                Kafka->>Worker: Consume sự kiện gửi mail
+                Worker->>User: Gửi Email xác nhận lịch xóa tài khoản sau 30 ngày
+                
+                Kafka->>MusicLive: Consume sự kiện thực hiện Soft-Hide
+                MusicLive->>DB: Cập nhật ẩn các bản nhạc demo & phòng live
+            end
         end
     end
 ```
 
 ##### 📝 Mô tả chi tiết các bước xử lý:
-1.  **Gửi yêu cầu**: Người dùng truy cập cài đặt tài khoản, nhập xác nhận đồng ý xóa và click gửi. Frontend gọi API `DELETE /api/v1/auth/account` đính kèm Access Token JWT.
-2.  **Cập nhật trạng thái đóng băng**: Backend xác thực quyền sở hữu, cập nhật trạng thái User sang `PENDING_DELETION` và lưu mốc thời gian `deletion_requested_at`. Ghi nhận sự kiện gửi mail xác nhận vào hàng đợi Outbox.
-3.  **Thu hồi phiên đăng nhập**: Backend sử dụng **Redis Pipeline** xóa toàn bộ Refresh Token, metadata phiên, và ZSet `user:sessions:{userId}` để buộc tất cả thiết bị đăng xuất lập tức.
-4.  **Phản hồi và dọn dẹp Client**: Trả về kết quả HTTP 200 OK, Frontend dọn sạch Zustand store và cookie, điều hướng về `/login`.
-5.  **Gửi email xác nhận**: Mail Worker Service nhận sự kiện qua Kafka và gửi thư thông báo tới email người dùng, khẳng định tài khoản đang trong trạng thái chờ xóa 30 ngày.
+1.  **Gửi yêu cầu & Xác thực lại**: Người dùng truy cập cài đặt tài khoản, nhập xác nhận đồng ý xóa và thực hiện xác thực lại (gõ mật khẩu nếu là tài khoản Local, hoặc xác thực lại qua Google SDK để sinh mã `idToken` mới nếu là tài khoản Google). Frontend gửi API `DELETE /api/v1/auth/account` đính kèm Access Token JWT trên Header và mật khẩu/idToken trong Request Body.
+2.  **Đối chiếu thông tin xác thực & Chống Brute-force**: Backend xác thực Access Token để lấy thông tin tài khoản:
+    *   *Đối với tài khoản Local*: Dùng BCrypt đối chiếu mật khẩu gửi lên với mật khẩu đã băm trong PostgreSQL. Nếu sai, hệ thống ghi nhận tăng số lần thử sai `login_attempts:{userId}` trên Redis và kích hoạt khóa `login_lockout:{userId}` nếu đạt ngưỡng 5 lần thử sai liên tục, trả về lỗi HTTP 400 (`INVALID_PASSWORD` hoặc `ACCOUNT_LOCKOUT`).
+    *   *Đối với tài khoản OAuth*: Giải mã và xác thực chữ ký của `idToken` gửi lên từ Google SDK. Nếu không hợp lệ hoặc hết hạn, trả lỗi HTTP 400 (`INVALID_OAUTH_TOKEN`).
+3.  **Cập nhật trạng thái đóng băng**: Sau khi xác thực thành công, Backend cập nhật trạng thái User sang `PENDING_DELETION` và lưu mốc thời gian `deletion_requested_at`. Hệ thống đồng thời ghi nhận sự kiện vào bảng Outbox để gửi đi thông báo.
+4.  **Thu hồi phiên đăng nhập & dọn dẹp Redis**: Backend sử dụng **Redis Pipeline** quét qua ZSet quản lý phiên `user:sessions:{userId}`, duyệt qua từng token và thực hiện xóa đồng thời cả Refresh Token (`session:refresh_token:{token}`) lẫn Metadata phiên (`session:metadata:{token}`). Pipeline cũng đồng thời xóa khóa metadata đăng nhập cuối cùng `user:last_login:{userId}` và khóa ZSet quản lý phiên của user để giải phóng RAM tối đa và đảm bảo an toàn tuyệt đối.
+5.  **Phản hồi và dọn dẹp Client**: Trả về kết quả HTTP 200 OK, Frontend dọn sạch Zustand store và cookie, điều hướng về `/login`.
+6.  **Gửi email xác nhận & Soft-Hide bất đồng bộ**: 
+    *   Mail Worker Service nhận sự kiện `ACCOUNT_DELETION_REQUESTED` qua Kafka và gửi thư thông báo xác nhận tới email người dùng.
+    *   Các module Music và Live cũng lắng nghe (Consume) sự kiện này từ Kafka để tự động thực hiện cập nhật ẩn tạm thời (Soft-Hide) các bản nhạc demo và phòng live đang active thuộc sở hữu của User này khỏi các trang hiển thị công khai.
 
 ---
 
@@ -211,6 +245,15 @@ CREATE INDEX idx_users_deletion_status ON users(status, deletion_requested_at) W
 *   **Path**: `/api/v1/auth/account`
 *   **Auth Level**: `Requires Authentication`
 
+#### Request Body (`DeleteAccountRequest`):
+*   Tài khoản Local bắt buộc gửi `password`. Tài khoản Google OAuth bắt buộc gửi `idToken` (mới sinh).
+```json
+{
+  "password": "Mật khẩu xác nhận tài khoản Local (null nếu là tài khoản Google)",
+  "idToken": "Mã Google idToken sinh tươi từ Google SDK (null nếu là tài khoản Local)"
+}
+```
+
 #### Response Thành công (200 OK):
 ```json
 {
@@ -218,6 +261,26 @@ CREATE INDEX idx_users_deletion_status ON users(status, deletion_requested_at) W
   "message": "Yêu cầu xóa tài khoản thành công. Dữ liệu sẽ được đóng băng trong 30 ngày trước khi bị ẩn danh hóa vĩnh viễn.",
   "data": null,
   "errors": null,
+  "timestamp": "2026-07-01T12:10:00Z"
+}
+```
+
+---
+
+#### Response Lỗi Xác thực lại thất bại (400 Bad Request):
+*   Áp dụng khi mật khẩu tài khoản Local không đúng hoặc Google `idToken` hết hạn/không hợp lệ.
+```json
+{
+  "success": false,
+  "message": "Xác thực tài khoản thất bại",
+  "data": null,
+  "errors": [
+    {
+      "code": "INVALID_PASSWORD",
+      "field": "password",
+      "message": "Mật khẩu xác nhận không chính xác"
+    }
+  ],
   "timestamp": "2026-07-01T12:10:00Z"
 }
 ```
@@ -249,6 +312,8 @@ Mỗi lỗi nghiệp vụ được định nghĩa trong `ErrorCode` Enum với H
 
 | Http Status | Error Code (String) | Mô tả | Trường liên quan (`field`) |
 | :--- | :--- | :--- | :--- |
+| `400 Bad Request` | `INVALID_PASSWORD` | Mật khẩu xác nhận không chính xác (tài khoản Local) | `password` |
+| `400 Bad Request` | `INVALID_OAUTH_TOKEN` | Mã xác thực Google OAuth không hợp lệ hoặc đã hết hạn | `idToken` |
 | `400 Bad Request` | `DELETION_ALREADY_REQUESTED` | Tài khoản đã nằm trong hàng đợi yêu cầu xóa | `null` |
 | `400 Bad Request` | `VALIDATION_FAILED` | Định dạng số điện thoại hoặc ảnh đại diện không hợp lệ | `phone` / `avatarUrl` |
 | `429 Too Many Requests` | `RATE_LIMIT_EXCEEDED` | Vượt quá giới hạn tần suất truy cập API | `null` |

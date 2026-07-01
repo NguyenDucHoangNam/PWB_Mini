@@ -24,7 +24,9 @@ Tài liệu đặc tả A-Z tính năng Đăng xuất cho hệ thống PWB MiNi,
 #### B. Vô hiệu hóa Access Token (JWT Blacklisting)
 *   Vì Access Token dạng JWT là phi trạng thái (Stateless), nó vẫn có hiệu lực cho đến khi hết hạn (Expired) ngay cả khi người dùng đã nhấn đăng xuất.
 *   **Giải pháp**: Backend trích xuất mã chữ ký số (Signature) hoặc ID của JWT (`jti`) và ghi nhận vào Redis dạng `session:blacklist_token:{signature}` với giá trị `"true"`.
-*   **TTL Động (Dynamic TTL)**: Thời gian tồn tại của key blacklist này được tính toán động bằng: **`Thời gian hết hạn của JWT - Thời điểm đăng xuất hiện tại`**.
+*   **TTL Động (Dynamic TTL) & Clock Skew Buffer**: Thời gian tồn tại của key blacklist này được tính toán động để bù đắp sai lệch thời gian giữa các máy chủ (Clock Skew) bằng công thức:
+    $$\text{TTL}_{\text{blacklist}} = (\text{Expiration Time} - \text{Current Time}) + \text{Buffer Time}$$
+    Trong đó, `Buffer Time` là khoảng thời gian bù an toàn (thường cấu hình từ **15 đến 30 giây**) nhằm bịt kín kẽ hở thời gian khi hệ thống phân tán có các node server chạy lệch giờ nhau (Xem chi tiết tại phần 7.1).
 *   **Xử lý ở Security Filter**: Mọi API request đính kèm Access Token có signature nằm trong danh sách blacklist sẽ bị bộ lọc bảo mật từ chối truy cập ngay ở Gateway/Filter với mã lỗi HTTP `401 Unauthorized` mà không cần xử lý tiếp ở tầng Controller.
 
 #### C. Xóa Cookie ở Trình duyệt
@@ -77,10 +79,10 @@ sequenceDiagram
     FE->>BE: POST /api/v1/auth/logout (Authorization: Bearer JWT, Cookie: refreshToken)
     
     BE->>BE: Giải mã JWT (cho phép cả expired JWT), lấy userId và thời gian hết hạn
-    BE->>BE: Tính toán thời gian sống còn lại của JWT (Dynamic TTL)
+    BE->>BE: Tính toán thời gian sống còn lại + Clock Skew Buffer (TTL Blacklist)
     
     Note over BE, Redis: Bắt đầu xử lý nguyên tử trên Cache (Redis Pipeline)
-    BE->>Redis: SET 'session:blacklist_token:{jwtSignature}' = true (TTL: Dynamic TTL)
+    BE->>Redis: SET 'session:blacklist_token:{jwtSignature}' = true (TTL: Dynamic TTL + Buffer)
     
     alt Cookie refreshToken tồn tại và hợp lệ
         BE->>Redis: DEL 'session:refresh_token:{refreshToken}'
@@ -105,9 +107,9 @@ sequenceDiagram
 2.  **Gửi Request**: Frontend lập tức gửi request HTTP `POST /api/v1/auth/logout` kèm Access Token hiện tại trong header `Authorization` và Refresh Token trong cookie.
 3.  **Xử lý tại Backend**:
     *   Backend giải mã Access Token (**cho phép cả JWT đã expired** — chỉ lấy thông tin, không reject), trích xuất thời điểm hết hạn (`exp`) và ID người dùng (`userId`).
-    *   Tính toán thời gian sống còn lại (ví dụ: JWT hết hạn sau 7 phút 12 giây, TTL của key blacklist sẽ được set là 432 giây). Nếu JWT đã expired thì TTL = 0 (không cần blacklist).
+    *   Tính toán thời gian sống còn lại cộng thêm khoảng bù an toàn (Clock Skew Buffer) khoảng 15 đến 30 giây: $\text{TTL}_{\text{blacklist}} = (\text{Expiration Time} - \text{Current Time}) + \text{Buffer Time}$ (ví dụ: JWT hết hạn sau 432 giây, TTL của key blacklist sẽ được set là 432 + 30 = 462 giây). Điều này ngăn ngừa kịch bản lệch đồng hồ giữa các node server khiến token vẫn hợp lệ ở một số node. Nếu hiệu số thời gian cộng buffer vẫn nhỏ hơn hoặc bằng 0 thì bỏ qua không blacklist.
     *   Sử dụng **Redis Pipeline** thực hiện các hành động:
-        1.  Thêm Signature của JWT hiện tại vào danh sách Blacklist với TTL động vừa tính (bỏ qua nếu JWT đã expired).
+        1.  Thêm Signature của JWT hiện tại vào danh sách Blacklist với TTL động có kèm buffer vừa tính.
         2.  Xóa khóa Refresh Token tương ứng để vô hiệu hóa tính năng gia hạn (bỏ qua nếu cookie không tồn tại — **Idempotent Logout**).
         3.  Cập nhật ZSet `user:sessions:{userId}` của người dùng để giảm số phiên đang hoạt động.
 4.  **Hủy Cookie**: Backend phản hồi HTTP 200 OK kèm header `Set-Cookie` đặt `Max-Age=0` để trình duyệt xóa cookie `refreshToken`.
@@ -206,9 +208,35 @@ Mỗi lỗi nghiệp vụ được định nghĩa trong `ErrorCode` Enum với H
 Frontend phải được thiết kế để xử lý bất kỳ lỗi mạng hoặc lỗi API nào trả về từ Backend mà vẫn đảm bảo người dùng được thoát ra ngoài. Đồng thời, khi người dùng mở nhiều tab cùng lúc, hệ thống sử dụng **`BroadcastChannel API`** để đồng bộ sự kiện logout giữa tất cả các tab — khi một tab thực hiện logout, các tab khác sẽ tự động nhận event và dọn dẹp state:
 
 ```typescript
-// Pseudo-code minh họa — trong thực tế sử dụng useRouter(), useQueryClient() hooks.
+// Quản lý signal của tiến trình refresh đang chạy để tránh xung đột với Logout
+let activeRefreshController: AbortController | null = null;
+
+// Hàm refresh token chạy ngầm (ví dụ trong Axios Interceptor hoặc refresh service)
+async function refreshAccessToken() {
+  if (activeRefreshController) {
+    activeRefreshController.abort(); // Hủy request cũ nếu có
+  }
+  activeRefreshController = new AbortController();
+  
+  try {
+    const response = await api.post('/api/v1/auth/refresh', {}, {
+      signal: activeRefreshController.signal
+    });
+    return response.data;
+  } finally {
+    activeRefreshController = null;
+  }
+}
+
+// Pseudo-code minh họa đăng xuất — trong thực tế sử dụng useRouter(), useQueryClient() hooks.
 // Đối với logic ngoài React component, dùng useAuthStore.getState().clearSession().
 async function handleLogout() {
+  // 1. Ngay lập tức hủy bỏ luồng Refresh đang chạy ngầm để tránh Race Condition
+  if (activeRefreshController) {
+    activeRefreshController.abort();
+    activeRefreshController = null;
+  }
+
   try {
     await api.post('/api/v1/auth/logout');
   } catch (error) {
@@ -231,6 +259,11 @@ async function handleLogout() {
 const channel = new BroadcastChannel('auth_channel');
 channel.onmessage = (event) => {
   if (event.data.type === 'LOGOUT') {
+    // Hủy bỏ tiến trình refresh trên tab hiện tại khi nhận được tín hiệu LOGOUT từ tab khác
+    if (activeRefreshController) {
+      activeRefreshController.abort();
+      activeRefreshController = null;
+    }
     useAuthStore.getState().clearSession();
     queryClient.clear();
     router.push('/login');
@@ -276,3 +309,27 @@ Các sự kiện đăng xuất và vô hiệu hóa JWT trên hệ thống cần 
 ### 6.2. Quy tắc Bảo mật Log
 *   Không log toàn bộ chuỗi Access Token JWT lên hệ thống log. Chỉ log **Signature** (phần chữ ký số cuối cùng của JWT) hoặc 10 ký tự đầu tiên để định danh.
 *   Thông tin User ID được ghi log rõ ràng dưới dạng định dạng UUID chuẩn, không log thông tin nhạy cảm của User-Agent ngoài phiên bản cơ bản.
+
+---
+
+## 💡 7. Điểm Lưu Ý & Đề Xuất Tối Ưu Hóa (Edge Cases & Optimizations)
+
+### 7.1. Kịch bản Lệch đồng hồ (Clock Skew) khi tính toán Dynamic TTL
+*   **Vấn đề (Clock Skew)**: Trong môi trường phân tán (Multi-instance App Servers), đồng hồ hệ thống giữa các node server hoặc giữa App Server và Redis Server có thể bị lệch nhau một khoảng thời gian nhỏ (từ vài mili-giây đến vài giây).
+*   **Rủi ro**: Nếu Access Token chỉ còn 2-3 giây trước khi hết hạn và người dùng nhấn Đăng xuất, một node server chạy nhanh hơn có thể tính ra TTL <= 0 và quyết định bỏ qua không lưu signature vào Redis Blacklist. Tuy nhiên, một node khác chạy chậm hơn vẫn coi token này là hợp lệ. Kẻ tấn công nếu thu thập được token này trong cửa sổ vài giây ngắn ngủi đó vẫn có thể gọi API thành công qua node chạy chậm kia.
+*   **Giải pháp**: Bổ sung một khoảng bù an toàn (**Clock Skew Buffer**) từ **15 đến 30 giây** vào công thức tính TTL động:
+    $$\text{TTL}_{\text{blacklist}} = (\text{Expiration Time} - \text{Current Time}) + \text{Buffer Time}$$
+    Việc tăng thêm tối đa 30 giây cho một khóa sắp hết hạn trên Redis không gây ảnh hưởng đáng kể đến tài nguyên RAM nhưng đảm bảo bịt kín kẽ hở thời gian này giữa các node.
+
+### 7.2. Đánh đổi về chi phí I/O (Network Hop) tại JwtAuthenticationFilter
+*   **Đặc tính**: Áp dụng JWT Blacklisting biến cơ chế xác thực từ phi trạng thái (Stateless JWT) thành nửa trạng thái (Hybrid/Semi-stateful).
+*   **Ảnh hưởng hiệu năng**: Với mỗi request đi qua `JwtAuthenticationFilter`, hệ thống phải thực hiện một lệnh truy vấn `EXISTS` xuống Redis để kiểm tra signature của token có nằm trong Blacklist hay không. Thao tác này sinh ra một lượt gọi mạng (Network Hop), tăng nhẹ độ trễ (latency) của toàn bộ request.
+*   **Giải pháp Tối ưu hóa**: Đối với các hệ thống có lượng truy cập cực lớn, tầng Filter có thể tích hợp thêm một bộ lọc bộ nhớ trong cục bộ rất ngắn (Local Cache sử dụng thư viện như Guava Cache hoặc Caffeine Cache với TTL ngắn khoảng 1-2 giây). 
+    *   Các token hợp lệ sạch được cache tạm thời trong bộ nhớ của chính app server để giảm tần suất truy vấn trực tiếp vào Redis đối với các token đang hoạt động liên tục.
+    *   Các token bị cho vào blacklist hoặc token lỗi vẫn cần kiểm tra trực tiếp hoặc xử lý nhanh để đảm bảo tính an toàn tức thì.
+
+### 7.3. Đồng bộ hóa luồng Silent Refresh và API Logout tại Frontend
+*   **Kịch bản xung đột (Race Condition)**: Khi người dùng nhấn nút "Đăng xuất" đúng lúc Access Token vừa hết hạn, Axios Interceptor ở Frontend có thể tự động kích hoạt luồng gọi ngầm `POST /auth/refresh`. Lúc này, request Đăng xuất và request Refresh sẽ tranh chấp đua nhau gửi lên Backend.
+*   **Hậu quả**: Nếu request Logout xử lý trước và xóa sạch phiên trên Redis, request Refresh chạy sau vài mili-giây sẽ bị từ chối với lỗi `INVALID_REFRESH_TOKEN`, hoặc nghiêm trọng hơn là kích hoạt nhầm cảnh báo **Token Theft** (phát hiện trộm token) do token cũ vừa bị đưa vào danh sách đen lưu vết, gây ảnh hưởng đến trải nghiệm người dùng hoặc tạo log cảnh báo giả ở Backend.
+*   **Giải pháp**: Trong hàm xử lý đăng xuất ở Frontend (`handleLogout`), hành động đầu tiên cần làm trước khi gọi API Logout là hủy bỏ (Abort) hoặc bỏ qua các tiến trình Refresh đang chạy ngầm bằng cách sử dụng **`AbortController`** (như minh họa tại phần 5.2). Điều này đảm bảo luồng đăng xuất được thực thi độc lập, sạch sẽ và an toàn.
+

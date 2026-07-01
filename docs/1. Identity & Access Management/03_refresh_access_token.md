@@ -25,20 +25,27 @@ Tài liệu đặc tả A-Z tính năng Gia hạn Phiên đăng nhập (Silent R
 Trên các mạng di động không ổn định hoặc khi client gọi nhiều API song song lúc token vừa hết hạn, có thể xảy ra tình trạng nhiều request Refresh đồng thời (Race Condition):
 *   Khi nhận được yêu cầu xoay vòng Refresh Token hợp lệ đầu tiên, Backend thực hiện:
     *   Sinh cặp Token mới.
-    *   Chuyển Refresh Token cũ sang trạng thái **Shadow Key** lưu trên Redis với thời gian sống rất ngắn (**TTL 10 giây**).
-*   Trong vòng 10 giây ân hạn này, nếu các request tiếp theo gửi lên sử dụng chính Refresh Token cũ đó, Backend sẽ **trả về cùng kết quả của cặp Token mới đã sinh ở request đầu tiên** thay vì chặn lỗi hoặc kích hoạt cảnh báo trộm Token.
+    *   Chuyển Refresh Token cũ sang trạng thái **Shadow Key** lưu trên Redis key `session:refresh_token:shadow:{oldToken}` với giá trị là token mới (`newToken`) và thời gian sống rất ngắn (**TTL 10 giây**).
+*   Trong vòng 10 giây ân hạn này, nếu các request tiếp theo gửi lên sử dụng chính Refresh Token cũ đó, Backend tìm thấy Shadow Key và sẽ **trả về cùng kết quả của cặp Token mới đã sinh ở request đầu tiên** thay vì chặn lỗi hoặc kích hoạt cảnh báo trộm Token.
 
-#### C. Phát hiện Chiếm đoạt mã (Token Theft Detection)
-Nếu hệ thống nhận được yêu cầu sử dụng Refresh Token cũ đã qua thời gian ân hạn 10 giây:
-*   Hệ thống xác định đây là hành vi **Tấn công phát lại (Replay Attack / Token Theft)** do mã đã bị lộ lọt và kẻ tấn công đang tìm cách sử dụng lại.
-*   **Hành động khẩn cấp**: Lập tức thu hồi và xóa sạch toàn bộ các phiên đăng nhập đang hoạt động của người dùng đó (xóa ZSet `user:sessions:{userId}` và toàn bộ Refresh Token liên quan trên Redis), buộc tất cả thiết bị phải đăng xuất ngay lập tức để bảo vệ tài khoản.
+#### C. Phát hiện Chiếm đoạt mã (Token Theft Detection) & Danh sách đen (Revoked Token Blacklist)
+Để giải quyết bài toán "Bóng ma UUID" (khi khóa shadow hết TTL 10 giây và tự động bị Redis xóa, hệ thống sẽ mất dấu vết của UUID cũ và không thể truy vết được userId để hủy phiên khi bị tấn công phát lại), hệ thống áp dụng cơ chế **Danh sách đen lưu vết**:
+*   Khi thời gian ân hạn 10 giây kết thúc (hoặc ngay khi thực hiện xoay vòng), token cũ sẽ được chuyển sang key lưu vết **`session:refresh_token:revoked:{oldToken}`** trên Redis với giá trị là `userId` của chủ sở hữu và thiết lập TTL bằng thời gian sống còn lại của token gốc (ví dụ: 7 ngày).
+*   **Thứ tự ưu tiên kiểm tra (Order of Operations)**: Khi một Refresh Token gửi lên không nằm trong danh sách Active, Backend **bắt buộc** phải tra cứu key `session:refresh_token:shadow:{oldToken}` trước. Chỉ khi key Shadow này không tồn tại (Cache Miss), hệ thống mới được phép chuyển sang kiểm tra key `session:refresh_token:revoked:{oldToken}` để kích hoạt luồng Token Theft. Điều này ngăn ngừa việc vô tình kích hoạt thu hồi khẩn cấp cho người dùng hợp lệ đang gặp Race Condition mạng.
+*   Nếu hệ thống nhận được yêu cầu sử dụng một Refresh Token không tồn tại trong danh sách hoạt động, và sau khi kiểm tra phát hiện cache miss đối với Shadow Key, Backend sẽ kiểm tra danh sách revoked:
+    *   Nếu tìm thấy khóa **`session:refresh_token:revoked:{oldToken}`** trên Redis, Backend lấy được ngay `userId` tương ứng.
+    *   **Hủy phiên triệt để (Atomic Multi-Delete)**: Hệ thống lập tức kích hoạt cảnh báo **Token Theft**. Để bảo vệ tài khoản, Backend phải:
+        1. Đọc toàn bộ danh sách các token phiên (UUID) đang lưu trong ZSet `user:sessions:{userId}` của người dùng ra bộ nhớ.
+        2. Thực hiện lệnh xóa hàng loạt (Multi-Key Delete) hoặc đóng gói vào một Redis Transaction/Lua Script để xóa sạch tất cả các String key `session:refresh_token:{token}` tương ứng của các thiết bị khác.
+        3. Xóa chính ZSet `user:sessions:{userId}` để thu hồi phiên hoạt động hoàn toàn trên toàn bộ hệ thống.
 
 ---
 
-### 1.3. Quy tắc Xác thực Dữ liệu (Validation Rules)
-
-*   Vì Refresh Token được đính kèm tự động từ HttpOnly Cookie của trình duyệt, API `/refresh` **không yêu cầu** bất kỳ dữ liệu nào trong JSON request body.
-*   Backend xác thực sự tồn tại và định dạng của cookie `refreshToken` nhận được qua HTTP Request Header.
+### 1.3. Quy tắc Xác thực Dữ liệu & Chống CSRF (Validation & CSRF Protection)
+*   **Bằng chứng kép (Dual-Token Validation)**: Để loại bỏ triệt để nguy cơ tấn công giả mạo yêu cầu chéo trang (CSRF) đối với API `/refresh` dựa trên Cookie HttpOnly, hệ thống yêu cầu Frontend phải gửi kèm **Access Token cũ (đã hết hạn)** trong HTTP Header `Authorization: Bearer <expired_accessToken>`.
+*   **Xác minh kép & Bảo mật Chữ ký (Signature Validation)**: Backend giải mã Access Token cũ để trích xuất `userId` và so khớp với `userId` liên kết với `refreshToken` trong Redis.
+    *   *⚠️ Ràng buộc xác thực JWT*: Hệ thống **chỉ bỏ qua duy nhất ngoại lệ `ExpiredJwtException`** (hết hạn thời gian sống của token). Tất cả các quy trình xác thực mật mã học khác của JWT — bao gồm **Chữ ký số (Signature Verification)**, cấu trúc Header, thuật toán mã hóa (chặn thuật toán `none` và các khóa đối xứng giả mạo) — **bắt buộc phải được xác thực hợp lệ tuyệt đối** so với Secret Key của hệ thống nhằm loại bỏ hoàn toàn nguy cơ tấn công giả mạo token (Fake Token Bypass). Nếu thông tin không đồng bộ hoặc thiếu Header Authorization, API lập tức trả về lỗi HTTP 401 Unauthorized.
+*   **Request Body**: API `/refresh` **không yêu cầu** bất kỳ dữ liệu nào trong JSON request body (body là `{}`).
 
 ---
 
@@ -69,22 +76,24 @@ sequenceDiagram
     BE-->>FE: HTTP 401 Unauthorized (JWT_EXPIRED)
     
     Note over FE: Axios Interceptor tạm dừng các API requests khác
-    FE->>BE: POST /api/v1/auth/refresh (Cookie chứa Refresh Token)
+    FE->>BE: POST /api/v1/auth/refresh (Header Bearer expired_token, Cookie refreshToken)
     
+    BE->>BE: Giải mã Bearer Token hết hạn để lấy userId
     BE->>Redis: Kiểm tra key lockout 'login_lockout:{userId}' (nếu đang bị khóa)
     BE->>Redis: Kiểm tra sự tồn tại của key 'session:refresh_token:{token}'
     
-    alt Token hợp lệ và tồn tại
+    alt Token hợp lệ, tồn tại và khớp với userId từ Access Token
         BE->>Redis: Lấy userId liên kết với token
         BE->>DB: Kiểm tra trạng thái User (ACTIVE hoặc PENDING_DELETION)
         
         alt Trạng thái User là BANNED
             BE-->>FE: HTTP 400 Bad Request (ACCOUNT_BANNED)
         else Trạng thái hợp lệ
-            BE->>Redis: Lưu token cũ làm Shadow Key 'session:refresh_token:shadow:{oldToken}' (TTL: 10s)
-            BE->>Redis: Xóa key cũ 'session:refresh_token:{oldToken}'
-            
             BE->>BE: Sinh Access Token (JWT) & Refresh Token (UUID) mới
+            
+            BE->>Redis: Lưu token cũ làm Shadow Key 'session:refresh_token:shadow:{oldToken}' = newToken (TTL: 10s)
+            BE->>Redis: Lưu token cũ vào Blacklist 'session:refresh_token:revoked:{oldToken}' = userId (TTL: 7 ngày)
+            BE->>Redis: Xóa key cũ 'session:refresh_token:{oldToken}'
             
             BE->>Redis: Lưu Refresh Token mới 'session:refresh_token:{newToken}' (TTL: 7 ngày)
             BE->>Redis: Cập nhật ZSet 'user:sessions:{userId}' (Xóa oldToken, thêm newToken)
@@ -101,13 +110,14 @@ sequenceDiagram
 
 ##### 📝 Mô tả chi tiết các bước xử lý (Gia hạn phiên bình thường):
 1.  **Nhận lỗi 401**: Frontend gửi request đính kèm Access Token đã hết hạn, Backend trả về mã lỗi HTTP 401 Unauthorized kèm mã lỗi nghiệp vụ `JWT_EXPIRED`.
-2.  **Kích hoạt Interceptor**: Axios Interceptor bắt lỗi 401, tạm dừng các request đang chờ xử lý, tự động gửi yêu cầu `POST /api/v1/auth/refresh` (cookie `refreshToken` đính kèm tự động).
-3.  **Xác thực Refresh Token**: Backend tìm kiếm key `session:refresh_token:{oldToken}` trên Redis để xác định tính hợp lệ của phiên.
+2.  **Kích hoạt Interceptor**: Axios Interceptor bắt lỗi 401, tạm dừng các request đang chờ xử lý, tự động gửi yêu cầu `POST /api/v1/auth/refresh` (header `Authorization: Bearer <expired_token>`, cookie `refreshToken` đính kèm tự động).
+3.  **Xác thực hai lớp (Dual-Token Verification)**: Backend giải mã Access Token hết hạn để lấy `userId`, sau đó tìm kiếm key `session:refresh_token:{oldToken}` trên Redis để đối khớp `userId`. Nếu trùng khớp và token hợp lệ, tiếp tục xử lý.
 4.  **Xoay vòng Token (Rotation)**:
-    *   Lưu token cũ thành Shadow Key `session:refresh_token:shadow:{oldToken}` với TTL 10 giây.
-    *   Xóa token cũ ra khỏi Redis Cache.
     *   Tạo cặp token mới: Access Token và Refresh Token.
-    *   Lưu Refresh Token mới vào Redis và cập nhật ZSet `user:sessions:{userId}` của người dùng.
+    *   Lưu token cũ thành Shadow Key `session:refresh_token:shadow:{oldToken}` (giá trị là `newToken`) với TTL 10 giây.
+    *   Lưu token cũ vào danh sách đen `session:refresh_token:revoked:{oldToken}` (giá trị là `userId`) với TTL bằng thời gian sống còn lại của token gốc (ví dụ: 7 ngày).
+    *   Xóa token cũ `session:refresh_token:{oldToken}` ra khỏi Redis.
+    *   Lưu Refresh Token mới vào Redis và cập nhật ZSet `user:sessions:{userId}` của người dùng (xóa `oldToken` và thêm `newToken`).
 5.  **Trả kết quả**: Trả Access Token mới trong JSON body và Refresh Token mới qua Cookie HttpOnly.
 6.  **Thử lại request lỗi**: Frontend nhận Access Token mới, cập nhật vào Zustand Store, đính kèm token mới này vào request ban đầu và gửi lại để hoàn tất yêu cầu của người dùng.
 
@@ -127,21 +137,23 @@ sequenceDiagram
     FE->>BE: [Request 1] POST /refresh (RefreshToken_A)
     BE->>BE: Xoay vòng thành công, cấp RefreshToken_B
     BE->>Redis: Set Shadow Key 'shadow:RefreshToken_A' = RefreshToken_B (TTL: 10s)
+    BE->>Redis: Set Revoked Key 'revoked:RefreshToken_A' = userId (TTL: 7 ngày)
     
     FE->>BE: [Request 2 gửi song song] POST /refresh (RefreshToken_A)
-    BE->>Redis: Tìm thấy key 'shadow:RefreshToken_A' (chưa hết 10s)
-    BE-->>FE: HTTP 200 OK (Cấp lại RefreshToken_B & AccessToken mới đã sinh)
+    BE->>Redis: Tìm key 'shadow:RefreshToken_A' trước (Ưu tiên Shadow)
+    BE->>Redis: Thấy 'shadow:RefreshToken_A' -> Cấp lại RefreshToken_B & AccessToken mới
     Note over FE: Không bị đá phiên, hệ thống hoạt động bình thường
     
     Note over Attacker, BE: --- Kịch bản 2: Tấn công phát lại / Trộm Token (Token Theft) ---
     Attacker->>BE: POST /refresh (RefreshToken_A) (Đã hết 10s ân hạn)
     BE->>Redis: Tìm 'session:refresh_token:RefreshToken_A' -> Không có
-    BE->>Redis: Tìm 'shadow:RefreshToken_A' -> Đã hết hạn tự hủy
+    BE->>Redis: Tìm 'shadow:RefreshToken_A' trước -> Cache Miss (Đã hết hạn tự hủy)
+    BE->>Redis: Tìm 'revoked:RefreshToken_A' sau -> Thấy chứa userId
     
-    Note over BE: Phát hiện hành vi sử dụng lại token cũ (Token Theft)
-    BE->>Redis: Lấy userId tương ứng từ token cũ
-    BE->>Redis: Xóa ZSet 'user:sessions:{userId}' (Hủy toàn bộ phiên đang chạy)
-    BE->>Redis: Quét & xóa sạch toàn bộ các key session liên quan của User đó
+    Note over BE: Phát hiện hành vi sử dụng lại token cũ đã bị thu hồi (Token Theft)
+    BE->>Redis: Đọc toàn bộ Refresh Token UUID từ ZSet 'user:sessions:{userId}'
+    BE->>Redis: Xóa hàng loạt String key 'session:refresh_token:{token}' tương ứng (Atomic Multi-Delete)
+    BE->>Redis: Xóa ZSet 'user:sessions:{userId}'
     
     BE-->>Attacker: HTTP 401 Unauthorized (TOKEN_THEFT_DETECTED)
     Note over FE: Phiên hoạt động của người dùng hợp lệ cũng bị logout ngay lập tức để bảo mật tài khoản
@@ -165,11 +177,12 @@ Các khóa Redis phục vụ cho tính năng Silent Refresh & RTR:
 | :--- | :--- | :--- | :--- | :--- |
 | `session:refresh_token:{token}` | `String` | `userId` | **7 ngày** | Quản lý phiên hoạt động của Refresh Token còn hiệu lực. |
 | `session:refresh_token:shadow:{oldToken}` | `String` | `newToken` (UUID) | **10 giây** | Shadow Key phục vụ thời gian ân hạn (Grace Period) cho Race Condition. |
+| `session:refresh_token:revoked:{oldToken}` | `String` | `userId` | **7 ngày** (hoặc thời gian sống còn lại của token cũ) | Revoked Key (Danh sách đen lưu vết) để lưu thông tin userId của token đã xoay vòng, hỗ trợ phát hiện trộm token (Token Theft) sau thời gian ân hạn. |
 | `user:sessions:{userId}` | `ZSet` | `token` (UUID) với Score là `timestamp` | **7 ngày** | Danh sách các token phiên đang hoạt động của người dùng để kiểm soát giới hạn tối đa 3 phiên hoạt động. |
 
 > **⚡ Lưu ý Kỹ thuật: Atomic Redis Operations**
 >
-> Việc xoay vòng Refresh Token (xóa token cũ, tạo token mới, ghi nhận shadow key và cập nhật ZSet phiên) **BẮT BUỘC** phải được đóng gói trong một **Redis Pipeline** hoặc **Redis Transaction (`MULTI/EXEC`)** để đảm bảo tính toàn vẹn dữ liệu, tránh trường hợp token cũ bị xóa nhưng token mới chưa kịp lưu do sự cố kết nối.
+> Việc xoay vòng Refresh Token (xóa token cũ, tạo token mới, ghi nhận shadow key, lưu revoked key và cập nhật ZSet phiên) **BẮT BUỘC** phải được đóng gói trong một **Redis Pipeline**, **Redis Transaction (`MULTI/EXEC`)** hoặc **Redis Lua Script** để đảm bảo tính toàn vẹn dữ liệu và an toàn trước mọi race condition.
 
 ---
 
@@ -177,7 +190,9 @@ Các khóa Redis phục vụ cho tính năng Silent Refresh & RTR:
 
 ### 4.0. Cấu hình Chung
 *   **Base Path**: `/api/v1/auth`
-*   **Headers**: `Cookie: refreshToken=<token>` (trình duyệt tự động đính kèm)
+*   **Headers**: 
+    *   `Authorization: Bearer <expired_token>` (Access Token cũ đã hết hạn để chống CSRF)
+    *   `Cookie: refreshToken=<token>` (trình duyệt tự động đính kèm)
 *   **Format Phản Hồi**: Hệ thống đồng nhất sử dụng cấu trúc `ApiResponse<T>` chuẩn hóa theo quy ước dự án:
     *   **Thành công**: Trả về Http Code thích hợp cùng JSON body chứa `success: true`, `message`, `data` (payload kết quả), `errors: null` và `timestamp` (ISO 8601).
     *   **Thất bại**: Trả về Http Code lỗi, JSON body chứa `success: false`, `message`, `data: null`, `errors` (mảng chi tiết lỗi với `code`, `field`, `message`) và `timestamp`.
@@ -187,8 +202,10 @@ Các khóa Redis phục vụ cho tính năng Silent Refresh & RTR:
 ### 4.1. API Gia hạn Phiên đăng nhập (Refresh Access Token)
 *   **Method**: `POST`
 *   **Path**: `/api/v1/auth/refresh`
-*   **Auth Level**: `PermitAll` (Xác thực thông qua cookie)
-*   **Headers**: `Cookie: refreshToken=8f8b5f36-3a78-43d9-9524-34e803c4f2bb`
+*   **Auth Level**: `PermitAll` (Xác thực thông qua cookie & header bearer hết hạn)
+*   **Headers**: 
+    *   `Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIi...` (Access Token cũ đã hết hạn để chống CSRF)
+    *   `Cookie: refreshToken=8f8b5f36-3a78-43d9-9524-34e803c4f2bb`
 
 #### Response Thành công (200 OK):
 ```json
@@ -270,8 +287,17 @@ Mỗi lỗi nghiệp vụ được định nghĩa trong `ErrorCode` Enum với H
 2.  **Mảng Hàng đợi**: Thiết lập mảng `failedQueue = []` để lưu trữ các request bị tạm dừng khi token hết hạn.
 3.  **Xử lý Logic**:
     *   Nếu nhận lỗi `401` và mã lỗi nghiệp vụ là `JWT_EXPIRED`:
-        *   Nếu `isRefreshing` là `false`: Đặt `isRefreshing = true`, thực hiện POST `/auth/refresh`. Khi thành công, duyệt hàng đợi `failedQueue` để gửi lại toàn bộ request và đặt `isRefreshing = false`.
-        *   Nếu `isRefreshing` đang là `true`: Đưa request hiện tại vào `failedQueue` dưới dạng một Promise và đợi token mới.
+        *   Kiểm tra nếu request hiện tại đã được đánh dấu thử lại (`config._retry === true`), nghĩa là Access Token vừa refresh xong gửi lên vẫn văng lỗi 401 (nguy cơ do clock-skew hoặc lỗi đồng bộ thời gian). Frontend phải **ngắt ngay lập tức** tiến trình, không gọi `/refresh` lần nữa để tránh **Vòng lặp vô hạn (Infinite Loop)**, tiến hành gọi `logout()`, xóa Zustand store và chuyển hướng người dùng về `/login`.
+        *   Nếu `config._retry` chưa được set:
+            *   Đánh dấu `config._retry = true` trên request gốc.
+            *   Nếu `isRefreshing` là `false`: 
+                *   Đặt `isRefreshing = true`.
+                *   Thực hiện POST `/auth/refresh` (đính kèm header `Authorization: Bearer <expired_token>` và Cookie `refreshToken`).
+                *   Khi thành công (nhận được `accessToken` mới):
+                    *   Cập nhật `accessToken` mới vào Zustand Store.
+                    *   Duyệt hàng đợi `failedQueue` và **gán (inject) Access Token mới** vào header `Authorization` của từng request (`config.headers.Authorization = "Bearer " + newAccessToken`) trước khi gửi lại request bằng Axios.
+                    *   Đặt `isRefreshing = false`.
+            *   Nếu `isRefreshing` đang là `true`: Đưa request hiện tại vào `failedQueue` dưới dạng một Promise và đợi token mới.
     *   Nếu API `/refresh` trả về lỗi (mã `TOKEN_THEFT_DETECTED` hoặc `INVALID_REFRESH_TOKEN`): Lập tức gọi hàm xóa sạch Zustand store (`logout()`) và điều hướng người dùng tới `/login` kèm Toast thông báo: *"Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!"*.
 
 ---

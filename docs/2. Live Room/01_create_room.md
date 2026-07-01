@@ -21,13 +21,15 @@ Tài liệu đặc tả A-Z tính năng Khởi tạo và Cấu hình phòng Live
 *   Người dùng ở vai trò mặc định `ROLE_USER` khi thực hiện gọi API sẽ bị hệ thống từ chối ngay lập tức với mã HTTP `403 Forbidden` kèm mã lỗi `FORBIDDEN_ACCESS`.
 *   **Giới hạn phòng hoạt động**: Mỗi Producer chỉ được phép có tối đa **1 phòng ACTIVE** tại bất kỳ thời điểm nào. Nếu đã tồn tại phòng ACTIVE, Backend trả lỗi HTTP `409 Conflict` (`ROOM_ALREADY_ACTIVE`) kèm thông tin `roomCode` của phòng đang hoạt động để Frontend điều hướng người dùng.
 
-#### B. Cơ chế sinh mã phòng độc nhất (Room Code Generation & Collision Retry)
+#### B. Cơ chế sinh mã phòng độc nhất & Chống Race Condition (Room Code Generation & Concurrency Control)
 *   Mã phòng (Room Code) là một chuỗi gồm **6 ký tự chữ và số** viết hoa (không chứa các ký tự dễ nhầm lẫn như `0`, `O`, `1`, `I`), ví dụ: `A8B9D1`.
-*   **Chống trùng lặp (Collision Control)**:
+*   **Chống trùng lặp & Race Condition bằng khóa phân tán (Collision & Concurrency Control)**:
     1. Backend sinh mã ngẫu nhiên bằng `SecureRandom`.
-    2. Thực hiện kiểm tra sự tồn tại của mã này trong Redis (`room:status:{roomCode}`) và Database.
-    3. Nếu phát hiện trùng lặp, hệ thống thực hiện sinh lại mã mới (**tối đa 3 lần thử**).
-    4. Nếu sau 3 lần vẫn trùng (xác suất cực kỳ thấp), hệ thống ném lỗi hệ thống `ROOM_CODE_COLLISION_FAILED` (HTTP 500) để đảm bảo không ghi đè dữ liệu.
+    2. Để triệt tiêu hoàn toàn Race Condition khi nhiều thread cùng sinh và kiểm tra một mã phòng đồng thời, hệ thống sử dụng khóa phân tán Redis bằng lệnh `SETNX` (hoặc `setIfAbsent` trong Spring Data Redis) trên key tạm thời: `room:lock:{roomCode}` với TTL **10 giây**.
+    3. Nếu `SETNX` trả về `1` (Thành công - giành được khóa), Backend tiếp tục kiểm tra sự tồn tại trong PostgreSQL (phòng có status = `ACTIVE`). Nếu mã chưa tồn tại, luồng này giữ quyền sở hữu mã phòng và tiến hành lưu DB. Sau khi lưu DB thành công, khóa tạm thời sẽ được chủ động xóa (`DEL`).
+    4. Nếu `SETNX` trả về `0` (Thất bại - trùng mã/trùng khóa), hệ thống thực hiện sinh lại mã mới và thử lại (**tối đa 3 lần thử**).
+    5. Nếu sau 3 lần vẫn thất bại, hệ thống trả lỗi HTTP 500 (`ROOM_CODE_COLLISION_FAILED`).
+    6. **Vá lỗ hổng khóa hết hạn trước khi DB Commit**: Trường hợp DB Postgres bị nghẽn khiến Transaction ghi dữ liệu kéo dài quá 10 giây (vượt TTL khóa tạm Redis khiến khóa tự giải phóng, dẫn tới thread khác giành được lock ghi trùng mã), khi DB Transaction Commit sẽ ném ngoại lệ vi phạm ràng buộc duy nhất `DataIntegrityViolationException` (do DB có index duy nhất `idx_rooms_active_code`). Tầng Service bắt buộc phải bắt tường minh ngoại lệ này để ghi nhận là 1 lần trùng mã (Collision), kích hoạt sinh mã phòng mới và tự động thực hiện lại (Retry) vòng lặp lên tới 3 lần thay vì để sập request bùng ra lỗi 500 hệ thống.
 
 #### C. Chế độ phòng (Room Modes)
 *   **Chế độ OPEN (Vào tự do)**: Cho phép khách hàng có mã phòng tham gia thẳng mà không cần duyệt.
@@ -35,6 +37,18 @@ Tài liệu đặc tả A-Z tính năng Khởi tạo và Cấu hình phòng Live
 
 #### D. Giới hạn số lượng người kết nối (Participants Limit)
 *   Mỗi phòng Live Room giới hạn tối đa **7 người kết nối đồng thời** (bao gồm 1 Host và tối đa 6 Listener) để bảo toàn chất lượng đàm thoại WebRTC Mesh (P2P). Ràng buộc này được lưu cấu hình mặc định trong DB và đồng bộ lên cache Redis.
+
+#### E. Bảo mật kết nối WebSocket (WebSocket Security)
+*   **Chống tấn công Slowloris (Handshake Timeout)**: Nhằm ngăn chặn kẻ tấn công mở hàng ngàn kết nối TCP/HTTP Upgrade tới endpoint `/ws` nhưng cố tình treo lơ lửng không gửi STOMP frame gây cạn kiệt Thread Pool của server:
+    *   Hệ thống bắt buộc phải cấu hình Timeout cho quá trình Handshake/Kết nối STOMP.
+    *   Nếu sau **10 giây** kể từ khi mở TCP socket mà server không nhận được frame `CONNECT` STOMP hợp lệ, Backend sẽ chủ động ngắt kết nối (force close) để giải phóng tài nguyên.
+
+#### F. Cơ chế TTL 2 bước chống Phòng ma (Two-Phase TTL)
+*   Để giải quyết trường hợp mạng Host bị đứt ngay sau khi tạo phòng thành công (dẫn tới phòng bị treo ở trạng thái `ACTIVE` trên DB và Redis suốt 4 tiếng, làm Host bị kẹt không thể tạo phòng mới):
+    *   **Pha 1 (Chờ kết nối)**: Khi API `POST /rooms` tạo phòng thành công, Redis key `room:status:{roomCode}` chỉ được thiết lập TTL ngắn là **30 giây**.
+    *   **Pha 2 (Kích hoạt phòng)**: Khi Host kết nối WebSocket thành công, Backend sẽ gia hạn TTL của key `room:status:{roomCode}` lên **4 giờ**.
+    *   **Hết hạn/Hủy phòng**: Nếu sau 30 giây mà Host không kết nối WebSocket thành công, Redis key sẽ tự động hết hạn và bị xóa. Hệ thống sẽ lắng nghe sự kiện hết hạn qua Redis Keyspace Notification (hoặc tiến trình dọn dẹp chạy ngầm) để cập nhật trạng thái phòng dưới Database Postgres thành `CLOSED`, giải phóng quyền tạo phòng cho Host.
+    *   **Tuyến phòng thủ vững chắc (Scheduler Cron Job)**: Do cơ chế Redis Keyspace Notifications hoạt động không tin cậy và không đảm bảo phân phối tin nhắn thành công (At-Most-Once Delivery, dễ bị mất sự kiện khi mạng chập chờn hoặc JVM GC Pause), hệ thống bắt buộc phải cấu hình một bộ lập lịch chạy ngầm (Scheduler Cron Job) định kỳ mỗi 1-2 phút để quét DB Postgres. Bộ lập lịch này tìm các phòng có `status = 'ACTIVE'` và `created_at` quá 1 phút nhưng không còn tồn tại key `room:status:{roomCode}` trên Redis (do chưa kết nối WebSocket kịp thời nên key đã tự hủy) để tự động cập nhật trạng thái DB thành `CLOSED`, bảo toàn tính toàn vẹn dữ liệu tuyệt đối.
 
 ---
 
@@ -80,12 +94,14 @@ sequenceDiagram
         else Chưa có phòng ACTIVE
         loop Sinh mã phòng (Tối đa 3 lần thử)
             BE->>BE: Sinh mã ngẫu nhiên 6 ký tự
-            BE->>Redis: Kiểm tra tồn tại khóa 'room:status:{roomCode}'
-            alt Không tồn tại trên Redis
+            BE->>Redis: SETNX 'room:lock:{roomCode}' (TTL 10s)
+            alt SETNX thành công (trả về 1)
                 BE->>DB: Kiểm tra mã tồn tại trong bảng rooms với status='ACTIVE'
                 alt Không tồn tại trong DB (Mã độc nhất)
-                    Note over BE: Chọn mã này thành công
+                    Note over BE: Chọn mã này thành công, thoát loop
                 end
+            else SETNX thất bại (trả về 0)
+                Note over BE: Trùng lock, tiếp tục loop sinh mã mới
             end
         end
         
@@ -94,19 +110,39 @@ sequenceDiagram
         else Sinh mã thành công
             Note over BE, DB: Bắt đầu Transaction
             BE->>DB: Lưu Room mới (status='ACTIVE', mode, max_participants=7, host_id)
-            Note over BE, DB: Commit Transaction
             
-            BE->>Redis: Ghi cấu trúc Hash 'room:status:{roomCode}' (status='ACTIVE', current_participants=1, ...) (TTL: 4h)
-            BE->>Redis: Thêm roomCode vào danh sách ZSet quản lý phòng hoạt động
+            alt Thành công
+                Note over BE, DB: Commit Transaction
+                BE->>Redis: DEL 'room:lock:{roomCode}' (Giải phóng lock)
+                BE->>Redis: Ghi cấu trúc Hash 'room:status:{roomCode}' (status='ACTIVE', ...) (TTL: 30s - Pha 1)
+                BE->>Redis: Thêm roomCode vào danh sách ZSet quản lý phòng hoạt động
+                BE-->>FE: HTTP 201 Created (Trả về RoomResponse chứa roomCode)
+            else Thất bại do ném DataIntegrityViolationException (Race condition)
+                Note over BE, DB: Rollback Transaction
+                Note over BE: Xem như 1 lần trùng mã, quay lại loop để sinh mã mới
+            end
             
-            BE-->>FE: HTTP 201 Created (Trả về RoomResponse chứa roomCode)
-            
-            Note over FE, BE: Thiết lập kết nối thời gian thực
+            Note over FE, BE: Thiết lập kết nối thời gian thực & gia hạn TTL
             FE->>BE: Kết nối WebSocket (wss://pwbmini.com/ws, JWT in CONNECT frame)
-            BE-->>FE: Kết nối thành công
-            FE->>BE: SUBSCRIBE /topic/rooms/{roomCode}/members
-            FE->>BE: SUBSCRIBE /topic/rooms/{roomCode}/playback
-            FE-->>Host: Hiển thị giao diện Dashboard Phòng Live ảo
+            
+            alt Kết nối WebSocket thành công (trong vòng 30s)
+                BE->>Redis: Gia hạn TTL 'room:status:{roomCode}' thành 4 giờ (Pha 2)
+                BE-->>FE: Kết nối thành công
+                FE->>BE: SUBSCRIBE /topic/rooms/{roomCode}/members
+                FE->>BE: SUBSCRIBE /topic/rooms/{roomCode}/playback
+                FE-->>Host: Hiển thị giao diện Dashboard Phòng Live ảo
+            else Không kết nối thành công (sau 30s)
+                Note over Redis: Khóa 'room:status:{roomCode}' tự động hết hạn (TTL 30s)
+                par Tuyến 1 (Bất đồng bộ)
+                    Redis->>BE: Redis Keyspace Expired Event
+                    BE->>DB: Cập nhật Room (status='CLOSED', closed_at=now)
+                    BE->>Redis: ZREM danh sách phòng hoạt động
+                and Tuyến 2 (Tuyến phòng thủ vững chắc)
+                    Job->>DB: Scheduler Cron Job quét tìm phòng ACTIVE mồ côi (> 1 phút)
+                    Job->>DB: Cập nhật DB Room (status='CLOSED', closed_at=now)
+                    Job->>Redis: ZREM danh sách phòng hoạt động
+                end
+            end
         end
         end
     end
@@ -115,13 +151,10 @@ sequenceDiagram
 ##### 📝 Mô tả chi tiết các bước xử lý:
 1.  **Gửi yêu cầu**: Producer thiết lập chế độ phòng (OPEN hoặc MODERATED) và click tạo. Frontend gửi `POST /api/v1/rooms` đính kèm Token JWT.
 2.  **Kiểm tra quyền và giới hạn**: Backend xác thực Token và chỉ cho phép đi tiếp nếu User có vai trò `ROLE_USER_PRO`. Đồng thời kiểm tra xem Producer đã có phòng ACTIVE hay chưa — nếu đã có, trả HTTP 409 (`ROOM_ALREADY_ACTIVE`) kèm `roomCode` hiện tại.
-3.  **Sinh mã phòng**: Backend thực hiện vòng lặp (tối đa 3 lần) để sinh mã 6 chữ số/chữ viết hoa không trùng lặp:
-    *   Truy vấn nhanh Redis key `room:status:{roomCode}`.
-    *   Truy vấn PostgreSQL tìm phòng có trạng thái `ACTIVE` trùng mã.
-    *   Nếu vượt quá 3 lần trùng, báo lỗi HTTP 500.
-4.  **Lưu Database**: Lưu bản ghi phòng mới vào Postgres để phục vụ báo cáo lịch sử.
-5.  **Cập nhật Redis**: Ghi dữ liệu trạng thái phòng vào Redis Hash để phục vụ tra cứu nhanh khi khách hàng kết nối, đặt thời gian sống mặc định là 4 giờ (bằng giới hạn tối đa của một phiên phòng).
-6.  **Kết nối WebSocket**: Frontend nhận Room Code, khởi tạo kết nối STOMP WebSocket tới cổng `/ws` của server, sau đó thực hiện đăng ký nhận tin nhắn (SUBSCRIBE) trên các topic thành viên và đồng bộ nhạc của phòng.
+3.  **Sinh mã phòng & Chống Race Condition**: Backend thực hiện vòng lặp (tối đa 3 lần) để sinh mã 6 chữ số/chữ viết hoa không trùng lặp. Tại mỗi lượt, Backend gửi lệnh `SETNX` lên Redis để giữ khóa tạm thời `room:lock:{roomCode}` (TTL 10 giây). Chỉ khi giành được khóa, Backend mới tiếp tục truy vấn DB để đảm bảo mã phòng là độc nhất trước khi tiến hành lưu trữ. Nếu thất bại sau 3 lần (bao gồm cả trường hợp bị trùng lặp khi check DB/Redis hoặc bị ném ngoại lệ vi phạm ràng buộc duy nhất do khóa hết hạn trước khi DB commit), hệ thống trả lỗi HTTP 500 (`ROOM_CODE_COLLISION_FAILED`).
+4.  **Lưu Database & Cập nhật Redis Pha 1**: Lưu bản ghi phòng mới vào Postgres. Trường hợp xảy ra lỗi trùng khóa do latency làm trôi khóa tạm của Redis, Spring Boot bắt lỗi `DataIntegrityViolationException` để kích hoạt Retry. Nếu thành công, giải phóng khóa tạm thời và ghi thông tin trạng thái phòng lên Redis Hash với TTL ban đầu ngắn hạn là **30 giây** (Pha 1 - Chờ kết nối).
+5.  **Kết nối WebSocket & Gia hạn Pha 2**: Frontend nhận Room Code, khởi tạo kết nối STOMP WebSocket tới cổng `/ws`. Khi nhận STOMP CONNECT hợp lệ của Host trong vòng 30s, Backend thực hiện gia hạn TTL của key `room:status:{roomCode}` lên **4 giờ** (Pha 2 - Hoạt động).
+6.  **Xử lý Phòng ma (Timeout)**: Nếu sau 30 giây kể từ khi tạo phòng mà Host không thiết lập kết nối WebSocket thành công, Redis key `room:status:{roomCode}` sẽ tự hủy. Lúc này hệ thống tự động xử lý cập nhật trạng thái phòng dưới Database Postgres sang `CLOSED` qua 2 tuyến song song: (1) Nhận Expired Event từ Redis Keyspace Notification, và (2) Scheduler Cron Job định kỳ 1-2 phút quét DB tìm phòng ACTIVE mồ côi quá 1 phút không có kết nối thực sự trên Redis, đảm bảo an toàn tuyệt đối.
 
 ---
 
@@ -152,9 +185,11 @@ CREATE UNIQUE INDEX idx_rooms_active_code ON rooms(room_code) WHERE status = 'AC
 
 Khi phòng hoạt động, toàn bộ trạng thái thời gian thực được lưu trên Redis để xử lý tốc độ cao:
 
-| Định dạng Khóa (Redis Key) | Kiểu dữ liệu | Trường dữ liệu (Fields) | TTL | Mục đích sử dụng |
+| Định dạng Khóa (Redis Key) | Kiểu dữ liệu | Trường dữ liệu (Fields) / Giá trị (Value) | TTL | Mục đích sử dụng |
 | :--- | :--- | :--- | :--- | :--- |
-| `room:status:{roomCode}` | `Hash` | `hostId`: UUID<br>`hostDisplayName`: String (Tên hiển thị của Host, denormalize từ `users.fullName`)<br>`mode`: `OPEN`/`MODERATED`<br>`status`: `ACTIVE`<br>`maxParticipants`: `7`<br>`currentParticipants`: `1` (Mặc định có Host)<br>`activeSourceId`: `null` (Demo được chọn)<br>`createdAt`: ISO 8601 | **4 giờ** (Max session) | Lưu trạng thái cấu hình và vận hành thời gian thực của phòng. |
+| `room:status:{roomCode}` | `Hash` | `hostId`: UUID<br>`hostDisplayName`: String<br>`mode`: `OPEN`/`MODERATED`<br>`status`: `ACTIVE`<br>`maxParticipants`: `7`<br>`currentParticipants`: `1`<br>`activeSourceId`: `null`<br>`createdAt`: ISO 8601 | **30 giây** khi khởi tạo (Pha 1); gia hạn thành **4 giờ** sau khi Host kết nối WebSocket thành công (Pha 2). | Lưu trạng thái cấu hình và vận hành thời gian thực của phòng. |
+| `room:lock:{roomCode}` | `String` | `"locked"` | **10 giây** | Khóa phân tán tạm thời dùng để chống trùng lặp mã phòng khi sinh đồng thời. |
+| `room:host_disconnect:{roomCode}` | `String` | `"disconnected"` | **5 phút** | Khóa tạm được ghi khi Host mất kết nối WebSocket, đếm ngược cửa sổ 5 phút Grace Period để tự động dọn dẹp đóng phòng. |
 
 ---
 
@@ -225,14 +260,19 @@ Sau khi tạo phòng thành công, Frontend thiết lập kết nối WebSocket 
 
 *   **WebSocket Endpoint**: `wss://pwbmini.com/ws` (bắt buộc TLS trong môi trường Production)
 *   **Xác thực kết nối**: Frontend gửi Access Token JWT trong STOMP `CONNECT` frame header `Authorization: Bearer <token>`. Backend sử dụng `ChannelInterceptor` xác thực token trước khi cho phép kết nối. Kết nối không có token hợp lệ bị từ chối ngay lập tức.
+*   **Bảo mật kết nối (Handshake Timeout)**: Server cấu hình giới hạn tối đa **10 giây** kể từ khi mở TCP/HTTP Upgrade socket. Nếu không nhận được frame STOMP `CONNECT` hợp lệ trong 10s này, Server sẽ chủ động ngắt kết nối WebSocket (force close) để chống tấn công DoS Slowloris.
+*   **Kích hoạt phòng & Gia hạn TTL (Two-Phase TTL)**: Khi nhận STOMP `CONNECT` hợp lệ của Host, Backend thực hiện gia hạn TTL của key `room:status:{roomCode}` từ **30 giây** lên **4 giờ**.
 *   **Kênh Đăng ký nhận tin (Subscribe Topics)**:
     *   `/topic/rooms/{roomCode}/members`: Nhận danh sách cập nhật thành viên online, sự kiện tham gia/rời phòng.
     *   `/topic/rooms/{roomCode}/playback`: Nhận lệnh đồng bộ trạng thái trình phát nhạc (Play/Pause/Seek).
     *   `/topic/rooms/{roomCode}/chat`: Nhận tin nhắn chat tạm thời từ các thành viên trong phòng *(sẽ được đặc tả chi tiết trong bài riêng)*.
-*   **Auto-Reconnect & Heartbeat**:
-    *   Frontend thực hiện reconnect tự động với **exponential backoff** (1s → 2s → 4s → tối đa 30s) khi kết nối bị đứt.
+*   **Auto-Reconnect & Heartbeat & Host Grace Period**:
+    *   Frontend thực hiện reconnect tự động với **exponential backoff** (1s → 2s → 4s → tối đa 30s) khi kết nối bị đứt. Giới hạn tối đa **5 lần** thử lại (xem chi tiết mục 5.3).
     *   STOMP Heartbeat: cấu hình `heartbeat-incoming: 10000ms`, `heartbeat-outgoing: 10000ms` để phát hiện kết nối chết.
-    *   Nếu Host mất kết nối WebSocket quá **60 giây** mà không reconnect thành công, hệ thống đánh dấu phòng `INACTIVE_HOST` nhưng chưa đóng ngay để cho phép khôi phục. Nếu vượt **5 phút**, phòng tự động chuyển sang `CLOSED`.
+    *   **Cơ chế Grace Period của Host dùng Redis TTL (Tránh rò rỉ RAM)**: Để tránh việc tạo các luồng hẹn giờ chạy ngầm động (Dynamic Java Schedulers) trong bộ nhớ gây rò rỉ RAM khi có hàng ngàn phòng chạy đồng thời, hệ thống tận dụng hạ tầng Redis để đếm ngược:
+        1. Ngay khi nhận sự kiện Host bị ngắt kết nối WebSocket (`DisconnectEvent`), Backend sinh một khóa tạm trên Redis: `room:host_disconnect:{roomCode}` với TTL đúng **5 phút**, đồng thời đánh dấu trạng thái phòng là `INACTIVE_HOST`.
+        2. Nếu Host kết nối lại thành công trong vòng 5 phút, Backend thực hiện lệnh `DEL` để hủy khóa tạm `room:host_disconnect:{roomCode}` và chuyển trạng thái phòng lại thành `ACTIVE`.
+        3. Nếu hết 5 phút mà Host không kết nối lại, khóa tạm sẽ tự động hết hạn. Sự kiện hết hạn (`Expired Event` qua Redis Keyspace Notifications hoặc Job dọn dẹp) sẽ kích hoạt tiến trình dọn dẹp đóng phòng vĩnh viễn (Postgres chuyển sang `CLOSED`, xóa các key trạng thái phòng trên Redis).
 
 ---
 
@@ -278,9 +318,11 @@ Mỗi lỗi nghiệp vụ được định nghĩa trong `ErrorCode` Enum với H
         *   `Connecting` (Badge Xám nhạt, nhấp nháy chậm).
         *   `Connected` (Badge Đen chữ Trắng ổn định).
         *   `Disconnected` (Badge Xám đậm, cảnh báo đứt kết nối).
-*   **Tự động kết nối lại (Reconnection)**:
+*   **Tự động kết nối lại (Reconnection) & Giới hạn thử lại**:
     *   Khi đứt mạng, hiển thị thông báo: *"Mất kết nối. Đang thử lại trong X giây..."*
     *   Thực hiện cơ chế reconnection với exponential backoff (1s -> 2s -> 4s -> max 30s) như đã đặc tả ở mục 4.2.
+    *   **Giới hạn số lần thử lại (Max Reconnection Attempts)**: Frontend thực hiện reconnect tối đa **5 lần** liên tục. Nếu sau lần thứ 5 kết nối vẫn không thành công, Frontend ngắt hoàn toàn tiến trình kết nối STOMP và hiển thị màn hình báo lỗi toàn trang (**Fallback UI**) để thông báo rõ ràng cho Host.
+    *   **Fallback UI toàn trang**: Thiết kế Grayscale tối giản, hiển thị dòng chữ cảnh báo: *"Kết nối tới phòng Live Room đã bị ngắt. Vui lòng tải lại trang hoặc tạo phòng mới"*, đi kèm nút hành động "Tải lại trang" và nút "Quay về Dashboard".
 *   **Hạn chế Đa tab (Multi-tab Prevention)**:
     *   Để tránh xung đột WebRTC và feedback âm thanh, khi phát hiện người dùng mở tab thứ hai của cùng một phòng Live Room, Frontend sử dụng `BroadcastChannel` để cảnh báo và tự động chặn/redirect tab mới mở về trang chủ.
 
@@ -288,7 +330,7 @@ Mỗi lỗi nghiệp vụ được định nghĩa trong `ErrorCode` Enum với H
 
 ### 5.4. Sơ đồ Luồng Màn hình (Screen Flow)
 
-Luồng chuyển dịch màn hình từ trang chủ của Producer đến phòng Live Room:
+Luồng chuyển dịch màn hình từ trang chủ của Producer đến phòng Live Room và luồng xử lý lỗi kết nối:
 
 ```mermaid
 graph TD
@@ -300,11 +342,14 @@ graph TD
     
     CreateConfigPage -->|Bấm nút tạo & gọi API| CreateAction{Backend tạo phòng}:::action
     
-    CreateAction -->|Thất bại: 403 Forbidden| ProducerDashboard
+    CreateAction -->|Thất bại: 403/409| ProducerDashboard
     CreateAction -->|Thành công: Trả Room Code| LiveRoomPage["Màn hình Phòng Live ảo <br> /rooms/A8B9D1"]:::screen
     
     LiveRoomPage -->|Kích hoạt| ConnectWS{Kết nối WebSocket /ws}:::action
     ConnectWS -->|Thành công| ActiveRoom[Bắt đầu nhận tín hiệu điều khiển]:::action
+    ConnectWS -->|Thất bại hoàn toàn sau 5 lần thử| FallbackPage["Màn hình lỗi kết nối <br> Fallback UI toàn trang"]:::screen
+    FallbackPage -->|Click Tải lại trang| LiveRoomPage
+    FallbackPage -->|Click Quay về Dashboard| ProducerDashboard
 ```
 
 ---

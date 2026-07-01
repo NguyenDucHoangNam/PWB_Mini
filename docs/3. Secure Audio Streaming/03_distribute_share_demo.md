@@ -22,6 +22,9 @@ Tài liệu đặc tả A-Z tính năng Cấu hình và Phân phối Demo (Distr
 *   Để tổ chức dữ liệu khoa học giống như một hội thoại chat, hệ thống lưu trữ các tệp demo gửi đi dưới dạng tin nhắn hội thoại.
 *   Mỗi cặp **(Producer_ID, Recipient_Email)** chỉ sở hữu duy nhất **1 thực thể luồng chia sẻ chung (`shared_threads`)**.
 *   Mỗi lần Producer gửi bài hát mới cho email đó, hệ thống sẽ chèn thêm bản ghi phân phối mới (`demo_distributions`) trỏ về cùng ID luồng chia sẻ (`thread_id`) này. Điều này giúp khách hàng truy cập có thể xem lại toàn bộ lịch sử các bản demo cũ từng nhận được trên một giao diện thống nhất.
+*   **Cơ chế UPSERT nguyên tử tránh Race Condition (Atomic UPSERT)**: Thay vì sử dụng cơ chế kiểm tra sự tồn tại rồi mới chèn (Check-then-Act) ở tầng logic ứng dụng (dễ xảy ra Race Condition khi click đúp chuột gây lỗi UniqueConstraintViolation), hệ thống thực hiện câu lệnh UPSERT nguyên tử dưới DB:
+    `INSERT INTO shared_threads (id, producer_id, recipient_email, created_at) VALUES (?, ?, ?, ?) ON CONFLICT (producer_id, recipient_email) DO UPDATE SET created_at = EXCLUDED.created_at RETURNING id;`
+    Cách này giúp DB tự động xử lý tương tranh nguyên tử và trả về `thread_id` đúng, loại bỏ hoàn toàn lỗi vỡ API 500 khi trùng lặp khóa.
 
 #### B. Sinh Token chia sẻ bảo mật (Secure Token Generation)
 *   Liên kết chia sẻ gửi cho khách hàng dạng: `https://pwbmini.com/shared/{shareToken}`.
@@ -32,10 +35,26 @@ Tài liệu đặc tả A-Z tính năng Cấu hình và Phân phối Demo (Distr
 *   Hệ thống không gọi trực tiếp dịch vụ gửi mail (SMTP) trong transaction tạo phân phối để tránh treo API khi SMTP phản hồi chậm hoặc lỗi kết nối.
 *   Thông tin gửi email được đóng gói thành sự kiện và ghi vào bảng `outbox_events` trong cùng một Database Transaction.
 *   Tiến trình ngầm (Mail Worker) đọc bảng outbox định kỳ, gửi email qua dịch vụ SMTP (Gmail/Resend) và đánh dấu hoàn thành.
+*   **Chống gửi trùng Email trên cụm Multi-instance (Pessimistic Locking & Skip Locked)**: Để ngăn ngừa tình huống nhiều instance Mail Worker cùng kích hoạt chu kỳ quét Outbox cùng một lúc dẫn đến đọc ra cùng các bản ghi `PENDING` và dội bom trùng lặp email cho đối tác, câu lệnh SQL quét Outbox bắt buộc phải áp dụng khóa bi quan bỏ qua hàng bị khóa:
+    `SELECT * FROM outbox_events WHERE status = 'PENDING' ORDER BY created_at ASC FOR UPDATE SKIP LOCKED LIMIT 5;`
+    Lệnh này đảm bảo mỗi instance sẽ chỉ giành quyền xử lý một tập hợp sự kiện độc lập mà không bị chồng lấn.
 
 #### D. Tự động gợi ý người nhận (Recipient Autocomplete)
 *   Để tối ưu hóa trải nghiệm, khi Producer nhập những chữ cái đầu tiên của email người nhận, Frontend gọi API Autocomplete:
     *   Truy vấn danh sách các `recipient_email` độc nhất từ các luồng chia sẻ cũ của chính Producer đó (`GET /api/v1/demos/recipients/suggest?q={keyword}`).
+*   **Giới hạn số lượng gợi ý (LIMIT 10)**: Để tránh phình dung lượng JSON phản hồi làm đứng Frontend và tốn băng thông khi Producer có thâm niên chia sẻ cho hàng ngàn email, API gợi ý gợi ý email gợi ý bắt buộc phải áp dụng giới hạn cứng `LIMIT 10` trong câu lệnh SQL. Chỉ hiển thị 10 gợi ý khớp nhất (theo thời gian tương tác gần nhất).
+*   **Tối ưu hiệu năng gợi ý Email (Autocomplete Performance)**: API Autocomplete tuyệt đối không thực hiện quét bảng phân phối `demo_distributions` (có thể chứa hàng vạn bản ghi) bằng lệnh `DISTINCT` hoặc `GROUP BY` gây Full Table Scan. Thay vào đó, API bắt buộc phải trỏ thẳng tới bảng `shared_threads`. Nhờ có index của ràng buộc unique `uq_threads_pair (producer_id, recipient_email)`, cơ sở dữ liệu sẽ thực thi Index Scan cực kỳ nhanh gọn ($O(\log N)$) và trả về kết quả gợi ý trong vài mili-giây.
+
+#### E. Ngăn chặn chia sẻ liên kết trái phép (Link Forwarding Prevention - Phase 2)
+*   **Vấn đề**: Hiện tại, tính bảo mật của liên kết chia sẻ phụ thuộc hoàn toàn vào độ bảo mật của chuỗi UUID `shareToken`. Nếu đối tác nhận nhạc vô tình hoặc cố tình copy link này gửi vào các nhóm chat công khai, bất kỳ ai cũng có thể truy cập nghe hoặc tải gốc (nếu `allowDownload = true`).
+*   **Giải pháp bảo vệ Phase 2**: Đối với các bản demo có giá trị cao, khi người dùng truy cập link `https://pwbmini.com/shared/{shareToken}`, Backend sẽ tự động phát sinh mã OTP 4 số và gửi về hòm thư `recipient_email` đã được cấu hình trong phân phối đó. Khách hàng bắt buộc phải nhập đúng OTP để mở giao diện phát nhạc.
+*   **Cơ chế lưu trữ & Chống dò mã OTP (Redis OTP Storage & Brute-Force Protection)**:
+    *   Mã OTP 4 số khi sinh ra được lưu tạm vào Redis String Key dạng: `shared:otp:{shareToken}` với giá trị là mã OTP và TTL giới hạn cứng **5 phút**.
+    *   Để chống brute-force, hệ thống lưu một bộ đếm số lần nhập sai trên Redis. Nếu người dùng nhập sai OTP liên tiếp **3 lần**, hệ thống lập tức xóa mã OTP đó khỏi Redis, đồng thời ghi nhận khóa quyền xác thực của link `shareToken` đó bằng key `shared:lock:{shareToken}` với TTL **15 phút**, chặn đứng mọi kịch bản quét dò mã tự động.
+
+#### F. Ràng buộc trạng thái Demo gốc (Parental Status Cascade Rule)
+*   **Ràng buộc runtime**: Khi khách hàng phân giải link `/shared/{shareToken}`, Backend bắt buộc phải join kiểm tra trạng thái của bản demo gốc tương ứng dưới DB.
+*   Nếu trạng thái bản demo không phải là `ACTIVE` (ví dụ: đã bị Producer xóa, đặt ẩn, hoặc tệp nhạc bị lỗi xử lý mang trạng thái `FAILED`), Backend lập tức từ chối quyền truy cập và trả về lỗi `HTTP 403 Forbidden` để vô hiệu hóa liên kết chia sẻ tự động.
 
 ---
 
@@ -77,10 +96,8 @@ sequenceDiagram
     BE->>BE: Xác thực Host sở hữu Demo
     
     Note over BE, DB: Bắt đầu Database Transaction
-    BE->>DB: Truy vấn shared_threads theo (producer_id, recipientEmail)
-    alt Chưa tồn tại luồng chia sẻ
-        BE->>DB: Tạo Shared Thread mới
-    end
+    BE->>DB: Thực hiện lệnh UPSERT shared_threads (INSERT ... ON CONFLICT DO UPDATE)
+    DB-->>BE: Trả về threadId (cũ hoặc mới sinh)
     
     BE->>BE: Sinh Secure shareToken (UUIDv4)
     BE->>DB: Lưu demo_distributions (allow_download, share_token, status_active)
@@ -93,7 +110,7 @@ sequenceDiagram
     
     Note over Worker, SMTP: --- Tiến trình gửi Mail chạy ngầm ---
     loop Quét bảng outbox_events định kỳ
-        Worker->>DB: Quét các sự kiện chưa xử lý (status='PENDING')
+        Worker->>DB: Quét sự kiện PENDING (FOR UPDATE SKIP LOCKED LIMIT 5)
         Worker->>SMTP: Gửi email nghe thử kèm link: /shared/{token}
         SMTP-->>Worker: Gửi thành công
         Worker->>DB: Cập nhật sự kiện Outbox (status='PROCESSED')
@@ -103,12 +120,10 @@ sequenceDiagram
 
 ##### 📝 Mô tả chi tiết các bước xử lý:
 1.  **Gửi yêu cầu chia sẻ**: Producer điền thông tin chia sẻ và nhấn gửi. Frontend gọi API `POST /api/v1/demos/{demoId}/distribute`.
-2.  **Khởi tạo luồng**: Backend thực thi kiểm tra sự tồn tại của luồng chia sẻ cũ:
-    *   Nếu là khách hàng mới: Tạo luồng `shared_threads` mới để bắt đầu dòng thời gian gửi file.
-    *   Nếu là khách hàng cũ: Sử dụng lại `thread_id` cũ.
+2.  **Khởi tạo hoặc tái sử dụng luồng (Atomic UPSERT)**: Backend thực thi câu lệnh SQL UPSERT nguyên tử đối với bảng `shared_threads`. Cách này giúp tự động tạo mới luồng chia sẻ nếu là khách hàng mới, hoặc tái sử dụng lại `thread_id` cũ nếu đã tồn tại, tránh xung đột tương tranh.
 3.  **Lưu phân phối**: Sinh mã Token độc quyền UUID v4, chèn dòng tin nhắn nhạc vào bảng `demo_distributions`.
 4.  **Tạo sự kiện Outbox**: Đóng gói thông tin email nhận, nội dung mail và mã Token chia sẻ, ghi vào bảng `outbox_events` trong cùng transaction lưu phân phối. Đảm bảo tính nguyên tử (Atomic): Nếu lưu phân phối thành công thì chắc chắn email sẽ được xếp hàng gửi đi.
-5.  **Gửi Mail chạy ngầm**: Worker quét bảng Outbox, thực thi gửi Email chứa liên kết nghe thử độc quyền dạng `https://pwbmini.com/shared/{token}` qua SMTP và đánh dấu hoàn tất.
+5.  **Gửi Mail chạy ngầm (Concurrency Control)**: Mail Worker chạy ngầm quét bảng Outbox định kỳ. Các instance Worker sử dụng cơ chế khóa bi quan bỏ qua hàng đang bị khóa (`FOR UPDATE SKIP LOCKED LIMIT 5`) để nhận về các sự kiện `PENDING` độc lập, tiến hành gửi Email qua SMTP và đánh dấu hoàn thành, đảm bảo không có tình trạng gửi trùng mail cho khách.
 
 ---
 
@@ -143,8 +158,6 @@ CREATE TABLE demo_distributions (
     CONSTRAINT fk_dist_demo FOREIGN KEY (demo_id) REFERENCES demos(id)
 );
 
--- Index tối ưu hóa tìm kiếm luồng chia sẻ theo email khách
-CREATE INDEX idx_dist_recipient_token ON demo_distributions(recipient_email, share_token);
 ```
 
 ---
@@ -193,7 +206,10 @@ CREATE INDEX idx_dist_recipient_token ON demo_distributions(recipient_email, sha
 ### 4.2. API Tự động gợi ý Email người nhận cũ (Autocomplete Suggestion)
 *   **Method**: `GET`
 *   **Path**: `/api/v1/demos/recipients/suggest`
-*   **Query Params**: `q` (Chuỗi ký tự nhập vào, tối thiểu 2 ký tự)
+*   **Query Params**: 
+    *   `q` (Chuỗi ký tự nhập vào, tối thiểu 2 ký tự)
+    *   `limit` (Số gợi ý tối đa, mặc định và giới hạn cứng là `10`)
+*   **Mô tả**: Tìm kiếm tối đa 10 email đối tác cũ khớp với từ khóa tìm kiếm để tránh nghẽn băng thông và treo giao diện.
 *   **Auth Level**: `Requires ROLE_USER_PRO`
 
 #### Response Thành công (200 OK):

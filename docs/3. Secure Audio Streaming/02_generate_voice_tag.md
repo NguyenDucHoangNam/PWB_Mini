@@ -24,6 +24,9 @@ Tài liệu đặc tả A-Z tính năng Tạo Voice Tag từ Văn bản sử d�
 *   Mỗi Producer có thể tạo nhiều Voice Tag khác nhau nhưng chỉ có tối đa **1 Voice Tag được đặt làm mặc định (`is_default = true`)** tại bất kỳ thời điểm nào.
 *   Khi thiết lập một Voice Tag làm mặc định, hệ thống tự động cập nhật tất cả các Voice Tag khác của Producer đó về `is_default = false` trong cùng một transaction.
 *   Khi Producer tải lên bản nhạc mới (Usecase 1) mà không chỉ định cụ thể `voiceTagId`, hệ thống tự động tìm và áp dụng Voice Tag mặc định này.
+*   **Nguyên tử hóa mức cơ sở dữ liệu (Unique Partial Index)**: Để tránh tình trạng Race Condition khi Producer nhấn chuột nhanh/gửi các yêu cầu đồng thời thiết lập mặc định cho 2 tag khác nhau dẫn đến có nhiều hơn 1 tag mang giá trị mặc định, cơ sở dữ liệu PostgreSQL bắt buộc phải cấu hình ràng buộc Unique Partial Index ở mức schema:
+    `CREATE UNIQUE INDEX idx_one_default_per_user ON voice_tags (owner_id) WHERE is_default = true;`
+    Khi xảy ra xung đột tương tranh, DB sẽ ném lỗi `DataIntegrityViolationException`. Bộ xử lý lỗi tập trung (`GlobalExceptionHandler`) bắt buộc phải bắt ngoại lệ này, kiểm tra vi phạm đối với tên index `idx_one_default_per_user` và chuyển đổi thành phản hồi HTTP `409 Conflict` kèm mã lỗi nghiệp vụ `VOICE_TAG_ALREADY_DEFAULT` thay vì bùng lỗi 500 thô kệch.
 
 #### C. Lưu trữ & Preview Bảo mật
 *   Tệp âm thanh Voice Tag được lưu tại S3 Private Bucket dưới đường dẫn `voicetags/{UUID}.mp3`.
@@ -34,13 +37,28 @@ Tài liệu đặc tả A-Z tính năng Tạo Voice Tag từ Văn bản sử d�
     *   Backend ghi nhận log chi tiết lỗi, trả về HTTP `502 Bad Gateway` kèm mã lỗi nghiệp vụ `TTS_SERVICE_FAILED`.
     *   Giữ nguyên danh sách Voice Tag hiện tại của người dùng để họ thử lại sau.
 
+#### E. Cấu hình SSML & Cắt khoảng lặng giọng đọc (SSML & Silence Removal)
+*   **Nâng cấp SSML đọc tên nghệ danh (MIME/SSML Pronunciation Control)**: Nhằm kiểm soát cách phát âm các nghệ danh dạng từ viết tắt hoặc viết cách điệu (ví dụ: "HNAM" phát âm chuẩn thành "Hắc Nam" thay vì bị TTS đọc vấp thành "Hát-Năm"), Backend nâng cấp Request gửi sang Google TTS API từ định dạng Text thường sang định dạng **SSML (Speech Synthesis Markup Language)**.
+    *   Frontend cung cấp trường nhập liệu hỗ trợ phiên âm hoặc chọn chế độ đánh vần.
+    *   Payload gửi sang GCP được bọc trong thẻ `<speak>`: `<speak>Bản nghe thử của <say-as interpret-as="characters">HNAM</say-as></speak>` để điều chỉnh cao độ, cách phát âm.
+*   **Bộ lọc chữ thô tầng Service (Raw Text Backend Validation)**: Do Spring validation sử dụng `@Size(max=250)` để cho phép chứa cú pháp SSML, kẻ xấu có thể gửi đoạn văn bản thô (không chứa XML/SSML tag) dài tới 240 ký tự, vượt quá 100 ký tự thô làm vỡ bố cục mixing Sidechain. Do đó, tại tầng Service của Backend trước khi gửi yêu cầu sang Google Cloud TTS, hệ thống bắt buộc phải dùng bộ lọc Regular Expression (hoặc XML parser gọn nhẹ) để lột bỏ tất cả các thẻ tag SSML (như `<speak>`, `<say-as>`, v.v.) rồi kiểm tra độ dài văn bản thô thực tế. Nếu `rawText.length() > 100`, Backend sẽ ném ngay lỗi `BusinessException` với mã lỗi `TTS_TEXT_TOO_LONG` (trả về HTTP `400 Bad Request`).
+*   **Cắt khoảng lặng giọng đọc (Silence Removal)**: Giọng đọc tạo ra từ Google TTS thường chứa khoảng lặng (silence padding) khoảng 0.3s - 0.5s ở đầu và cuối tệp. Nhằm tránh lỗi dìm âm lượng nhạc nền sớm vô lý (Sidechain Ducking Premature Trigger) khi ghép nhạc ở Usecase 01, FFmpeg Async Worker bắt buộc phải chạy bộ lọc `silenceremove` lên tệp Voice Tag trước khi map vào lệnh `sidechaincompress`:
+    `silenceremove=start_threshold=-50dB:start_duration=1:stop_threshold=-50dB:stop_duration=1:stop_periods=-1`
+
+#### F. Cơ chế Giao dịch Đền bù dọn rác S3 (Compensation Transaction)
+*   Do Backend phải tải tệp `.mp3` lên S3 trước khi commit lưu thông tin vào Database PostgreSQL, nếu transaction lưu DB bị lỗi/rollback (ví dụ: ngắt kết nối DB), tệp tin đã tải lên S3 sẽ bị mồ côi vĩnh viễn gây lãng phí dung lượng.
+*   **Giải pháp đền bù**: Toàn bộ tiến trình lưu DB được bọc trong khối `try-catch`. Nếu xảy ra bất cứ ngoại lệ nào lúc ghi DB hoặc Commit Transaction, Backend bắt buộc phải lập tức gọi hàm xóa đền bù `s3.deleteObject(s3Key)` để dọn dẹp file rác trên S3 trước khi ném ngoại lệ trả về lỗi cho Frontend.
+*   **Resilience chống lỗi kép (Double Failure Resilience)**: Nếu quá trình gọi S3 `deleteObject` trong khối `catch` bị sập theo do lỗi mạng hoặc timeout (lỗi kép), Backend bắt buộc phải:
+    1. Ghi nhận một bản ghi log mức `CRITICAL` có cấu trúc rõ ràng: `{"event": "S3_COMPENSATION_ORPHAN", "s3Key": "..."}` để hệ thống giám sát nhật ký (như ELK Alerting) lập tức gửi cảnh báo DevOps xử lý dọn dẹp thủ công.
+    2. Đồng thời, đẩy tác vụ dọn dẹp đền bù này vào một hàng đợi hoặc luồng xử lý bất đồng bộ (`@Async`) được cấu hình cơ chế tự động thử lại (Retry với Exponential Backoff).
+
 ---
 
 ### 1.3. Quy tắc Xác thực Dữ liệu (Validation Rules)
 
 | API Request | Trường dữ liệu | Ràng buộc | Annotation (Backend) | Mô tả |
 | :--- | :--- | :--- | :--- | :--- |
-| `CreateVoiceTagRequest` | `textContent` | Bắt buộc, tối đa 100 ký tự | `@NotBlank`, `@Size(max=100)` | Nội dung chữ để đọc thành tiếng |
+| `CreateVoiceTagRequest` | `textContent` | Bắt buộc, tối đa 250 ký tự (bao gồm các thẻ SSML) | `@NotBlank`, `@Size(max=250)` | Nội dung SSML hoặc chữ thường để đọc thành tiếng (phần chữ thô không tính tag tối đa 100 ký tự) |
 | | `languageCode` | Bắt buộc, định dạng quốc tế | `@NotBlank`, `@Pattern(regexp="^[a-z]{2}-[A-Z]{2}$")` | Ví dụ: `vi-VN`, `en-US` |
 | | `voiceName` | Bắt buộc | `@NotBlank` | Tên giọng đọc cụ thể của Google TTS |
 
@@ -85,10 +103,14 @@ sequenceDiagram
             BE->>S3: Upload tệp nhị phân lên S3
             
             Note over BE, DB: Bắt đầu Transaction
-            BE->>DB: Ghi nhận Voice Tag mới (is_default=false, s3_key, text_content)
-            Note over BE, DB: Commit Transaction
-            
-            BE-->>FE: HTTP 201 Created (Trả thông tin chi tiết Voice Tag vừa tạo)
+            alt Ghi DB thành công
+                BE->>DB: Ghi nhận Voice Tag mới (is_default=false, s3_key, text_content)
+                Note over BE, DB: Commit Transaction
+                BE-->>FE: HTTP 201 Created (Trả thông tin chi tiết Voice Tag)
+            else Ghi DB thất bại (Rollback)
+                BE->>S3: Gọi s3.deleteObject(s3Key) xóa file vừa upload (Đền bù)
+                BE-->>FE: HTTP 500 Internal Server Error (DATABASE_ERROR)
+            end
             FE-->>Producer: Hiển thị Voice Tag mới trong danh sách
         end
     end
@@ -125,6 +147,9 @@ CREATE TABLE voice_tags (
 
 -- Index tối ưu hóa truy vấn tìm kiếm tag của Producer
 CREATE INDEX idx_voice_tags_owner ON voice_tags(owner_id);
+
+-- Ràng buộc duy nhất 1 thẻ mặc định cho mỗi user (Unique Partial Index chống Race Condition)
+CREATE UNIQUE INDEX idx_one_default_per_user ON voice_tags (owner_id) WHERE is_default = true;
 ```
 
 ---
@@ -145,7 +170,7 @@ CREATE INDEX idx_voice_tags_owner ON voice_tags(owner_id);
 #### Request Body (`CreateVoiceTagRequest`):
 ```json
 {
-  "textContent": "Sản phẩm nghe thử của PWB Studio",
+  "textContent": "<speak>Bản nghe thử của <say-as interpret-as=\"characters\">HNAM</say-as></speak>",
   "languageCode": "vi-VN",
   "voiceName": "vi-VN-Standard-A"
 }
@@ -215,6 +240,8 @@ CREATE INDEX idx_voice_tags_owner ON voice_tags(owner_id);
 | :--- | :--- | :--- | :--- |
 | `502 Bad Gateway` | `TTS_SERVICE_FAILED` | Lỗi kết nối hoặc gọi dịch vụ Google Cloud Text-to-Speech thất bại | `null` |
 | `429 Too Many Requests`| `RATE_LIMIT_EXCEEDED` | Vượt quá số lần tạo Voice Tag cho phép trong ngày | `null` |
+| `400 Bad Request` | `TTS_TEXT_TOO_LONG` | Độ dài ký tự của văn bản thô sau khi bỏ các thẻ SSML vượt quá giới hạn 100 ký tự | `textContent` |
+| `409 Conflict` | `VOICE_TAG_ALREADY_DEFAULT` | Xung đột tương tranh do đã có một Voice Tag khác được thiết lập làm mặc định | `isDefault` |
 
 ---
 

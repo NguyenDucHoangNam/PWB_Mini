@@ -25,11 +25,18 @@ Tài liệu đặc tả A-Z tính năng Thu hồi quyền truy cập liên kết
 *   **Quy trình đồng bộ khi thu hồi**:
     1.  Cập nhật thuộc tính `is_revoked = true` trong PostgreSQL ở bảng `demo_distributions`.
     2.  Xóa ngay lập tức key `demo:distribution:{shareToken}` khỏi Redis Cache.
-*   Khi khách hàng thực hiện tải phân đoạn nhạc HLS hay lấy key giải mã, API filter sẽ kiểm tra Redis Cache. Nếu không có cache, truy vấn DB và phát hiện `is_revoked = true` -> Trả về lỗi HTTP `403 Forbidden` (`LINK_REVOKED`) ngay lập tức, ngắt đứt luồng phát nhạc của khách hàng.
+    3.  Đồng thời, ghi nhận một khóa tạm thời để đánh dấu đã thu hồi: `demo:distribution:revoked:{shareToken}` với giá trị `"true"` và TTL **10 phút** trên Redis.
+*   **Trám kẽ hở rò rỉ nhạc do bẫy Cookie sống dai (Secure Session Cookie Bypass)**: Mặc dù khách hàng đã có `SecureSessionCookie` hợp lệ với thời gian sống 1 giờ, tại endpoint trả khóa giải mã `/api/v1/stream/keys/{shareToken}`, trước khi phê duyệt cấp mảng byte nhị phân giải mã, Backend bắt buộc phải chạy lệnh `EXISTS demo:distribution:revoked:{shareToken}` xuống Redis. Nếu key này tồn tại (hoặc nếu key gốc `demo:distribution:{shareToken}` không còn tồn tại/DB check `is_revoked = true`), Backend lập tức từ chối và trả về lỗi `HTTP 403 Forbidden` để ngắt đứt luồng phát nhạc (Mid-stream Interruption) của Listener ngay lập tức.
 
 #### C. Tính độc lập của liên kết
 *   Việc thu hồi chỉ ảnh hưởng duy nhất đến mã Token (`shareToken`) của bản phân phối được chọn.
 *   Các liên kết chia sẻ khác của cùng một bản demo đó gửi cho các đối tác khác vẫn hoạt động bình thường, không bị ảnh hưởng.
+
+#### D. Đồng bộ giao diện Dòng thời gian của Đối tác (Shared Thread UI Sync via WebSockets)
+*   Vì các liên kết chia sẻ được tổ chức hiển thị dưới dạng Luồng hội thoại lịch sử (`shared_threads`), nếu tại thời điểm Producer bấm nút thu hồi liên kết, đối tác nhận nhạc (Listener) cũng đang mở giao diện dòng thời gian của họ, bản ghi bài hát đó nên được cập nhật trạng thái thời gian thực.
+*   Tại luồng xử lý thành công ở tầng Service, Backend phát đi một sự kiện WebSocket tới topic chung của cặp đôi đó:
+    `{"event": "DISTRIBUTION_REVOKED", "data": {"shareToken": "{shareToken}"}}`
+*   Frontend của đối tác khi nhận được tin này sẽ tự động chuyển trạng thái bài hát trên UI sang dạng làm mờ có gạch chéo kèm dòng chữ *"Liên kết đã bị thu hồi"*, ngăn chặn việc click phát nhạc bị báo lỗi giật cục, mang lại trải nghiệm UX nhất quán và tinh tế.
 
 ---
 
@@ -71,31 +78,30 @@ sequenceDiagram
     Note over BE, DB: Commit Transaction
     
     BE->>Redis: Xóa khóa 'demo:distribution:{shareToken_A}'
+    BE->>Redis: Thêm khóa 'demo:distribution:revoked:{shareToken_A}' (TTL 10m)
+    BE->>ListFE: Gửi sự kiện WebSocket {"event": "DISTRIBUTION_REVOKED", "data": {"shareToken": "shareToken_A"}}
+    ListFE->>ListFE: Cập nhật UI mờ xám bản demo, hiện thông báo "Đã thu hồi"
     
     BE-->>FE: HTTP 200 OK (Thu hồi thành công)
     FE-->>Producer: Đổi trạng thái hiển thị thành "Đã thu hồi"
     
-    Note over Listener, BE: --- Listener_A cố gắng nghe nhạc sau đó ---
-    Listener->>ListFE: Bấm Play hoặc tải lại trang nghe thử
-    ListFE->>BE: GET /api/v1/stream/keys/{shareToken_A}
+    Note over Listener, BE: --- Listener_A cố gắng nghe nhạc sau đó (Hoặc xin phân đoạn tiếp theo) ---
+    Listener->>ListFE: Bấm Play hoặc tải lại trang nghe thử (Hoặc xin key phân đoạn tiếp)
+    ListFE->>BE: GET /api/v1/stream/keys/{shareToken_A} (Kèm Secure Session Cookie)
     
-    BE->>Redis: Tìm kiếm cache 'demo:distribution:{shareToken_A}' -> Cache Miss
-    BE->>DB: Truy vấn DB kiểm tra -> Phát hiện is_revoked = true
-    BE->>Redis: Ghi nhận trạng thái revoked vào cache (TTL 10 phút để chặn spam tiếp theo)
+    BE->>Redis: Kiểm tra blacklist: EXISTS 'demo:distribution:revoked:{shareToken_A}' -> Trả về true
     
-    BE-->>ListFE: HTTP 403 Forbidden (LINK_REVOKED)
+    BE-->>ListFE: HTTP 403 Forbidden (LINK_REVOKED) (Cắt đứt phát nhạc ngay lập tức)
     ListFE->>ListFE: Ngắt phát nhạc, xóa buffer RAM
     ListFE-->>Listener: Hiển thị cảnh báo: "Liên kết đã hết hạn hoặc bị thu hồi"
 ```
 
 ##### 📝 Mô tả chi tiết các bước xử lý:
 1.  **Thu hồi quyền**: Producer click thu hồi trên bảng điều khiển. Frontend gửi `POST /api/v1/demos/distributions/{distId}/revoke`.
-2.  **Xác thực và Cập nhật**: Backend kiểm tra quyền sở hữu, cập nhật cột `is_revoked = true` trong DB và thực hiện xóa khóa cache phân phối tương ứng trên Redis.
-3.  **Listener truy cập**: Khi Listener cố gắng truy xuất lấy Key giải mã hoặc tải playlist:
-    *   Hệ thống kiểm tra Redis cache -> Không thấy.
-    *   Truy vấn PostgreSQL -> Phát hiện `is_revoked = true`.
-    *   Backend trả về lỗi HTTP 403. Frontend Listener dừng trình phát nhạc và thông báo liên kết bị khóa.
-    *   *Tối ưu chống spam*: Backend ghi nhận tạm thời khóa đã bị thu hồi vào Redis với TTL ngắn (10 phút) để nếu Listener dùng script spam gọi API liên tục thì hệ thống chặn trực tiếp từ cache, không cần truy vấn DB lại.
+2.  **Xác thực và Cập nhật**: Backend kiểm tra quyền sở hữu, cập nhật cột `is_revoked = true` trong DB. Đồng thời, Backend thực hiện xóa khóa cache phân phối tương ứng `demo:distribution:{shareToken}` khỏi Redis, ghi nhận khóa blacklist `demo:distribution:revoked:{shareToken}` (TTL 10 phút) lên Redis, và broadcast sự kiện qua WebSocket tới Topic chung của hội thoại để tự động làm mờ và cập nhật trạng thái đã thu hồi trên giao diện Listener trong thời gian thực.
+3.  **Kiểm tra và ngắt luồng (Mid-stream Interruption)**: Khi Listener cố gắng truy xuất lấy Key giải mã, tải playlist HLS hoặc tải tệp gốc:
+    *   Hệ thống kiểm tra nhanh sự tồn tại của khóa blacklist `demo:distribution:revoked:{shareToken}` trên Redis.
+    *   Nếu tồn tại khóa này (hoặc nếu key gốc không còn tồn tại/DB check `is_revoked = true`), Backend lập tức trả về lỗi HTTP 403 Forbidden. Trình phát HLS tại client lập tức ngắt luồng, xóa sạch bộ nhớ đệm RAM và thông báo liên kết bị khóa, chặn đứng hoàn toàn việc dùng cookie cũ còn hạn để bypass.
 
 ---
 

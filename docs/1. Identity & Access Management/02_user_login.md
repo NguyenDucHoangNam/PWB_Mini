@@ -23,25 +23,27 @@ Hệ thống thực hiện xác thực và từ chối đăng nhập đối vớ
 
 #### B. Cơ chế chống Brute-force mật khẩu (Account Lockout)
 *   **Giới hạn số lần thử**: Hệ thống cho phép nhập sai mật khẩu tối đa **5 lần liên tiếp**.
-*   **Khóa tạm thời**: Khi số lần nhập sai đạt mốc 5, tài khoản sẽ bị tự động khóa trong vòng **15 phút** (thiết lập key `login_lockout:{identifier}` trên Redis).
-*   **Tối ưu hiệu suất**: Trong thời gian 15 phút bị khóa, mọi yêu cầu đăng nhập tiếp theo sẽ bị chặn ngay lập tức ở tầng kiểm tra Redis Lockout mà không cần truy vấn kiểm tra mật khẩu hay gọi vào PostgreSQL.
+*   **Khóa định danh độc nhất (Bypass Prevention)**: Để chống hành vi bypass bộ đếm brute-force bằng cách luân phiên nhập Username và Email của cùng một tài khoản, hệ thống sẽ thực hiện truy vấn DB trước để tìm ra `userId` độc nhất của tài khoản. Bộ đếm thử sai và trạng thái khóa sẽ được quản lý thống nhất thông qua các Redis key `login_attempts:{userId}` và `login_lockout:{userId}`.
+*   **Kiểm soát và bảo vệ CPU (DoS Protection)**: Key khóa `login_lockout:{userId}` trên Redis được kiểm tra ngay lập tức sau khi lấy được `userId` từ DB và **trước khi thực hiện thuật toán so khớp BCrypt** (vốn ngốn nhiều CPU). Nếu tài khoản đang bị khóa, hệ thống lập tức trả về lỗi HTTP 423 Locked, chặn đứng yêu cầu xử lý tiếp theo mà không chạy BCrypt.
 
 #### C. Giới hạn số lượng Phiên đăng nhập đồng thời (Concurrent Session Control)
 *   **Giới hạn tối đa**: Mỗi tài khoản chỉ được phép duy trì tối đa **3 phiên đăng nhập hoạt động song song** (3 thiết bị cùng lúc).
 *   **Cơ chế đá phiên cũ (Session Kick-out)**: Khi người dùng đăng nhập thành công vào thiết bị thứ 4, hệ thống tự động tìm và xóa Refresh Token của phiên cũ nhất khỏi Redis. Thiết bị cũ này sẽ tự động bị đăng xuất ngay khi Access Token của nó hết hạn (sau tối đa 15 phút).
+*   **Đồng bộ xoay vòng phiên (Refresh Token Rotation Sync)**: Khi cơ chế Silent Refresh xoay vòng Refresh Token thành công, hệ thống bắt buộc phải cập nhật ZSet `user:sessions:{userId}` bằng cách xóa mã Refresh Token cũ và thêm mã Refresh Token mới cùng timestamp mới. Thao tác này ngăn ngừa tích tụ các "phiên ma" đã bị xoay vòng hoặc thu hồi, đảm bảo tính chính xác của hàm kiểm đếm thiết bị.
+*   **Tính nguyên tử (Atomicity)**: Các thao tác kiểm tra số phiên (`ZCARD`), thu hồi phiên cũ nhất (`ZREMRANGEBYRANK`) và thêm phiên mới (`ZADD`) phải được đóng gói trong một **Redis Lua Script** duy nhất để thực thi nguyên tử, tránh Race Condition khi người dùng đăng nhập đồng thời trên nhiều thiết bị.
 
 #### D. Cảnh báo đăng nhập bất thường (Anomalous Login Detection)
-*   Mỗi khi đăng nhập thành công, hệ thống trích xuất thông tin thiết bị (`User-Agent`) và địa điểm (`IP Address` kết hợp thư viện GeoIP) và **lưu lại thông tin phiên đăng nhập gần nhất** vào Redis (key `user:last_login:{userId}`) để làm cơ sở so sánh cho lần đăng nhập tiếp theo.
-*   Nếu phát hiện đăng nhập từ **thiết bị mới hoàn toàn** hoặc **vị trí địa lý cách xa bất thường** so với phiên đăng nhập thành công liền trước, hệ thống sẽ đưa một sự kiện cảnh báo vào hàng đợi gửi mail thông qua Transactional Outbox để cảnh báo người dùng.
+*   **Xử lý Bất đồng bộ (Asynchronous Processing)**: Tiến trình phân tích GeoIP, so khớp Anomalous Login và ghi nhận log đăng nhập được tách hoàn toàn ra khỏi luồng phản hồi chính. Khi đăng nhập thành công, luồng chính lập tức trả về HTTP 200 và phát đi một sự kiện Spring Local Event (`LoginSuccessEvent` chứa userId, IP, User-Agent). Một `@Async` listener sẽ xử lý sự kiện này ngầm để giải mã vị trí địa lý qua GeoIP, lưu thông tin vào Redis key `user:last_login:{userId}` và tạo bản ghi cảnh báo qua Outbox nếu phát hiện bất thường, từ đó loại bỏ hoàn toàn độ trễ block UI người dùng.
+*   **Tối ưu hóa tài nguyên GeoIP (RAM Singleton)**: Để tránh nghẽn băng thông đĩa (Disk I/O Bottleneck) khi truy xuất tệp cơ sở dữ liệu MaxMind GeoIP dưới mật độ truy cập cao, tệp dữ liệu này được cấu hình nạp hoàn toàn vào bộ nhớ RAM (`FileMode.MEMORY`) dưới dạng một **Singleton Bean** trong Spring Container khi ứng dụng khởi tạo.
 
 #### E. Cơ chế liên kết tài khoản Google (OAuth2 Account Linker)
 Khi người dùng đăng nhập bằng Google, Backend nhận `idToken` và xác thực qua Google API. Sau khi giải mã lấy Email, hệ thống xử lý theo các trường hợp:
 *   **Email OAuth2 đã tồn tại dưới dạng tài khoản LOCAL**:
-    *   *Nếu tài khoản Local đã kích hoạt (`ACTIVE`)*: Hệ thống tự động cập nhật trường `oauth_provider = 'GOOGLE'` và `oauth_id = {googleSubId}` vào bản ghi của User đó. Người dùng có thể đăng nhập bằng cả 2 cách (Username/Password hoặc Google) ở các lần sau.
-    *   *Nếu tài khoản Local chưa kích hoạt (`PENDING_VERIFICATION`)*: Để tránh rủi ro chiếm đoạt thông tin, hệ thống thực hiện xóa cứng (Hard Delete) tài khoản unverified này cùng các OTP liên quan trong một **Database Transaction** đảm bảo nguyên tử, sau đó tạo mới một tài khoản Google sạch ở trạng thái `ACTIVE`.
+    *   *Nếu tài khoản Local đã kích hoạt (`ACTIVE`)*: Hệ thống tự động cập nhật trường `oauth_provider = 'GOOGLE'`, `oauth_id = {googleSubId}` và đồng bộ `avatar_url` (lấy từ trường `picture` của Google profile) vào bản ghi của User đó. Người dùng có thể đăng nhập bằng cả 2 cách (Username/Password hoặc Google) ở các lần sau.
+    *   *Nếu tài khoản Local chưa kích hoạt (`PENDING_VERIFICATION`)*: Hệ thống thực hiện liên kết và kích hoạt trực tiếp trên bản ghi cũ: giữ nguyên ID (UUID) để bảo toàn tính nhất quán dữ liệu, xóa mật khẩu cũ (đặt `password = null`), cập nhật trạng thái sang `ACTIVE`, cập nhật nhà cung cấp `oauth_provider = 'GOOGLE'` và ID `oauth_id = {googleSubId}`, đồng thời cập nhật tên (`full_name`) và ảnh đại diện (`avatar_url`) lấy từ Google, đồng thời dọn dẹp sạch các key Redis liên quan đến OTP của email đó.
     *   *Nếu tài khoản đang bị khóa (`BANNED`)*: Từ chối đăng nhập và trả về lỗi `ACCOUNT_BANNED`. Người dùng không thể bypass trạng thái BANNED thông qua đăng nhập Google.
     *   *Nếu tài khoản đang bị khóa tạm thời (Lockout)*: Nếu key `login_lockout:{email}` tồn tại trên Redis, từ chối đăng nhập và trả về lỗi `ACCOUNT_TEMPORARILY_LOCKED`. Việc này ngăn chặn kẻ tấn công bypass lockout brute-force bằng cách chuyển sang đăng nhập Google.
-*   **Email OAuth2 chưa tồn tại**: Tự động tạo mới tài khoản với trạng thái `ACTIVE`, mật khẩu `null`, username tự sinh từ tiền tố email (ví dụ: `namnd` từ `namnd@gmail.com`, nếu trùng sẽ thêm hậu tố số ngẫu nhiên), gán vai trò mặc định là `ROLE_USER`.
+*   **Email OAuth2 chưa tồn tại**: Tự động tạo mới tài khoản với trạng thái `ACTIVE`, mật khẩu `null`, username tự sinh từ tiền tố email (ví dụ: `namnd` từ `namnd@gmail.com`, nếu trùng sẽ thêm hậu tố số ngẫu nhiên), lưu ảnh đại diện Google vào trường `avatar_url`, gán vai trò mặc định là `ROLE_USER`.
 
 #### F. Quy tắc Xác thực Google Identity Token (idToken Validation)
 Backend sử dụng thư viện `google-api-client` để xác thực `idToken` với các điều kiện bắt buộc:
@@ -96,15 +98,14 @@ sequenceDiagram
     FE->>BE: POST /api/v1/auth/login (LoginRequest)
     BE->>BE: Validate định dạng đầu vào
     
-    BE->>Redis: Kiểm tra key lockout 'login_lockout:{usernameOrEmail}'
-    alt Tài khoản đang bị khóa tạm thời (lockout tồn tại)
-        BE-->>FE: HTTP 423 Locked (ACCOUNT_TEMPORARILY_LOCKED)
-    else Hợp lệ (Không bị khóa)
-        BE->>DB: Truy vấn User theo Username hoặc Email
-        alt User không tồn tại
-            BE->>BE: Giả lập băm mật khẩu (chống Timing Attack)
-            BE-->>FE: HTTP 400 Bad Request (BAD_CREDENTIALS)
-        else User tồn tại
+    BE->>DB: Truy vấn User theo Username hoặc Email
+    alt User không tồn tại
+        BE-->>FE: HTTP 400 Bad Request (BAD_CREDENTIALS)
+    else User tồn tại (Lấy được userId)
+        BE->>Redis: Kiểm tra key lockout 'login_lockout:{userId}'
+        alt Tài khoản đang bị khóa tạm thời (lockout tồn tại)
+            BE-->>FE: HTTP 423 Locked (ACCOUNT_TEMPORARILY_LOCKED)
+        else Hợp lệ (Không bị khóa)
             alt Trạng thái User là BANNED
                 BE-->>FE: HTTP 400 Bad Request (ACCOUNT_BANNED)
             else Trạng thái User là PENDING_VERIFICATION
@@ -112,28 +113,23 @@ sequenceDiagram
             else Trạng thái User hợp lệ (ACTIVE hoặc PENDING_DELETION)
                 BE->>BE: So khớp mật khẩu bằng BCrypt
                 alt Sai mật khẩu
-                    BE->>Redis: Tăng số lần thử 'login_attempts:{usernameOrEmail}' (+1, TTL 15m)
+                    BE->>Redis: Tăng số lần thử 'login_attempts:{userId}' (+1, TTL 15m)
                     BE->>Redis: Lấy giá trị bộ đếm thử sai
                     alt Số lần thử sai đạt 5 lần trở lên
-                        BE->>Redis: SET 'login_lockout:{usernameOrEmail}' = true (TTL 15m)
-                        BE->>Redis: DEL 'login_attempts:{usernameOrEmail}'
+                        BE->>Redis: SET 'login_lockout:{userId}' = true (TTL 15m)
+                        BE->>Redis: DEL 'login_attempts:{userId}'
                         BE-->>FE: HTTP 423 Locked (ACCOUNT_TEMPORARILY_LOCKED)
                     else Số lần thử sai dưới 5 lần
                         BE-->>FE: HTTP 400 Bad Request (BAD_CREDENTIALS)
                     end
                 else Đúng mật khẩu
-                    BE->>Redis: Xóa bộ đếm sai 'login_attempts:{usernameOrEmail}' (nếu có)
-                    BE->>BE: Trích xuất IP & User-Agent để phân tích địa lý (GeoIP)
+                    BE->>Redis: Xóa bộ đếm sai 'login_attempts:{userId}' (nếu có)
                     
-                    alt Phát hiện vị trí / thiết bị đăng nhập bất thường
-                        Note over BE, Outbox: Ghi sự kiện cảnh báo đăng nhập vào outbox_events
-                    end
+                    BE->>BE: Phát sự kiện Spring Local Event: LoginSuccessEvent (userId, IP, User-Agent)
                     
-                    BE->>Redis: Lấy danh sách các phiên đang chạy của User từ ZSet 'user:sessions:{userId}'
-                    alt Số lượng phiên hiện tại đạt từ 3 trở lên
-                        BE->>Redis: Lấy Refresh Token cũ nhất (Score thấp nhất)
-                        BE->>Redis: DEL key 'session:refresh_token:{oldToken}'
-                        BE->>Redis: Xóa token cũ khỏi ZSet 'user:sessions:{userId}'
+                    BE->>Redis: Thực thi Lua Script (Kiểm tra ZCARD & xóa oldToken từ ZSet nếu >=3)
+                    alt Phát hiện số phiên vượt giới hạn và có token cũ bị xóa
+                        BE->>Redis: Xóa key 'session:refresh_token:{oldToken}' tương ứng
                     end
                     
                     BE->>BE: Sinh cặp Access Token (JWT) & Refresh Token (UUID) mới
@@ -147,6 +143,12 @@ sequenceDiagram
                     else Trạng thái User là ACTIVE
                         FE-->>User: Điều hướng vào trang Dashboard chính
                     end
+                    
+                    Note over BE, Outbox: Luồng xử lý ngầm (Asynchronous @Async Listener):
+                    BE->>BE: Trích xuất IP & User-Agent để phân tích địa lý (GeoIP)
+                    alt Phát hiện vị trí / thiết bị đăng nhập bất thường
+                        BE->>Outbox: Ghi sự kiện cảnh báo đăng nhập vào outbox_events (sau đó đẩy sang Kafka)
+                    end
                 end
             end
         end
@@ -157,15 +159,15 @@ sequenceDiagram
 1.  **Nhập liệu**: Người dùng nhập tên tài khoản (Username/Email) và mật khẩu rồi nhấn Đăng nhập.
 2.  **Gọi API**: Frontend gửi yêu cầu HTTP POST tới `/api/v1/auth/login`.
 3.  **Validate**: Backend kiểm tra định dạng dữ liệu đầu vào.
-4.  **Kiểm tra khóa tài khoản**: Backend kiểm tra sự tồn tại của khóa `login_lockout:{usernameOrEmail}` trên Redis. Nếu khóa tồn tại, hệ thống chặn ngay lập tức và trả về mã lỗi HTTP 423 Locked.
-5.  **Tìm kiếm User**: Nếu tài khoản không bị khóa, Backend thực hiện truy vấn User trong PostgreSQL theo Username hoặc Email.
-    *   *Chống Timing Attack*: Nếu User không tồn tại, Backend vẫn thực hiện một phép tính băm mật khẩu giả lập để thời gian phản hồi bằng thời gian băm thật, trước khi trả về lỗi HTTP 400 Bad Request (`BAD_CREDENTIALS`).
+4.  **Tìm kiếm User**: Backend thực hiện truy vấn User trong PostgreSQL theo Username hoặc Email.
+    *   *Chống Timing Attack & DoS*: Dưới sự hỗ trợ của bộ lọc giới hạn tần suất truy cập ở Gateway (IP Rate Limiting), hệ thống không thực hiện giả lập băm mật khẩu khi tìm kiếm không thấy User, mà lập tức trả về lỗi HTTP 400 Bad Request (`BAD_CREDENTIALS`).
+5.  **Kiểm tra khóa tài khoản (Account Lockout)**: Nếu tìm thấy User, Backend truy cập Redis để kiểm tra sự tồn tại của key `login_lockout:{userId}`. Nếu key tồn tại, hệ thống lập tức từ chối đăng nhập và trả về mã lỗi HTTP 423 Locked. Thao tác này được thực hiện trước khi chạy BCrypt để bảo vệ tài nguyên CPU.
 6.  **Kiểm tra trạng thái User**: Hệ thống từ chối đăng nhập ngay đối với tài khoản `BANNED` hoặc chưa kích hoạt (`PENDING_VERIFICATION`).
 7.  **So khớp mật khẩu**: Hệ thống dùng BCrypt đối khớp mật khẩu người dùng gửi lên với mật khẩu đã lưu.
-    *   *Nếu sai mật khẩu*: Hệ thống tăng bộ đếm thử sai `login_attempts` trong Redis. Nếu bộ đếm đạt 5 lần, tạo key lockout 15 phút, xóa bộ đếm và trả về HTTP 423 Locked. Nếu chưa tới 5 lần, trả về HTTP 400 (`BAD_CREDENTIALS`).
+    *   *Nếu sai mật khẩu*: Hệ thống tăng bộ đếm thử sai `login_attempts:{userId}` trong Redis. Nếu bộ đếm đạt 5 lần, tạo key lockout `login_lockout:{userId}` 15 phút, xóa bộ đếm và trả về HTTP 423 Locked. Nếu chưa tới 5 lần, trả về HTTP 400 (`BAD_CREDENTIALS`).
     *   *Nếu đúng mật khẩu*: Xóa bộ đếm sai và tiếp tục xử lý cấp phiên.
-8.  **Phát hiện bất thường**: Trích xuất IP/User-Agent, đối chiếu vị trí địa lý. Nếu phát hiện đăng nhập bất thường, tạo sự kiện gửi mail cảnh báo thông qua Transactional Outbox (xử lý bất đồng bộ).
-9.  **Giới hạn số phiên (Concurrent Session)**: Truy cập ZSet `user:sessions:{userId}` trên Redis để đếm số phiên đăng nhập hiện tại. Nếu đạt tối đa 3 phiên, hệ thống sẽ lấy Refresh Token cũ nhất (Score thấp nhất), thực hiện xóa Refresh Token đó ra khỏi cache và xóa bản ghi khỏi ZSet.
+8.  **Xử lý ngầm & Phát hiện bất thường (Asynchronous)**: Xóa bộ đếm thử sai. Luồng chính phát sự kiện Spring Local `LoginSuccessEvent` rồi chuyển tiếp ngay sang xử lý cấp token để trả phản hồi nhanh cho client. Một `@Async` listener bắt sự kiện này để trích xuất IP/User-Agent, đối chiếu vị trí địa lý qua GeoIP MaxMind ngầm. Nếu phát hiện thiết bị mới hoặc vị trí cách xa bất thường, listener tạo sự kiện Outbox gửi email cảnh báo bảo mật.
+9.  **Giới hạn số phiên (Concurrent Session)**: Backend thực thi một **Redis Lua Script** nguyên tử để kiểm tra số lượng phiên hiện tại (`ZCARD`) của `user:sessions:{userId}`. Nếu số lượng phiên đạt mốc tối đa 3, Lua script tự động tìm và xóa Refresh Token cũ nhất (Score thấp nhất) ra khỏi ZSet. Backend sau đó xóa key `session:refresh_token:{oldToken}` tương ứng trên Redis.
 10. **Tạo phiên mới**: Sinh Access Token (JWT) và Refresh Token (UUID) mới. Thực hiện lưu Refresh Token vào Redis và add UUID này vào ZSet `user:sessions:{userId}` kèm điểm số Score là timestamp hiện tại.
 11. **Trả về kết quả**: Trả về Access Token trong JSON response body và đặt Refresh Token vào HttpOnly Cookie bảo mật.
 12. **Điều hướng ở Client**: Frontend lưu Access Token vào Zustand Store. Nếu User ở trạng thái `PENDING_DELETION`, điều hướng tới trang khôi phục tài khoản. Nếu hoạt động bình thường (`ACTIVE`), điều hướng vào Dashboard.
@@ -198,20 +200,19 @@ sequenceDiagram
         BE->>DB: Tìm kiếm User trong DB theo Email
         
         alt Trường hợp 1: Đã tồn tại tài khoản OAuth cùng Provider
-            Note over BE, DB: Cập nhật thông tin profile nếu có thay đổi
+            Note over BE, DB: Cập nhật thông tin profile (họ tên, avatar_url) từ Google
         else Trường hợp 2: Email đã tồn tại dưới dạng tài khoản LOCAL
             alt Tài khoản Local ở trạng thái ACTIVE
-                BE->>DB: Cập nhật oauth_provider='GOOGLE' và oauth_id={googleSubId}
+                BE->>DB: Cập nhật oauth_provider='GOOGLE', oauth_id={googleSubId} & đồng bộ avatar_url
             else Tài khoản Local ở trạng thái PENDING_VERIFICATION
                 Note over BE, DB: Bắt đầu Transaction
                 BE->>Redis: Dọn key OTP liên quan (otp:registration, otp:cooldown, otp:attempts)
-                BE->>DB: Hard delete tài khoản Local chưa xác thực
-                BE->>DB: Tạo mới tài khoản GOOGLE sạch ở trạng thái ACTIVE
+                BE->>DB: Cập nhật tài khoản cũ thành ACTIVE (giữ nguyên ID, password=null, oauth_provider='GOOGLE', oauth_id={googleSubId}, đồng bộ profile)
                 Note over BE, DB: Commit Transaction
             end
         else Trường hợp 3: Tài khoản chưa từng tồn tại trên hệ thống
             BE->>BE: Tách tiền tố email để sinh Username độc nhất
-            BE->>DB: Tạo mới tài khoản (status='ACTIVE', password=null, role='ROLE_USER')
+            BE->>DB: Tạo mới tài khoản (status='ACTIVE', password=null, role='ROLE_USER', lưu avatar_url)
         end
         
         BE->>Redis: Kiểm tra key lockout 'login_lockout:{email}'
@@ -221,13 +222,12 @@ sequenceDiagram
             alt Trạng thái User là BANNED
                 BE-->>FE: HTTP 400 Bad Request (ACCOUNT_BANNED)
             else Trạng thái User hợp lệ (ACTIVE hoặc PENDING_DELETION)
-                BE->>Redis: Lấy số phiên từ ZSet 'user:sessions:{userId}'
-                alt Số lượng phiên hiện tại đạt từ 3 trở lên
-                    BE->>Redis: Thu hồi & xóa phiên cũ nhất
+                BE->>Redis: Thực thi Lua Script (Kiểm tra ZCARD & xóa oldToken từ ZSet nếu >=3)
+                alt Phát hiện số phiên vượt giới hạn và có token cũ bị xóa
+                    BE->>Redis: Xóa key 'session:refresh_token:{oldToken}' tương ứng
                 end
                 
-                BE->>BE: Trích xuất IP & User-Agent để lưu thông tin phiên đăng nhập
-                BE->>Redis: Cập nhật 'user:last_login:{userId}' (IP, Location, Device, Timestamp)
+                BE->>BE: Phát sự kiện Spring Local Event: LoginSuccessEvent (userId, IP, User-Agent)
                 
                 BE->>BE: Sinh cặp Access Token (JWT) & Refresh Token (UUID) mới
                 BE->>Redis: Pipeline: SET 'session:refresh_token:{newToken}' (TTL 7 ngày) & ZADD 'user:sessions:{userId}' {newToken}
@@ -253,13 +253,13 @@ sequenceDiagram
 5.  **Chuẩn hóa email**: Chuyển đổi email nhận được thành chữ thường (`toLowerCase()`).
 6.  **Xử lý liên kết tài khoản**:
     *   *Đã có tài khoản Google*: Tiếp tục luồng đăng nhập.
-    *   *Trùng email với tài khoản LOCAL đang hoạt động (`ACTIVE`)*: Hệ thống cập nhật thông tin nhà cung cấp OAuth2 trực tiếp vào tài khoản đó để liên kết cả hai phương thức đăng nhập.
-    *   *Trùng email với tài khoản LOCAL chưa kích hoạt (`PENDING_VERIFICATION`)*: Hệ thống thực hiện xóa cứng tài khoản unverified này và dọn sạch key Redis OTP liên quan trong một **Database Transaction** đảm bảo nguyên tử, sau đó tạo mới tài khoản Google ở trạng thái `ACTIVE`.
-    *   *Chưa từng tồn tại*: Hệ thống tự sinh Username từ email và tạo mới tài khoản với trạng thái `ACTIVE`, mật khẩu `null`, vai trò `ROLE_USER`.
+    *   *Trùng email với tài khoản LOCAL đang hoạt động (`ACTIVE`)*: Hệ thống cập nhật thông tin nhà cung cấp OAuth2 trực tiếp vào tài khoản đó để liên kết cả hai phương thức đăng nhập, đồng thời đồng bộ `avatar_url`.
+    *   *Trùng email với tài khoản LOCAL chưa kích hoạt (`PENDING_VERIFICATION`)*: Hệ thống thực hiện liên kết và kích hoạt trực tiếp trên bản ghi cũ: giữ nguyên ID (UUID) để bảo toàn dữ liệu, xóa mật khẩu cũ (đặt `password = null`), cập nhật trạng thái thành `ACTIVE`, cập nhật nhà cung cấp `oauth_provider = 'GOOGLE'` và `oauth_id = {googleSubId}`, đồng bộ họ tên và `avatar_url` từ Google, đồng thời dọn sạch key Redis OTP liên quan trong một **Database Transaction** đảm bảo nguyên tử.
+    *   *Chưa từng tồn tại*: Hệ thống tự sinh Username từ email và tạo mới tài khoản với trạng thái `ACTIVE`, mật khẩu `null`, lưu ảnh đại diện Google vào trường `avatar_url`, gán vai trò mặc định là `ROLE_USER`.
 7.  **Kiểm tra lockout**: Backend kiểm tra key `login_lockout:{email}` trên Redis. Nếu tồn tại, từ chối đăng nhập và trả về HTTP 423 Locked (`ACCOUNT_TEMPORARILY_LOCKED`).
 8.  **Kiểm tra trạng thái User**: Từ chối nếu tài khoản đang bị `BANNED`. Cho phép nếu `ACTIVE` hoặc `PENDING_DELETION`.
-9.  **Quản lý phiên & Cấp Token**: Kiểm tra giới hạn 3 phiên đăng nhập đồng thời của User thông qua ZSet `user:sessions:{userId}` trên Redis. Tiến hành xóa phiên cũ nhất nếu vượt quá giới hạn.
-10. **Lưu thông tin phiên**: Trích xuất IP/User-Agent và cập nhật thông tin đăng nhập gần nhất vào Redis key `user:last_login:{userId}`.
+9.  **Quản lý phiên & Cấp Token**: Backend thực thi **Redis Lua Script** để kiểm tra giới hạn 3 phiên đăng nhập đồng thời của User thông qua ZSet `user:sessions:{userId}`. Tiến hành xóa phiên cũ nhất (ZSet và String key) nếu vượt quá giới hạn.
+10. **Lưu thông tin phiên (Asynchronous)**: Phát sự kiện Spring Local Event `LoginSuccessEvent` để xử lý ngầm (trích xuất IP/User-Agent qua GeoIP và cập nhật thông tin đăng nhập gần nhất vào Redis key `user:last_login:{userId}`).
 11. **Trả về kết quả**: Sinh cặp token mới, lưu Refresh Token vào Redis, trả về Access Token trong response body và Refresh Token qua HttpOnly Cookie.
 12. **Điều hướng**: Nếu User ở trạng thái `PENDING_DELETION`, Frontend điều hướng tới trang khôi phục tài khoản. Nếu `ACTIVE`, điều hướng vào Dashboard.
 
@@ -276,13 +276,13 @@ Các khóa Redis được sử dụng cho việc chống brute-force và kiểm 
 
 | Định dạng Khóa (Redis Key) | Kiểu dữ liệu | Giá trị (Value) | TTL | Mục đích sử dụng |
 | :--- | :--- | :--- | :--- | :--- |
-| `login_attempts:{identifier}` | `String` | Số lần đăng nhập sai (ví dụ: `3`) | **15 phút** | Đếm số lần đăng nhập sai mật khẩu liên tiếp. |
-| `login_lockout:{identifier}` | `String` | `"true"` | **15 phút** | Khóa đăng nhập tạm thời khi sai quá 5 lần. |
+| `login_attempts:{userId}` | `String` | Số lần đăng nhập sai (ví dụ: `3`) | **15 phút** | Đếm số lần đăng nhập sai mật khẩu liên tiếp. |
+| `login_lockout:{userId}` | `String` | `"true"` | **15 phút** | Khóa đăng nhập tạm thời khi sai quá 5 lần. |
 | `session:refresh_token:{token}` | `String` | `userId` | **7 ngày** | Quản lý phiên hoạt động (JWT Refresh). |
 | `user:sessions:{userId}` | `ZSet` | `token` (UUID) với Score là `timestamp` | **7 ngày** | Danh sách các token phiên đang hoạt động của người dùng, dùng để kiểm soát giới hạn tối đa 3 phiên hoạt động. |
 | `user:last_login:{userId}` | `Hash` | `ip`, `location`, `device`, `timestamp` | **30 ngày** | Lưu thông tin phiên đăng nhập thành công gần nhất để phục vụ Anomalous Login Detection. |
 
-*Lưu ý: `{identifier}` trong các khóa brute-force có thể là `username` hoặc `email` đã được chuẩn hóa về dạng chữ thường.*
+*Lưu ý: Để chống hành vi bypass bộ đếm brute-force bằng cách nhập xen kẽ Username và Email của cùng một tài khoản, hệ thống sẽ truy vấn tìm `userId` độc nhất từ DB trước, sau đó dùng `userId` này làm khóa trên Redis (`login_attempts:{userId}` và `login_lockout:{userId}`).*
 
 > **⚡ Lưu ý Kỹ thuật: Atomic Redis Operations**
 >
@@ -477,7 +477,7 @@ Mỗi lỗi nghiệp vụ được định nghĩa trong `ErrorCode` Enum với H
 *   **Xử lý các lỗi nghiệp vụ trả về**:
     *   *Lỗi nhập sai credentials (`BAD_CREDENTIALS`)*: Hiển thị thông báo chung *"Tên đăng nhập hoặc mật khẩu không đúng"* ở đầu form (không chỉ rõ sai username hay password để chống brute-force).
     *   *Lỗi chưa kích hoạt (`REGISTRATION_IN_PROGRESS`)*: Hiển thị hộp thoại Toast thông báo và tự động chuyển hướng người dùng sang trang `data.redirectTo` (ví dụ: `/verify-otp?email={data.email}`) sau 2 giây.
-    *   *Lỗi khóa tạm thời (`ACCOUNT_TEMPORARILY_LOCKED`)*: Hiển thị thông báo rõ ràng *"Tài khoản bị khóa tạm thời, vui lòng thử lại sau 15 phút"*. Vô hiệu hóa nút Đăng nhập và hiển thị countdown timer (nếu Backend trả về `retryAfter` trong response header) hoặc thông báo chung 15 phút.
+    *   *Lỗi khóa tạm thời (`ACCOUNT_TEMPORARILY_LOCKED`)*: Hiển thị thông báo rõ ràng *"Tài khoản bị khóa tạm thời do nhập sai mật khẩu quá nhiều, vui lòng thử lại sau 15 phút"*. Vô hiệu hóa nút Đăng nhập và hiển thị countdown timer. Đồng thời, **cung cấp một nút/link hành động khẩn cấp**: *"Quên mật khẩu? Khôi phục ngay"* giúp điều hướng người dùng trực tiếp sang luồng Quên mật khẩu (`/forgot-password`) để tự mở khóa thông qua OTP Email mà không cần phải chờ hết 15 phút.
     *   *Lỗi tài khoản bị cấm (`ACCOUNT_BANNED`)*: Hiển thị thông báo *"Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ hỗ trợ."* kèm link liên hệ `support@pwbmini.com`.
 
 ---

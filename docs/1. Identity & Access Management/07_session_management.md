@@ -21,15 +21,27 @@ Tài liệu đặc tả A-Z tính năng Quản lý Phiên hoạt động (Active
 
 #### B. Cơ chế Đăng xuất từ xa (Remote Session Revocation)
 *   Khi người dùng yêu cầu hủy một phiên `tokenUuid` cụ thể:
-    *   Hệ thống kiểm tra `tokenUuid` này có thuộc quyền sở hữu của `userId` hiện tại hay không bằng cách kiểm tra sự tồn tại trong ZSet `user:sessions:{userId}`.
-    *   Thực hiện xóa khóa phiên `session:refresh_token:{tokenUuid}` và khóa metadata `session:metadata:{tokenUuid}` trên Redis.
+    *   Hệ thống kiểm tra `tokenUuid` này có thuộc quyền sở hữu của `userId` hiện tại bằng cách kiểm tra sự tồn tại trong ZSet `user:sessions:{userId}`.
+    *   Truy vấn khóa metadata `session:metadata:{tokenUuid}` để lấy chữ ký số `active_jwt_signature` của Access Token đang hoạt động.
+    *   Thực hiện xóa khóa Refresh Token `session:refresh_token:{tokenUuid}` và khóa metadata `session:metadata:{tokenUuid}`.
     *   Xóa bản ghi khỏi ZSet `user:sessions:{userId}`.
-*   **Hiệu ứng ở thiết bị bị xóa**: Thiết bị đó sẽ không thể tiếp tục thực hiện API `/refresh` khi Access Token hết hạn, buộc trình duyệt phải đá người dùng ra trang `/login`.
-*   **Chặn tự hủy phiên hiện tại**: Backend **bắt buộc** kiểm tra `tokenUuid` không được trùng với Refresh Token hiện tại của người dùng (lấy từ Cookie `refreshToken`). Nếu trùng, trả lỗi HTTP 400 (`CANNOT_REVOKE_CURRENT_SESSION`). Điều này chống việc attacker gọi trực tiếp API bypass UI.
+    *   Đẩy chữ ký số vừa lấy vào danh sách đen `session:blacklist_token:{signature}` với TTL bằng thời gian sống còn lại của JWT để vô hiệu hóa tức thì quyền truy cập (Instant Revocation).
+*   **Hiệu ứng ở thiết bị bị xóa**: Thiết bị bị thu hồi phiên sẽ lập tức bị chặn khi gọi các API nghiệp vụ (do Access Token bị đưa vào blacklist) và không thể tiếp tục thực hiện API `/refresh` do Refresh Token đã bị xóa, buộc phải đăng xuất về `/login` ngay lập tức.
+*   **Chặn tự hủy phiên hiện tại**: Backend **bắt buộc** kiểm tra `tokenUuid` không được trùng với Refresh Token hiện tại của người dùng (lấy từ Cookie `refreshToken`). Nếu trùng, trả lỗi HTTP 400 (`CANNOT_REVOKE_CURRENT_SESSION`).
 
 #### C. Đăng xuất tất cả các thiết bị khác (Exclude Current Session)
 *   Khi người dùng nhấn "Đăng xuất thiết bị khác", hệ thống trích xuất UUID của phiên hiện tại từ Cookie `refreshToken`.
-*   Duyệt qua danh sách token trong ZSet `user:sessions:{userId}`, thực hiện xóa tất cả các token khác UUID hiện tại khỏi Redis Cache và ZSet.
+*   Để giải quyết triệt để nguy cơ Race Condition và tối ưu số lượt gọi mạng, hệ thống sử dụng một **Redis Lua Script** chạy nguyên tử để: quét danh sách trong ZSet `user:sessions:{userId}`, lọc bỏ phiên hiện tại, xóa toàn bộ khóa Refresh Token & metadata của các phiên khác, đồng thời trả về danh sách các chữ ký `active_jwt_signature` để Java đưa vào danh sách đen (Blacklist).
+
+#### D. Cơ chế vô hiệu hóa Access Token tức thì (Instant Access Token Revocation)
+*   Tại Redis Hash `session:metadata:{tokenUuid}`, hệ thống bổ sung thêm trường `active_jwt_signature` để lưu trữ chữ ký số của Access Token JWT đang hoạt động của phiên đó.
+*   Mỗi khi luồng Login (Usecase 02) hoặc Silent Refresh (Usecase 03) cấp Access Token mới, hệ thống đồng thời cập nhật trường `active_jwt_signature` tương ứng trong Redis Hash metadata của phiên.
+*   Khi có bất kỳ hành động hủy phiên từ xa nào, Backend bóc tách chữ ký này ra và đẩy vào `session:blacklist_token:{signature}` với TTL bằng thời gian sống còn lại của JWT (thời gian hiện tại trừ đi mốc hết hạn của JWT, tối đa 15 phút).
+
+#### E. Kế thừa Metadata khi Xoay vòng Token (Silent Refresh Constraint)
+*   Trong luồng Silent Refresh (Usecase 03), khi xoay vòng Refresh Token (xóa `oldToken` và cấp `newToken`), để thông tin thiết bị, IP hiển thị ở màn hình `/sessions` không bị mất dấu (hiển thị thành `Unknown`), hệ thống bắt buộc phải chuyển giao metadata:
+    *   Thực hiện lệnh `RENAME` khóa `session:metadata:{oldToken}` thành `session:metadata:{newToken}` trên Redis.
+    *   Reset lại TTL **7 ngày** cho khóa metadata mới.
 
 ---
 
@@ -72,10 +84,12 @@ sequenceDiagram
     else Token trùng với phiên hiện tại (currentRefreshToken từ Cookie)
         BE-->>FE: HTTP 400 Bad Request (CANNOT_REVOKE_CURRENT_SESSION)
     else Hợp lệ
+        BE->>Redis: HGET 'session:metadata:UUID_X' active_jwt_signature
         Note over BE, Redis: Bắt đầu Transaction/Pipeline
         BE->>Redis: DEL 'session:refresh_token:UUID_X'
         BE->>Redis: DEL 'session:metadata:UUID_X'
         BE->>Redis: ZREM 'user:sessions:{userId}' UUID_X
+        BE->>Redis: SETEX 'session:blacklist_token:{signature}' TTL 'blacklisted'
         Note over BE, Redis: Commit Pipeline
         
         BE-->>FE: HTTP 200 OK (Xóa phiên từ xa thành công)
@@ -88,11 +102,11 @@ sequenceDiagram
 1.  **Hành động**: Người dùng xem danh sách và nhấn nút "Đăng xuất" một thiết bị khác (có mã UUID_X).
 2.  **Gọi API**: Frontend gửi yêu cầu `DELETE /api/v1/auth/sessions/UUID_X` lên Backend kèm JWT.
 3.  **Đối chiếu quyền sở hữu**: Backend kiểm tra xem UUID_X có nằm trong danh sách ZSet quản lý của User hay không. Nếu không, trả lỗi HTTP 404 để bảo mật. Nếu UUID_X trùng với Refresh Token hiện tại (từ Cookie), trả lỗi HTTP 400 (`CANNOT_REVOKE_CURRENT_SESSION`) để chặn user tự xóa phiên mình.
-4.  **Xóa Cache**: Sử dụng Redis Pipeline để vô hiệu hóa hoàn toàn Refresh Token, metadata của phiên UUID_X và xóa bản ghi khỏi danh sách phiên hoạt động của user. Trả về kết quả HTTP 200 thành công để Frontend cập nhật danh sách hiển thị.
+4.  **Xóa Cache & Blacklist**: Backend đọc chữ ký số `active_jwt_signature` từ metadata của phiên. Sử dụng Redis Pipeline để vô hiệu hóa hoàn toàn Refresh Token, metadata của phiên UUID_X, xóa bản ghi khỏi danh sách phiên hoạt động của user, và đẩy chữ ký số vào blacklist `session:blacklist_token:{signature}` với TTL bằng thời gian sống còn lại của Access Token đó. Trả về kết quả HTTP 200 thành công để Frontend cập nhật danh sách hiển thị.
 
 ---
 
-### 2.2. Luồng Đăng xuất toàn bộ các thiết bị khác (Revoke All Others Flow)
+### 2.2. Luồng Đăng xuất toàn bộ các thiết bị khác (Revoke Other Sessions Flow)
 
 ```mermaid
 sequenceDiagram
@@ -106,16 +120,15 @@ sequenceDiagram
     FE->>BE: DELETE /api/v1/auth/sessions (Kèm JWT & Cookie refreshToken)
     
     BE->>BE: Xác thực Access Token, lấy userId
-    BE->>Redis: Đọc toàn bộ token từ ZSet 'user:sessions:{userId}'
     BE->>BE: Trích xuất currentRefreshToken từ Cookie
     
-    Note over BE, Redis: Redis Pipeline
-    loop Duyệt từng token trong ZSet
-        alt token khác currentRefreshToken
-            BE->>Redis: DEL 'session:refresh_token:{token}'
-            BE->>Redis: DEL 'session:metadata:{token}'
-            BE->>Redis: ZREM 'user:sessions:{userId}' {token}
-        end
+    BE->>Redis: Thực thi Lua Script (user:sessions:{userId}, currentRefreshToken)
+    Note over Redis: Lua Script quét ZSet, xóa các khóa, trả về danh sách signatures
+    Redis-->>BE: Danh sách active_jwt_signatures bị thu hồi
+    
+    Note over BE, Redis: Blacklist các signatures thu hồi (Redis Pipeline)
+    loop Duyệt từng signature nhận được
+        BE->>Redis: SETEX 'session:blacklist_token:{sig}' TTL 'blacklisted'
     end
     Note over BE, Redis: Kết thúc Pipeline
     
@@ -124,15 +137,43 @@ sequenceDiagram
     FE-->>User: Hiển thị thông báo thành công
 ```
 
+##### 📝 Mô tả chi tiết các bước xử lý:
+1.  **Gửi yêu cầu**: Người dùng chọn "Đăng xuất tất cả thiết bị khác". Frontend gọi API `DELETE /api/v1/auth/sessions`.
+2.  **Thực thi Lua Script nguyên tử**: Để giải quyết Race Condition và giảm thiểu round-trip mạng, Backend gửi yêu cầu thực thi **Lua Script** trực tiếp lên Redis:
+    ```lua
+    local current_token = ARGV[1]
+    local user_sessions_key = KEYS[1]
+    local tokens = redis.call('zrange', user_sessions_key, 0, -1)
+    local blacklisted_signatures = {}
+    
+    for _, token in ipairs(tokens) do
+        if token ~= current_token then
+            local metadata_key = 'session:metadata:' .. token
+            local refresh_key = 'session:refresh_token:' .. token
+            local sig = redis.call('hget', metadata_key, 'active_jwt_signature')
+            if sig then
+                table.insert(blacklisted_signatures, sig)
+            end
+            redis.call('del', refresh_key)
+            redis.call('del', metadata_key)
+            redis.call('zrem', user_sessions_key, token)
+        end
+    end
+    return blacklisted_signatures
+    ```
+3.  **Vô hiệu hóa tức thì Access Token**: Lua Script xóa toàn bộ Refresh Token, metadata và ZSet của các phiên khác, đồng thời trả về danh sách các `active_jwt_signature` của các phiên bị xóa. Backend nhận danh sách chữ ký số này và sử dụng Redis Pipeline để đưa chúng vào danh sách đen `session:blacklist_token:{signature}` với TTL tương ứng.
+4.  **Phản hồi thành công**: Backend trả về HTTP 200 OK, Frontend cập nhật lại UI chỉ hiển thị thiết bị hiện tại.
+
 ---
 
 ## 💾 3. Database & Cache Schema (Thiết kế Cơ sở Dữ liệu & Cache)
 
 ### 3.1. Cấu trúc dữ liệu Redis bổ sung (Metadata & Session control)
 
-| Định dạng Khóa (Redis Key) | Kiểu dữ liệu | Giá trị (Value) | TTL | Mục đích sử dụng |
+| Định dạng Khóa (Redis Key) | Kiểu dữ liệu | Giá trị (Value) / Các trường (Hash Fields) | TTL | Mục đích sử dụng |
 | :--- | :--- | :--- | :--- | :--- |
-| `session:metadata:{tokenUuid}` | `Hash` | `ip`, `browser`, `os`, `location`, `createdAt` | **7 ngày** | Lưu thông tin chi tiết thiết bị, địa lý của phiên phục vụ hiển thị. |
+| `session:metadata:{tokenUuid}` | `Hash` | `ip`, `browser`, `os`, `location`, `createdAt`, `active_jwt_signature` (lưu chữ ký số của Access Token hiện tại) | **7 ngày** | Lưu thông tin chi tiết thiết bị, địa lý và chữ ký JWT phục vụ quản lý & thu hồi phiên. |
+| `session:blacklist_token:{signature}` | `String` | `"blacklisted"` | **Tối đa 15 phút** (thời gian sống còn lại của JWT) | Lưu chữ ký số của các Access Token bị đưa vào danh sách đen do đăng xuất hoặc hủy phiên từ xa. |
 
 ---
 

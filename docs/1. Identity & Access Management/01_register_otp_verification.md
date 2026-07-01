@@ -23,15 +23,18 @@ Tài liệu này đặc tả chi tiết thiết kế tính năng Đăng ký tài
 *   **Chuẩn hóa dữ liệu**: Email đăng ký tự động được chuẩn hóa về dạng chữ thường (`toLowerCase()`) trước khi lưu trữ hoặc đối khớp.
 *   **Xử lý tài khoản chưa xác thực trùng lắp (Clashing Unverified Cleanup)**: 
     *   Nếu một người dùng đăng ký mới với Username/Email đã tồn tại nhưng tài khoản cũ đó vẫn đang ở trạng thái `PENDING_VERIFICATION`:
-        *   **Nếu tài khoản cũ được tạo > 5 phút trước** (đã quá TTL của OTP và mã OTP trên Redis đã hết hạn): Hệ thống sẽ tiến hành **Hard Delete (Xóa cứng)** tài khoản cũ và dọn dẹp các key Redis liên quan để người dùng mới có thể đăng ký bình thường, tránh việc tài khoản bị kẹt do quên xác thực.
-        *   **Nếu tài khoản cũ được tạo <= 5 phút trước**: Hệ thống sẽ chặn yêu cầu đăng ký mới và ném ra lỗi `REGISTRATION_IN_PROGRESS` (HTTP 400) để ngăn chặn kẻ xấu lợi dụng đăng ký trùng lặp làm công cụ DoS xóa tài khoản của người dùng khác.
+        *   **Nếu tài khoản cũ được tạo > 5 phút trước** (đã quá TTL của OTP và mã OTP trên Redis đã hết hạn): Hệ thống sẽ tiến hành **Ghi đè/Cập nhật (Upsert/Overwrite)** thông tin mới lên bản ghi cũ. Cụ thể, hệ thống giữ nguyên khóa chính ID (UUID) của tài khoản cũ, cập nhật lại các thông tin đăng ký mới (mật khẩu băm mới, tên đầy đủ mới), reset các mốc thời gian audit (`created_at` và `updated_at` về thời điểm hiện tại), sinh mã OTP mới và dọn dẹp các key Redis liên quan của tài khoản cũ. Phương pháp này đảm bảo tính nhất quán dữ liệu, tránh lỗi khóa ngoại hoặc làm mất tính toàn vẹn với các bảng khác liên kết qua User ID.
+        *   **Nếu tài khoản cũ được tạo <= 5 phút trước**: Hệ thống sẽ chặn yêu cầu đăng ký mới và ném ra lỗi `REGISTRATION_IN_PROGRESS` (HTTP 400) để ngăn chặn kẻ xấu lợi dụng đăng ký trùng lặp làm công cụ DoS ghi đè tài khoản của người dùng khác.
+        *   **⚡ Xử lý Tranh chấp (Concurrency)**: Để chống Race Condition khi có 2 request đăng ký cùng username/email gửi lên tại cùng một thời điểm, hệ thống bắt buộc phải sử dụng khóa bi quan (**Pessimistic Write Lock - `SELECT ... FOR UPDATE`**) khi truy vấn kiểm tra tài khoản trùng, hoặc bắt tường minh ngoại lệ vi phạm ràng buộc duy nhất (`DataIntegrityViolationException`) từ DB để trả về mã lỗi `REGISTRATION_IN_PROGRESS` (HTTP 400) thay vì ném lỗi 500.
 *   **Thời gian sống của OTP (TTL)**: Mã OTP chỉ có hiệu lực trong vòng **5 phút**.
 *   **Quy tắc chống Spam (Cooldown)**: Thời gian tối thiểu giữa 2 lần yêu cầu gửi lại mã OTP mới là **60 giây**.
 *   **Bảo vệ Brute-force (Nhập sai OTP)**:
     *   Người dùng được phép nhập sai tối đa **5 lần**.
     *   Nếu nhập sai quá 5 lần (`attempts >= 5`), hệ thống sẽ **hủy ngay lập tức mã OTP hiện tại trên Redis** và ném lỗi `OTP_ATTEMPTS_EXCEEDED` (HTTP 423/400). Người dùng bắt buộc phải yêu cầu gửi mã mới.
 *   **Giới hạn trạng thái đăng nhập**: Tài khoản chưa kích hoạt (`PENDING_VERIFICATION`) không thể thực hiện đăng nhập thông qua API Đăng nhập thông thường.
-*   **Dọn dẹp tài khoản chưa kích hoạt định kỳ (Pending User Cleanup)**: Hệ thống chạy một **Scheduled Job** định kỳ mỗi giờ để tự động **Hard Delete** tất cả tài khoản ở trạng thái `PENDING_VERIFICATION` được tạo **quá 24 giờ** trước đó, đồng thời dọn dẹp các key Redis liên quan. Cơ chế này đảm bảo DB không bị tích tụ tài khoản rác do người dùng bỏ dở quá trình đăng ký.
+*   **Dọn dẹp tài khoản chưa kích hoạt định kỳ (Pending User Cleanup)**: 
+    *   Hệ thống chạy một **Scheduled Job** định kỳ mỗi giờ để tự động **Hard Delete** tất cả tài khoản ở trạng thái `PENDING_VERIFICATION` được tạo **quá 24 giờ** trước đó, đồng thời dọn dẹp các key Redis liên quan. Cơ chế này đảm bảo DB không bị tích tụ tài khoản rác do người dùng bỏ dở quá trình đăng ký.
+    *   **⚠️ Ràng buộc dữ liệu liên kết**: Để tránh lỗi vi phạm khóa ngoại (Foreign Key Violation) khi thực hiện xóa cứng (Hard Delete) tài khoản PENDING sau 24 giờ, hệ thống **nghiêm cấm** các tài khoản ở trạng thái `PENDING_VERIFICATION` gọi bất kỳ API nghiệp vụ nào sinh dữ liệu liên kết (như tạo Live Room, upload nhạc demo, tạo playlist, log lịch sử hoạt động...). Họ chỉ được phép tương tác với các API phân vùng bảo mật IAM (xác thực OTP, resend OTP, kiểm tra trạng thái kích hoạt, logout). Hệ thống áp dụng cấu hình phân quyền nghiêm ngặt ở lớp **Spring Security Filter Chain / Method Security** để chặn đứng mọi API nghiệp vụ của nhóm người dùng này ngay từ vòng ngoài, bảo đảm an toàn dữ liệu tuyệt đối trước khi chạy tiến trình xóa.
 
 ### 1.3. Quy tắc Xác thực Dữ liệu (Validation Rules)
 
@@ -51,6 +54,7 @@ Tất cả dữ liệu đầu vào **bắt buộc phải được xác thực t�
 
 | API Endpoint | Giới hạn | Mô tả |
 | :--- | :--- | :--- |
+| `GET /api/v1/auth/check-username` | **20 requests / phút / IP** | Chống dò quét danh sách tên đăng nhập (Username Enumeration) |
 | `POST /api/v1/auth/register` | **5 requests / phút / IP** | Chống spam đăng ký hàng loạt, giảm tải BCrypt hashing & email OTP |
 | `POST /api/v1/auth/verify-otp` | **10 requests / phút / IP** | Chống brute-force OTP (bổ sung cho cơ chế `otp:attempts` có sẵn) |
 | `POST /api/v1/auth/resend-otp` | **3 requests / phút / IP** | Chống spam gửi lại OTP (bổ sung cho cooldown 60 giây có sẵn) |
@@ -78,13 +82,13 @@ sequenceDiagram
     User->>FE: Nhập thông tin & nhấn Đăng ký
     FE->>BE: POST /api/v1/auth/register (RegisterRequest)
     BE->>BE: Validate dữ liệu & kiểm tra Disposable Email
-    BE->>DB: Tìm user trùng lặp ở trạng thái PENDING_VERIFICATION
+    BE->>DB: Tìm & khóa user trùng lặp PENDING_VERIFICATION (SELECT ... FOR UPDATE)
     alt Phát hiện User trùng chưa xác thực
         alt Tài khoản trùng đã tạo > 5 phút trước
-            BE->>DB: Hard delete user cũ
+            BE->>DB: Cập nhật (Upsert) thông tin user cũ (giữ nguyên ID)
             BE->>Redis: Dọn dẹp các key Redis liên quan
         else Tài khoản trùng đã tạo <= 5 phút trước
-            BE-->>FE: HTTP 400 Bad Request (REGISTRATION_IN_PROGRESS)
+            BE-->>FE: HTTP 400 Bad Request (REGISTRATION_IN_PROGRESS) (Không cho ghi đè)
         end
     end
     BE->>DB: Kiểm tra trùng lặp ACTIVE User (Username/Email)
@@ -92,9 +96,12 @@ sequenceDiagram
         BE-->>FE: HTTP 400 Bad Request (EMAIL_EXISTED / USERNAME_EXISTED)
     else Hợp lệ
         BE->>BE: Băm mật khẩu (BCrypt strength = 10)
-        BE->>BE: Sinh OTP 6 số ngẫu nhiên (chỉ tạo giá trị trong bộ nhớ, chưa lưu Redis)
+        BE->>BE: Sinh OTP 6 số ngẫu nhiên bằng SecureRandom (chỉ tạo trong bộ nhớ)
         Note over BE, DB: Bắt đầu Transaction
         BE->>DB: Lưu User mới (status='PENDING_VERIFICATION', role='ROLE_USER')
+        alt Trùng lặp do race condition (DB ném DataIntegrityViolationException)
+            BE-->>FE: HTTP 400 Bad Request (REGISTRATION_IN_PROGRESS)
+        end
         BE->>DB: Lưu OutboxEvent (aggregate_type='IAM', event_type='REGISTRATION_OTP', payload chứa OTP, status='PENDING')
         Note over BE, DB: Commit Transaction & Publish Local ApplicationEvent
         
@@ -104,12 +111,18 @@ sequenceDiagram
         and Xử lý sau Commit (Transactional Event Listener - After Commit)
             BE->>BE: @TransactionalEventListener (After Commit) bắt sự kiện
             BE->>Redis: Pipeline Atomic: SET otp (TTL: 5p) & SET cooldown (TTL: 60s)
-            BE->>Kafka: Phát sự kiện 'REGISTRATION_OTP' tới topic 'notification-events'
-            BE->>DB: Cập nhật outbox_event -> 'PROCESSED'
+            alt Gửi Kafka thành công
+                BE->>Kafka: Phát sự kiện 'REGISTRATION_OTP' (max.block.ms = 500)
+                BE->>DB: Cập nhật outbox_event -> 'PROCESSED'
+            else Gửi Kafka thất bại (Timeout/Error)
+                BE->>BE: Catch exception & log cảnh báo (không chặn API trả về 201)
+            end
         end
 
         loop Polling mỗi 5 giây (IamOutboxScheduler - Fallback / Dự phòng sập nguồn)
-            BE->>DB: Quét outbox_events còn sót có status='PENDING' (do sập server trước khi kịp đẩy)
+            Note over BE, DB: Sử dụng SELECT ... FOR UPDATE SKIP LOCKED
+            BE->>DB: Quét các outbox_events còn sót có status='PENDING' (và khóa dòng)
+            BE->>Redis: Ghi đè (Overwrite) OTP key & reset TTL 5 phút
             BE->>Kafka: Phát sự kiện 'REGISTRATION_OTP' tới topic 'notification-events'
             BE->>DB: Cập nhật outbox_event -> 'PROCESSED'
         end
@@ -117,7 +130,11 @@ sequenceDiagram
         Note over Kafka, Worker: Xử lý gửi mail bất đồng bộ (Async)
         Kafka->>Worker: Consume 'REGISTRATION_OTP'
         Worker->>Worker: Biên dịch Template email/registration-otp
-        Worker->>User: Gửi email chứa mã OTP kích hoạt
+        alt Gửi thành công
+            Worker->>User: Gửi email chứa mã OTP kích hoạt
+        else Gửi thất bại quá 3 lần
+            Worker->>Kafka: Đẩy tin nhắn lỗi vào topic 'notification-events-dlq' (DLQ)
+        end
     end
 ```
 
@@ -126,22 +143,23 @@ sequenceDiagram
 2.  **Gọi API**: Frontend gửi một yêu cầu HTTP POST `/api/v1/auth/register` đính kèm payload đăng ký (`RegisterRequest`) tới Backend.
 3.  **Kiểm tra dữ liệu**: Backend xác thực định dạng dữ liệu đầu vào và kiểm tra lọc tên miền email tạm thời (Disposable Email).
 4.  **Kiểm tra trùng chưa kích hoạt**: Backend truy vấn PostgreSQL để kiểm tra sự tồn tại của Username/Email ở trạng thái chưa kích hoạt (`PENDING_VERIFICATION`).
-5.  **Xử lý trùng chưa kích hoạt (Chống DoS)**:
-    *   *Trường hợp 5a (Tài khoản cũ tạo > 5 phút)*: OTP cũ đã hết hạn, hệ thống tiến hành xóa cứng (Hard Delete) tài khoản cũ và dọn sạch các key Redis liên quan để giải phóng tài nguyên cho đăng ký mới.
-    *   *Trường hợp 5b (Tài khoản cũ tạo <= 5 phút)*: Tài khoản cũ vẫn đang trong thời gian hiệu lực xác thực OTP. Backend chặn đăng ký mới và trả về HTTP 400 kèm lỗi `REGISTRATION_IN_PROGRESS` để chống spam xóa tài khoản người khác.
+5.  **Xử lý trùng chưa kích hoạt (Chống DoS & Đảm bảo toàn vẹn dữ liệu)**:
+    *   *Trường hợp 5a (Tài khoản cũ tạo > 5 phút)*: OTP cũ đã hết hạn, hệ thống tiến hành **Cập nhật/Ghi đè (Upsert/Overwrite)** thông tin mới lên bản ghi cũ. Cụ thể, hệ thống giữ nguyên khóa chính ID (UUID) của tài khoản cũ, cập nhật lại các thông tin đăng ký mới (mật khẩu băm mới, tên đầy đủ mới), reset các mốc thời gian audit (`created_at` và `updated_at` về thời điểm hiện tại), sinh mã OTP mới và dọn dẹp các key Redis liên quan của tài khoản cũ. Phương pháp này đảm bảo tính nhất quán dữ liệu, tránh lỗi khóa ngoại hoặc làm mất tính toàn vẹn với các bảng khác liên kết qua User ID.
+    *   *Trường hợp 5b (Tài khoản cũ tạo <= 5 phút)*: Tài khoản cũ vẫn đang trong thời gian hiệu lực xác thực OTP. Backend chặn đăng ký mới và trả về HTTP 400 kèm lỗi `REGISTRATION_IN_PROGRESS` để chống spam ghi đè tài khoản người khác.
+    *   *⚡ Xử lý Concurrency (Chống Race Condition)*: Tiến trình tìm kiếm tài khoản trùng và cập nhật/upsert này bắt buộc phải sử dụng cơ chế khóa bi quan (**Pessimistic Write Lock - `SELECT ... FOR UPDATE`**) để tuần tự hóa các request gửi đồng thời cho cùng một tài khoản. Ngoài ra, Backend bắt buộc phải bắt tường minh exception `DataIntegrityViolationException` (khi vi phạm ràng buộc duy nhất trong DB) để chuyển đổi thành lỗi nghiệp vụ `REGISTRATION_IN_PROGRESS` (HTTP 400), tránh sập luồng búng ra lỗi 500.
 6.  **Kiểm tra trùng tài khoản đang hoạt động**: Backend truy vấn PostgreSQL kiểm tra trùng lặp với các tài khoản đã kích hoạt (`ACTIVE`).
 7.  **Phản hồi lỗi trùng**: Nếu trùng tài khoản `ACTIVE`, Backend lập tức trả về lỗi HTTP 400 Bad Request (`EMAIL_EXISTED` hoặc `USERNAME_EXISTED`) phản hồi cho Frontend hiển thị cảnh báo.
 8.  **Mã hóa mật khẩu**: Nếu tất cả thông tin hợp lệ, Backend thực hiện băm mật khẩu người dùng bằng thuật toán bảo mật BCrypt (độ mạnh mặc định là 10).
-8b. **Sinh mã OTP**: Backend sinh mã OTP ngẫu nhiên 6 chữ số trong bộ nhớ (in-memory), chưa lưu vào Redis tại thời điểm này.
+8b. **Sinh mã OTP**: Backend sinh mã OTP ngẫu nhiên 6 chữ số bằng thư viện bảo mật mã hóa **`java.security.SecureRandom`** trong bộ nhớ (in-memory), chưa lưu vào Redis tại thời điểm này.
 9.  **Giao dịch Cơ sở dữ liệu (Transaction)**: Backend khởi chạy một Database Transaction cục bộ nhằm đảm bảo tính toàn vẹn:
     *   Lưu thông tin người dùng mới vào bảng `users` với trạng thái `PENDING_VERIFICATION` và gán vai trò là `ROLE_USER`.
     *   Tạo bản ghi sự kiện `OutboxEvent` trạng thái `PENDING` (chứa dữ liệu email, mã OTP vừa sinh và idempotency key là UUID ngẫu nhiên duy nhất) lưu vào bảng `outbox_events`.
 10. **Commit Transaction**: Database Transaction được commit thành công, đồng thời Backend phát đi một sự kiện Spring Local Application Event (`OutboxCreatedEvent`).
 11. **Xử lý song song sau Commit (AFTER_COMMIT)**:
     *   *Luồng phản hồi nhanh (Immediate Response)*: Backend phản hồi kết quả HTTP 201 Created về cho Frontend để chuyển người dùng sang giao diện nhập OTP.
-    *   *Luồng ghi Redis & gửi tin nhắn (AFTER_COMMIT Listener)*: Spring `@TransactionalEventListener` lắng nghe sự kiện. Sau khi DB commit thành công, listener lưu mã OTP vào Redis (key `otp:registration:{email}`, TTL 5 phút) và key cooldown (`otp:cooldown:{email}`, TTL 60 giây) sử dụng Redis Pipeline atomic. Sau đó đẩy thông điệp sự kiện `REGISTRATION_OTP` lên Apache Kafka topic `notification-events` và cập nhật trạng thái outbox trong DB sang `PROCESSED` ngay khi Kafka xác nhận đã nhận tin.
-12. **Scheduler quét dự phòng (Fallback)**: Một polling scheduler định kỳ mỗi 5 giây quét bảng `outbox_events` tìm các dòng trạng thái `PENDING` còn sót (do lỗi sập server đột ngột trước khi listener kịp gửi) để thực hiện lưu OTP vào Redis (nếu chưa có) và gửi lại sang Kafka rồi đánh dấu `PROCESSED`.
-13. **Xử lý gửi Email**: Apache Kafka phân phối tin nhắn đến dịch vụ gửi email (Mail Worker Service). Worker consume tin nhắn, biên dịch giao diện email và gửi mail chứa mã OTP kích hoạt đến hòm thư người dùng.
+    *   *Luồng ghi Redis & gửi tin nhắn (AFTER_COMMIT Listener)*: Spring `@TransactionalEventListener` lắng nghe sự kiện. Sau khi DB commit thành công, listener lưu mã OTP vào Redis (key `otp:registration:{email}`, TTL 5 phút) và key cooldown (`otp:cooldown:{email}`, TTL 60 giây) sử dụng Redis Pipeline atomic. Sau đó đẩy thông điệp sự kiện `REGISTRATION_OTP` lên Apache Kafka topic `notification-events` với cấu hình **`max.block.ms = 500`**. Nếu gửi thành công, Backend cập nhật trạng thái outbox trong DB sang `PROCESSED`. Nếu gửi thất bại (Kafka down hoặc timeout), listener catch exception và ghi log warning để không chặn luồng trả về kết quả HTTP 201 cho client.
+12. **Scheduler quét dự phòng (Fallback)**: Một polling scheduler định kỳ mỗi 5 giây quét bảng `outbox_events` tìm các dòng trạng thái `PENDING` còn sót (do lỗi sập server đột ngột hoặc lỗi kết nối Kafka tạm thời). Để tránh tranh chấp tài nguyên khi chạy multi-instance, Scheduler sử dụng truy vấn **`SELECT ... FOR UPDATE SKIP LOCKED`** (hoặc ShedLock qua Redis) để khóa các dòng đang xử lý và bỏ qua các dòng đang bị khóa bởi worker khác. Scheduler thực hiện ghi đè (Overwrite) OTP vào Redis key cũ (cập nhật lại OTP code và reset TTL 5 phút) để đảm bảo tính nhất quán tuyệt đối giữa mã OTP trong mail sắp gửi và mã OTP nằm trên Cache, gửi lại sang Kafka và đánh dấu `PROCESSED` sau khi gửi thành công.
+13. **Xử lý gửi Email**: Apache Kafka phân phối tin nhắn đến dịch vụ gửi email (Mail Worker Service). Worker consume tin nhắn, biên dịch giao diện email và gửi mail chứa mã OTP kích hoạt đến hòm thư người dùng. Trường hợp gửi email thất bại liên tục quá 3 lần (như SMTP từ chối hoặc lỗi template), Mail Worker tự động đẩy tin nhắn lỗi vào topic **`notification-events-dlq` (Dead Letter Queue)** để giám sát lỗi vận hành, tránh làm tắc nghẽn hàng đợi email của các user khác.
 
 #### 💡 Kiến thức nền tảng: Transactional Outbox Pattern là gì?
 
@@ -181,8 +199,8 @@ graph TD
 ###### **Bước 1: Lưu trữ sự kiện vào bảng outbox cục bộ**
 Trong phương thức đăng ký tài khoản (được đánh dấu `@Transactional`), Backend thực hiện các bước sau trong cùng một database transaction:
 1.  Xác thực dữ liệu đầu vào và kiểm tra trùng lặp tài khoản.
-2.  Lưu thông tin người dùng mới vào bảng `users` ở trạng thái `PENDING_VERIFICATION`.
-3.  Sinh mã OTP ngẫu nhiên 6 chữ số trong bộ nhớ (in-memory), chưa ghi vào Redis tại thời điểm này.
+2.  Lưu thông tin người dùng mới vào bảng `users` ở trạng thái `PENDING_VERIFICATION` (hoặc thực hiện Upsert nếu trùng tài khoản PENDING cũ > 5 phút).
+3.  Sinh mã OTP ngẫu nhiên 6 chữ số bằng **`java.security.SecureRandom`** trong bộ nhớ (in-memory), chưa ghi vào Redis tại thời điểm này.
 4.  Tạo một bản ghi sự kiện `OutboxEvent` mới ở trạng thái `PENDING` (chứa các thông tin: ID ngẫu nhiên, aggregate type là `IAM`, aggregate ID là user ID, event type là `REGISTRATION_OTP`, idempotency key là UUID ngẫu nhiên duy nhất, và payload dạng JSON chứa email cùng mã OTP vừa sinh) và lưu vào bảng `outbox_events`.
 5.  Phát một sự kiện Spring Local Application Event (ví dụ: `OutboxCreatedEvent`) để thông báo cho listener xử lý sau khi transaction commit thành công.
 
@@ -191,14 +209,19 @@ Hệ thống sử dụng cơ chế kết hợp song song để tối ưu tốc �
 
 1.  **Gửi tức thời (Transactional Event Listener - AFTER_COMMIT)**:
     *   **Cơ chế**: Một Event Listener trong Spring Boot lắng nghe sự kiện `OutboxCreatedEvent`. Listener này được cấu hình với `@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)`, nghĩa là nó chỉ thực thi sau khi transaction của DB đã commit hoàn tất thành công.
-    *   **Hành động**: Lưu mã OTP vào Redis (key `otp:registration:{email}`, TTL 5 phút) và key cooldown (`otp:cooldown:{email}`, TTL 60 giây) sử dụng Redis Pipeline atomic. Sau đó đẩy ngay lập tức payload sự kiện từ bảng outbox sang Kafka topic `notification-events`. Khi Kafka xác nhận đã nhận thành công (Ack), hệ thống cập nhật trạng thái sự kiện trong bảng `outbox_events` thành `PROCESSED`.
+    *   **Hành động**: Lưu mã OTP vào Redis (key `otp:registration:{email}`, TTL 5 phút) và key cooldown (`otp:cooldown:{email}`, TTL 60 giây) sử dụng Redis Pipeline atomic. Sau đó đẩy ngay lập tức payload sự kiện từ bảng outbox sang Kafka topic `notification-events`. Chúng ta thiết lập cấu hình **`max.block.ms = 500`** cho Kafka Producer để tránh treo thread xử lý khi Kafka gặp sự cố. Nếu Kafka bị ngắt kết nối, lỗi `TimeoutException` được catch và bỏ qua để hệ thống phản hồi kết quả 201 bình thường cho client. Khi Kafka xác nhận đã nhận thành công (Ack), hệ thống cập nhật trạng thái sự kiện trong bảng `outbox_events` thành `PROCESSED`.
     *   **Ưu điểm**: Người dùng nhận được email kích hoạt ngay lập tức sau khi nhấn đăng ký. Việc ghi Redis chỉ sau khi DB commit đảm bảo tính nhất quán dữ liệu tuyệt đối — không bao giờ xảy ra trường hợp OTP tồn tại trên Redis nhưng User chưa được tạo trong DB.
 
 2.  **Quét dự phòng (Polling Scheduler - Fallback)**:
     *   **Cơ chế**: Một bộ lập lịch (Scheduler) chạy ngầm định kỳ mỗi **5 giây** (sử dụng `@Scheduled`).
-    *   **Hành động**: Tìm kiếm và quét các bản ghi sự kiện trong bảng `outbox_events` có trạng thái là `PENDING` (thường là những sự kiện bị sót lại do server bị mất nguồn đột ngột ở bước listener). Scheduler sẽ kiểm tra và ghi OTP vào Redis (nếu chưa tồn tại), sau đó đẩy các sự kiện sang Kafka topic `notification-events` và cập nhật trạng thái thành `PROCESSED` sau khi gửi thành công.
+    *   **Hành động**: Tìm kiếm và quét các bản ghi sự kiện trong bảng `outbox_events` có trạng thái là `PENDING` (thường là những sự kiện bị sót lại do server bị mất nguồn đột ngột ở bước listener hoặc do lỗi kết nối Kafka tạm thời). Để tránh tranh chấp dữ liệu giữa các worker khi chạy multi-instance, Scheduler thực thi câu lệnh SQL **`SELECT ... FOR UPDATE SKIP LOCKED`** (hoặc dùng thư viện ShedLock với Redis) để đảm bảo mỗi bản ghi chỉ được xử lý bởi một instance duy nhất. Scheduler sẽ kiểm tra và thực hiện ghi đè (Overwrite) OTP vào Redis key cũ (cập nhật lại OTP code và reset TTL 5 phút) để đảm bảo tính nhất quán tuyệt đối giữa mã OTP trong mail sắp gửi và mã OTP nằm trên Cache, sau đó đẩy các sự kiện sang Kafka topic `notification-events` và cập nhật trạng thái thành `PROCESSED` sau khi gửi thành công.
     *   **Ưu điểm**: Đảm bảo sự kiện chắc chắn sẽ được gửi đi tối thiểu một lần (At-Least-Once Delivery), không sợ sập server hay mất mát dữ liệu.
     *   **Xử lý trùng lặp (Idempotency)**: Mỗi OutboxEvent được gắn một `idempotency_key` (UUID duy nhất). Kafka consumer (Mail Worker Service) sử dụng key này để kiểm tra sự kiện đã được xử lý hay chưa trước khi gửi email, đảm bảo mỗi email OTP chỉ được gửi đúng **1 lần** dù sự kiện có bị phát lại (do scheduler hoặc retry).
+
+###### **Bước 3: Mail Worker & Dead Letter Queue (DLQ)**
+Khi sự kiện `REGISTRATION_OTP` được truyền tới Mail Worker Service:
+1. Mail Worker consume tin nhắn, biên dịch template và thực hiện gửi qua SMTP. Nếu gửi email thất bại (do lỗi template, lỗi xác thực SMTP, hoặc sự cố mạng), Mail Worker sẽ thực hiện retry tự động tối đa 3 lần.
+2. Nếu vẫn thất bại sau 3 lần retry, Mail Worker tự động chuyển hướng và đẩy tin nhắn lỗi sang một topic riêng là **`notification-events-dlq` (Dead Letter Queue)** để các quản trị viên có thể theo dõi và can thiệp thủ công, tránh chặn hoặc làm nghẽn luồng xử lý email của người dùng khác.
 
 ---
 
@@ -231,9 +254,9 @@ sequenceDiagram
         alt OTP khớp chính xác
             BE->>Redis: Xóa các key Redis: otp:registration, otp:attempts, otp:cooldown
             BE->>DB: Cập nhật User status -> 'ACTIVE'
-            BE->>BE: Sinh cặp Access Token (JWT) & Refresh Token (UUID)
-            BE->>Redis: Lưu Session Refresh Token (TTL: 7 ngày)
-            BE-->>FE: HTTP 200 OK (Access Token trong body, Refresh Token trong Set-Cookie HttpOnly)
+            BE->>BE: Sinh cặp Access Token (JWT) & Refresh Token (UUID) mới
+            BE->>Redis: Lưu Session refreshToken (TTL: 7 ngày)
+            BE-->>FE: HTTP 200 OK (Access Token trong body, refreshToken trong Set-Cookie HttpOnly)
             FE->>FE: Lưu Access Token vào Zustand Store (in-memory)
             FE-->>User: Điều hướng vào Dashboard của Producer
         end
@@ -254,8 +277,8 @@ sequenceDiagram
     *   Backend xóa sạch toàn bộ các key liên quan đến OTP của email này trên Redis (`otp:registration`, `otp:attempts`, `otp:cooldown`) để dọn dẹp bộ nhớ và bảo mật.
     *   Cập nhật trường trạng thái `status` của User trong PostgreSQL từ `PENDING_VERIFICATION` sang `ACTIVE`.
     *   Backend sinh cặp Token xác thực: Access Token (định dạng JWT, TTL ngắn 15 phút) và Refresh Token (định dạng UUID, TTL dài 7 ngày).
-    *   Lưu Refresh Token vào Redis key `session:refresh_token:{token}` để quản lý phiên hoạt động. Đồng thời Backend đặt Refresh Token vào **HttpOnly Cookie** bảo mật (`Secure`, `SameSite=Strict`) trong HTTP response.
-    *   Backend phản hồi HTTP 200 OK chứa Access Token trong response body (Frontend lưu vào Zustand Store in-memory). Refresh Token được truyền qua Set-Cookie header, không xuất hiện trong JSON body.
+    *   Lưu Refresh Token vào Redis key `session:refresh_token:{token}` để quản lý phiên hoạt động. Đồng thời Backend đặt Refresh Token vào **HttpOnly Cookie** bảo mật `refreshToken` (`Secure`, `SameSite=Strict`) trong HTTP response.
+    *   Backend phản hồi HTTP 200 OK chứa Access Token trong response body (Frontend lưu vào Zustand Store in-memory). Cookie `refreshToken` được truyền qua Set-Cookie header, không xuất hiện trong JSON body.
 9.  **Lưu phiên & Điều hướng**: Frontend nhận Access Token từ response body, lưu vào Zustand Store (in-memory). Refresh Token được trình duyệt tự động quản lý qua HttpOnly Cookie. Sau đó Frontend tự động điều hướng người dùng thẳng tiến vào giao diện Dashboard chính thức của Producer.
 
 ---
@@ -652,7 +675,67 @@ CREATE INDEX idx_outbox_pending ON outbox_events(status, created_at);
 
 ---
 
-### 4.6. Phụ lục Mã Lỗi Nghiệp Vụ (Error Codes)
+### 4.6. API Gia hạn Phiên đăng nhập (Refresh Access Token)
+*   **Method**: `POST`
+*   **Path**: `/api/v1/auth/refresh`
+*   **Auth Level**: `PermitAll` (Xác thực thông qua cookie)
+*   **Headers**: `Cookie: refreshToken=8f8b5f36-3a78-43d9-9524-34e803c4f2bb` (trình duyệt tự động đính kèm)
+
+#### Request Payload:
+Body rỗng (`{}`) do Refresh Token được nhận diện từ Cookie bảo mật.
+
+#### Response Thành công (200 OK):
+```json
+{
+  "success": true,
+  "message": "Gia hạn token thành công",
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJob2Fu...",
+    "expiresIn": 900
+  },
+  "errors": null,
+  "timestamp": "2026-07-01T10:30:00Z"
+}
+```
+*Lưu ý: Header trả về sẽ tự động đính kèm `Set-Cookie: refreshToken=9a8b7c6d-...; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=604800` chứa Refresh Token mới đã xoay vòng.*
+
+#### Response Lỗi Phát hiện Trộm Token (401 Unauthorized):
+```json
+{
+  "success": false,
+  "message": "Phát hiện hành vi sử dụng mã xác thực không hợp lệ. Phiên đăng nhập của bạn đã bị thu hồi để bảo vệ tài khoản.",
+  "data": null,
+  "errors": [
+    {
+      "code": "TOKEN_THEFT_DETECTED",
+      "field": null,
+      "message": "Mã xác thực đã hết hiệu lực, toàn bộ phiên đăng nhập đã bị hủy bỏ"
+    }
+  ],
+  "timestamp": "2026-07-01T10:30:00Z"
+}
+```
+
+#### Response Lỗi Refresh Token không hợp lệ / Hết hạn (401 Unauthorized):
+```json
+{
+  "success": false,
+  "message": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+  "data": null,
+  "errors": [
+    {
+      "code": "INVALID_REFRESH_TOKEN",
+      "field": null,
+      "message": "Refresh Token không tồn tại hoặc đã hết hạn"
+    }
+  ],
+  "timestamp": "2026-07-01T10:30:00Z"
+}
+```
+
+---
+
+### 4.7. Phụ lục Mã Lỗi Nghiệp Vụ (Error Codes)
 
 Mỗi lỗi nghiệp vụ được định nghĩa trong `ErrorCode` Enum với HTTP Status tương ứng. Giá trị `code` trong mảng `errors` của API response sử dụng **tên lỗi dạng chuỗi** (UPPER_SNAKE_CASE):
 
@@ -670,6 +753,8 @@ Mỗi lỗi nghiệp vụ được định nghĩa trong `ErrorCode` Enum với H
 | `400 Bad Request` | `REGISTRATION_IN_PROGRESS` | Tài khoản đang trong quá trình đăng ký xác thực | `email` |
 | `400 Bad Request` | `ACCOUNT_ALREADY_ACTIVE` | Tài khoản đã được kích hoạt thành công trước đó | `email` |
 | `429 Too Many Requests` | `RATE_LIMIT_EXCEEDED` | Vượt quá giới hạn tần suất truy cập API | `null` |
+| `401 Unauthorized` | `INVALID_REFRESH_TOKEN` | Refresh Token không tồn tại hoặc đã hết hạn | `null` |
+| `401 Unauthorized` | `TOKEN_THEFT_DETECTED` | Phát hiện token đã bị sử dụng lại (Token Theft) | `null` |
 
 ---
 
@@ -684,6 +769,7 @@ Mỗi lỗi nghiệp vụ được định nghĩa trong `ErrorCode` Enum với H
 *   **Đếm ngược & Quản lý trạng thái Gửi lại mã**:
     *   **Bộ đếm thời gian thực (Countdown Timer)**: Khi chuyển sang màn hình OTP, bộ đếm ngược 60 giây kích hoạt. Nút "Gửi lại mã" bị vô hiệu hóa (`disabled`) kèm theo hiển thị đếm ngược: `Gửi lại mã sau (59s)`.
     *   **Trạng thái kích hoạt**: Khi đếm ngược kết thúc (`countdown = 0`), nút gửi lại chuyển sang trạng thái sẵn sàng nhấp và tự động tập trung tiêu điểm.
+    *   **Lối thoát khi gõ sai Email**: Bố trí một liên kết văn bản nhỏ dạng text link: `"Sai địa chỉ email? Đăng ký lại"` nằm ngay phía dưới nút Gửi lại mã. Khi nhấp vào liên kết này, Frontend sẽ xóa trạng thái email tạm thời trong session/URL và chuyển hướng người dùng quay lại trang đăng ký `/register` để sửa đổi thông tin.
     *   **Che dấu thông tin riêng tư (Email Masking)**: Hiển thị email nhận mã dưới dạng đã che một phần (ví dụ: `n*******@gmail.com`) để bảo mật quyền riêng tư của người dùng trên giao diện.
 *   **Hỗ trợ người dùng & Trực quan hóa**:
     *   **Ẩn/Hiện mật khẩu**: Bố trí nút icon (Mắt nhắm/Mắt mở) ở trường mật khẩu và trường xác nhận mật khẩu để người dùng dễ dàng kiểm tra tránh nhập sai.
@@ -701,8 +787,8 @@ Mỗi lỗi nghiệp vụ được định nghĩa trong `ErrorCode` Enum với H
     *   Sử dụng thư viện xác thực nhẹ (Zod — khuyến nghị cho TypeScript) để kiểm tra định dạng email hợp lệ, độ dài mật khẩu tối thiểu (8 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt), trùng khớp confirm password, và định dạng username trước khi gọi API.
     *   Nút "Đăng ký" chỉ kích hoạt khi form không còn lỗi validate ở client, giúp giảm 90% các request lỗi gửi lên máy chủ, tiết kiệm tài nguyên mạng.
 *   **Xử lý Ngoại lệ mạng (Network Offline Resilience)**:
-    *   Frontend sử dụng bộ theo dõi trạng thái mạng (`window.navigator.onLine`).
-    *   Nếu người dùng mất kết nối, hệ thống sẽ hiển thị một Toast cảnh báo "Mất kết nối mạng, vui lòng kiểm tra lại!" và chặn gửi request, tránh để ứng dụng bị treo do API timeout.
+    *   **Custom Hook theo dõi mạng (`useNetworkStatus`)**: Xây dựng một custom React hook trong Next.js để đăng ký lắng nghe các sự kiện `online` và `offline` của window.
+    *   **Banner mất mạng toàn cục (Global Offline Banner)**: Tích hợp hook vào layout chung của ứng dụng (`layout.tsx`). Khi phát hiện mất kết nối mạng, hệ thống sẽ hiển thị một thanh banner màu đỏ thông báo rõ ràng "Mất kết nối mạng, vui lòng kiểm tra lại!" cố định ở trên cùng của trang web. Nút submit đăng ký/xác thực sẽ bị chặn (disabled), giúp người dùng dễ dàng nhận biết trạng thái thay vì chỉ hiển thị Toast khi bấm nút.
 
 ---
 
@@ -741,6 +827,7 @@ graph TD
     
     VerifyOtpPage -->|2a. Người dùng bỏ lỡ hoặc Đóng trình duyệt| LoginPage["Màn hình Đăng nhập <br> /login"]:::screen
     VerifyOtpPage -->|2b. Hết hạn OTP hoặc Bị khóa do thử sai| RequestResend{Nhấp Gửi lại mã}:::action
+    VerifyOtpPage -->|2c. Phát hiện gõ sai Email| RegisterPage
     
     RequestResend -->|Sinh OTP mới và Gửi email| VerifyOtpPage
     

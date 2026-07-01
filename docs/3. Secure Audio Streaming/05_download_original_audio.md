@@ -14,7 +14,7 @@ Tài liệu đặc tả A-Z quy trình Tải xuống tệp tin âm thanh gốc c
     3.  Frontend gửi yêu cầu tải xuống đính kèm Token chia sẻ độc quyền lên Backend.
     4.  Backend xác thực Token hợp lệ và kiểm tra thuộc tính cho phép tải (`allow_download = true`).
     5.  Backend gọi thư viện S3 SDK để sinh liên kết tải xuống Pre-signed URL có thời hạn hiệu lực siêu ngắn (**60 giây**), cấu hình Header ép trình duyệt mở hộp thoại lưu tệp (`Content-Disposition: attachment`).
-    6.  Backend phản hồi mã chuyển hướng **HTTP 302 Redirect** trỏ thẳng sang S3 URL để trình duyệt tự động bắt đầu tải xuống tệp tin.
+    6.  Backend phản hồi mã trạng thái **HTTP 200 OK** kèm theo liên kết tải xuống `downloadUrl` (chính là S3 Pre-signed URL) bên trong JSON payload. Frontend nhận link, tự tạo thẻ <a> ẩn để tự động click kích hoạt tải xuống, tránh hiện tượng lỗi 403 làm sụp đổ trạng thái ứng dụng đơn trang (SPA).
 
 ### 1.2. Quy tắc Nghiệp vụ (Business Rules)
 
@@ -26,13 +26,20 @@ Tài liệu đặc tả A-Z quy trình Tải xuống tệp tin âm thanh gốc c
 
 #### B. Cơ chế sinh S3 Pre-signed URL & Ép tải xuống (Attachment)
 *   **Thời hạn ngắn (Short TTL)**: Liên kết tải xuống trực tiếp từ S3 chỉ tồn tại trong **60 giây**. Quá 60 giây link sẽ bị vô hiệu hóa. Ràng buộc này ngăn chặn việc khách hàng copy URL tải xuống gửi cho người thứ ba tải lậu.
-*   **Ép tải xuống file gốc (attachment)**: Khi sinh Pre-signed URL, Backend bắt buộc cấu hình tham số ghi đè Header của S3:
-    *   `ResponseContentDisposition = "attachment; filename=\"{Tieu_De_Bai_Hat}.wav\""`
-    *   Việc này bắt buộc trình duyệt của khách hàng phải mở hộp thoại "Save As" để lưu tệp về máy, thay vì tự động mở một tab mới và phát tệp âm thanh trực tuyến trên trình phát mặc định của trình duyệt.
+*   **Mã hóa tiêu đề tiếng Việt có dấu (RFC 5987 Content-Disposition)**: Khi sinh Pre-signed URL, nếu tiêu đề bản demo chứa ký tự tiếng Việt có dấu và khoảng trắng, việc truyền thô vào header `filename="..."` sẽ làm S3 ném lỗi hoặc trình duyệt hiển thị sai tên. Backend bắt buộc mã hóa mở rộng chuẩn RFC 5987 bằng tham số `filename*=` kết hợp `filename` chuẩn để làm fallback:
+    *   Cú pháp thiết lập trong Java:
+        ```java
+        String fallbackFilename = "demo_track.wav";
+        String encodedFilename = StandardCharsets.UTF_8.name() + "''" + 
+            URLEncoder.encode(title, StandardCharsets.UTF_8.name()).replace("+", "%20");
+        String contentDisposition = "attachment; filename=\"" + fallbackFilename + "\"; filename*=" + encodedFilename;
+        ```
+    *   Thuộc tính này bắt buộc trình duyệt mở hộp thoại "Save As" hiển thị chính xác 100% tên bài hát có dấu của Producer và lưu tệp về máy, thay vì tự phát trực tuyến.
 
-#### C. Chuyển hướng HTTP 302 Redirect an toàn
-*   Backend không tải file gốc từ S3 về bộ nhớ tạm của server rồi nhả về cho Client (proxy stream) nhằm tránh tiêu tốn RAM và nghẽn băng thông hệ thống cho các file WAV dung lượng hàng trăm MB.
-*   Backend phản hồi **HTTP 302 Found** đính kèm Header `Location: <s3_presigned_url>`. Trình duyệt của Client tự động bắt chuyển hướng và kết nối thẳng tới S3 để tải tệp. JS memory ở client không thể đọc trực tiếp được URL này bằng các đoạn mã chặn bắt thông thường.
+#### C. Trả về JSON Payload thay vì HTTP 302 để bảo toàn SPA
+*   Để bảo vệ trải nghiệm của ứng dụng đơn trang (SPA - React/Next.js), Backend không dùng cơ chế chuyển hướng HTTP 302 trực tiếp nữa.
+*   Nếu dùng 302 thông qua thay đổi `window.location.href`, trường hợp link bị thu hồi đột ngột và Backend trả về lỗi 403, trình duyệt sẽ bị chuyển trang sang một trang JSON lỗi trắng tinh làm sập SPA.
+*   Do đó, Backend phản hồi **HTTP 200 OK** chứa JSON payload có trường `downloadUrl` (là S3 Pre-signed URL với TTL 60s). Frontend nhận kết quả sẽ tự động tạo một phần tử `<a>` ẩn và click để tải tệp tin ngầm về, giúp bắt các mã lỗi 403, 404 để hiển thị Toast thông báo bình thường mà không làm vỡ giao diện.
 
 ---
 
@@ -75,22 +82,22 @@ sequenceDiagram
         BE->>BE: Gọi S3 SDK sinh GET Pre-signed URL (TTL 60 giây)
         BE->>BE: Ghi đè Header: Content-Disposition = attachment; filename="Beat.wav"
         
-        BE-->>FE: HTTP 302 Found (Chuyển hướng Location = s3PresignedUrl)
+        BE-->>FE: HTTP 200 OK (Trả về JSON chứa downloadUrl)
         
-        Note over FE, S3: Trình duyệt tự động chuyển hướng kết nối S3
+        Note over FE: FE tạo thẻ <a> ẩn, click kích hoạt tải ngầm
         FE->>S3: GET s3PresignedUrl
         S3-->>Listener: Stream file gốc tải về máy (Mở hộp thoại Save As)
     end
 ```
 
 ##### 📝 Mô tả chi tiết các bước xử lý:
-1.  **Listener kích hoạt tải**: Listener click nút tải xuống. Frontend gửi request `GET /api/v1/demos/shared/{token}/download`.
-2.  **Kiểm tra điều kiện**: Backend truy vấn DB kiểm tra:
+1.  **Listener kích hoạt tải**: Listener click nút tải xuống. Frontend sử dụng axios/fetch gửi request `GET /api/v1/demos/shared/{token}/download`.
+2.  **Kiểm tra điều kiện & Đồng bộ Trạng thái cha (Parental Status Match)**: Backend truy vấn DB kiểm tra:
     *   Bản phân phối tương ứng Token có bị thu hồi không (`is_revoked = false`).
     *   Quyền tải xuống có được kích hoạt không (`allow_download = true`).
-    *   Nếu không thỏa mãn -> trả lỗi `DOWNLOAD_PROHIBITED` (HTTP 403).
+    *   Trạng thái của tệp nhạc gốc trong bảng `demos` bắt buộc phải là `status = 'ACTIVE'`. Nếu bản nhạc gốc đang bị đặt ẩn, đã bị xóa hoặc đang bị khóa do lỗi xử lý (`PROCESSING`/`FAILED`), Backend lập tức từ chối và trả về lỗi `HTTP 403 Forbidden` (`DOWNLOAD_PROHIBITED`) về cho client thông qua JSON error response để FE bắt lỗi hiển thị Toast, không làm sập SPA.
 3.  **Sinh URL tải**: Backend gọi Amazon S3 Client sinh Pre-signed URL với TTL 60s, bổ sung cấu hình ghi đè header `Content-Disposition` thành `attachment` kèm theo tên file nhạc gốc thân thiện.
-4.  **Chuyển hướng trực tiếp**: Backend phản hồi mã HTTP 302. Trình duyệt bắt hướng kết nối trực tiếp đến S3 để tải tệp tin gốc (.wav/.flac) về máy cục bộ của người dùng mà không cần đi qua RAM của Backend.
+4.  **Trả về JSON Payload**: Backend phản hồi mã HTTP 200 OK kèm theo `downloadUrl` (S3 Pre-signed URL) trong body. Frontend tạo thẻ `<a>` ẩn và click tự động để tải tệp tin từ S3 về máy khách, bảo toàn giao diện SPA.
 
 ---
 
@@ -114,10 +121,18 @@ Nghiệp vụ này truy xuất trực tiếp dữ liệu từ các bảng `demos
 *   **Path**: `/api/v1/demos/shared/{shareToken}/download`
 *   **Auth Level**: `PermitAll` (Dành cho khách hàng có mã token liên kết độc quyền truy cập)
 
-#### Response khi có quyền (302 Found):
-*   **HTTP Status**: `302 Found`
-*   **Headers**:
-    *   `Location`: `https://pwb-private-bucket.s3.amazonaws.com/original/UUID.wav?AWSAccessKeyId=...&Expires=...&Signature=...`
+#### Response khi có quyền (200 OK):
+```json
+{
+  "success": true,
+  "message": "Sinh liên kết tải xuống thành công",
+  "data": {
+    "downloadUrl": "https://pwb-private-bucket.s3.amazonaws.com/original/UUID.wav?AWSAccessKeyId=...&Expires=...&Signature=..."
+  },
+  "errors": null,
+  "timestamp": "2026-07-01T16:30:00Z"
+}
+```
 
 #### Response khi không có quyền (403 Forbidden):
 ```json
@@ -154,15 +169,28 @@ Nghiệp vụ này truy xuất trực tiếp dữ liệu từ các bảng `demos
     *   *Trường hợp `allowDownload = true`*: Nút "Tải xuống file gốc" hiển thị phẳng màu đen (`bg-black text-white`), bo góc tối giản. Có icon hình mũi tên chỉ xuống tối giản bên cạnh chữ.
     *   *Trường hợp `allowDownload = false`*: Nút bị **khóa ẩn hoàn toàn** khỏi giao diện Player của khách hàng để tránh gây thắc mắc hoặc khó chịu cho trải nghiệm người dùng.
 *   **Hiệu ứng đang tải (Loading Downloader)**:
-    *   Khi người dùng click nút Tải xuống, đổi nhãn nút thành chữ *"Đang chuẩn bị tệp..."* và hiển thị Spinner xoay. Khôi phục nhãn gốc sau khi trình duyệt nhận được lệnh 302 bắt đầu tải.
+    *   Khi người dùng click nút Tải xuống, đổi nhãn nút thành chữ *"Đang chuẩn bị tệp..."* và hiển thị Spinner xoay. Khôi phục nhãn gốc sau khi trình duyệt trả về file thành công hoặc phát sinh lỗi.
 *   **Accessibility (A11y)**:
     *   Nút bấm khai báo đầy đủ nhãn `aria-label="Tải xuống tệp tin âm thanh gốc chất lượng cao .wav"`.
 
 ---
 
 ### 5.2. Tối ưu hóa Hiệu năng & Trải nghiệm Lập trình viên (Performance & DevEx)
-*   **Tránh chặn Pop-up trình duyệt**:
-    *   Vì API trả về HTTP 302, cách tốt nhất để kích hoạt tải xuống trên Frontend mà không bị trình duyệt chặn pop-up là điều hướng trực tiếp bằng cách gán `window.location.href = '/api/v1/demos/shared/{token}/download'` hoặc tạo một thẻ anchor tag `<a>` ẩn, gán href và gọi click tự động.
+*   **Tránh sập luồng SPA khi gặp lỗi**:
+    *   Frontend tuyệt đối không gán `window.location.href` trực tiếp đến API tải của Backend. Thay vào đó, sử dụng `axios` hoặc `fetch` để gửi yêu cầu lấy `downloadUrl`.
+    *   **Phòng chống kịch bản Tab ma (Ghost Blank Tab)**: Khi tải file, vì S3 Pre-signed URL đã đính kèm header `Content-Disposition: attachment` để ép mở hộp thoại "Save As", trình duyệt sẽ xử lý tải xuống trực tiếp tại màn hình hiện tại. Frontend **không được** thiết lập thuộc tính `link.setAttribute('target', '_blank')` để tránh ép trình duyệt mở thêm một tab trống lửng lơ gây đứt gãy UX.
+    *   Khi nhận được phản hồi thành công (HTTP 200), thực thi hàm kích hoạt tải xuống an toàn thông qua một thẻ `<a>` ẩn:
+        ```typescript
+        const triggerDownload = (downloadUrl: string, fileName: string) => {
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.setAttribute('download', fileName);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        };
+        ```
+    *   Nếu API trả về lỗi 403 hoặc 404, Frontend bắt ngoại lệ (catch block) và hiển thị Toast thông báo lỗi một cách mượt mà, giữ nguyên giao diện React/Next.js của người dùng.
 *   **Chống Double Click**:
     *   Vô hiệu hóa nút bấm tải xuống trong 5 giây ngay sau click đầu tiên để tránh người dùng nhấn liên tục làm sinh hàng loạt URL Pre-signed rác trên S3.
 
@@ -181,11 +209,14 @@ graph TD
     CheckAuth -->|Quyền = false| HideButton[Ẩn nút Tải file gốc]:::action
     CheckAuth -->|Quyền = true| ShowButton[Hiển thị nút Tải file gốc]:::action
     
-    ShowButton -->|Click Tải xuống| RedirectAction[Gán window.location.href đến API /download]:::action
+    ShowButton -->|Click Tải xuống| FetchAction{Gọi API GET /download qua axios}:::action
     
-    RedirectAction -->|Nhận HTTP 302 từ Backend| S3Redirect{Trình duyệt tải trực tiếp từ S3}:::action
+    FetchAction -->|Nhận HTTP 200 OK & s3Url| TriggerDownload[FE sinh thẻ <a> ẩn & Click tải ngầm]:::action
+    FetchAction -->|Lỗi 403/404| ErrorToast[Hiển thị Toast lỗi & giữ nguyên màn hình SPA]:::action
     
-    S3Redirect -->|Lưu file thành công| PlayerPage
+    TriggerDownload -->|Trình duyệt tải từ S3| SaveFile[Hộp thoại Save As lưu tệp tin gốc]:::action
+    SaveFile --> PlayerPage
+    ErrorToast --> PlayerPage
 ```
 
 ---

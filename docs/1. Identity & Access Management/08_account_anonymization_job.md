@@ -27,7 +27,7 @@ Tài liệu đặc tả kiến trúc và quy trình kỹ thuật cho tiến trì
     *   Xóa toàn bộ các key `session:refresh_token:{token}` và `session:metadata:{token}` khỏi Redis Cache.
     *   Xóa ZSet `user:sessions:{userId}`.
     *   Xóa key `user:last_login:{userId}` (Hash chứa IP/device/location — dữ liệu PII).
-    *   Xóa các key brute-force protection: `login_lockout:{email}` và `login_attempts:{email}` (nếu còn tồn tại).
+    *   Xóa các key brute-force protection: `login_lockout:{userId}` và `login_attempts:{userId}` (nếu còn tồn tại) để dọn sạch trạng thái tài khoản.
 2.  **Ẩn danh hóa thông tin PostgreSQL**:
     *   `username` = Cập nhật thành chuỗi ngẫu nhiên không trùng lặp: `deleted_user_{userId}` (hoặc UUID).
     *   `email` = Cập nhật thành: `deleted_{userId}@pwbmini.com`.
@@ -42,7 +42,14 @@ Tài liệu đặc tả kiến trúc và quy trình kỹ thuật cho tiến trì
 
 #### C. Ràng buộc chạy tiến trình (Concurrency Control)
 *   Trong môi trường triển khai thực tế với nhiều instance Backend chạy song song (Clustered/Distributed Environment), tiến trình nền **chỉ được phép thực thi trên duy nhất 1 instance tại cùng 1 thời điểm**.
-*   Hệ thống sử dụng thư viện **ShedLock** lưu khóa trên **Redis** (`anonymization_job_lock`) để điều phối và khóa tiến trình, đảm bảo không xảy ra xung đột dữ liệu ghi đè đồng thời.
+*   Hệ thống sử dụng thư viện **ShedLock** lưu khóa trên **Redis** (`Shedlock:anonymization_job_lock`) để điều phối và khóa tiến trình. Cấu hình khóa bắt buộc phải khai báo cả hai tham số ràng buộc:
+    *   `lockAtMostFor`: **10 phút** (Thời gian khóa tối đa để tự động giải phóng nếu instance chạy bị crash giữa chừng).
+    *   `lockAtLeastFor`: **30 giây** (Thời gian giữ khóa tối thiểu. Ràng buộc này ngăn ngừa lỗi Clock Skew - lệch trục đồng hồ đồng bộ giữa các App Servers khi Job hoàn thành siêu tốc chỉ mất vài mili-giây, ngăn chặn Job bị kích hoạt thực thi lặp lại trên node khác).
+
+#### D. Sự kiện tích hợp hệ thống (System Integration Events)
+*   Để đảm bảo tính đóng gói của kiến trúc Modular Monolith và tuân thủ ranh giới module (Domain Boundary), tiến trình nền không tự ý viết trực tiếp xuống DB của module khác để dọn dẹp dữ liệu nghiệp vụ của User.
+*   Sau khi Database Transaction ẩn danh hóa User thành công và được Commit, Job **bắt buộc** phải phát một sự kiện kết thúc luồng mang tên `ACCOUNT_ANONYMIZED` sang Apache Kafka topic `iam-account-events`.
+*   Các module chuyên trách khác như Music (quản lý nhạc demo) và Live (quản lý live room) sẽ lắng nghe (Consume) sự kiện này để tiến hành dọn dẹp vĩnh viễn dữ liệu liên quan thuộc quyền sở hữu của user (ví dụ: Ra lệnh xóa tệp nhạc vật lý trên AWS S3, hard delete các bản ghi nháp, hoặc ẩn danh hóa/xóa thông tin tác giả trong các bảng lưu trữ nghiệp vụ tương ứng).
 
 ---
 
@@ -56,6 +63,8 @@ sequenceDiagram
     participant Job as Anonymization Scheduler (Cron)
     participant Redis as Redis Cache (ShedLock)
     participant DB as PostgreSQL
+    participant Kafka as Apache Kafka
+    participant MusicLive as Music/Live Modules
     
     Job->>Redis: Thử lấy khóa 'anonymization_job_lock'
     alt Khóa đang bị giữ bởi instance khác
@@ -72,11 +81,16 @@ sequenceDiagram
                 Job->>Redis: Đọc & Xóa sạch toàn bộ khóa phiên 'session:*' của User
                 Job->>Redis: Xóa ZSet 'user:sessions:{userId}'
                 Job->>Redis: Xóa 'user:last_login:{userId}'
-                Job->>Redis: Xóa 'login_lockout:{email}' & 'login_attempts:{email}' (nếu còn)
+                Job->>Redis: Xóa 'login_lockout:{userId}' & 'login_attempts:{userId}' (nếu còn)
                 
                 Job->>DB: Cập nhật User (Ẩn danh hóa thông tin & status='DELETED')
                 
                 Note over Job, DB: Commit Transaction
+                
+                Job->>Kafka: Phát sự kiện 'ACCOUNT_ANONYMIZED' sang topic 'iam-account-events'
+                par 
+                    Kafka->>MusicLive: Consume sự kiện & thực hiện dọn dẹp vĩnh viễn (S3 / DB)
+                end
             end
             Job->>Redis: Giải phóng khóa 'anonymization_job_lock'
         end
@@ -85,11 +99,12 @@ sequenceDiagram
 
 ##### 📝 Mô tả chi tiết các bước xử lý:
 1.  **Kích hoạt Scheduler**: Một biểu thức Cron cấu hình cho `@Scheduled` tự động kích hoạt tiến trình (ví dụ: 02:00 AM hàng ngày).
-2.  **Khóa ShedLock**: Scheduler gửi yêu cầu lấy khóa `anonymization_job_lock` trên Redis (TTL 10 phút). Instance nào lấy được khóa sẽ tiếp tục, các instance khác tự động bỏ qua.
+2.  **Khóa ShedLock**: Scheduler gửi yêu cầu lấy khóa `anonymization_job_lock` trên Redis. Node server nào giữ khóa trước sẽ tiếp tục xử lý, các node khác tự động bỏ qua.
 3.  **Quét Database**: Thực hiện truy vấn PostgreSQL lấy danh sách các user thỏa mãn điều kiện đã chờ quá 30 ngày.
-4.  **Thực thi Ẩn danh hóa**: Duyệt qua từng User, bọc trong một Transaction độc lập (để nếu một user bị lỗi không ảnh hưởng đến toàn bộ batch):
-    *   Hủy toàn bộ Session, metadata, và các key PII (`user:last_login`, `login_lockout`, `login_attempts`) của user đó trên Redis.
+4.  **Thực thi Ẩn danh hóa**: Duyệt qua từng User, bọc trong một Transaction độc lập:
+    *   Hủy toàn bộ Session, metadata, và các key PII (`user:last_login:{userId}`, `login_lockout:{userId}`, `login_attempts:{userId}`) của user đó trên Redis.
     *   Cập nhật ghi đè các trường thông tin PII thành `null` hoặc chuỗi an toàn `deleted_user_{userId}`, chuyển status sang `DELETED` và `deleted = true`.
+    *   Sau khi commit Database Transaction, Job phát sự kiện `ACCOUNT_ANONYMIZED` sang topic `iam-account-events` trên Kafka. Các module Music và Live sẽ lắng nghe để thực hiện xóa file nhạc trên AWS S3 và dọn dẹp vĩnh viễn các dữ liệu liên quan.
 5.  **Giải phóng khóa**: Kết thúc batch, tiến trình giải phóng khóa ShedLock trên Redis.
 
 > **Lưu ý về Batch Size**: Để tránh việc xử lý quá nhiều user cùng lúc (ví dụ: 10,000 user đến hạn) khiến Job vượt ShedLock TTL 10 phút, hệ thống nên cấu hình **batch size tối đa** (ví dụ: 100 users/batch). Nếu số lượng vượt batch size, các bản ghi còn lại sẽ được xử lý trong lần chạy Cron tiếp theo.
@@ -102,7 +117,8 @@ sequenceDiagram
 *   Do hệ thống sử dụng Redis làm cache tập trung, ShedLock sẽ được cấu hình lưu khóa trực tiếp trên Redis dưới dạng key:
     *   Key: `Shedlock:anonymization_job_lock`
     *   Value: `tên instance đang chạy`
-    *   TTL: **10 phút** (Tự động giải phóng nếu instance chạy bị crash giữa chừng).
+    *   `lockAtMostFor`: **10 phút** (TTL tối đa của key để tự động giải phóng nếu instance chạy bị crash giữa chừng).
+    *   `lockAtLeastFor`: **30 giây** (Thời gian giữ khóa tối thiểu kể cả khi tiến trình kết thúc ngay lập tức, ngăn ngừa lỗi Clock Skew kích hoạt lại Job trên node khác).
 
 ---
 

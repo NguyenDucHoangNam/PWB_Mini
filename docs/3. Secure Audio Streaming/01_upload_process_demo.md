@@ -25,22 +25,41 @@ Tài liệu đặc tả A-Z quy trình tải lên tệp tin nhạc gốc chất 
 #### B. Quy trình Tải lên bảo mật S3 (Pre-signed Upload URL)
 *   **Không upload qua Backend**: Client tuyệt đối không gửi file nhị phân lớn qua máy chủ Spring Boot. Backend chỉ chịu trách nhiệm sinh Pre-signed URL (thời hạn sống **60 giây**).
 *   **Private Bucket**: S3 Bucket lưu trữ file gốc bắt buộc cấu hình block public access 100%. Tên tệp lưu trên S3 được thay thế bằng chuỗi UUID ngẫu nhiên để tránh tấn công rò quét IDOR.
+*   **Ép buộc Content-Type (MIME-Type Bypass Prevention)**: Khi client yêu cầu sinh URL, Backend bắt buộc phải cấu hình tham số `ContentType` trong AWS S3 SDK (ví dụ: `audio/wav`, `audio/mpeg` cho mp3, `audio/flac` cho flac). AWS S3 sẽ tự động ký Header này vào chữ ký số của URL. Khi thực hiện tải lên bằng HTTP PUT, Client bắt buộc phải truyền Header `Content-Type` trùng khớp tuyệt đối, nếu không S3 sẽ từ chối tải lên, ngăn ngừa hành vi tải file độc hại (.exe, script) lên Cloud.
+*   **Chính sách dọn dẹp tệp mồ côi (S3 Lifecycle Policy)**: Khi client tải tệp lên S3 thành công nhưng bị rớt mạng/crash trình duyệt trước khi gọi API `confirm-upload`, tệp gốc sẽ nằm kẹt lại vĩnh viễn trên S3 gây phình to chi phí. Hệ thống cấu hình quy tắc S3 Lifecycle Policy cho thư mục tạm `original/` tự động xóa vĩnh viễn các Object có tuổi đời quá 24 giờ kể từ thời điểm khởi tạo, bảo vệ hạ tầng khỏi rác lưu trữ.
 
-#### C. Quy trình Xử lý Nhạc nền (Async Audio Processing Pipeline)
-Khi Async Worker (sử dụng Thread Pool hoặc Message Queue) nhận được sự kiện xử lý:
-1.  **Dập âm lượng Sidechain (Sidechain Auto-Ducking)**:
-    *   Sử dụng bộ lọc nén `sidechaincompress` của FFmpeg. Khi Voice Tag phát đè lên nhạc nền, âm lượng của nhạc nền tại đúng phân khúc đó sẽ tự động giảm xuống `-12dB` (chỉ số nén), sau đó phục hồi ngay lập tức về mức ban đầu sau khi Voice Tag kết thúc. Việc này giúp giữ chất lượng nghe thử cao nhất ở các đoạn nhạc không có tag.
-    *   *Câu lệnh FFmpeg Sidechain Ducking tham khảo*:
-        ```bash
-        ffmpeg -i original.wav -i voicetag.wav -filter_complex "[1]adelay=25000|25000[tag];[0][tag]sidechaincompress=threshold=0.03:ratio=12:attack=5:release=500[out]" -map "[out]" output_watermarked.wav
-        ```
-        *(Đoạn lệnh chèn tag tại giây thứ 25, dìm âm lượng nhạc nền xuống khi có tag)*.
-2.  **Mã hóa AES-128 & Phân đoạn HLS**:
-    *   Cắt file sau khi đóng dấu thành các phân đoạn `.ts` nhỏ dài **6 giây**.
-    *   Mỗi phân đoạn được mã hóa bằng thuật toán đối xứng AES-128 sử dụng khóa nhị phân 16-byte sinh ngẫu nhiên cho từng tệp demo. Khóa giải mã được đẩy lên Redis phục vụ phân phối.
-3.  **Trích xuất Waveform**:
-    *   FFmpeg phân tích biên độ đỉnh âm thanh của file để trích xuất **200 điểm số thực** (giá trị từ `0.0` đến `1.0`) đại diện cho biểu đồ hình sóng của tệp nhạc.
-    *   Mảng dữ liệu này được lưu trực tiếp dưới dạng chuỗi phân tách bằng dấu phẩy trong PostgreSQL để hiển thị nhanh trên Frontend.
+#### C. Quy trình Xử lý Nhạc nền (Async Audio Processing Pipeline) & Tránh Nghẽn CPU
+Để tránh thắt nút cổ chai và sập server do CPU chạm ngưỡng 100% khi chạy FFmpeg đồng thời với Live Room (FFmpeg CPU Starvation):
+*   **Tách biệt Kiến trúc (Independent Worker Cluster)**: Khi Backend nhận yêu cầu xác nhận tải lên (`confirm-upload`), nó ghi nhận trạng thái `PROCESSING` vào DB, rồi bắn sự kiện `AUDIO_PROCESS_EVENT` sang hàng đợi **Apache Kafka**.
+*   **Worker độc lập (Standalone Workers)**: Một cụm các máy chủ chuyên dụng (Worker Nodes viết bằng Python/Go hoặc Java Worker chạy độc lập) sẽ lắng nghe sự kiện từ Kafka để thực thi:
+    1.  **Dập âm lượng Sidechain (Sidechain Auto-Ducking)**:
+        *   Sử dụng bộ lọc nén `sidechaincompress` của FFmpeg. Khi Voice Tag phát đè lên nhạc nền, âm lượng của nhạc nền tại đúng phân khúc đó sẽ tự động giảm xuống `-12dB` (chỉ số nén), sau đó phục hồi ngay lập tức về mức ban đầu sau khi Voice Tag kết thúc. Việc này giúp giữ chất lượng nghe thử cao nhất ở các đoạn nhạc không có tag.
+        *   *Câu lệnh FFmpeg Sidechain Ducking tham khảo*:
+            ```bash
+            ffmpeg -i original.wav -i voicetag.wav -filter_complex "[1]adelay=25000|25000[tag];[0][tag]sidechaincompress=threshold=0.03:ratio=12:attack=5:release=500[out]" -map "[out]" output_watermarked.wav
+            ```
+            *(Đoạn lệnh chèn tag tại giây thứ 25, dìm âm lượng nhạc nền xuống khi có tag)*.
+    2.  **Mã hóa AES-128 & Phân đoạn HLS**:
+        *   Cắt file sau khi đóng dấu thành các phân đoạn `.ts` nhỏ dài **6 giây**.
+        *   Mỗi phân đoạn được mã hóa bằng thuật toán đối xứng AES-128 sử dụng khóa nhị phân 16-byte sinh ngẫu nhiên cho từng tệp demo. Khóa giải mã được đẩy lên Redis phục vụ phân phối.
+    3.  **Trích xuất Waveform**:
+        *   FFmpeg phân tích biên độ đỉnh âm thanh của file để trích xuất **200 điểm số thực** (giá trị từ `0.0` đến `1.0`) đại diện cho biểu đồ hình sóng của tệp nhạc.
+        *   Mảng dữ liệu này được lưu trực tiếp dưới dạng chuỗi phân tách bằng dấu phẩy trong PostgreSQL để hiển thị nhanh trên Frontend.
+    4.  **Tải lên S3 & Cập nhật Trạng thái**:
+        *   Tải các tệp phân đoạn `.ts` và playlist `.m3u8` lên S3, sau đó cập nhật database của Backend sang `ACTIVE` và gửi thông điệp thành công.
+*   **Ràng buộc tài nguyên Node Worker (Concurrency Cap & Poison Pill Protection)**:
+    *   **Giới hạn luồng chạy song song (Concurrency Cap)**: Để tránh cạn kiệt dung lượng đĩa tạm thời (Disk Space Starvation) khi tải nhiều file nhạc 200MB về xử lý FFmpeg song song trên 1 worker, hệ thống giới hạn cứng số lượng tác vụ giải mã đồng thời tối đa trên mỗi node Worker (ví dụ: tối đa 2 hoặc 3 luồng chạy FFmpeg đồng thời tùy theo số core CPU/Disk). Các tác vụ vượt ngưỡng sẽ nằm chờ an toàn trên Kafka queue.
+    *   **Xử lý tin nhắn độc (Poison Pill via Dead Letter Queue - DLQ)**: Khi file upload bị lỗi cấu trúc nhị phân (Corrupted File) làm FFmpeg crash liên tục, hệ thống dễ rơi vào bẫy lặp vô hạn (Infinite Retry Loop) gây tắc nghẽn queue. Cấu hình Kafka Consumer tự động chuyển tin nhắn sang topic lỗi `audio-process-dlq` (Dead Letter Queue) sau 3 lần thử lại thất bại và ghi log mức `ERROR`.
+
+#### E. Phân phối khóa giải mã an toàn (AES-128 Key Delivery Protection)
+*   Để bảo mật nhạc demo chưa phát hành, tệp danh sách phân đoạn `.m3u8` chứa khóa giải mã dạng `#EXT-X-KEY:METHOD=AES-128,URI="..."` tuyệt đối không được trỏ thẳng tới link công khai.
+*   **Giải pháp bảo vệ**: URI này bắt buộc phải trỏ về một endpoint an toàn của Backend: `/api/v1/demos/{demoId}/key`.
+*   **Thắt chặt kiểm duyệt ngữ cảnh (Context-Based Authorization)**: Khi nhận yêu cầu tải khóa giải mã, Endpoint này trích xuất `userId` từ token JWT (chấp nhận Temporary JWT) và kiểm tra:
+    *   *Ngoại lệ*: Nếu `userId` chính là tác giả bản nhạc (`owner_id == userId`), Backend lập tức cấp khóa.
+    *   *Kiểm tra chéo ngữ cảnh*: Nếu là thành viên vãng lai, Backend thực hiện kiểm tra chéo $O(1)$ trên Redis Hash:
+        1. Người dùng này bắt buộc phải là thành viên online thực tế trong phòng ảo (kiểm tra sự tồn tại của `userId` trong `room:members:{roomCode}`).
+        2. Căn phòng đó hiện tại đang phát chính bài hát này (kiểm tra `room:playback:{roomCode} -> activeSourceId == demoId`).
+    *   Nếu không thỏa mãn các điều kiện trên, Backend trả về lỗi `HTTP 403 Forbidden` nhằm triệt tiêu nguy cơ rò rỉ khóa giải mã để tải trộm nhạc ra ngoài.
 
 ---
 
@@ -74,21 +93,21 @@ sequenceDiagram
     actor Producer
     participant FE as Frontend App
     participant BE as Backend (Spring Boot)
+    participant Kafka as Kafka Broker
     participant S3 as S3 Private Bucket
-    participant Worker as Async Audio Worker
+    participant Worker as Standalone Audio Worker
     participant DB as PostgreSQL
 
     Producer->>FE: Kéo thả file 'track.wav' & điền thông tin cấu hình
     FE->>FE: Xác thực Client: Kích thước < 200MB & Đuôi file hợp lệ
     
-    FE->>BE: POST /api/v1/demos/presigned-upload-url (PresignedUrlRequest)
+    FE->>BE: POST /api/v1/demos/presigned-upload-url (fileName, fileSize, contentType)
     BE->>BE: Xác thực quyền ROLE_USER_PRO
-    BE->>BE: Sinh S3 Key ngẫu nhiên: 'original/UUID.wav'
-    BE->>BE: Gọi S3 SDK tạo Pre-signed URL (PUT, TTL 60s)
+    BE->>BE: Gọi S3 SDK tạo Pre-signed URL (PUT, TTL 60s, Kèm Content-Type signature)
     BE-->>FE: HTTP 200 OK (uploadUrl, s3Key)
     
     Note over FE, S3: Frontend tải trực tiếp lên S3
-    FE->>S3: HTTP PUT file 'track.wav' với Header thích hợp
+    FE->>S3: HTTP PUT file 'track.wav' với Header Content-Type trùng khớp
     S3-->>FE: HTTP 200 OK (Tải lên S3 thành công)
     
     FE->>BE: POST /api/v1/demos/confirm-upload (ConfirmUploadRequest: s3Key, title, watermarkInterval)
@@ -101,15 +120,18 @@ sequenceDiagram
         BE->>DB: Ghi nhận Demo mới (status='PROCESSING', title, original_s3_key=s3Key)
         Note over BE, DB: Commit Transaction
         
-        BE->>Worker: Kích hoạt tác vụ xử lý ngầm (đưa vào Thread Pool/Queue)
+        BE->>Kafka: Publish AUDIO_PROCESS_EVENT (demoId, s3Key, watermarkInterval)
         BE-->>FE: HTTP 202 Accepted (status='PROCESSING', demoId=UUID)
-        FE-->>Producer: Hiển thị trạng thái "Đang xử lý âm thanh..." (Loading Spinner)
         
-        Note over Worker, S3: Tiến trình xử lý ngầm (FFmpeg Worker)
-        Worker->>S3: Tải file nhạc gốc 'original/UUID.wav' về bộ nhớ đệm local
+        FE->>BE: Subscribe WebSocket topic cá nhân: /user/queue/demos/status
+        FE-->>Producer: Hiển thị trạng thái "Đang xử lý âm thanh..." (Waveform Skeleton nhấp nháy)
+        
+        Note over Worker, Kafka: Tiến trình xử lý độc lập ngầm (Standalone Audio Worker)
+        Worker->>Kafka: Lắng nghe và tiêu thụ sự kiện AUDIO_PROCESS_EVENT
+        Worker->>S3: Tải file nhạc gốc về bộ đệm cục bộ
         Worker->>Worker: Thực thi chèn Voice Tag đè lên nhạc (Sidechain Ducking)
-        Worker->>Worker: Sinh khóa AES-128 ngẫu nhiên (16 bytes)
-        Worker->>Worker: Chạy FFmpeg băm luồng HLS (.m3u8 & các phân đoạn .ts đã mã hóa)
+        Worker->>Worker: Sinh khóa AES-128 ngẫu nhiên (16 bytes) và đẩy lên Redis phục vụ giải mã bảo mật
+        Worker->>Worker: Chạy FFmpeg băm luồng HLS (.m3u8 & các phân đoạn .ts đã mã hóa AES)
         Worker->>Worker: Chạy phân tích biên độ đỉnh trích xuất mảng Waveform 200 điểm float
         
         Worker->>S3: Tải các tệp phân đoạn .ts và file playlist.m3u8 lên thư mục 'stream/UUID/'
@@ -118,10 +140,9 @@ sequenceDiagram
         Worker->>DB: Cập nhật demos -> status='ACTIVE', waveform_data='0.1,0.2...', duration, sample_rate
         Worker->>Worker: Xóa sạch tệp tạm cục bộ
         
-        Note over FE, BE: FE Polling kiểm tra trạng thái
-        FE->>BE: GET /api/v1/demos/{demoId}/status
-        BE-->>FE: HTTP 200 OK (status='ACTIVE')
-        FE-->>Producer: Hiện nút "Chia sẻ" & Vẽ hình sóng Waveform thành công
+        Worker->>BE: Gửi tín hiệu hoàn tất xử lý
+        BE->>FE: Broadcast WebSocket event: PROCESSING_COMPLETED (demoId, status='ACTIVE', waveform_data)
+        FE-->>Producer: Ẩn Skeleton, vẽ hình sóng Waveform thật & hiện nút "Chia sẻ"
     end
 ```
 
@@ -174,7 +195,8 @@ CREATE INDEX idx_demos_owner_created ON demos(owner_id, created_at DESC);
 ```json
 {
   "fileName": "my_new_beat.wav",
-  "fileSize": 85400200
+  "fileSize": 85400200,
+  "contentType": "audio/wav"
 }
 ```
 
@@ -184,7 +206,7 @@ CREATE INDEX idx_demos_owner_created ON demos(owner_id, created_at DESC);
   "success": true,
   "message": "Cấp liên kết tải lên S3 thành công",
   "data": {
-    "uploadUrl": "https://pwb-private-bucket.s3.amazonaws.com/original/8cf74f51-3a78-43d9-9524-34e803c4f2bb.wav?AWSAccessKeyId=AKIAIOSFODNN7EXAMPLE&Signature=vjbyPxybdZaNmGa%2ByT272YEAiv4%3D&Expires=1782928560",
+    "uploadUrl": "https://pwb-private-bucket.s3.amazonaws.com/original/8cf74f51-3a78-43d9-9524-34e803c4f2bb.wav?Content-Type=audio%2Fwav&AWSAccessKeyId=AKIAIOSFODNN7EXAMPLE&Signature=vjbyPxybdZaNmGa%2ByT272YEAiv4%3D&Expires=1782928560",
     "s3Key": "original/8cf74f51-3a78-43d9-9524-34e803c4f2bb.wav"
   },
   "errors": null,
@@ -225,10 +247,11 @@ CREATE INDEX idx_demos_owner_created ON demos(owner_id, created_at DESC);
 
 ---
 
-### 4.3. API Kiểm tra trạng thái xử lý (Polling Status)
+### 4.3. API Truy vấn trạng thái xử lý (Fallback Status Query)
 *   **Method**: `GET`
 *   **Path**: `/api/v1/demos/{demoId}/status`
 *   **Auth Level**: `Requires ROLE_USER_PRO`
+*   **Mô tả**: Đây là API fallback phục vụ truy vấn thủ công khi kết nối WebSocket gặp sự cố.
 
 #### Response Thành công (200 OK - Khi xử lý xong):
 ```json
@@ -272,23 +295,18 @@ CREATE INDEX idx_demos_owner_created ON demos(owner_id, created_at DESC);
     *   Dropzone khai báo thuộc tính `role="button"` và hỗ trợ kích hoạt bằng phím cách/phím Enter để mở hộp thoại chọn tệp cục bộ.
     *   Khai báo `aria-label="Vùng kéo thả tệp âm thanh WAV hoặc MP3 chất lượng cao tối đa 200 megabytes"`.
 
----
-
 ### 5.2. Tối ưu hóa Hiệu năng & Trải nghiệm Lập trình viên (Performance & DevEx)
 *   **Xác thực kích thước và định dạng ngay tại Client**:
     *   Frontend thực hiện kiểm tra định dạng đuôi file và thuộc tính `file.size` trước khi thực hiện gọi API sinh Pre-signed URL. Nếu file > 200MB, hiển thị cảnh báo đỏ inline ngay lập tức, tiết kiệm tài nguyên mạng.
 *   **Chống Spam xác nhận**:
     *   Vô hiệu hóa form cấu hình (Tiêu đề, Voice Tag) ngay khi người dùng nhấn "Xác nhận và Xử lý", hiển thị Spinner xoay.
-*   **Cơ chế Polling thông minh**:
-    *   Frontend thực hiện kiểm tra trạng thái qua API `/status` với tần suất thưa dần (Exponential Polling): Lần 1 sau 2s -> 4s -> 8s -> tối đa sau mỗi 15s cho đến khi nhận được trạng thái `ACTIVE` hoặc `FAILED` để tránh spam request lên server.
-
----
+*   **Thông báo trạng thái qua WebSocket (WebSocket State Notification)**:
+    *   Thay vì gọi Polling liên tục gây tốn tài nguyên mạng (Nghịch lý Polling), Frontend thực hiện subscribe vào topic cá nhân `/user/queue/demos/status` ngay khi nhận được phản hồi HTTP 202 từ cổng `confirm-upload`.
+    *   Khi cụm Worker hoàn thành xử lý, Backend tự động push tin nhắn WebSocket `PROCESSING_COMPLETED` hoặc `PROCESSING_FAILED` tới client. Giao diện nhận được tin sẽ lập tức ẩn Skeleton, vẽ Waveform thật và hiện nút "Chia sẻ" ngay lập tức, đem lại trải nghiệm thời gian thực tối ưu.
 
 ### 5.3. Trạng thái Kết nối & Trải nghiệm Reconnection (WebSocket/Offline UX)
 *   Nếu người dùng bị mất mạng trong lúc file đang được tải lên S3 trực tiếp, Frontend hiển thị thanh trạng thái màu đỏ: *"Mất kết nối mạng. Đang tạm dừng tải lên..."*. 
 *   Ứng dụng sử dụng cơ chế **Resumable Upload** của S3 để tiếp tục tải lên các phân đoạn còn lại sau khi có mạng trở lại thay vì phải upload từ đầu.
-
----
 
 ### 5.4. Sơ đồ Luồng Màn hình (Screen Flow)
 
@@ -308,12 +326,13 @@ graph TD
     
     ConfirmAction -->|Nhận HTTP 202| ProcessingState["Hiển thị Waveform Skeleton nhấp nháy <br> Trạng thái: Xử lý âm thanh..."]:::screen
     
-    ProcessingState -->|Hỏi trạng thái polling mỗi X giây| FetchStatus{Gọi API GET /status}:::action
+    ProcessingState -->|Đăng ký lắng nghe| SubWS{Subscribe WS /user/queue/demos/status}:::action
     
-    FetchStatus -->|Trả ACTIVE| ActiveState["Hiện Waveform thật & Nút chia sẻ"]:::screen
-    FetchStatus -->|Trả PROCESSING| ProcessingState
+    SubWS -->|Nhận PROCESSING_COMPLETED| ActiveState["Hiện Waveform thật & Nút chia sẻ"]:::screen
+    SubWS -->|Nhận PROCESSING_FAILED| FailState["Hiển thị lỗi xử lý nhạc"]:::screen
     
     ActiveState --> UploadPage
+    FailState --> OpenDialog
 ```
 
 ---

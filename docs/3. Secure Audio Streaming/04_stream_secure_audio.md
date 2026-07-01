@@ -25,16 +25,21 @@ Tài liệu đặc tả A-Z cơ chế Truyền phát nhạc bảo mật (HLS Sec
 
 #### B. Cơ chế cấp Khóa giải mã (AES-128 Key Delivery)
 *   Đường dẫn lấy Key giải mã khai báo trong file `.m3u8` trỏ về API Backend: `/api/v1/stream/keys/{shareToken}`.
-*   Khi có request lấy khóa giải mã:
-    *   Backend kiểm tra `shareToken` có tồn tại và `is_revoked = false` hay không. Nếu không hợp lệ -> Từ chối cấp khóa (HTTP 403).
-    *   Truy vấn nhanh khóa AES-128 từ **Redis Cache** `demo:key:{demoId}` (TTL 5 phút) để trả về mảng 16 bytes nhị phân. Nếu cache bị thiếu (miss), Backend đọc từ kho khóa bảo mật của S3/Postgres và nạp lại vào Redis.
+*   **Bảo mật cấp khóa qua Ký duyệt thời gian thực (Signed Token/Cookies)**: Để triệt tiêu nguy cơ kẻ xấu dùng cURL/Postman gọi trực tiếp vào API lấy khóa thô để giải mã vĩnh viễn các phân đoạn `.ts` tải từ CDN:
+    *   Khi khách hàng truy cập lấy thông tin luồng tại `/api/v1/demos/shared/{shareToken}`, Backend tiến hành kiểm tra xác thực. Nếu hợp lệ, Backend sinh một **Secure Session Cookie** có thời gian sống ngắn (**1 giờ**), cấu hình `HttpOnly`, `Secure` và `SameSite=Strict`. Cookie này mã hóa và ký số thông tin bao gồm `shareToken` và `clientIp`.
+    *   Khi trình phát HLS của Client gửi yêu cầu lấy khóa giải mã tới `/api/v1/stream/keys/{shareToken}`, Backend **bắt buộc** phải xác thực sự tồn tại và tính hợp lệ của Secure Session Cookie này, đồng thời đối khớp địa chỉ IP thực tế gửi request với dải IP lưu trong Cookie. Để tránh làm đứt mạch nhạc khi người dùng di chuyển bằng mạng di động (nhảy trạm phát sóng Mobile IP Roaming, chuyển đổi mạng từ Wifi sang 4G/5G làm thay đổi IP public đột ngột), Backend không so sánh chuỗi IP tuyệt đối mà thực hiện so sánh dải mạng (CIDR Subnet Mask): so sánh dải `/24` đối với IPv4 và dải `/48` hoặc `/64` đối với IPv6. Nếu không có Cookie hoặc dải IP không khớp dải mạng cho phép, Backend mới trả về lỗi `HTTP 403 Forbidden`.
+*   **Cấp phát Khóa giải mã từ bộ đệm**:
+    *   Sau khi xác thực cookie thành công, Backend truy vấn nhanh khóa AES-128 từ **Redis Cache** `demo:key:{demoId}` (TTL 5 phút) để trả về mảng 16 bytes nhị phân. Nếu cache bị thiếu (miss), Backend đọc từ kho khóa bảo mật của S3/Postgres và nạp lại vào Redis.
 
 #### C. Ghi nhận lượt nghe chống Spam (Anti-fraud Play Count)
 *   **Điều kiện ghi nhận**: Lượt nghe chỉ được tăng khi Listener nghe **tối thiểu 30% thời lượng** của bài hát. Sự kiện này được kích hoạt tự động từ Frontend qua trigger `timeupdate` của Audio HTML5.
-*   **Chống spam đếm ảo (Anti-fraud)**: Để ngăn khách hàng cố tình F5 tải lại trang liên tục hoặc viết script spam gọi API nhằm đẩy ảo lượt nghe:
-    *   Khi tăng lượt nghe, Backend sinh một khóa session tạm thời trên Redis: `play_session:{shareToken}:{sessionId}` với **TTL là 24 giờ**, giá trị là `"1"`.
-    *   `sessionId` là chuỗi băm Hash MD5 từ (IP người nghe + User Agent thiết bị).
-    *   Nếu trong vòng 24 giờ, hệ thống nhận được yêu cầu tăng lượt nghe trùng khớp `sessionId` và `shareToken` cũ -> Hệ thống bỏ qua không tăng lượt nghe nữa (trả về HTTP 200 thành công giả lập để đánh lừa bot spam).
+*   **Chống spam đếm ảo bằng Server-Side SessionId Hashing**: Để ngăn khách hàng cố tình sửa mã Javascript ở Frontend để sinh hàng ngàn sessionId giả lập gửi lên:
+    *   API ghi nhận lượt nghe `POST /api/v1/demos/shared/{shareToken}/track-play` **không nhận bất kỳ tham số hay body nào** từ phía Client gửi lên.
+    *   Backend tự động lấy địa chỉ IP người dùng và Header `User-Agent` thông qua đối tượng `HttpServletRequest`, sau đó thực hiện băm MD5 ở phía Server để tính toán ra `sessionId` một cách an toàn.
+*   **Chống tương tranh tăng lượt nghe ảo (Atomic SETNX)**: Nhằm triệt tiêu Race Condition xảy ra khi hacker gọi hàng chục request song song tại cùng một phần triệu giây (tất cả các thread kiểm tra đều thấy chưa tồn tại key), hệ thống bãi bỏ logic "Check-then-Act". Backend thực thi ghi nhận lượt nghe bằng câu lệnh Redis `SETNX` (hoặc `setIfAbsent`) nguyên tử:
+    *   Chạy lệnh ghi khóa `play_session:{shareToken}:{sessionId}` với giá trị là `"1"` và TTL 24 giờ.
+    *   Nếu Redis trả về `true` (ghi nhận thành công lần đầu), Backend mới chạy transaction cập nhật `play_count = play_count + 1` dưới PostgreSQL.
+    *   Nếu Redis trả về `false` (đã có key từ trước), Backend lập tức cắt đuôi và trả về `HTTP 200 OK` giả lập để đánh lừa bot phá hoại.
 
 ---
 
@@ -73,13 +78,14 @@ sequenceDiagram
     alt Link bị thu hồi hoặc Token không tồn tại
         BE-->>FE: HTTP 403 Forbidden (LINK_REVOKED)
     else Hợp lệ
-        BE-->>FE: Trả về thông tin Shared Thread & URL Playlist (.m3u8)
+        BE-->>FE: Trả về thông tin Shared Thread & URL Playlist (.m3u8) (Kèm Set Secure Session Cookie)
         
         FE->>BE: Yêu cầu tải Playlist: /api/v1/stream/{token}/playlist.m3u8
         BE-->>FE: Trả về tệp .m3u8 (Chứa URL CDN của các .ts & URL lấy Key)
         
         loop Tải và phát từng phân đoạn
-            FE->>BE: GET /api/v1/stream/keys/{token} (Lấy khóa giải mã)
+            FE->>BE: GET /api/v1/stream/keys/{token} (Lấy khóa giải mã - Kèm Secure Session Cookie)
+            BE->>BE: Xác thực Secure Cookie & trùng khớp IP người gửi
             BE->>Redis: Lấy khóa AES của bài hát từ 'demo:key:{demoId}' (TTL 5m)
             BE-->>FE: Trả về mảng nhị phân 16 bytes khóa giải mã
             
@@ -90,8 +96,9 @@ sequenceDiagram
         
         Note over FE, BE: --- Tiến trình Ghi nhận lượt nghe (Play Count) ---
         FE->>FE: Theo dõi nghe đạt >= 30% thời lượng bài hát
-        FE->>BE: POST /api/v1/demos/shared/{token}/track-play (Kèm sessionId)
+        FE->>BE: POST /api/v1/demos/shared/{token}/track-play (Body rỗng, IP/User-Agent tự lấy từ Header)
         
+        BE->>BE: Băm MD5 (IP + User-Agent) phía Server thành sessionId
         BE->>Redis: Kiểm tra tồn tại khóa 'play_session:{token}:{sessionId}'
         alt Đã ghi nhận lượt nghe trong vòng 24h (Spam)
             BE-->>FE: HTTP 200 OK (Chặn không tăng DB nhưng trả về thành công giả lập)
@@ -104,13 +111,13 @@ sequenceDiagram
 ```
 
 ##### 📝 Mô tả chi tiết các bước xử lý:
-1.  **Nạp cấu hình**: Khách hàng mở link, Frontend gửi yêu cầu lấy cấu hình luồng chia sẻ. Backend xác thực trạng thái thu hồi trong DB.
+1.  **Nạp cấu hình**: Khách hàng mở link, Frontend gửi yêu cầu lấy cấu hình luồng chia sẻ. Backend xác thực trạng thái thu hồi trong DB. Nếu hợp lệ, Backend sinh và trả về một **Secure Session Cookie** (TTL 1 giờ, cấu hình HttpOnly, Secure) chứa chữ ký IP khách.
 2.  **Đọc file Playlist**: Frontend nạp tệp `playlist.m3u8` qua API của Backend. Nội dung file chỉ đường dẫn lấy khóa giải mã về Backend `/stream/keys/{token}` và đường dẫn tải nhạc phân đoạn `.ts` trực tiếp về CDN.
 3.  **Tải nhạc & Giải mã**: Trình phát HLS tải song song:
     *   Tải phân đoạn nhạc `.ts` (dung lượng lớn) từ CDN.
-    *   Gửi request lấy khóa giải mã 16 bytes từ Backend.
+    *   Gửi request lấy khóa giải mã 16 bytes từ Backend, trình duyệt tự động đính kèm Secure Session Cookie. Backend xác thực cookie và so sánh IP trùng khớp mới trả về key giải mã.
     *   Thực hiện giải mã cuốn chiếu trong bộ đệm RAM cục bộ và phát ra loa.
-4.  **Đếm lượt nghe**: Khi Listener nghe qua 30% bài hát, Frontend tự động gửi request `POST /track-play` đính kèm chuỗi MD5 của IP+UA. Backend kiểm tra trùng lặp trên Redis trong 24 giờ qua để ngăn chặn các lượt click ảo trước khi cộng 1 vào DB Postgres.
+4.  **Đếm lượt nghe**: Khi Listener nghe qua 30% bài hát, Frontend tự động gửi request `POST /track-play` với body rỗng. Backend tự động trích xuất IP và User-Agent từ request header để băm MD5 thành `sessionId` ngay tại server. Backend kiểm tra trùng lặp trên Redis trong 24 giờ qua để ngăn chặn các lượt click ảo trước khi cộng 1 vào DB Postgres.
 
 ---
 
@@ -136,6 +143,7 @@ sequenceDiagram
 *   **Method**: `GET`
 *   **Path**: `/api/v1/demos/shared/{shareToken}`
 *   **Auth Level**: `PermitAll` (Dành cho khách hàng có mã token độc quyền truy cập)
+*   **Response Headers**: `Set-Cookie: SecureSessionCookie=<token>; Max-Age=3600; HttpOnly; Secure; SameSite=Strict`
 
 #### Response Thành công (200 OK):
 ```json
@@ -162,7 +170,7 @@ sequenceDiagram
 ### 4.2. API Trả khóa giải mã âm thanh HLS (Get Decryption Key)
 *   **Method**: `GET`
 *   **Path**: `/api/v1/stream/keys/{shareToken}`
-*   **Auth Level**: `PermitAll`
+*   **Auth Level**: `PermitAll` (Yêu cầu có `SecureSessionCookie` hợp lệ và khớp địa chỉ IP thực tế gửi yêu cầu)
 
 #### Response Body:
 *   **Content-Type**: `application/octet-stream`
@@ -174,13 +182,7 @@ sequenceDiagram
 *   **Method**: `POST`
 *   **Path**: `/api/v1/demos/shared/{shareToken}/track-play`
 *   **Auth Level**: `PermitAll`
-
-#### Request Body (`TrackPlayRequest`):
-```json
-{
-  "sessionId": "b8cf74f513a7843d9952434e803c4f2b"
-}
-```
+*   **Request Body**: *Trống* (Hệ thống tự động trích xuất IP và User-Agent qua header từ `HttpServletRequest` để băm MD5 phía Server).
 
 #### Response Thành công (200 OK):
 ```json
@@ -219,6 +221,16 @@ sequenceDiagram
 *   **Tích hợp `hls.js` an toàn**:
     *   Sử dụng thư viện `hls.js` để tự động nạp playlist `.m3u8` và giải mã luồng. 
     *   Cấu hình giảm kích thước buffer tối đa (`maxMaxBufferLength: 12`) để tránh tải trước quá nhiều phân đoạn nhạc HLS khi người dùng chưa nghe đến, giúp tiết kiệm băng thông CDN.
+    *   **Cấu hình đính kèm Cookie cho Key Request (`xhr.withCredentials`)**: Mặc định, các media request tải khóa giải mã `#EXT-X-KEY` chạy ngầm trong trình phát HLS (như hls.js hoặc Safari native) sẽ tự động lược bỏ toàn bộ Cookie để tối ưu hiệu năng. Để Secure Session Cookie không bị bỏ rơi dẫn đến lỗi 403 Forbidden, Frontend bắt buộc cấu hình tham số `xhrSetup` của hls.js để ép đính kèm credentials khi tải khóa:
+        ```typescript
+        const hls = new Hls({
+          xhrSetup: function (xhr, url) {
+            if (url.includes('/stream/keys/')) {
+              xhr.withCredentials = true; // Ép đính kèm SecureSessionCookie xuyên suốt
+            }
+          }
+        });
+        ```
 *   **Gửi API ghi lượt nghe (Play Count Trigger)**:
     *   Frontend sử dụng một cờ hiệu `let playRecorded = false`. Lắng nghe sự kiện `timeupdate` của thẻ Audio:
         ```typescript

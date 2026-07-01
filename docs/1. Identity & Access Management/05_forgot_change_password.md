@@ -5,7 +5,7 @@ Tài liệu đặc tả A-Z tính năng Quên mật khẩu (dành cho người d
 ---
 
 ## 📋 1. Business & Requirements (Nghiệp vụ & Yêu cầu)
-
+ 
 ### 1.1. Mô tả Nghiệp vụ (User Story / Use Case)
 *   **Đối tượng thực hiện**: 
     *   *Quên mật khẩu*: Người dùng không nhớ mật khẩu, cần khôi phục qua Email đã đăng ký.
@@ -13,29 +13,29 @@ Tài liệu đặc tả A-Z tính năng Quên mật khẩu (dành cho người d
 *   **Quy trình tóm tắt**:
     *   *Quên mật khẩu*: Người dùng điền Email -> Hệ thống sinh Reset Token gửi qua Email -> Người dùng click link điền mật khẩu mới -> Xác thực và đổi mật khẩu thành công -> Hủy toàn bộ phiên đang chạy.
     *   *Đổi mật khẩu*: Người dùng điền Mật khẩu cũ + Mật khẩu mới + Xác nhận mật khẩu mới -> Hệ thống đối khớp mật khẩu cũ, băm mật khẩu mới -> Đổi thành công -> Hủy toàn bộ phiên trên thiết bị khác (giữ lại phiên hiện tại).
-
+ 
 ### 1.2. Quy tắc Nghiệp vụ (Business Rules)
-
-#### A. Phòng chống dò quét tài khoản (User Enumeration Defense)
-*   Tại API yêu cầu khôi phục mật khẩu (`POST /api/v1/auth/forgot-password`), hệ thống **luôn trả về một phản hồi giống nhau** (HTTP 200 OK với thông điệp *"Nếu email tồn tại trên hệ thống, chúng tôi đã gửi liên kết khôi phục..."*) bất kể email đó có thực sự tồn tại trong Database hay không.
-*   Quy tắc này chặn đứng việc hacker sử dụng API này để quét và thử dò tìm danh sách email người dùng đã đăng ký trên hệ thống.
-
+ 
+#### A. Phòng chống dò quét tài khoản (User Enumeration & Timing Attack Defense)
+*   Tại API yêu cầu khôi phục mật khẩu (`POST /api/v1/auth/forgot-password`), hệ thống **luôn trả về một phản hồi giống nhau** (HTTP 200 OK với thông điệp *"Nếu email tồn tại trên hệ thống, chúng tôi đã gửi liên kết khôi phục..."*) bất kể email đó có thực sự tồn tại trong Database hay không. Quy tắc này chặn đứng việc hacker sử dụng API để quét danh sách email đăng ký.
+*   **Phòng chống tấn công đo thời gian (Timing Attack Defense - Response Time Flattener)**: Để ngăn chặn attacker đo đạc sự chênh lệch thời gian phản hồi (khi email không tồn tại xử lý mất ~5ms, khi email tồn tại xử lý mất 50-100ms do các tác vụ ghi DB transaction/OutboxEvent), hệ thống thực hiện cơ chế làm phẳng thời gian phản hồi bằng các tác vụ giả lập (Dummy Operations) hoặc chèn khoảng trễ nhân tạo (Thread.sleep với độ trễ bù đắp ngẫu nhiên) ở nhánh email không tồn tại (Xem chi tiết tại phần 8.2).
+ 
 #### B. Cơ chế khôi phục mật khẩu qua Email (Forgot Password)
 *   **Sinh mã Token**: Khi email hợp lệ và hoạt động (`ACTIVE`), hệ thống sinh mã Reset Token ngẫu nhiên (UUID), lưu vào Redis dạng `password_reset_token:{token}` với giá trị là `email`, TTL **10 phút**.
 *   **Xử lý Outbox & Gửi mail**: Sự kiện khôi phục mật khẩu được lưu vào bảng `outbox_events` (`aggregate_type='IAM'`, `event_type='PASSWORD_RESET'`). Sau khi commit transaction, hệ thống đẩy sự kiện sang Kafka để Mail Worker soạn và gửi mail chứa link khôi phục dạng: `https://pwbmini.com/reset-password?token={token}`.
 *   **Xác nhận và đặt lại**: Khi người dùng click link, nhập mật khẩu mới:
     *   Mật khẩu mới phải vượt qua các Validation rules (độ dài, ký tự đặc biệt).
     *   Backend băm mật khẩu bằng BCrypt (strength = 10) và cập nhật DB.
-    *   Xóa key reset token khỏi Redis.
-    *   **Dọn dẹp khóa Lockout**: Đồng thời xóa bỏ các key `login_lockout` và `login_attempts` của người dùng này trên Redis để cho phép họ đăng nhập lại ngay lập tức mà không bị kẹt bởi hàng rào lockout trước đó.
+    *   **Tránh mất dấu Reset Token do lỗi Giao dịch (DB Transaction Failure)**: Reset Token `password_reset_token:{token}` trên Redis chỉ được xóa ở bước cuối cùng sau khi Database Transaction cập nhật mật khẩu mới hoàn tất thành công. Nếu transaction thất bại và rollback, token vẫn được giữ lại để người dùng không bị mất lượt khôi phục (Xem chi tiết tại phần 8.3).
+    *   **Dọn dẹp khóa Lockout**: Đồng thời xóa bỏ các key `login_lockout:{userId}` và `login_attempts:{userId}` (dạng định danh duy nhất theo userId tương ứng với Usecase 02) của người dùng này trên Redis để cho phép họ đăng nhập lại ngay lập tức mà không bị kẹt bởi hàng rào lockout trước đó.
     *   **Cưỡng chế thoát phiên (Session Revocation)**: Xóa toàn bộ các token phiên trong ZSet `user:sessions:{userId}` và tất cả khóa `session:refresh_token:{token}` liên quan trên Redis để buộc tất cả thiết bị đang đăng nhập bằng tài khoản này phải đăng xuất lập tức.
-
+ 
 #### C. Quy tắc Đổi mật khẩu khi đang đăng nhập (Change Password)
 *   Yêu cầu Access Token hợp lệ đính kèm trong header `Authorization`.
 *   **Tài khoản OAuth-only** (những user đăng ký hoàn toàn qua Google OAuth2, `password = null`): **Không được phép** truy cập tính năng Đổi mật khẩu. Backend trả lỗi HTTP 400 (`OAUTH_ONLY_ACCOUNT`). Frontend ẩn menu "Đổi mật khẩu" nếu user không có Local credentials (`oauth_provider != null` và `password == null`).
 *   Người dùng phải nhập đúng Mật khẩu cũ (đối khớp bằng BCrypt).
 *   **Mật khẩu mới** phải khác mật khẩu cũ (chống đổi mật khẩu cũ trùng lặp).
-*   **Hủy phiên thiết bị khác**: Sau khi đổi thành công, hệ thống thực hiện quét ZSet `user:sessions:{userId}` và **xóa toàn bộ Refresh Token của các thiết bị khác**, chỉ giữ duy nhất Refresh Token hiện tại (lấy từ cookie) hoạt động bình thường để tránh làm phiền người dùng hiện tại phải đăng nhập lại.
+*   **Hủy phiên thiết bị khác & Dọn dẹp Lockout**: Sau khi đổi thành công, hệ thống thực hiện quét ZSet `user:sessions:{userId}` và **xóa toàn bộ Refresh Token của các thiết bị khác** (giữ lại Refresh Token hiện tại), đồng thời xóa sạch bộ đếm và khóa lockout `login_lockout:{userId}` và `login_attempts:{userId}` của tài khoản để đảm bảo tính nhất quán dữ liệu phiên. Phiên đăng nhập hiện tại được giữ lại để tránh làm phiền người dùng phải đăng nhập lại.
 
 ---
 
@@ -87,7 +87,7 @@ sequenceDiagram
     
     BE->>DB: Tìm kiếm User theo email
     alt User không tồn tại, không ACTIVE (PENDING_VERIFICATION/BANNED/PENDING_DELETION), hoặc OAuth-only (password=null)
-        BE-->>FE: HTTP 200 OK (Thông báo giả lập thành công - Enumeration Defense)
+        BE-->>FE: HTTP 200 OK (Trả kết quả giả lập & Áp dụng Response Time Flattener)
     else User hợp lệ
         BE->>BE: Sinh Reset Token ngẫu nhiên (UUID)
         
@@ -118,7 +118,7 @@ sequenceDiagram
     alt Token không tồn tại hoặc hết hạn (null)
         BE-->>FE: HTTP 400 Bad Request (INVALID_RESET_TOKEN)
     else Token hợp lệ
-        BE->>Redis: Lấy email từ Redis và xóa key 'password_reset_token:{token}'
+        BE->>Redis: Lấy email từ Redis (chưa xóa token trên Redis)
         BE->>DB: Truy vấn User theo email
         
         alt Trạng thái User là BANNED
@@ -130,13 +130,14 @@ sequenceDiagram
             BE->>DB: Cập nhật password mới của User
             Note over BE, DB: Commit Transaction
             
-            Note over BE, Redis: Thu hồi toàn bộ phiên đăng nhập (Redis Pipeline)
+            Note over BE, Redis: Thu hồi phiên, xóa token & lockout (Redis Pipeline)
             BE->>Redis: Lấy danh sách token từ ZSet 'user:sessions:{userId}'
             loop Duyệt qua toàn bộ token của User
                 BE->>Redis: DEL 'session:refresh_token:{token}'
             end
             BE->>Redis: DEL 'user:sessions:{userId}'
-            BE->>Redis: DEL 'login_lockout:{email}' & 'login_attempts:{email}' (Dọn dẹp lockout)
+            BE->>Redis: DEL 'password_reset_token:{token}' (Chỉ xóa sau khi DB cập nhật thành công)
+            BE->>Redis: DEL 'login_lockout:{userId}' & 'login_attempts:{userId}' (Dọn dẹp lockout)
             Note over BE, Redis: Kết thúc Pipeline
             
             BE-->>FE: HTTP 200 OK (Đặt lại mật khẩu thành công)
@@ -146,13 +147,22 @@ sequenceDiagram
 ```
 
 ##### 📝 Mô tả chi tiết các bước xử lý (Quên mật khẩu):
-1.  **Yêu cầu gửi mail**: Người dùng nhập Email, Frontend gửi `POST /forgot-password`. Nếu email không tồn tại, tài khoản ở trạng thái không phải `ACTIVE` (`PENDING_VERIFICATION`, `BANNED`, `PENDING_DELETION`), hoặc là tài khoản OAuth-only (`password = null`), Backend vẫn trả về HTTP 200 OK giả lập thành công để bảo mật (Enumeration Defense).
+1.  **Yêu cầu gửi mail**: Người dùng nhập Email, Frontend gửi `POST /forgot-password`. Nếu email không tồn tại, tài khoản ở trạng thái không phải `ACTIVE` (`PENDING_VERIFICATION`, `BANNED`, `PENDING_DELETION`), hoặc là tài khoản OAuth-only (`password = null`), Backend vẫn trả về HTTP 200 OK giả lập thành công để bảo mật (Enumeration Defense). Đồng thời, hệ thống chạy tác vụ giả lập hoặc delay ngẫu nhiên (Response Time Flattener) để làm phẳng thời gian phản hồi của cả hai nhánh logic, chống Timing Attack.
 2.  **Lưu Outbox & Gửi mail**: Nếu hợp lệ, hệ thống tạo Reset Token (UUID), ghi vào bảng Outbox, gửi event sang Kafka. Đồng thời lưu key `password_reset_token:{token}` vào Redis với TTL 10 phút. Mail Worker gửi link khôi phục tới hòm thư của người dùng.
 3.  **Điền mật khẩu mới**: Người dùng click link mở ra màn hình `/reset-password?token={token}` trên Frontend, nhập mật khẩu mới và xác nhận.
 4.  **Đặt lại mật khẩu**: Frontend gửi `POST /reset-password` kèm mật khẩu mới và token. Backend đối soát token trên Redis:
     *   *Nếu không hợp lệ*: Trả lỗi HTTP 400 (`INVALID_RESET_TOKEN`).
-    *   *Nếu hợp lệ*: Lấy email, xóa token trên Redis, băm mật khẩu mới bằng BCrypt và cập nhật xuống Postgres.
-5.  **Dọn phiên & Lockout**: Backend sử dụng **Redis Pipeline** xóa toàn bộ Refresh Token của user trên Redis và xóa ZSet quản lý phiên để cưỡng chế logout các thiết bị đang online. Hệ thống cũng xóa bỏ các bộ đếm sai và lockout của user này để họ đăng nhập bình thường. Nếu user bị `BANNED` trong khoảng thời gian reset token còn hiệu lực, Backend từ chối và trả lỗi `ACCOUNT_BANNED`.
+    *   *Nếu hợp lệ*:
+        *   Backend lấy email liên kết từ Redis, truy vấn thông tin User trong PostgreSQL.
+        *   Nếu User ở trạng thái `BANNED`, trả về lỗi HTTP 400 (`ACCOUNT_BANNED`).
+        *   Nếu hợp lệ (`ACTIVE`), Backend băm mật khẩu mới bằng BCrypt và cập nhật mật khẩu mới của User vào PostgreSQL trong transaction.
+        *   Sau khi cập nhật DB thành công, Backend thực hiện **Redis Pipeline** để dọn dẹp và bảo mật:
+            *   Đọc danh sách token từ ZSet `user:sessions:{userId}` và thu hồi (DEL) toàn bộ phiên đăng nhập (Refresh Token) của User trên mọi thiết bị.
+            *   Xóa ZSet danh sách phiên `user:sessions:{userId}`.
+            *   Xóa Reset Token `password_reset_token:{token}` trên Redis.
+            *   Xóa trạng thái lockout `login_lockout:{userId}` và lịch sử đăng nhập sai `login_attempts:{userId}`.
+        *   Trả về HTTP 200 OK (`Đặt lại mật khẩu thành công`).
+        *   Frontend nhận kết quả, thông báo đặt lại mật khẩu thành công và điều hướng người dùng về trang `/login`.
 
 ---
 

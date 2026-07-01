@@ -72,20 +72,21 @@ sequenceDiagram
     FE->>BE: POST /api/v1/rooms/{roomCode}/source (SelectSourceRequest)
     
     BE->>BE: Xác thực Host sở hữu phòng Live
-    BE->>DB: Truy vấn kiểm tra Demo_X tồn tại & thuộc sở hữu của Host
+    BE->>DB: Truy vấn kiểm tra Demo_X tồn tại, thuộc sở hữu & status = 'READY'
     
-    alt Tệp demo không hợp lệ hoặc không thuộc quyền sở hữu
-        BE-->>FE: HTTP 400 Bad Request (DEMO_NOT_OWNED)
+    alt Tệp không hợp lệ, không thuộc sở hữu hoặc chưa sẵn sàng
+        BE-->>FE: HTTP 400 Bad Request (DEMO_NOT_OWNED hoặc DEMO_NOT_READY)
     else Hợp lệ
-        Note over BE, Redis: Bắt đầu Transaction/Pipeline trên Cache
+        Note over BE, Redis: Bắt đầu Redis Transaction (MULTI)
+        BE->>Redis: MULTI
         BE->>Redis: Cập nhật Hash 'room:status:{roomCode}' -> activeSourceId = Demo_X_UUID
         BE->>Redis: Cập nhật Hash 'room:playback:{roomCode}' -> state='PAUSED', position=0.0, updated_at=now
-        Note over BE, Redis: Commit Pipeline
+        BE->>Redis: EXEC (Commit Transaction)
         
         BE-->>FE: HTTP 200 OK (Cập nhật nguồn thành công)
         
         Note over BE, ListFE: Phát sóng WebSocket tới toàn bộ phòng
-        BE->>ListFE: Broadcast qua topic /playback (SOURCE_CHANGED, demoId, title, waveform, duration)
+        BE->>ListFE: Broadcast qua topic /playback (SOURCE_CHANGED, demoId, title, waveform, duration, eventTimestamp)
         
         par Xử lý phía Host
             FE->>FE: Reset trình phát về 0:00 & PAUSED
@@ -103,10 +104,10 @@ sequenceDiagram
 1.  **Chọn bài hát**: Host mở thư viện nhạc demo trên giao diện phòng, chọn một tệp demo (Demo_X) và xác nhận. Frontend gửi `POST /rooms/{roomCode}/source` đính kèm Token JWT.
 2.  **Kiểm tra tính hợp lệ**: Backend kiểm tra token xác thực:
     *   Đảm bảo người gọi là Host của mã phòng `{roomCode}`.
-    *   Truy vấn Database kiểm tra `Demo_X` có tồn tại và thuộc quyền sở hữu của Host hay không. Nếu không, trả lỗi `DEMO_NOT_OWNED`.
-3.  **Cập nhật Cache**: Sử dụng Redis Pipeline cập nhật đồng thời ID nguồn nhạc đang phát (`activeSourceId`) và reset trạng thái phát của phòng về `PAUSED` và vị trí `0.0`.
-4.  **Phát sóng WebSocket**: Backend gửi gói tin `SOURCE_CHANGED` chứa ID tệp demo, tiêu đề, dữ liệu mảng waveform và tổng thời lượng qua kênh WebSocket `/topic/rooms/{roomCode}/playback`.
-5.  **Tải lại nguồn ở Client**: Trình duyệt của Host và Listener nhận tin nhắn WebSocket lập tức dừng nhạc cũ, vẽ lại hình sóng Waveform và nạp URL luồng HLS `.m3u8` mới để sẵn sàng nghe nhạc đồng bộ.
+    *   Truy vấn Database kiểm tra `Demo_X` có tồn tại và thuộc quyền sở hữu của Host hay không. Đồng thời kiểm tra trạng thái tệp demo phải là `READY` (đã convert xong HLS & trích xuất waveform). Nếu không thuộc sở hữu trả `DEMO_NOT_OWNED`, nếu chưa sẵn sàng trả `DEMO_NOT_READY`.
+3.  **Cập nhật Cache**: Sử dụng giao dịch Redis Transaction (`MULTI`/`EXEC`) hoặc Lua Script để thực hiện cập nhật đồng thời ID nguồn nhạc đang phát (`activeSourceId`) và reset trạng thái phát của phòng về `PAUSED` và vị trí `0.0` một cách nguyên tử (ngăn chặn các lệnh đồng bộ vị trí chen ngang gây bất nhất).
+4.  **Phát sóng WebSocket**: Backend gửi gói tin `SOURCE_CHANGED` chứa ID tệp demo, tiêu đề, dữ liệu mảng waveform, tổng thời lượng và trường `eventTimestamp` (mốc epoch milliseconds phát hành sự kiện) qua kênh WebSocket `/topic/rooms/{roomCode}/playback`.
+5.  **Tải lại nguồn ở Client**: Trình duyệt của Host và Listener nhận tin nhắn WebSocket lập tức dừng nhạc cũ (áp dụng Fade-out giảm popping), vẽ lại hình sóng Waveform và nạp URL luồng HLS `.m3u8` mới để sẵn sàng nghe nhạc đồng bộ.
 
 ---
 
@@ -119,6 +120,9 @@ sequenceDiagram
 | Định dạng Khóa (Redis Key) | Kiểu dữ liệu | Trường dữ liệu (Fields) | TTL | Mục đích sử dụng |
 | :--- | :--- | :--- | :--- | :--- |
 | `room:playback:{roomCode}` | `Hash` | `playbackState`: `PLAYING`/`PAUSED`<br>`currentTime`: float (Mốc giây hiện tại, ví dụ: `85.4`)<br>`serverTimestamp`: long (Mốc giờ hệ thống lúc update)<br>`lastUpdatedBy`: UUID (ID người ra lệnh) | **4 giờ** (Theo TTL của phòng) | Quản lý trạng thái phát nhạc đồng bộ thời gian thực của phòng ảo. |
+
+> [!NOTE]
+> **Tối ưu hóa dung lượng cache (Waveform Overhead Prevention)**: Dữ liệu mảng `waveform` (mảng float 200 điểm) **hoàn toàn không được lưu trữ** trong Redis Hash `room:status:{roomCode}` hay `room:playback:{roomCode}` để tránh phình to kích thước Ram đệm và làm giảm tốc độ đọc ghi. Khi Host thực hiện đổi nguồn nhạc, Backend chỉ truy vấn mảng `waveform` từ PostgreSQL (`demos` table) đúng một lần để đóng gói vào payload WebSocket rồi phát đi.
 
 ---
 
@@ -166,10 +170,15 @@ sequenceDiagram
     "title": "Bản Demo Ballad Guitar Hè 2026",
     "duration": 185.50,
     "waveform": [0.12, 0.45, 0.78, 0.90, 0.65, 0.30, 0.85, 0.95, 0.10],
-    "changedBy": "c8b74f51-3a78-43d9-9524-34e803c4f2bb"
+    "changedBy": "c8b74f51-3a78-43d9-9524-34e803c4f2bb",
+    "eventTimestamp": 1782834000123
   }
 }
 ```
+
+*   **Ràng buộc bảo mật luồng HLS (Instant Media Revocation)**: 
+    *   Mã token truyền vào luồng HLS (`index.m3u8?token=...`) phải là token ngắn hạn hoặc sử dụng chính `temporaryToken` / `accessToken` của phiên.
+    *   Phân hệ Gateway hoặc tầng Reverse Proxy bảo vệ luồng HLS bắt buộc phải thực hiện kiểm tra nhanh ($O(1)$) xuống Redis Hash `room:members:{roomCode}` trước khi phân phối từng phân đoạn `.ts`. Nếu `userId` bóc tách từ token luồng không còn tồn tại trong phòng (ví dụ: đã bị Host kick hoặc đã rời phòng), lập tức trả về lỗi HTTP `403 Forbidden` để cắt đứt luồng phát (streaming) ngay lập tức, ngăn ngừa rò rỉ âm nhạc chưa phát hành.
 
 ---
 
@@ -178,6 +187,7 @@ sequenceDiagram
 | Http Status | Error Code (String) | Mô tả | Trường liên quan (`field`) |
 | :--- | :--- | :--- | :--- |
 | `400 Bad Request` | `DEMO_NOT_OWNED` | Tệp nhạc demo không tồn tại hoặc không thuộc quyền sở hữu của Host | `demoId` |
+| `400 Bad Request` | `DEMO_NOT_READY` | Tệp nhạc demo chưa sẵn sàng (đang ở trạng thái `PROCESSING` hoặc `FAILED` chuyển đổi) | `demoId` |
 | `403 Forbidden` | `FORBIDDEN_ACCESS` | Người gọi API không phải là Host của phòng này | `null` |
 
 ---
@@ -190,6 +200,8 @@ sequenceDiagram
     *   Sử dụng màu xám nhạt `bg-neutral-200` làm nền sóng chưa phát, và màu đen `bg-black` để biểu diễn sóng nhạc đã phát qua.
 *   **Trạng thái loading tệp nhạc mới**:
     *   Khi nhận sự kiện `SOURCE_CHANGED`, lập tức hiển thị hiệu ứng mờ (Opacity 0.4) trên thanh tìm kiếm sóng nhạc, kèm theo Spinner tải dữ liệu mờ cho đến khi HLS nạp đủ buffer ban đầu để sẵn sàng phát.
+*   **Cơ chế Fade-out chống nổ âm lượng (Fade-out Audio Popping Prevention)**:
+    *   Trước khi hủy luồng HLS cũ, Frontend sử dụng Web Audio API (hoặc thuộc tính `volume` của thẻ Audio) để thực hiện giảm âm lượng nhanh (Fade-out trong khoảng **100ms - 200ms**) về 0, sau đó mới nạp luồng mới. Điều này giúp ngăn chặn hoàn toàn tiếng click/pop khó chịu khi luồng âm thanh bị dừng đột ngột.
 *   **Accessibility (A11y)**:
     *   Trình phát sóng nhạc có các thuộc tính `role="slider"`, `aria-valuemin="0"`, `aria-valuemax="{duration}"`, và `aria-valuenow="{currentTime}"` để trình đọc màn hình của thiết bị có thể diễn giải được trạng thái phát.
 
@@ -205,7 +217,7 @@ sequenceDiagram
 
 ### 5.3. Trạng thái Kết nối & Trải nghiệm Reconnection (WebSocket UX)
 *   Nếu kết nối mạng bị đứt trong lúc đang nạp bài hát mới, trình phát nhạc của Listener hiển thị thông điệp cảnh báo: *"Mất kết nối. Đang chờ đồng bộ bài hát nguồn từ Host..."*.
-*   Khi kết nối khôi phục thành công, Client tự động gọi API lấy trạng thái hiện tại của phòng (`GET /rooms/{roomCode}/playback-state` - sẽ đặc tả ở bài sau) để đồng bộ bài hát nguồn mới nhất và thời gian phát nhạc hiện tại.
+*   **Xử lý khoảng trống thông tin khi Reconnect (The Offline Broadcast Gap)**: Khi kết nối khôi phục thành công, Client tự động gọi API lấy trạng thái hiện tại của phòng (`GET /rooms/{roomCode}/playback-state` - đặc tả chi tiết ở Usecase 04). API này **bắt buộc phải trả về trọn vẹn cả cấu trúc metadata của bài hát mới** (`activeSourceId`, `title`, `duration`, `waveform`) chứ không chỉ mốc thời gian chạy nhạc, giúp Listener bị rớt mạng nhận biết được bài hát đã bị đổi, tự động nạp luồng HLS mới và vẽ lại UI Canvas chính xác.
 
 ---
 

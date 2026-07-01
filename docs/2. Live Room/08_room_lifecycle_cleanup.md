@@ -20,39 +20,46 @@ Tài liệu đặc tả A-Z quy trình quản lý vòng đời phòng ảo (Live
 
 #### A. Host chủ động đóng phòng (Voluntary Close)
 *   Chỉ Host mới có quyền gọi API đóng phòng. Lệnh đóng phòng thực hiện tuần tự:
-    1. Cập nhật bản ghi phòng trong PostgreSQL sang trạng thái `CLOSED` và điền mốc giờ `closed_at = now()`.
+    1. Cập nhật bản ghi phòng trong PostgreSQL sang trạng thái `CLOSED`, điền mốc giờ `closed_at = now()`, đồng thời ghi nhận một sự kiện vào bảng `outbox_events` mang tên `ROOM_LIFECYCLE_ENDED` (payload gồm: `roomCode`, `hostId`, `startedAt`, `endedAt` và `maxGuests` - số lượng Listener tối đa ghé thăm phòng) trong cùng một database transaction để đẩy qua Apache Kafka phục vụ tính toán Analytics.
     2. Gửi một bản tin WebSocket chứa sự kiện `ROOM_CLOSED` đến tất cả các thành viên qua topic `/topic/rooms/{roomCode}/playback`.
-    3. Đợi 500ms (để các Client nhận tin nhắn và chuẩn bị giao diện), sau đó tắt và đóng toàn bộ các phiên kết nối WebSocket STOMP của phòng đó.
+    3. Đợi 500ms (để các Client nhận tin nhắn và chuẩn bị giao diện), sau đó:
+        *   Tắt và đóng toàn bộ các phiên kết nối WebSocket STOMP của phòng đó đang duy trì cục bộ trên instance hiện tại.
+        *   Phát một thông điệp broadcast lên Redis Pub/Sub channel tên là `room-eviction-events` với payload chứa `{"event": "FORCE_CLOSE_ROOM_SESSIONS", "roomCode": "{roomCode}"}`. Tất cả các Node Backend khác trong cụm khi nhận tin nhắn này sẽ tự động đóng kết nối WebSocket của tất cả thành viên thuộc phòng đó, ngăn chặn hiện tượng **phiên mồ côi (WebSocket Clustered Session Leak)**.
     4. Xóa toàn bộ các khóa liên quan đến phòng đó trong Redis để giải phóng RAM:
         *   `room:status:{roomCode}` (Hash)
         *   `room:playback:{roomCode}` (Hash)
         *   `room:members:{roomCode}` (Hash)
         *   `room:waiting:{roomCode}` (ZSet)
         *   `room:delegated:{roomCode}` (Set)
-        *   Xóa `roomCode` khỏi danh sách ZSet quản lý phòng hoạt động `rooms:active:zset`.
+        *   Xóa `roomCode` khỏi danh sách ZSet quản lý phòng hoạt động `rooms:active:zset` và Sorted Set `rooms:cleanup:timeline`.
 
 #### B. Thời gian ân hạn mất kết nối của Host (Host Disconnect Grace Period)
-*   Khi kết nối WebSocket của Host bị ngắt:
-    1. Hệ thống phát hiện qua cơ chế Heartbeat hoặc sự kiện `SessionDisconnectEvent` của Spring WebSocket.
-    2. Cập nhật thuộc tính `status` trong Redis Hash `room:status:{roomCode}` từ `ACTIVE` thành `INACTIVE_HOST`.
-    3. Thiết lập một khóa đếm ngược tạm thời trên Redis: `room:cooldown:host_disconnect:{roomCode}` với giá trị là `true` và **TTL là 300 giây (5 phút)**.
-    4. *Kịch bản A (Host kết nối lại kịp thời)*: Trong vòng 5 phút, Host kết nối WebSocket lại, xác thực token thành công -> Hệ thống xóa khóa đếm ngược `room:cooldown:host_disconnect:{roomCode}` và chuyển trạng thái phòng lại thành `ACTIVE`.
-    5. *Kịch bản B (Quá 5 phút)*: Khóa đếm ngược biến mất, tiến trình Scheduler nền quét và thực thi đóng phòng vĩnh viễn.
+*   Khi kết nối WebSocket của Host bị ngắt (phát hiện qua Heartbeat hoặc `SessionDisconnectEvent`):
+    1. Cập nhật thuộc tính `status` trong Redis Hash `room:status:{roomCode}` từ `ACTIVE` thành `INACTIVE_HOST`.
+    2. **Đóng băng luồng phát nhạc (HLS Stream Paused)**: Hệ thống lập tức cập nhật `playbackState` trong key `room:playback:{roomCode}` thành `PAUSED`, và phát sóng một bản tin `PLAYBACK_UPDATED` (action: `PAUSE`) tới toàn bộ Listener. Việc này ép buộc các trình phát nhạc cục bộ dừng phát nhạc ngay lập tức, ngăn chặn việc Listener nghe cố phần nhạc buffer cũ khi Host bị ngắt kết nối.
+    3. **Đếm ngược quá hạn bằng ZSet Timeline**: Thêm mã phòng `roomCode` vào Redis Sorted Set `rooms:cleanup:timeline` với số điểm (score) là mốc thời gian hết hạn Epoch Milliseconds trong tương lai (`currentTime + 300000` - 5 phút).
+    4. *Kịch bản A (Host kết nối lại kịp thời)*: Trong vòng 5 phút, Host kết nối WebSocket lại thành công -> Hệ thống chuyển trạng thái phòng lại thành `ACTIVE`, đồng thời gọi lệnh `ZREM rooms:cleanup:timeline {roomCode}` để gỡ bỏ đếm ngược dọn dẹp.
+    5. *Kịch bản B (Quá 5 phút)*: Scheduler quét dọn dẹp nền tự động phát hiện phòng quá hạn trên ZSet timeline và thực thi đóng phòng vĩnh viễn.
 
 #### C. Tự động đóng phòng nhàn rỗi (Empty Room AFK Cleanup)
-*   **Ràng buộc**: Một phòng Live Room không được phép tồn tại nếu không có ai sử dụng.
-*   Khi số lượng thành viên trong phòng giảm về 0 (được cập nhật qua sự kiện ngắt kết nối WebSocket của thành viên cuối cùng):
-    *   Hệ thống thiết lập khóa đếm ngược `room:cooldown:empty:{roomCode}` với **TTL là 900 giây (15 phút)**.
-    *   Nếu có người mới vào phòng trước khi hết hạn -> Xóa khóa đếm ngược.
-    *   Nếu quá 15 phút không có ai vào -> Scheduler nền quét và thực thi đóng phòng.
+*   Khi số lượng thành viên trong phòng giảm về 0 (thành viên cuối cùng ngắt kết nối WebSocket):
+    *   Hệ thống thêm mã phòng `roomCode` vào Sorted Set `rooms:cleanup:timeline` with score đếm ngược là `currentTime + 900000` (15 phút).
+    *   Nếu có người mới vào phòng trước khi hết hạn -> Gọi lệnh `ZREM rooms:cleanup:timeline {roomCode}` để hủy đếm ngược.
+    *   Nếu quá 15 phút không có ai vào -> Scheduler nền quét và thực thi dọn dẹp.
 
-#### D. Bộ quét dọn dẹp nền (Background Cleanup Scheduler)
+#### D. Bộ quét dọn dẹp nền (Background Cleanup Scheduler) & Tối ưu hóa ZSet Expiration Timeline
 *   Hệ thống sử dụng một Spring Scheduler chạy định kỳ **mỗi 1 phút** để quét các phòng hoạt động.
-*   **Phòng chống Concurrency**: Cấu hình **ShedLock** trên Redis để đảm bảo chỉ có duy nhất một instance Backend thực hiện quét dọn dẹp tại một thời điểm trong môi trường đa máy chủ (Clustered Environment).
-*   **Logic quét**:
-    1. Scheduler lấy toàn bộ danh sách phòng hoạt động trong ZSet `rooms:active:zset`.
-    2. Duyệt qua từng phòng, kiểm tra sự tồn tại của các khóa đếm ngược (`room:cooldown:host_disconnect:*` hoặc `room:cooldown:empty:*`).
-    3. Nếu phát hiện khóa đếm ngược đã hết hạn (tức là không còn tồn tại trên Redis) trong khi trạng thái phòng tương ứng vẫn là `INACTIVE_HOST` hoặc phòng trống không có hoạt động, Scheduler gọi hàm đóng phòng tự động (cập nhật DB và xóa cache).
+*   **Phòng chống Concurrency**: Cấu hình **ShedLock** trên Redis để đảm bảo chỉ có duy nhất một instance Backend thực hiện quét dọn dẹp tại một thời điểm. Cấu hình tham số khóa mở rộng tối đa `lockAtMostFor` ở mức **45-50 giây** (thay vì 10 phút) để nếu instance Backend đang chạy bị crash đột ngột (OOM, mất nguồn), khóa sẽ tự động giải phóng trước chu kỳ cron tiếp theo (1 phút), tránh treo tắc nghẽn dọn dẹp.
+*   **Tối ưu hóa hiệu năng quét dọn dẹp ($O(\log M + K)$)**:
+    *   Để tránh thắt nút cổ chai I/O khi duyệt vòng lặp $O(N)$ và gọi hàng ngàn lệnh `EXISTS` kiểm tra key, Scheduler chỉ cần thực thi duy nhất 1 lệnh nguyên tử trên Redis Sorted Set:
+        `ZRANGEBYSCORE rooms:cleanup:timeline 0 {currentTimestamp}`
+    *   Lệnh này trả về chính xác danh sách các mã phòng đã thực sự quá hạn ở thời điểm hiện tại.
+    *   **Logic dọn dẹp chi tiết cho mỗi roomCode quá hạn**:
+        1.  **Kiểm tra kép trạng thái phòng (Double-Check Status)**: Scheduler gọi `HGET room:status:{roomCode} status` để kiểm tra lại. Nếu status đã đổi thành `ACTIVE` (do Host vừa kịp reconnect đổi status lại ngay trước đó), Scheduler lập tức hủy bỏ và bỏ qua dọn dẹp phòng này.
+        2.  Nếu status vẫn là `INACTIVE_HOST` (hoặc phòng trống), Scheduler gọi hàm đóng phòng tự động:
+            *   Cập nhật DB PostgreSQL (`status = 'CLOSED'`, `closed_at = now()`), đồng thời ghi nhận sự kiện `ROOM_LIFECYCLE_ENDED` vào bảng `outbox_events` trong cùng một database transaction.
+            *   Xóa toàn bộ các key Redis liên quan đến phòng.
+            *   Xóa `roomCode` khỏi `rooms:active:zset` và `rooms:cleanup:timeline`.
 
 ---
 
@@ -78,35 +85,42 @@ sequenceDiagram
     autonumber
     actor Host as Producer (Host)
     participant FE as Host Frontend App
-    participant BE as Backend (Spring Boot)
-    participant Redis as Redis Cache
+    participant BE_A as Backend Node A (HTTP Recipient)
+    participant BE_B as Backend Node B (WS Connected)
+    participant Redis as Redis Cache & Pub/Sub
     participant DB as PostgreSQL
     participant ListFE as Listener Frontend App
 
     Host->>FE: Bấm nút "Đóng phòng"
-    FE->>BE: POST /api/v1/rooms/{roomCode}/close (Kèm JWT)
+    FE->>BE_A: POST /api/v1/rooms/{roomCode}/close (Kèm JWT)
     
-    BE->>BE: Xác thực Host sở hữu phòng
+    BE_A->>BE_A: Xác thực Host sở hữu phòng
     
-    Note over BE, DB: Bắt đầu Transaction
-    BE->>DB: Cập nhật rooms -> status='CLOSED', closed_at=now()
-    Note over BE, DB: Commit Transaction
+    Note over BE_A, DB: Bắt đầu Transaction
+    BE_A->>DB: Cập nhật rooms -> status='CLOSED', closed_at=now()
+    BE_A->>DB: Ghi nhận sự kiện ROOM_LIFECYCLE_ENDED vào bảng outbox_events
+    Note over BE_A, DB: Commit Transaction
     
-    BE->>ListFE: Broadcast WebSocket qua topic /playback (event='ROOM_CLOSED')
+    BE_A->>ListFE: Broadcast WebSocket qua topic /playback (event='ROOM_CLOSED')
     
-    Note over BE, Redis: Dọn dẹp bộ nhớ Redis Cache
-    BE->>Redis: Xóa các khóa Hash, ZSet, Set liên quan đến roomCode
-    BE->>Redis: Xóa roomCode khỏi ZSet quản lý 'rooms:active:zset'
+    par Phát sự kiện đóng kết nối tới cụm Node
+        BE_A->>Redis: Publish FORCE_CLOSE_ROOM_SESSIONS (roomCode) sang channel 'room-eviction-events'
+        Redis-->>BE_B: Lắng nghe và nhận sự kiện FORCE_CLOSE_ROOM_SESSIONS
+        BE_B->>ListFE: Cưỡng chế ngắt kết nối WebSocket (Force Disconnect) của các Listener thuộc phòng
+        BE_A->>FE: Đóng kết nối WebSocket của Host (Node A cục bộ)
+    end
     
-    BE-->>FE: HTTP 200 OK (Đóng phòng thành công)
+    Note over BE_A, Redis: Dọn dẹp bộ nhớ Redis Cache
+    BE_A->>Redis: Xóa các khóa Hash, ZSet, Set liên quan đến roomCode (status, playback, waiting, delegated)
+    BE_A->>Redis: Xóa roomCode khỏi ZSet 'rooms:active:zset' và Sorted Set 'rooms:cleanup:timeline'
+    
+    BE_A-->>FE: HTTP 200 OK (Đóng phòng thành công)
     
     par Xử lý phía Host
-        FE->>FE: Ngắt kết nối WebSocket
         FE-->>Host: Chuyển về trang Dashboard chủ
     and Xử lý phía các Listener
         ListFE->>ListFE: Nhận tin ROOM_CLOSED
         ListFE->>ListFE: Hiển thị Toast cảnh báo: "Phòng đã bị đóng bởi Host"
-        ListFE->>ListFE: Ngắt kết nối WebSocket
         ListFE-->>ListFE: Chuyển hướng về trang nhập mã /rooms/join
     end
 ```
@@ -126,23 +140,29 @@ sequenceDiagram
 
     WS-->>BE: [Sự kiện] Host mất kết nối WebSocket đột ngột (rớt mạng)
     BE->>Redis: Cập nhật Hash 'room:status:{roomCode}' -> status='INACTIVE_HOST'
-    BE->>Redis: Tạo khóa đếm ngược 'room:cooldown:host_disconnect:{roomCode}' (TTL = 300 giây)
+    BE->>BE: Ép phát tin nhắn PLAYBACK_UPDATED (action: PAUSE) để dừng HLS Player trên các Listener
+    BE->>Redis: Cấu hình playbackState thành 'PAUSED' trong Hash 'room:playback:{roomCode}'
+    BE->>Redis: Thêm roomCode vào Sorted Set 'rooms:cleanup:timeline' (Score = currentTime + 5 phút)
     
     Note over BE, Scheduler: --- Trôi qua 5 phút, Host không vào lại ---
-    
-    Redis-->>Redis: Khóa 'room:cooldown:host_disconnect:{roomCode}' tự động hết hạn & biến mất
     
     Loop Định kỳ mỗi 1 phút
         Scheduler->>Redis: Thử lấy khóa ShedLock chạy quét dọn dẹp
         alt Lấy khóa ShedLock thành công
-            Scheduler->>Redis: Lấy danh sách roomCode trong 'rooms:active:zset'
-            loop Với mỗi roomCode đang hoạt động
-                Scheduler->>Redis: Kiểm tra khóa đếm ngược 'room:cooldown:host_disconnect:{roomCode}'
-                alt Khóa đếm ngược không còn tồn tại & status='INACTIVE_HOST'
-                    Note over Scheduler, DB: Thực thi dọn dẹp tự động
+            Scheduler->>Redis: ZRANGEBYSCORE 'rooms:cleanup:timeline' 0 {currentTimestamp}
+            Redis-->>Scheduler: Trả về danh sách roomCode quá hạn
+            loop Với mỗi roomCode quá hạn trả về
+                Scheduler->>Redis: HGET 'room:status:{roomCode}' status
+                alt status == 'INACTIVE_HOST' (Xác nhận hết hạn thực tế)
+                    Note over Scheduler, DB: Bắt đầu Transaction
                     Scheduler->>DB: Cập nhật rooms -> status='CLOSED', closed_at=now()
+                    Scheduler->>DB: Ghi nhận sự kiện ROOM_LIFECYCLE_ENDED vào bảng outbox_events
+                    Note over Scheduler, DB: Commit Transaction
                     Scheduler->>Redis: Xóa sạch toàn bộ các key Redis của roomCode
-                    Scheduler->>Redis: Xóa roomCode khỏi 'rooms:active:zset'
+                    Scheduler->>Redis: Xóa roomCode khỏi 'rooms:active:zset' và 'rooms:cleanup:timeline'
+                else status == 'ACTIVE' (Host đã Reconnect kịp thời)
+                    Note over Scheduler: Hủy bỏ dọn dẹp để bảo toàn phòng
+                    Scheduler->>Redis: ZREM 'rooms:cleanup:timeline' roomCode (Dọn timeline)
                 end
             end
         end
@@ -153,13 +173,34 @@ sequenceDiagram
 
 ## 💾 3. Database & Cache Schema (Thiết kế Cơ sở Dữ liệu & Cache)
 
-### 3.1. Các Khóa đếm ngược Redis bổ sung (Cooldown Keys)
+### 3.1. Các Khóa bộ đệm Redis bổ sung (Cache Keys)
 
 | Định dạng Khóa (Redis Key) | Kiểu dữ liệu | Giá trị (Value) | TTL | Mục đích sử dụng |
 | :--- | :--- | :--- | :--- | :--- |
-| `room:cooldown:host_disconnect:{roomCode}` | `String` | `"true"` | **300 giây** (5 phút) | Theo dõi thời gian ân hạn chờ Host reconnect. |
-| `room:cooldown:empty:{roomCode}` | `String` | `"true"` | **900 giây** (15 phút) | Theo dõi thời gian nhàn rỗi chờ người dùng mới vào. |
-| `rooms:active:zset` | `ZSet` | `roomCode` | **Vô hạn** | Danh sách tập hợp tất cả các phòng đang có trạng thái hoạt động trên hệ thống để Scheduler quét. |
+| `rooms:cleanup:timeline` | `ZSet (Sorted Set)` | `roomCode` | **Vô hạn** | Quản lý dòng thời gian hết hạn của phòng (score là Epoch Timestamp hết hạn). |
+| `rooms:active:zset` | `ZSet (Sorted Set)` | `roomCode` | **Vô hạn** | Danh sách tập hợp tất cả các phòng đang có trạng thái hoạt động trên hệ thống để Scheduler quét. |
+| `shedlock:room_cleanup_job` | `String` | `"lock"` | **45-50 giây** (`lockAtMostFor`) | Đảm bảo duy nhất 1 instance Backend chạy Scheduled Job dọn dẹp tại một thời điểm. Mức TTL ngắn 45-50s giúp giải phóng lock nhanh nếu node bị crash, không làm kẹt chu kỳ cron tiếp theo. |
+
+---
+
+### 3.2. Sơ đồ Outbox Sự kiện thống kê (Transactional Outbox SQL Schema)
+Để lưu vết Analytics, khi đóng phòng, hệ thống ghi bản ghi sự kiện sau vào PostgreSQL trong cùng Transaction cập nhật trạng thái phòng:
+
+```sql
+CREATE TABLE outbox_events (
+    id UUID PRIMARY KEY,
+    event_type VARCHAR(50) NOT NULL, -- 'ROOM_LIFECYCLE_ENDED'
+    payload TEXT NOT NULL,           -- JSON chứa: roomCode, hostId, startedAt, endedAt, maxGuests
+    status VARCHAR(20) NOT NULL,     -- 'PENDING', 'PROCESSED'
+    created_at TIMESTAMP NOT NULL
+);
+```
+
+---
+
+### 3.3. Ràng buộc Hash Slot trên Redis Cluster (Redis Hash Tags Constraint)
+*   **Vấn đề**: Các key riêng của phòng gồm `room:status:{roomCode}`, `room:playback:{roomCode}`, `room:members:{roomCode}`, `room:waiting:{roomCode}`, và `room:delegated:{roomCode}` đều dùng chung ký pháp bọc Curly Braces `{roomCode}` (Redis Hash Tags), do đó S3/Redis đảm bảo chúng nằm cùng 1 Hash Slot trên Cluster, cho phép xóa đồng loạt hoặc dùng transaction nguyên tử.
+*   **Quy tắc bắt buộc**: Tuy nhiên, hai key hệ thống `rooms:active:zset` và `rooms:cleanup:timeline` không chứa hash tag `{roomCode}` ở đầu nên nằm ở các Hash Slot hoàn toàn khác. Tiến trình dọn dẹp **bắt buộc** phải chia làm 2 đợt gọi lệnh độc lập hoặc sử dụng Redis Pipeline đa slot (gửi bất đồng bộ), **tuyệt đối không** gộp chung toàn bộ tập hợp key này vào trong một lệnh `DEL` multi-key duy nhất hoặc một khối `MULTI/EXEC` đơn node để tránh kích hoạt lỗi `CROSSSLOT Keys in request don't hash to the same slot` của cụm Redis Cluster.
 
 ---
 

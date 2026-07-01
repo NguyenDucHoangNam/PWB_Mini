@@ -19,6 +19,9 @@ Tài liệu đặc tả A-Z tính năng Tương tác thời gian thực trong ph
 *   **Lưu trữ ở Client**: Tin nhắn chỉ được lưu trong bộ nhớ tạm (in-memory state) ở Frontend của mỗi máy khách.
 *   **Tự động xóa sạch**: Khi người dùng tải lại trang (F5/Refresh) hoặc khi phòng đóng, toàn bộ lịch sử chat trước đó sẽ biến mất vĩnh viễn và không thể khôi phục.
 *   **Giới hạn số tin nhắn hiển thị**: Để tránh làm đơ hoặc tràn bộ nhớ trình duyệt khi phòng chat quá lâu, Frontend chỉ lưu trữ tối đa **100 tin nhắn gần nhất**. Khi tin nhắn thứ 101 xuất hiện, tin nhắn cũ nhất sẽ tự động bị xóa khỏi bộ nhớ Client.
+*   **Phòng chống tấn công XSS (Cross-Site Scripting Prevention)**: Mặc dù tin nhắn không lưu trữ dưới Database, việc chuyển tiếp nội dung tin nhắn thời gian thực qua WebSocket và render trực tiếp trên Client có nguy cơ bị tiêm mã độc HTML/Javascript (ví dụ: gửi tin nhắn chứa thẻ `<script>` hoặc `<img src=x onerror=...>`).
+    *   **Quy tắc an toàn**: Frontend tuyệt đối **không** được sử dụng các cơ chế render thô như `dangerouslySetInnerHTML` trong React hoặc ghi trực tiếp `innerHTML` trong Javascript thuần đối với nội dung tin nhắn.
+    *   **Thực thi mặc định**: Sử dụng cơ chế hiển thị chuỗi nội suy tự escape của React (như `<div>{message.content}</div>`) hoặc gán `textContent` / `innerText` trong Javascript thuần để toàn bộ các ký tự HTML đặc biệt được tự động chuyển thành thực thể escape an toàn.
 
 #### B. Cơ chế biểu tượng cảm xúc bay lên (Floating Emoji Reactions)
 *   Hệ thống hỗ trợ 4 biểu tượng cảm xúc nhanh định danh: 🔥 (Lửa), 👍 (Thích), 👏 (Vỗ tay), 💯 (Tuyệt vời).
@@ -38,10 +41,15 @@ Gói tin STOMP gửi lên cổng WebSocket `/app/rooms/{roomCode}/chat` phải t
 
 ---
 
-### 1.4. Giới hạn Tần suất Truy cập API (IP Rate Limiting)
+### 1.4. Giới hạn Tần suất Truy cập API (IP Rate Limiting) & Xử lý Vi phạm (Drop Frame Policy)
 
-*   Áp dụng giới hạn Frame trên cổng WebSocket chat `/app/rooms/{roomCode}/chat` ở mức tối đa **30 frames / phút / kết nối**. 
-*   Nếu vượt quá giới hạn này, server sẽ chặn không phát sóng các tin nhắn tiếp theo để ngăn chặn hành vi cố tình sử dụng autoclicker spam icon làm crash giao diện của người dùng khác.
+*   **Tách biệt hạn ngạch giới hạn (Rate Limit Rate Separation)**: Áp dụng giới hạn Frame trên cổng WebSocket chat `/app/rooms/{roomCode}/chat` phân tách theo loại tin nhắn:
+    *   **Tin nhắn văn bản (TEXT)**: Tối đa **30 frames / phút / kết nối** (tránh spam ký tự làm trôi hộp thoại chat).
+    *   **Biểu cảm cảm xúc (REACTION)**: Tối đa **120 frames / phút / kết nối** (cho phép người dùng click nhanh theo nhịp nhạc nhưng vẫn kiểm soát tài nguyên hệ thống).
+*   **Cơ chế xử lý vi phạm (Drop Frame Policy - Không ngắt socket)**:
+    *   Nếu client vi phạm vượt hạn ngạch, WebSocket Interceptor của Backend Spring Boot sẽ thực hiện **Drop Frame** (lặng lẽ bỏ qua gói tin vi phạm, không lưu cache, không broadcast đi toàn phòng).
+    *   Server gửi trả ngược lại một tin nhắn cảnh báo riêng tư (private warning event) về hàng đợi của người gửi để Frontend hiển thị cảnh báo *"Bạn đang click quá nhanh, vui lòng chậm lại!"*.
+    *   Tuyệt đối **không ngắt kết nối socket (Force Close TCP)** để tránh vô tình kích hoạt luồng dọn dẹp thoát phòng, gây văng người dùng khỏi phòng một cách oan uổng.
 
 ---
 
@@ -164,6 +172,8 @@ Tính năng này **không thiết kế bảng cơ sở dữ liệu PostgreSQL** 
 *   **Accessibility (A11y)**:
     *   Khung nhập chat sử dụng thẻ `form` chuẩn để người dùng nhấn phím `Enter` là tự động submit gửi tin nhắn.
     *   Khung hiển thị tin nhắn có thuộc tính `aria-live="polite"` để thông báo tin nhắn mới khi người dùng đang sử dụng tính năng hỗ trợ tiếp cận.
+*   **An toàn dữ liệu (XSS Safe rendering)**:
+    *   Nội dung tin nhắn nhận từ WebSocket phải được đưa vào thẻ JSX nội suy dạng `{message.content}` để kích hoạt bộ tự động lọc và escape của React. Nghiêm cấm sử dụng `dangerouslySetInnerHTML` trong bất kỳ trường hợp nào liên quan đến tin nhắn người dùng.
 
 ---
 
@@ -188,6 +198,11 @@ Tính năng này **không thiết kế bảng cơ sở dữ liệu PostgreSQL** 
       });
     }
     ```
+*   **Chống nghẽn Layout khi cuộn chat dồn dập (Throttled Auto-Scroll)**:
+    *   **Vấn đề**: Khi phòng có hàng chục tin nhắn liên tục gửi đến trong 1 giây, việc gọi trực tiếp hàm cuộn xuống đáy (`window.scrollTo` hoặc `scrollIntoView`) cho mỗi tin nhắn sẽ bắt trình duyệt tính toán lại layout liên tục (Layout Thrashing), gây giật lag nghiêm trọng.
+    *   **Giải pháp**: Frontend gom việc cuộn trang bằng một hàm `throttle` (tần suất tối đa 1 lần / 150ms) sử dụng `requestAnimationFrame` để gom render nhiều tin nhắn mới nhận trong chu kỳ và cuộn màn hình duy nhất 1 lần.
+*   **Giới hạn nhấp Emoji phía Client (Client-Side Emoji Throttle)**:
+    *   Để bảo vệ băng thông và tránh gửi quá nhiều frame lên WebSocket vượt quá hạn ngạch 120 frames/phút dẫn đến bị Server drop, Frontend áp dụng kỹ thuật **Throttling** trực tiếp trên nút nhấn Emoji ở thanh reaction (ví dụ: giới hạn tối đa 5 click gửi tin nhắn / 1 giây). Nếu Listener nhấp nhanh hơn, click vẫn hiển thị hiệu ứng floating emoji cục bộ ngay lập tức để giữ cảm giác đã tay (UX), nhưng lệnh gửi frame qua WebSocket sẽ bị chặn lại không truyền đi.
 
 ---
 

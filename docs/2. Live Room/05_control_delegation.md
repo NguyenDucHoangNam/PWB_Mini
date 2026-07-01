@@ -20,13 +20,28 @@ Tài liệu đặc tả A-Z tính năng Phân quyền Điều khiển trình ph�
 *   **Lưu trữ thông tin ủy quyền (Redis State)**:
     *   *Cấp quyền toàn phòng*: Trạng thái này lưu trong Redis Hash `room:status:{roomCode}` tại trường `globalDelegation` với giá trị `"true"` hoặc `"false"`.
     *   *Cấp quyền cá nhân*: Lưu danh sách ID người dùng (userId) được ủy quyền vào một Redis Set mang tên `room:delegated:{roomCode}`.
-*   **Xóa dọn dẹp (Cleanup on leave)**: Khi một Listener rời khỏi phòng hoặc mất kết nối (ngắt kết nối WebSocket), hệ thống tự động xóa userId của người đó khỏi Redis Set `room:delegated:{roomCode}` để tránh lưu rác.
+*   **Xóa dọn dẹp khi thực sự rời phòng (Cleanup on Actual Leave)**: Quyền điều khiển được gắn chặt với danh sách thành viên thực tế trong phòng (`room:members`). Hệ thống **không** tự động xóa `userId` khỏi Redis Set `room:delegated:{roomCode}` khi xảy ra sự cố ngắt kết nối WebSocket đột ngột (để hỗ trợ Listener khôi phục quyền điều khiển sau khi Reconnect thành công). Hệ thống chỉ thực thi lệnh `SREM` dọn dẹp quyền điều khiển khi Listener chủ động bấm nút "Rời phòng" hoặc bị Host "Kick" (đá) khỏi phòng Live.
+*   **Chống trùng lặp ID Khách vãng lai (Guest ID Collision Prevention)**: Do Listener có thể là Khách vãng lai sử dụng Temporary JWT, mã định danh `userId` tạm thời trong Token này bắt buộc phải được sinh bằng cấu trúc UUID v4 tiêu chuẩn. Điều này đảm bảo tính ngẫu nhiên tuyệt đối, triệt tiêu hoàn toàn tỷ lệ trùng lặp ID dẫn đến việc Listener mới vào phòng nghiễm nhiên thừa hưởng nhầm quyền điều khiển của Listener cũ đã thoát.
+*   **Dọn dẹp triệt để khi Đóng phòng (Explicit Eviction on Close)**: Khi Host chủ động đóng phòng vĩnh viễn (Usecase 01) hoặc khi phòng tự hủy do hết hạn 4 giờ, ngoài việc dọn dẹp phòng và thành viên, Backend bắt buộc phải chạy lệnh `DEL room:delegated:{roomCode}` để xóa sạch hoàn toàn Redis Set này, ngăn chặn tình trạng mồ côi key, tối ưu bộ nhớ đệm.
 
-#### B. Phản hồi giao diện thời gian thực (Reactive Control lock/unlock)
-*   Khi có thay đổi ủy quyền, Backend gửi bản tin `DELEGATION_CHANGED` qua WebSocket broadcast.
-*   Tất cả Client nhận gói tin, so khớp logic:
-    *   *Có quyền*: Nếu `globalDelegation` bằng `true`, HOẶC `userId` hiện tại có trong mảng `delegatedUserIds` -> Mở khóa nút bấm Play/Pause và thanh tua Seek.
-    *   *Không có quyền*: Nếu không thỏa mãn các điều kiện trên -> Khóa (disable) các nút bấm và thanh seek.
+#### B. Phản hồi giao diện thời gian thực & Đồng bộ cờ in-memory trong cụm node (Redis Pub/Sub Event Broadcasting)
+*   **Đồng bộ cờ in-memory trong cụm node (Redis Pub/Sub Sync)**:
+    *   Do yêu cầu phân quyền được gửi qua HTTP API (ví dụ: gửi lên Node A trong cụm), trong khi phiên kết nối WebSocket của Listener_A có thể đang duy trì trên Node B.
+    *   Để tránh hiện tượng bất đồng bộ bộ nhớ tạm (In-Memory State Desynchronization) khiến Node B check in-memory fail và chặn lệnh gửi từ Listener_A:
+    *   Khi bất kỳ Node nào xử lý thành công HTTP API phân quyền (`GRANT` hoặc `REVOKE`), ngoài việc cập nhật Redis Set/Hash, Node đó bắt buộc phải phát một bản tin broadcast xuống Redis Pub/Sub channel tên là `room-delegation-events` với payload JSON dạng:
+      ```json
+      {
+        "userId": "e5b84f32-3a78-43d9-9524-34e803c4f2aa",
+        "roomCode": "A8B9D1",
+        "isController": true
+      }
+      ```
+    *   Tất cả các Node trong cụm Backend đăng ký lắng nghe (Subscribe) channel này. Khi nhận tin, mỗi Node tự quét trong danh sách WebSocket Session Attributes cục bộ của mình. Nếu phát hiện đang quản lý kết nối của `userId` đó, Node đó lập tức cập nhật lại thuộc tính `isController` cục bộ trong RAM lên giá trị mới, đảm bảo tính nhất quán tức thì trên toàn bộ cụm.
+*   **Phản hồi giao diện thời gian thực (Reactive Control lock/unlock)**:
+    *   Khi có thay đổi ủy quyền, Backend gửi bản tin `DELEGATION_CHANGED` qua WebSocket broadcast.
+    *   Tất cả Client nhận gói tin, so khớp logic:
+        *   *Có quyền*: Nếu `globalDelegation` bằng `true`, HOẶC `userId` hiện tại có trong mảng `delegatedUserIds` -> Mở khóa nút bấm Play/Pause và thanh tua Seek.
+        *   *Không có quyền*: Nếu không thỏa mãn các điều kiện trên -> Khóa (disable) các nút bấm và thanh seek.
 
 ---
 
@@ -58,38 +73,43 @@ sequenceDiagram
     autonumber
     actor Host as Producer (Host)
     participant HostFE as Host Frontend App
-    participant BE as Backend (Spring Boot)
+    participant NodeA as Backend Node A (HTTP)
     participant Redis as Redis Cache
-    participant ListFE as Listener Frontend App
+    participant NodeB as Backend Node B (WS)
+    participant ListFE as Listener A Frontend
 
     Host->>HostFE: Click "Cấp quyền" cho Listener_A
-    HostFE->>BE: POST /api/v1/rooms/{roomCode}/delegation (DelegateControlRequest: action='GRANT', listenerId=UUID_A)
+    HostFE->>NodeA: POST /api/v1/rooms/{roomCode}/delegation (GRANT, listenerId=UUID_A)
     
-    BE->>BE: Xác thực Host sở hữu phòng Live
+    NodeA->>NodeA: Xác thực Host sở hữu phòng Live
+    NodeA->>Redis: SADD 'room:delegated:{roomCode}' UUID_A
     
-    Note over BE, Redis: Cập nhật quyền trên Cache
-    BE->>Redis: SADD 'room:delegated:{roomCode}' UUID_A
+    Note over NodeA, NodeB: Đồng bộ cờ in-memory qua Redis Pub/Sub
+    NodeA->>Redis: PUBLISH room-delegation-events {"userId":"UUID_A","roomCode":"roomCode","isController":true}
+    Redis-->>NodeB: Broadcast event nhận được tới Node B (đăng ký từ trước)
+    NodeB->>NodeB: Tìm session WS của Listener_A & cập nhật isController = true
     
-    BE-->>HostFE: HTTP 200 OK (Cấp quyền thành công)
+    NodeA-->>HostFE: HTTP 200 OK (Cấp quyền thành công)
     
-    Note over BE, ListFE: Phát sóng WebSocket thông báo thay đổi
-    BE->>ListFE: Broadcast qua topic /playback (DELEGATION_CHANGED, globalDelegation=false, delegatedUserIds=[UUID_A])
+    Note over NodeA, ListFE: Phát sóng WebSocket thông báo thay đổi
+    NodeA->>ListFE: Broadcast qua topic /playback (DELEGATION_CHANGED, globalDelegation=false, delegatedUserIds=[UUID_A])
     
     par Xử lý phía Listener_A
-        ListFE->>ListFE: Nhận tin, khớp userId == UUID_A
+        ListFE->>ListFE: Nhận tin, thấy ID của mình thuộc delegatedUserIds
         ListFE->>ListFE: Mở khóa (Enable) các nút bấm điều khiển nhạc
-    and Xử lý phía các Listener khác
-        ListFE->>ListFE: Nhận tin, khớp userId != UUID_A
-        ListFE->>ListFE: Giữ nguyên trạng thái Khóa (Disabled) nút bấm
     end
 ```
 
 ##### 📝 Mô tả chi tiết các bước xử lý:
-1.  **Host ra lệnh**: Host nhấn icon ủy quyền cạnh Listener_A. Frontend gửi `POST /rooms/{roomCode}/delegation` với payload `listenerId = UUID_A` và `action = 'GRANT'`.
-2.  **Cập nhật Redis**: Backend xác thực Host, thêm UUID_A vào Set `room:delegated:{roomCode}` trên Redis.
-3.  **Phát sóng WebSocket**: Backend broadcast sự kiện `DELEGATION_CHANGED` chứa danh sách các thành viên đang có quyền cá nhân và trạng thái toàn phòng.
-4.  **Client cập nhật**:
-    *   Listener_A nhận tin, thấy ID của mình nằm trong mảng `delegatedUserIds` -> chuyển đổi state sang mở khóa nút bấm trình phát nhạc.
+1.  **Host ra lệnh**: Host nhấn icon ủy quyền cạnh Listener_A. Frontend gửi `POST /rooms/{roomCode}/delegation` với payload `listenerId = UUID_A` và `action = 'GRANT'`. Request này đi đến **Backend Node A** (node xử lý HTTP).
+2.  **Cập nhật Redis & Pub/Sub**:
+    *   Backend Node A xác thực Host, thêm UUID_A vào Set `room:delegated:{roomCode}` trên Redis.
+    *   Đồng thời, Node A gửi thông điệp `PUBLISH` xuống Redis Pub/Sub channel `room-delegation-events`.
+3.  **Đồng bộ Bộ nhớ Tạm Node B**:
+    *   **Backend Node B** (node đang giữ kết nối WebSocket STOMP của Listener_A) nhận được message từ Redis Pub/Sub, tiến hành tìm kiếm STOMP Session cục bộ tương ứng của Listener_A và ghi đè thuộc tính in-memory `isController = true`.
+4.  **Phát sóng & Frontend Cập nhật**:
+    *   Node A gửi broadcast sự kiện `DELEGATION_CHANGED` qua WebSocket.
+    *   Listener_A nhận tin, thấy ID của mình nằm trong mảng `delegatedUserIds` -> chuyển đổi state sang mở khóa nút bấm trình phát nhạc (lúc này các thao tác WS gửi lên Node B sẽ được thông qua cực nhanh vì cờ in-memory đã đồng bộ).
     *   Các Listener khác không thấy ID của mình -> giữ nguyên trạng thái khóa.
 
 ---

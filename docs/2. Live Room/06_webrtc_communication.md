@@ -36,6 +36,18 @@ Tài liệu đặc tả A-Z tính năng Đàm thoại trực tiếp WebRTC (Low-
 #### D. Bật/Tắt Micro & Camera (Mute/Unmute Logic)
 *   Khi người dùng click tắt Micro/Camera, Frontend thực hiện tắt trực tiếp track âm thanh/hình ảnh (`track.enabled = false`) trên luồng local media để bảo vệ sự riêng tư tuyệt đối, đồng thời gửi tin nhắn WebSocket thông báo cập nhật trạng thái UI để các bên khác hiển thị biểu tượng tắt mic/cam tương ứng.
 
+#### E. Tránh xung đột báo hiệu (WebRTC Glare - Perfect Negotiation)
+*   Trong kết nối Mesh P2P, khi hai thành viên truy cập hoặc phục hồi mạng đồng thời, có thể xảy ra tình trạng cả hai bên cùng gửi SDP Offer cho nhau cùng lúc. Hiện tượng này gọi là **xung đột báo hiệu (WebRTC Glare Effect)** và có thể gây lỗi treo đứt kết nối.
+*   **Giải pháp (Perfect Negotiation)**: Thiết lập vai trò bất đối xứng cục bộ dựa trên so sánh chuỗi ID người dùng:
+    *   Khi hai client khởi tạo kết nối chéo, hệ thống tự động so khớp chuỗi `userId` (UUID v4) của hai bên theo thứ tự bảng chữ cái (lexicographical comparison).
+    *   Client có chuỗi `userId` nhỏ hơn được chỉ định làm **Polite Peer (Khách lịch thiệp)**, client còn lại làm **Impolite Peer**.
+    *   Khi xảy ra Glare, `Polite Peer` nhận được Offer từ đối phương sẽ chủ động hủy bỏ (rollback) Offer cục bộ của mình để ưu tiên cấu hình Remote Description theo Offer nhận được và gửi trả SDP Answer, bẻ gãy hoàn toàn lỗi treo xung đột báo hiệu.
+
+#### F. Kiểm tra và phản hồi trạng thái ngoại tuyến của Peer (PEER_OFFLINE Detection)
+*   Khi Signalling Server nhận frame chuyển tiếp báo hiệu qua WebSocket, trước khi gửi tin nhắn tới `receiverId`, Backend phải kiểm tra xem Session của người nhận còn hoạt động trong Registry hay không.
+*   Nếu `receiverId` đã offline (ngắt kết nối WebSocket đột ngột do mất mạng/tắt tab), Signalling Server lập tức gửi trả một frame lỗi cá nhân về cho client gửi: `{"event": "SIGNALLING_ERROR", "code": "PEER_OFFLINE", "peerId": "receiverId"}`.
+*   Frontend người gửi khi nhận lỗi `PEER_OFFLINE` sẽ dừng việc chờ đợi SDP Answer vô ích, chủ động hủy bỏ tiến trình thiết lập kết nối ngang hàng đó và giải phóng CPU sớm.
+
 ---
 
 ### 1.3. Quy tắc Xác thực Dữ liệu (Validation Rules)
@@ -80,16 +92,21 @@ sequenceDiagram
     FE->>FE: Sinh SDP Offer cho kết nối tới Host
     FE->>BE: WebSocket SEND /app/rooms/{roomCode}/signalling (receiverId=Host_UUID, type='offer', payload=SDP)
     
-    BE->>BE: Chuyển tiếp tin nhắn tới đúng receiverId
-    BE->>HostFE: WebSocket SUBSCRIBE /user/queue/rooms/signalling (Nhận Offer từ Listener A)
-    
-    HostFE->>HostFE: Tạo RTCPeerConnection cho Listener A
-    HostFE->>HostFE: Thiết lập Remote Description bằng SDP Offer nhận được
-    HostFE->>HostFE: Sinh SDP Answer
-    HostFE->>BE: WebSocket SEND /app/rooms/{roomCode}/signalling (receiverId=Listener_A_UUID, type='answer', payload=SDP)
-    
-    BE->>FE: WebSocket SUBSCRIBE /user/queue/rooms/signalling (Nhận Answer từ Host)
-    FE->>FE: Thiết lập Remote Description bằng SDP Answer
+    alt Đối phương Online
+        BE->>BE: Chuyển tiếp tin nhắn tới đúng receiverId
+        BE->>HostFE: WebSocket SUBSCRIBE /user/queue/rooms/signalling (Nhận Offer từ Listener A)
+        
+        HostFE->>HostFE: Tạo RTCPeerConnection cho Listener A
+        HostFE->>HostFE: Thiết lập Remote Description bằng SDP Offer nhận được
+        HostFE->>HostFE: Sinh SDP Answer
+        HostFE->>BE: WebSocket SEND /app/rooms/{roomCode}/signalling (receiverId=Listener_A_UUID, type='answer', payload=SDP)
+        
+        BE->>FE: WebSocket SUBSCRIBE /user/queue/rooms/signalling (Nhận Answer từ Host)
+        FE->>FE: Thiết lập Remote Description bằng SDP Answer
+    else Đối phương Offline (Tắt tab/mất mạng đột ngột)
+        BE-->>FE: Phản hồi lỗi qua WebSocket: SIGNALLING_ERROR (code='PEER_OFFLINE', peerId=Host_UUID)
+        FE->>FE: Hủy PeerConnection cục bộ, giải phóng tài nguyên CPU
+    end
     
     Note over Listener, Host: --- Bước 3: Trao đổi ICE Candidates & Kết nối P2P ---
     FE->>BE: WebSocket SEND /signalling (type='candidate', payload=ICE_A)
@@ -104,7 +121,7 @@ sequenceDiagram
 1.  **Lấy ICE Servers**: Frontend gọi API `GET /webrtc/config` để nhận danh sách máy chủ STUN và TURN. Mật khẩu kết nối TURN được Backend tạo động bằng HMAC-SHA1 dựa trên timestamp (TTL 24h).
 2.  **Khởi tạo luồng**: Trình duyệt xin quyền truy cập Micro/Camera và hiển thị luồng nội bộ (Local Stream).
 3.  **Tạo SDP Offer**: Đối với mỗi thành viên khác trong phòng, Client tạo một đối tượng `RTCPeerConnection` và tạo `SDP Offer`. Gửi Offer này lên WebSocket của Backend đích danh tới thành viên kia.
-4.  **Báo hiệu trung gian**: Backend nhận được tin nhắn STOMP từ `/app/rooms/{roomCode}/signalling`, trích xuất `receiverId` và chuyển thẳng tới private queue `/user/queue/rooms/signalling` của người nhận. Backend chỉ làm proxy chuyển tiếp văn bản, không can thiệp vào mã hóa SDP.
+4.  **Báo hiệu trung gian**: Backend nhận được tin nhắn STOMP từ `/app/rooms/{roomCode}/signalling`, trích xuất `receiverId`. Đầu tiên, Backend kiểm tra sự tồn tại của kết nối hoạt động cho `receiverId` trong Registry. Nếu online, Backend chuyển thẳng tới private queue `/user/queue/rooms/signalling` của người nhận. Nếu offline, Backend lập tức gửi trả một frame lỗi `SIGNALLING_ERROR` (`PEER_OFFLINE`) về cho Client gửi để họ chủ động hủy Peer Connection và giải phóng CPU sớm.
 5.  **SDP Answer & ICE Exchange**: Người nhận nhận Offer, cấu hình remote description, tạo `SDP Answer` và gửi trả lại qua luồng WebSocket tương tự. Song song đó, hai bên liên tục trao đổi các gói tin địa chỉ mạng `ICE Candidates` để tìm đường truyền tối ưu nhất.
 6.  **Kết nối trực tiếp**: Trình duyệt thiết lập kết nối ngang hàng (Mesh P2P). Luồng âm thanh và hình ảnh bắt đầu truyền trực tiếp giữa 2 máy khách không đi qua Server Backend.
 
@@ -182,7 +199,15 @@ app:
 
 ### 4.3. Kênh WebSocket Nhận báo hiệu riêng tư (Server-to-Client)
 *   **Kênh nhận tin (Subscribe Topic)**: `/user/queue/rooms/signalling`
-*   **Payload tin nhắn**: Nhận nguyên văn JSON chuyển tiếp từ phía người gửi gửi lên (Server tự động bổ sung trường `senderId` trong payload để người nhận biết tin nhắn từ ai gửi đến).
+*   **Payload tin nhắn thành công**: Nhận nguyên văn JSON chuyển tiếp từ phía người gửi gửi lên (Server tự động bổ sung trường `senderId` trong payload để người nhận biết tin nhắn từ ai gửi đến).
+*   **Payload tin nhắn lỗi (SIGNALLING_ERROR)**: Khi người nhận không online, Server phản hồi lỗi về hàng đợi của người gửi:
+```json
+{
+  "event": "SIGNALLING_ERROR",
+  "code": "PEER_OFFLINE",
+  "peerId": "e5b84f32-3a78-43d9-9524-34e803c4f2aa"
+}
+```
 
 ---
 
@@ -227,6 +252,36 @@ app:
     ```
 *   **Tắt Camera khi ẩn Tab (Tab Visibility Performance)**:
     *   Nếu tab trình duyệt của phòng Live Room bị ẩn đi (`document.hidden === true`), Frontend nên tạm thời dừng render luồng video và gửi tín hiệu hạ thấp chất lượng (hoặc dừng track video tạm thời) để tiết kiệm 70% tài nguyên GPU và băng thông máy khách, kích hoạt lại khi tab được mở lại.
+*   **Giải phóng kết nối rác (PeerConnection Cleanup on ICE Failure)**:
+    *   **Vấn đề**: Khi mạng của thành viên (ví dụ: Listener A) gặp sự cố chập chờn đột ngột hoặc tắt ngang tab mà không gửi tín hiệu ngắt kết nối (`Disconnect`) qua WebSocket, `RTCPeerConnection` của các thành viên khác kết nối đến Listener A sẽ bị treo ở trạng thái `failed` hoặc `disconnected`.
+    *   **Giải pháp**: Frontend đăng ký hàm lắng nghe sự kiện `oniceconnectionstatechange` trên mỗi kết nối ngang hàng:
+        ```typescript
+        peerConnection.oniceconnectionstatechange = () => {
+          const state = peerConnection.iceConnectionState;
+          if (state === 'failed' || state === 'disconnected') {
+            // Đóng kết nối ngang hàng bị lỗi
+            peerConnection.close();
+            // Giải phóng luồng và dọn dẹp các audio/video tracks liên quan
+            removeRemoteStream(peerId);
+            // Xóa khung hình camera của peer bị mất kết nối khỏi UI grid
+            removeVideoFrameFromUI(peerId);
+          }
+        };
+        ```
+        Việc chủ động dọn dẹp tại client giúp tối ưu hóa hiệu năng, giải phóng RAM/CPU ngay lập tức mà không cần phụ thuộc vào tín hiệu Signalling từ WebSocket.
+*   **Phòng ngự quá tải băng thông Host (Asymmetric Mesh Bitrate Cap)**:
+    *   **Vấn đề**: Khi Host bật video camera và microphone, họ phải gánh vác việc upload đồng thời luồng media tới tối đa 6 Listener khác trong phòng qua cơ chế Mesh P2P. Nếu băng thông Upload của Host yếu, việc mã hóa song song 6 luồng stream sẽ làm nghẽn mạng, gây vỡ hình/mất tiếng toàn phòng.
+    *   **Giải pháp**: Host (hoặc bất kỳ thành viên nào phát stream) cấu hình các tham số mã hóa `RTCRtpEncodingParameters` để giới hạn cứng băng thông video tối đa ở mức **300kbps** (độ phân giải tối đa 360p hoặc 480p, fps tối đa 15-20 frames/giây) và ưu tiên độ mịn âm thanh (Audio Priority):
+        ```typescript
+        const sender = peerConnection.getSenders().find(s => s.track.kind === 'video');
+        if (sender) {
+          const parameters = sender.getParameters();
+          parameters.encodings[0].maxBitrate = 300000; // 300kbps
+          parameters.encodings[0].scaleResolutionDownBy = 2.0; // Giảm độ phân giải để tối ưu bitrate
+          await sender.setParameters(parameters);
+        }
+        ```
+        Việc hy sinh chất lượng hình ảnh thoại giúp bảo vệ băng thông và giữ cho tiếng nói đàm thoại luôn rõ ràng, ổn định trong suốt phiên nghe nhạc.
 
 ---
 
