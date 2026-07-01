@@ -1,26 +1,27 @@
-# Contribution Guidelines
+# Solo Developer Contribution Guidelines
 
-Thank you for contributing to PWB MiNi! To maintain code quality, enforce consistent rules, and keep our Git history clean in our Monorepo, please follow these guidelines.
+This document outlines the simplified Git workflow tailored for a solo developer on the **PWB MiNi** project. It maximizes development speed while keeping the repository structured and ready for future CI/CD.
 
 ---
 
-## 1. Branching Strategy (Git Flow)
+## 1. Branching Strategy (Dual-Branch Model)
 
-We use the standard Git Flow branching model. All active development must happen on feature branches.
+Instead of complex Git Flow, we use a simplified two-branch model:
 
-### Branch Names
-- **`main`**: Production branch. Only contains stable, tested release code. Never commit directly to `main`.
-- **`develop`**: Integration branch. All features must merge here first.
-- **`feature/<name>`**: For new features (e.g., `feature/user-auth`, `feature/payment-gateway`).
-- **`bugfix/<name>`**: For bug fixes (e.g., `bugfix/login-crash`).
-- **`hotfix/<name>`**: For urgent production hotfixes. Branched from `main`, merged to both `main` and `develop`.
-- **`release/v<version>`**: For preparing releases (e.g., `release/v1.0.0`).
+- **`develop` (Active Development)**:
+  - Your primary workspace branch.
+  - Commit and push directly to `develop` for daily tasks.
+  - No need to create separate feature branches for small tasks.
+- **`main` (Production / Stable Release)**:
+  - Represents the code currently running in production.
+  - Do not make direct commits to `main`.
+  - When you are ready to release/deploy, merge `develop` into `main`. The push to `main` will trigger the deployment pipeline in the future.
 
 ---
 
 ## 2. Commit Message Guidelines
 
-We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification.
+To keep the history searchable and prepare for automated changelog generation, we continue to follow the **Conventional Commits** specification.
 
 ### Format
 `type(scope): description`
@@ -33,46 +34,36 @@ We follow the [Conventional Commits](https://www.conventionalcommits.org/) speci
   - `docs`: Documentation updates.
   - `test`: Adding or correcting tests.
   - `perf`: Code changes that improve performance.
-  - `style`: Changes that do not affect the meaning of the code (white-space, formatting, etc.).
-- **`scope`** (Mandatory for Monorepo): Specifies the affected sub-project to keep history clear. It must use the folder name path:
-  - `backend/<module>`: E.g. `backend/auth`, `backend/user`, `backend/room`.
-  - `frontend/<feature>`: E.g. `frontend/auth`, `frontend/dashboard`.
-  - `docs/<doc-name>`: E.g. `docs/api`.
-  - `root/<config>`: E.g. `root/gitignore`, `root/ci`.
-- **`description`**: Brief description in the imperative mood (e.g., "add user registration", NOT "added user registration").
+- **`scope`**: Specifies the affected sub-project:
+  - `backend/<module>`: E.g., `backend/auth`, `backend/user`.
+  - `frontend/<feature>`: E.g., `frontend/auth`, `frontend/dashboard`.
+  - `docs/<doc-name>`: E.g., `docs/api`.
+  - `root/<config>`: E.g., `root/gitignore`, `root/ci`.
+- **`description`**: Brief description in the imperative mood (e.g., "add user registration").
 
 ### Examples
 - `feat(backend/auth): add email verification via OTP`
 - `fix(frontend/auth): resolve crash on login submit`
 - `chore(root/gitignore): add agents path to ignore`
-- `docs(docs/live-room): update setup instruction`
 
 ---
 
-## 3. Development & Pull Request Workflow
+## 3. Daily Workflow
 
-Please follow this step-by-step workflow when writing code:
-
-1. **Synchronize**: Make sure your local `develop` branch is up to date:
-   ```bash
-   git checkout develop
-   git pull origin develop
-   ```
-2. **Create Branch**: Create your feature branch from `develop`:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-3. **Code & Test**: Write code following the project guidelines. Run tests locally to ensure everything works:
-   - Backend: `./mvnw clean test`
-   - Frontend: `pnpm run test`
-4. **Commit**: Commit your changes locally using conventional commits:
+1. **Daily Development**: Work directly on the local `develop` branch.
+2. **Save Work**: Commit and push directly to GitHub:
    ```bash
    git add .
-   git commit -m "feat(backend/auth): implement oauth2 login"
+   git commit -m "feat(backend/room): implement create room API"
+   git push origin develop
    ```
-5. **Push & PR**: Push your branch to GitHub and open a Pull Request (PR) to the `develop` branch:
+3. **Release & Deploy**: When the code is stable and you want to deploy:
    ```bash
-   git push -u origin feature/your-feature-name
+   git checkout main
+   git merge develop
    ```
-6. **Code Review & CI**: Wait for the automated CI build tests to pass and get approval from team members.
-7. **Merge**: Once approved, merge the PR into `develop` and delete your feature branch.
+   *Verify everything builds and tests pass locally, then push to GitHub:*
+   ```bash
+   git push origin main
+   git checkout develop
+   ```
