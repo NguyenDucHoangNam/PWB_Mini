@@ -1,0 +1,57 @@
+# ==========================================
+# 1. Cấu hình AI Agent (Quan trọng)
+# ==========================================
+.agents/
+.gemini/
+*.agent
+transcript*.jsonl
+
+# ==========================================
+# 2. File Môi trường & Thông tin Nhạy cảm (Bảo mật)
+# ==========================================
+# Bỏ qua tất cả các file .env ở mọi cấp thư mục
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+*.env
+# Bỏ qua file cấu hình cục bộ của Spring Boot (chứa mật khẩu DB cục bộ)
+**/src/main/resources/application-local.yaml
+**/src/main/resources/application-local.yml
+**/src/main/resources/application-local.properties
+
+# ==========================================
+# 3. Cấu hình IDE / OS / Công cụ
+# ==========================================
+.idea/
+.vscode/
+*.suo
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+
+# ==========================================
+# 4. Backend (Java / Spring Boot / Maven)
+# ==========================================
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+backend/bin/
+backend/build/
+
+# ==========================================
+# 5. Frontend (Node.js / Next.js / pnpm)
+# ==========================================
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/dist/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+frontend/.turbo/
+frontend/coverage/
