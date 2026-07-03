@@ -5,9 +5,9 @@ spring:
       - classpath:db/migration/iam
       - classpath:db/migration/liveroom
       - classpath:db/migration/audio
+  mongodb:
+    auto-index-creation: true
   data:
-    mongodb:
-      auto-index-creation: true
     redis:
       repositories:
         enabled: true
