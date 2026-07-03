@@ -117,8 +117,8 @@ class AuthServiceTest {
     when(userRepository.existsByEmailAndStatusAndDeletedFalse(anyString(), any(UserStatus.class))).thenReturn(false);
 
     Role mockRole = new Role();
-    mockRole.setName("ROLE_USER");
-    when(roleRepository.findByName("ROLE_USER")).thenReturn(Optional.of(mockRole));
+    mockRole.setName("USER");
+    when(roleRepository.findByName("USER")).thenReturn(Optional.of(mockRole));
 
     User mockUser = new User();
     mockUser.setId("user-uuid");

@@ -44,7 +44,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AuthService {
 
-  private static final String ROLE_USER = "ROLE_USER";
+  private static final String ROLE_USER = "USER";
   private static final String AGGREGATE_TYPE_IAM = "IAM";
   private static final String EVENT_TYPE_REGISTRATION_OTP = "REGISTRATION_OTP";
   private static final String SESSION_KEY_PREFIX = "session:refresh_token:";
@@ -202,7 +202,7 @@ public class AuthService {
   private User createNewUser(RegisterRequest request, String normalizedEmail) {
     Role defaultRole = roleRepository.findByName(ROLE_USER)
         .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR,
-            "Default role ROLE_USER not found"));
+            "Default role USER not found"));
 
     User user = userMapper.toEntity(request);
     user.setEmail(normalizedEmail);

@@ -11,6 +11,6 @@ CREATE TABLE roles (
 );
 
 INSERT INTO roles (id, name, description, created_by) VALUES
-    ('550e8400-e29b-41d4-a716-446655440001', 'ROLE_USER', 'Default role for registered users', 'system'),
-    ('550e8400-e29b-41d4-a716-446655440002', 'ROLE_USER_PRO', 'Producer role with extended privileges', 'system'),
-    ('550e8400-e29b-41d4-a716-446655440003', 'ROLE_ADMIN', 'Administrator with full system access', 'system');
+    ('550e8400-e29b-41d4-a716-446655440001', 'USER', 'Default role for registered users', 'system'),
+    ('550e8400-e29b-41d4-a716-446655440002', 'USER_PRO', 'Producer role with extended privileges', 'system'),
+    ('550e8400-e29b-41d4-a716-446655440003', 'ADMIN', 'Administrator with full system access', 'system');
