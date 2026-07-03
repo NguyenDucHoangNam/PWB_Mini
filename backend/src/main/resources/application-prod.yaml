@@ -11,3 +11,12 @@ spring:
       port: ${SPRING_DATA_REDIS_PORT:6379}
   kafka:
     bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
+
+app:
+  storage:
+    endpoint: ${AWS_S3_ENDPOINT:https://s3.amazonaws.com}
+    bucket-name: ${AWS_S3_BUCKET_NAME}
+    access-key: ${AWS_ACCESS_KEY_ID}
+    secret-key: ${AWS_SECRET_ACCESS_KEY}
+    region: ${AWS_REGION:us-east-1}
+    public-url-prefix: ${STORAGE_PUBLIC_URL_PREFIX}
