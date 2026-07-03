@@ -1,0 +1,10 @@
+app:
+  audio:
+    s3:
+      bucket: ${S3_BUCKET_NAME}
+      presigned-expiration-sec: 60
+    watermark:
+      default-interval-sec: 25
+    ffmpeg:
+      concurrency-cap: 3
+    file-size-limit-bytes: 209715200

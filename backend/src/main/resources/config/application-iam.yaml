@@ -1,0 +1,12 @@
+app:
+  iam:
+    jwt:
+      secret: ${JWT_SECRET:defaultSecretKeyForDevelopmentOnlyPleaseChangeInProduction_atLeast256Bits}
+      access-token-expiration: 900
+      refresh-token-expiration: 604800
+    otp:
+      expiration: 300
+      cooldown: 60
+      max-attempts: 5
+    anonymization:
+      cron: "0 0 0 * * ?"

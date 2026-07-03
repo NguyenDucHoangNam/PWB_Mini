@@ -1,0 +1,13 @@
+spring:
+  flyway:
+    enabled: true
+    locations:
+      - classpath:db/migration/iam
+      - classpath:db/migration/liveroom
+      - classpath:db/migration/audio
+  data:
+    mongodb:
+      auto-index-creation: true
+    redis:
+      repositories:
+        enabled: true
