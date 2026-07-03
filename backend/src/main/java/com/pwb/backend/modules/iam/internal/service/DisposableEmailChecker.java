@@ -27,7 +27,14 @@ public class DisposableEmailChecker {
   );
 
   public boolean isDisposable(String email) {
-    String domain = email.substring(email.indexOf('@') + 1).toLowerCase();
+    if (email == null || email.isBlank()) {
+      return false;
+    }
+    int atIndex = email.indexOf('@');
+    if (atIndex == -1 || atIndex == email.length() - 1) {
+      return false;
+    }
+    String domain = email.substring(atIndex + 1).toLowerCase().trim();
     return BLOCKED_DOMAINS.contains(domain);
   }
 }
