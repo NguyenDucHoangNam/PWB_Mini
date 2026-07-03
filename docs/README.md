@@ -24,7 +24,12 @@ docs/
 *   [00_introduction.md](./00_introduction.md)
     *   **Nội dung**: Giới thiệu dự án, các nỗi đau của thị trường (đánh cắp bản quyền demo, âm thanh live room kém chất lượng/lệch pha), sơ đồ kiến trúc hệ thống tổng thể, stack công nghệ chi tiết và đối tượng sử dụng (Host/Listener).
 
+### [Cấu hình Hạ tầng Chung (Infrastructure Configuration)](./09_infrastructure_config.md)
+*   [09_infrastructure_config.md](./09_infrastructure_config.md)
+    *   **Nội dung**: Tài liệu tham chiếu tập trung mô tả cấu hình, quy tắc vận hành và best practices cho 4 thành phần hạ tầng xuyên suốt: Apache Kafka (Topics, Producer/Consumer, Outbox Pattern, DLQ), WebSocket STOMP (Channels, Rate Limiting, Session Attributes, Clustered Sync), Redis (24 Key Patterns, Pub/Sub, Lua Scripts, TTL Strategy, Naming Conventions), AWS S3 & CloudFront (Pre-signed URL, Bucket Layout, Security Hardening, Lifecycle Policy, DevOps Checklist).
+
 ### [1. Identity & Access Management (IAM)](./1.%20Identity%20&%20Access%20Management)
+
 Phân hệ chịu trách nhiệm xác thực, phân quyền, quản lý tài khoản người dùng và bảo mật phiên truy cập.
 
 *   [01_register_otp_verification.md](./1.%20Identity%20&%20Access%20Management/01_register_otp_verification.md)
