@@ -17,20 +17,20 @@ src/
 |   +-- ui            # Các component UI cơ bản (nút, input, dialog từ shadcn/ui)
 |   +-- layout        # Các component layout dùng chung (Header, Footer, Sidebar)
 |
-+-- config            # Cấu hình toàn cục, quản lý biến môi trường
-|
 +-- features          # Nơi chứa logic ứng dụng phân rã theo Tính Năng (Xem chi tiết bên dưới)
 |
 +-- hooks             # Custom React Hooks dùng chung cho toàn bộ dự án
 |
 +-- lib               # Cấu hình thư viện dùng chung (api-client, react-query)
 |
++-- providers         # App-wide Providers (QueryClientProvider, ThemeProvider)
+|
 +-- stores            # Global State Stores (Zustand stores dùng chung)
 |
 +-- types             # TypeScript Types dùng chung cho toàn dự án
-|
-+-- utils             # Các hàm tiện ích dùng chung (format date, validation)
 ```
+
+*Các folder bổ sung như `config/`, `utils/`, `styles/` sẽ được tạo khi cần thiết.*
 
 ---
 
@@ -65,7 +65,9 @@ src/features/awesome-feature/
 Mỗi khi khai báo một endpoint API trong thư mục `api/` của một feature, bắt buộc phải chia làm **3 thành phần rõ ràng** để đảm bảo khả năng bảo trì, kiểm thử và đồng bộ:
 
 ### 1. Types & Schemas
-Định nghĩa kiểu dữ liệu TS cho Input (Request) và Output (Response):
+Định nghĩa kiểu dữ liệu TS cho Input (Request) và Output (Response).
+
+*Ví dụ rút gọn (xem file thực tế tại `src/features/auth/types/index.ts` để biết đầy đủ các trường):*
 ```typescript
 // src/features/auth/types/index.ts
 export interface RegisterRequest {

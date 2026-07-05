@@ -1,6 +1,7 @@
 package com.pwb.backend.shared.service;
 
 import java.io.InputStream;
+import java.util.List;
 
 public interface StorageService {
 
@@ -8,7 +9,7 @@ public interface StorageService {
 
   void deleteFile(String key);
 
-  void deleteFiles(java.util.List<String> keys);
+  void deleteFiles(List<String> keys);
 
   byte[] getFileBytes(String key);
 
