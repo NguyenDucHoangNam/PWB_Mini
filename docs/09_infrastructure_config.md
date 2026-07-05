@@ -84,13 +84,14 @@ Apache Kafka đóng vai trò **Message Broker hướng sự kiện (Event-Driven
 
 ### 1.6. Transactional Outbox Pattern
 
-Mẫu thiết kế Transactional Outbox được áp dụng xuyên suốt hệ thống để đảm bảo tính nhất quán tuyệt đối giữa PostgreSQL và Kafka:
+Mẫu thiết kế Transactional Outbox được áp dụng xuyên suốt hệ thống để đảm bảo tính nhất quán tuyệt đối giữa PostgreSQL và Kafka. Hệ thống triển khai **3 tuyến xử lý phân tầng** (Tiered Processing) để đạt At-Least-Once Delivery:
 
 ```mermaid
 graph TD
     classDef default fill:#f9f9f9,stroke:#333,stroke-width:1px,color:#000
     classDef transaction fill:#e8e8e8,stroke:#000,stroke-width:2px,color:#000
     classDef async fill:#f0f0f0,stroke:#666,stroke-width:1px,stroke-dasharray: 5 5,color:#000
+    classDef primary fill:#e0e0e0,stroke:#000,stroke-width:2px,color:#000
 
     API["API Request"] --> TX
 
@@ -101,13 +102,18 @@ graph TD
     end
 
     TX -->|"Commit thành công"| AfterCommit
+    TX -->|"WAL Stream"| Debezium
 
-    subgraph AfterCommit ["Xử lý sau Commit"]
+    subgraph AfterCommit ["Tuyến 1: Xử lý tức thời sau Commit"]
         Listener["@TransactionalEventListener<br/>(AFTER_COMMIT)"]:::async
-        Scheduler["Scheduler Polling<br/>(Mỗi 5 giây)"]:::async
     end
 
+    Debezium["Tuyến 2: Debezium CDC<br/>(Primary — lắng nghe PostgreSQL WAL)"]:::primary
+
+    Scheduler["Tuyến 3: Scheduler Polling<br/>(Mỗi 30 giây — Fallback cuối cùng)"]:::async
+
     Listener -->|"Gửi tức thời"| Kafka["Apache Kafka"]
+    Debezium -->|"Phát sự kiện từ WAL"| Kafka
     Scheduler -->|"Quét PENDING còn sót<br/>(SELECT ... FOR UPDATE SKIP LOCKED)"| Kafka
 
     Kafka --> Consumer["Consumer (Mail Worker)"]
@@ -115,17 +121,21 @@ graph TD
     Process -->|"Thất bại > 3 lần"| DLQ["Dead Letter Queue"]
 ```
 
-**Luồng xử lý kép đảm bảo At-Least-Once Delivery:**
+**Luồng xử lý 3 tầng đảm bảo At-Least-Once Delivery:**
 
-| Tuyến | Cơ chế | Ưu điểm | Khi nào kích hoạt |
+| Tuyến | Cơ chế | Vai trò | Khi nào kích hoạt |
 | :--- | :--- | :--- | :--- |
-| **Tuyến 1 (Tức thời)** | `@TransactionalEventListener(phase = AFTER_COMMIT)` | Phản hồi nhanh, email gửi ngay sau đăng ký | Luôn luôn (sau mỗi commit thành công) |
-| **Tuyến 2 (Dự phòng)** | `@Scheduled(fixedRate = 5000)` + `SELECT ... FOR UPDATE SKIP LOCKED` | Bảo vệ trước sự cố sập server hoặc Kafka down | Khi Tuyến 1 thất bại hoặc server crash giữa chừng |
+| **Tuyến 1 (Tức thời)** | `@TransactionalEventListener(phase = AFTER_COMMIT)` | Phản hồi nhanh nhất — email gửi ngay sau đăng ký | Luôn luôn (sau mỗi commit thành công) |
+| **Tuyến 2 (Primary)** | **Debezium Embedded Engine** — lắng nghe PostgreSQL WAL stream, phát hiện INSERT vào `outbox_events` | Cơ chế chính đảm bảo mọi sự kiện Outbox đều được phát lên Kafka, kể cả khi Tuyến 1 thất bại | Liên tục (real-time CDC từ WAL) |
+| **Tuyến 3 (Fallback)** | `@Scheduled(fixedDelay = 30000)` + `SELECT ... FOR UPDATE SKIP LOCKED` | Tuyến phòng thủ cuối cùng — bảo vệ trước sự cố sập cả server lẫn Debezium | Quét định kỳ mỗi 30 giây |
+
+> [!IMPORTANT]
+> **Debezium CDC (Tuyến 2)** yêu cầu PostgreSQL được cấu hình `wal_level = logical` (đã thiết lập trong `docker-compose.yml`). Debezium Embedded Engine chạy trong cùng tiến trình Spring Boot, sử dụng `@Profile("!test")` để tắt trong môi trường test.
 
 **Cơ chế chống trùng lặp (Idempotency):**
 - Mỗi `OutboxEvent` được gắn một `idempotency_key` (UUID v4 duy nhất).
 - Kafka Consumer (Mail Worker) sử dụng key này để kiểm tra sự kiện đã được xử lý chưa trước khi gửi email.
-- Đảm bảo mỗi email OTP chỉ được gửi đúng **1 lần** dù sự kiện có bị phát lại (do scheduler hoặc retry).
+- Đảm bảo mỗi email OTP chỉ được gửi đúng **1 lần** dù sự kiện có bị phát lại (do Debezium, scheduler hoặc retry).
 
 ### 1.7. Chiến lược Dead Letter Queue (DLQ)
 
@@ -533,6 +543,9 @@ Thiết lập CORS để cho phép Frontend upload và tải phân đoạn trự
   }
 ]
 ```
+
+> [!NOTE]
+> Trong môi trường local development (MinIO), cấu hình CORS này được tự động thiết lập lúc khởi động bởi `S3StorageService` nếu thuộc tính `app.storage.auto-configure-cors` được bật là `true` trong cấu hình ứng dụng.
 
 ### 4.8. S3 Lifecycle Rules
 

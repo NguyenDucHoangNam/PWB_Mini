@@ -119,7 +119,13 @@ sequenceDiagram
             end
         end
 
-        loop Polling mỗi 5 giây (IamOutboxScheduler - Fallback / Dự phòng sập nguồn)
+        loop Debezium CDC (Primary — lắng nghe PostgreSQL WAL stream liên tục)
+            Note over BE, DB: Debezium Embedded Engine phát hiện INSERT vào outbox_events qua WAL
+            BE->>Kafka: Phát sự kiện Outbox tức thì lên topic 'notification-events'
+            BE->>DB: Cập nhật outbox_event -> 'PROCESSED'
+        end
+
+        loop Polling mỗi 30 giây (IamOutboxScheduler - Fallback cuối cùng / Dự phòng sập nguồn)
             Note over BE, DB: Sử dụng SELECT ... FOR UPDATE SKIP LOCKED
             BE->>DB: Quét các outbox_events còn sót có status='PENDING' (và khóa dòng)
             BE->>Redis: Ghi đè (Overwrite) OTP key & reset TTL 5 phút
@@ -158,7 +164,8 @@ sequenceDiagram
 11. **Xử lý song song sau Commit (AFTER_COMMIT)**:
     *   *Luồng phản hồi nhanh (Immediate Response)*: Backend phản hồi kết quả HTTP 201 Created về cho Frontend để chuyển người dùng sang giao diện nhập OTP.
     *   *Luồng ghi Redis & gửi tin nhắn (AFTER_COMMIT Listener)*: Spring `@TransactionalEventListener` lắng nghe sự kiện. Sau khi DB commit thành công, listener lưu mã OTP vào Redis (key `otp:registration:{email}`, TTL 5 phút) và key cooldown (`otp:cooldown:{email}`, TTL 60 giây) sử dụng Redis Pipeline atomic. Sau đó đẩy thông điệp sự kiện `REGISTRATION_OTP` lên Apache Kafka topic `notification-events` với cấu hình **`max.block.ms = 500`**. Nếu gửi thành công, Backend cập nhật trạng thái outbox trong DB sang `PROCESSED`. Nếu gửi thất bại (Kafka down hoặc timeout), listener catch exception và ghi log warning để không chặn luồng trả về kết quả HTTP 201 cho client.
-12. **Scheduler quét dự phòng (Fallback)**: Một polling scheduler định kỳ mỗi 5 giây quét bảng `outbox_events` tìm các dòng trạng thái `PENDING` còn sót (do lỗi sập server đột ngột hoặc lỗi kết nối Kafka tạm thời). Để tránh tranh chấp tài nguyên khi chạy multi-instance, Scheduler sử dụng truy vấn **`SELECT ... FOR UPDATE SKIP LOCKED`** (hoặc ShedLock qua Redis) để khóa các dòng đang xử lý và bỏ qua các dòng đang bị khóa bởi worker khác. Scheduler thực hiện ghi đè (Overwrite) OTP vào Redis key cũ (cập nhật lại OTP code và reset TTL 5 phút) để đảm bảo tính nhất quán tuyệt đối giữa mã OTP trong mail sắp gửi và mã OTP nằm trên Cache, gửi lại sang Kafka và đánh dấu `PROCESSED` sau khi gửi thành công.
+12. **Xử lý Outbox qua Debezium CDC (Primary)**: Debezium Embedded Engine liên tục lắng nghe PostgreSQL WAL stream. Khi phát hiện bản ghi INSERT vào bảng `outbox_events`, Debezium tức thì phát sự kiện lên Kafka topic `notification-events` và cập nhật trạng thái thành `PROCESSED`. Đây là cơ chế chính đảm bảo mọi sự kiện Outbox đều được xử lý theo thời gian thực.
+13. **Scheduler quét dự phòng (Fallback cuối cùng)**: Một polling scheduler định kỳ mỗi 30 giây quét bảng `outbox_events` tìm các dòng trạng thái `PENDING` còn sót (do lỗi sập server đột ngột hoặc Debezium/Kafka gặp sự cố đồng thời). Để tránh tranh chấp tài nguyên khi chạy multi-instance, Scheduler sử dụng truy vấn **`SELECT ... FOR UPDATE SKIP LOCKED`** (hoặc ShedLock qua Redis) để khóa các dòng đang xử lý và bỏ qua các dòng đang bị khóa bởi worker khác. Scheduler thực hiện ghi đè (Overwrite) OTP vào Redis key cũ (cập nhật lại OTP code và reset TTL 5 phút) để đảm bảo tính nhất quán tuyệt đối giữa mã OTP trong mail sắp gửi và mã OTP nằm trên Cache, gửi lại sang Kafka và đánh dấu `PROCESSED` sau khi gửi thành công.
 13. **Xử lý gửi Email**: Apache Kafka phân phối tin nhắn đến dịch vụ gửi email (Mail Worker Service). Worker consume tin nhắn, biên dịch giao diện email và gửi mail chứa mã OTP kích hoạt đến hòm thư người dùng. Trường hợp gửi email thất bại liên tục quá 3 lần (như SMTP từ chối hoặc lỗi template), Mail Worker tự động đẩy tin nhắn lỗi vào topic **`notification-events-dlq` (Dead Letter Queue)** để giám sát lỗi vận hành, tránh làm tắc nghẽn hàng đợi email của các user khác.
 
 #### 💡 Kiến thức nền tảng: Transactional Outbox Pattern là gì?
@@ -212,9 +219,14 @@ Hệ thống sử dụng cơ chế kết hợp song song để tối ưu tốc �
     *   **Hành động**: Lưu mã OTP vào Redis (key `otp:registration:{email}`, TTL 5 phút) và key cooldown (`otp:cooldown:{email}`, TTL 60 giây) sử dụng Redis Pipeline atomic. Sau đó đẩy ngay lập tức payload sự kiện từ bảng outbox sang Kafka topic `notification-events`. Chúng ta thiết lập cấu hình **`max.block.ms = 500`** cho Kafka Producer để tránh treo thread xử lý khi Kafka gặp sự cố. Nếu Kafka bị ngắt kết nối, lỗi `TimeoutException` được catch và bỏ qua để hệ thống phản hồi kết quả 201 bình thường cho client. Khi Kafka xác nhận đã nhận thành công (Ack), hệ thống cập nhật trạng thái sự kiện trong bảng `outbox_events` thành `PROCESSED`.
     *   **Ưu điểm**: Người dùng nhận được email kích hoạt ngay lập tức sau khi nhấn đăng ký. Việc ghi Redis chỉ sau khi DB commit đảm bảo tính nhất quán dữ liệu tuyệt đối — không bao giờ xảy ra trường hợp OTP tồn tại trên Redis nhưng User chưa được tạo trong DB.
 
-2.  **Quét dự phòng (Polling Scheduler - Fallback)**:
-    *   **Cơ chế**: Một bộ lập lịch (Scheduler) chạy ngầm định kỳ mỗi **5 giây** (sử dụng `@Scheduled`).
-    *   **Hành động**: Tìm kiếm và quét các bản ghi sự kiện trong bảng `outbox_events` có trạng thái là `PENDING` (thường là những sự kiện bị sót lại do server bị mất nguồn đột ngột ở bước listener hoặc do lỗi kết nối Kafka tạm thời). Để tránh tranh chấp dữ liệu giữa các worker khi chạy multi-instance, Scheduler thực thi câu lệnh SQL **`SELECT ... FOR UPDATE SKIP LOCKED`** (hoặc dùng thư viện ShedLock với Redis) để đảm bảo mỗi bản ghi chỉ được xử lý bởi một instance duy nhất. Scheduler sẽ kiểm tra và thực hiện ghi đè (Overwrite) OTP vào Redis key cũ (cập nhật lại OTP code và reset TTL 5 phút) để đảm bảo tính nhất quán tuyệt đối giữa mã OTP trong mail sắp gửi và mã OTP nằm trên Cache, sau đó đẩy các sự kiện sang Kafka topic `notification-events` và cập nhật trạng thái thành `PROCESSED` sau khi gửi thành công.
+2.  **Debezium CDC (Primary — Tuyến 2)**:
+    *   **Cơ chế**: Debezium Embedded Engine chạy trong cùng tiến trình Spring Boot, liên tục lắng nghe PostgreSQL WAL (Write-Ahead Log) stream. Khi phát hiện bản ghi INSERT mới vào bảng `outbox_events`, Debezium tức thì phát sự kiện lên Kafka.
+    *   **Hành động**: Trích xuất payload từ bản ghi WAL, đẩy lên Kafka topic `notification-events` và cập nhật trạng thái Outbox thành `PROCESSED`.
+    *   **Ưu điểm**: Đảm bảo mọi sự kiện Outbox đều được phát lên Kafka theo thời gian thực, kể cả khi Tuyến 1 (`@TransactionalEventListener`) thất bại do exception. Yêu cầu PostgreSQL `wal_level = logical`.
+
+3.  **Quét dự phòng (Polling Scheduler - Fallback cuối cùng — Tuyến 3)**:
+    *   **Cơ chế**: Một bộ lập lịch (Scheduler) chạy ngầm định kỳ mỗi **30 giây** (sử dụng `@Scheduled(fixedDelay = 30000)`).
+    *   **Hành động**: Tìm kiếm và quét các bản ghi sự kiện trong bảng `outbox_events` có trạng thái là `PENDING` (thường là những sự kiện bị sót lại do server bị mất nguồn đột ngột cùng lúc Debezium gặp sự cố). Để tránh tranh chấp dữ liệu giữa các worker khi chạy multi-instance, Scheduler thực thi câu lệnh SQL **`SELECT ... FOR UPDATE SKIP LOCKED`** (hoặc dùng thư viện ShedLock với Redis) để đảm bảo mỗi bản ghi chỉ được xử lý bởi một instance duy nhất. Scheduler sẽ kiểm tra và thực hiện ghi đè (Overwrite) OTP vào Redis key cũ (cập nhật lại OTP code và reset TTL 5 phút) để đảm bảo tính nhất quán tuyệt đối giữa mã OTP trong mail sắp gửi và mã OTP nằm trên Cache, sau đó đẩy các sự kiện sang Kafka topic `notification-events` và cập nhật trạng thái thành `PROCESSED` sau khi gửi thành công.
     *   **Ưu điểm**: Đảm bảo sự kiện chắc chắn sẽ được gửi đi tối thiểu một lần (At-Least-Once Delivery), không sợ sập server hay mất mát dữ liệu.
     *   **Xử lý trùng lặp (Idempotency)**: Mỗi OutboxEvent được gắn một `idempotency_key` (UUID duy nhất). Kafka consumer (Mail Worker Service) sử dụng key này để kiểm tra sự kiện đã được xử lý hay chưa trước khi gửi email, đảm bảo mỗi email OTP chỉ được gửi đúng **1 lần** dù sự kiện có bị phát lại (do scheduler hoặc retry).
 

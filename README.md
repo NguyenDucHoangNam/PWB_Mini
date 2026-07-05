@@ -32,6 +32,7 @@ Modern music production workflows face two major challenges: protecting intellec
 - **Backend**: Java 21, Spring Boot 4.1.x, Spring Security, Spring WebSockets.
   - **Databases**: PostgreSQL (Relational data), MongoDB (Chat history, audit logs).
   - **Caching & Brokers**: Redis (Session, token blacklist, rate limiting), Apache Kafka (Outbox pattern events, async notification queue).
+  - **CDC (Change Data Capture)**: Debezium Embedded Engine (PostgreSQL connector) as primary Outbox processor.
 - **Frontend**: Next.js 15+ (App Router), TypeScript (`strict` mode), TailwindCSS v4 (Grayscale Monochrome design system), Zustand (client-state), TanStack Query (server-state).
 - **Audio & Streaming**: WebRTC Mesh P2P (Opus Codec) for ultra-low latency voice chat, HLS (HTTP Live Streaming) with AES-128 encryption for secure audio playback.
 
@@ -89,6 +90,7 @@ Quy trình sản xuất âm nhạc hiện đại đối mặt với hai vấn đ
 - **Backend**: Java 21, Spring Boot 4.1.x, Spring Security, Spring WebSockets.
   - **Cơ sở dữ liệu**: PostgreSQL (Dữ liệu quan hệ), MongoDB (Nhật ký chat, audit logs).
   - **Caching & Hàng đợi**: Redis (Session, token blacklist, rate limiting), Apache Kafka (Xử lý sự kiện Outbox, gửi email OTP bất đồng bộ).
+  - **CDC (Change Data Capture)**: Debezium Embedded Engine (PostgreSQL connector) làm bộ xử lý Outbox chính.
 - **Frontend**: Next.js 15+ (App Router), TypeScript (`strict` mode), TailwindCSS v4 (Hệ màu Grayscale Monochrome đơn sắc), Zustand, TanStack Query.
 - **Truyền dẫn Âm thanh**: WebRTC Mesh P2P (Opus Codec) thoại trực tiếp trễ siêu thấp, HLS (HTTP Live Streaming) mã hóa AES-128 bảo vệ file phát nhạc tĩnh.
 

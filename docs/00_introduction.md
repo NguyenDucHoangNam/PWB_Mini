@@ -98,10 +98,13 @@ flowchart TD
     WebRTC_Client <-->|WebRTC Stream| BE
     
     BE <-->|JWT / OTP Check & Session| Redis
-    BE -->|Outbox Pattern Events| Kafka
     BE <-->|Metadata & Relational Data| Postgres
     BE <-->|Chat Logs & Event History| Mongo
     BE <-->|Read/Write Audio Files| S3
+    
+    Postgres -->|WAL Stream| Debezium[Debezium CDC Engine]
+    Debezium -->|Publish Events| Kafka
+    BE -->|Immediate Event Trigger| Kafka
     
     Kafka -->|Consume Events| BE
     Job <-->|Read & Update GDPR| Postgres
@@ -117,6 +120,7 @@ flowchart TD
         *   **MongoDB**: Lưu trữ tài liệu phi cấu trúc (Tin nhắn chat, Nhật ký hoạt động).
     *   **Cache & Key-Value Store**: **Redis** (Lưu trữ Session, Blacklist Token, Cooldown OTP, Rate Limiting).
     *   **Message Broker**: **Apache Kafka** (Hỗ trợ luồng xử lý bất đồng bộ, gửi email OTP thông qua Transactional Outbox Pattern).
+    *   **CDC (Change Data Capture)**: **Debezium Embedded Engine** (PostgreSQL Connector) — Cơ chế chính lắng nghe WAL stream để phát sự kiện Outbox lên Kafka theo thời gian thực, kết hợp với Scheduler polling 30 giây làm fallback.
 *   **Frontend (TypeScript + Next.js)**:
     *   **Framework**: Next.js 15+ (App Router, Server Components kết hợp Client Components linh hoạt).
     *   **Ngôn ngữ**: TypeScript ở chế độ kiểm soát kiểu nghiêm ngặt (`strict: true`).
