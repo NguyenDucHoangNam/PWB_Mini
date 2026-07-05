@@ -11,6 +11,13 @@ import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
+import software.amazon.awssdk.services.s3.model.CORSRule;
+import software.amazon.awssdk.services.s3.model.CORSConfiguration;
+import software.amazon.awssdk.services.s3.model.PutBucketCorsRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
+import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
@@ -25,6 +32,8 @@ import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignReques
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
+
+import java.util.List;
 
 import java.io.InputStream;
 import java.time.Duration;
@@ -42,16 +51,45 @@ public class S3StorageService implements StorageService {
   public void init() {
     String bucketName = properties.getBucketName();
     try {
-      HeadBucketRequest headBucketRequest = HeadBucketRequest.builder()
-          .bucket(bucketName)
-          .build();
-      s3Client.headBucket(headBucketRequest);
+      s3Client.headBucket(HeadBucketRequest.builder().bucket(bucketName).build());
       log.info("S3 storage bucket '{}' verified successfully.", bucketName);
     } catch (S3Exception e) {
-      log.error("S3 storage bucket '{}' verification failed (Status {}): {}",
-          bucketName, e.statusCode(), e.getMessage());
+      if (e.statusCode() == 404 && properties.isAutoCreateBucket()) {
+        log.info("Bucket '{}' does not exist. Creating...", bucketName);
+        s3Client.createBucket(CreateBucketRequest.builder().bucket(bucketName).build());
+        log.info("Bucket '{}' created successfully.", bucketName);
+      } else {
+        log.error("S3 storage bucket '{}' verification failed (Status {}): {}",
+            bucketName, e.statusCode(), e.getMessage());
+      }
     } catch (Exception e) {
       log.error("S3 storage bucket '{}' verification failed: {}", bucketName, e.getMessage());
+    }
+
+    if (properties.isAutoConfigureCors()) {
+      configureBucketCors(bucketName);
+    }
+  }
+
+  private void configureBucketCors(String bucketName) {
+    try {
+      CORSRule corsRule = CORSRule.builder()
+          .allowedMethods(List.of("GET", "PUT", "POST", "DELETE", "HEAD"))
+          .allowedOrigins(List.of("*"))
+          .allowedHeaders(List.of("*"))
+          .maxAgeSeconds(3000)
+          .build();
+
+      s3Client.putBucketCors(PutBucketCorsRequest.builder()
+          .bucket(bucketName)
+          .corsConfiguration(CORSConfiguration.builder()
+              .corsRules(List.of(corsRule))
+              .build())
+          .build());
+
+      log.info("CORS rules configured for bucket '{}'.", bucketName);
+    } catch (Exception e) {
+      log.warn("Failed to configure CORS for bucket '{}': {}", bucketName, e.getMessage());
     }
   }
 
@@ -194,6 +232,28 @@ public class S3StorageService implements StorageService {
     } catch (Exception ex) {
       log.error("Failed to get content type for file '{}' in S3/MinIO: {}", key, ex.getMessage(), ex);
       return null;
+    }
+  }
+
+  @Override
+  public void deleteFiles(List<String> keys) {
+    if (keys == null || keys.isEmpty()) {
+      return;
+    }
+    try {
+      List<ObjectIdentifier> objectIds = keys.stream()
+          .map(key -> ObjectIdentifier.builder().key(key).build())
+          .toList();
+
+      s3Client.deleteObjects(DeleteObjectsRequest.builder()
+          .bucket(properties.getBucketName())
+          .delete(Delete.builder().objects(objectIds).build())
+          .build());
+
+      log.info("Bulk deleted {} files from S3/MinIO.", keys.size());
+    } catch (Exception ex) {
+      log.error("Failed to bulk delete files from S3/MinIO", ex);
+      throw new StorageException("Storage bulk delete error", ex);
     }
   }
 }

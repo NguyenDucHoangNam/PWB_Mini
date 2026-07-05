@@ -17,4 +17,6 @@ public class StorageProperties {
   private String secretKey;
   private String region = "us-east-1";
   private String publicUrlPrefix;
+  private boolean autoCreateBucket = false;
+  private boolean autoConfigureCors = false;
 }

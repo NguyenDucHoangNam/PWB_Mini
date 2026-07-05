@@ -8,6 +8,8 @@ public interface StorageService {
 
   void deleteFile(String key);
 
+  void deleteFiles(java.util.List<String> keys);
+
   byte[] getFileBytes(String key);
 
   String generatePresignedUploadUrl(String key, String contentType, long contentLength, int expirationMinutes);
