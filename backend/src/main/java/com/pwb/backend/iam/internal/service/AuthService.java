@@ -31,6 +31,10 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
+import org.springframework.transaction.support.TransactionTemplate;
+import java.util.concurrent.TimeUnit;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -61,6 +65,8 @@ public class AuthService {
   private final IamProperties iamProperties;
   private final StringRedisTemplate redisTemplate;
   private final UserMapper userMapper;
+  private final RedissonClient redissonClient;
+  private final TransactionTemplate transactionTemplate;
 
   @Transactional
   public RegisterResponse register(RegisterRequest request) {
@@ -122,11 +128,33 @@ public class AuthService {
     return new CheckUsernameResponse(username, !exists);
   }
 
-  @Transactional
   public VerifyOtpResponse verifyOtp(VerifyOtpRequest request,
       HttpServletResponse httpResponse) {
     String normalizedEmail = request.email().trim().toLowerCase();
+    String lockKey = "lock:otp:verify:" + normalizedEmail;
+    RLock lock = redissonClient.getLock(lockKey);
 
+    try {
+      if (!lock.tryLock(3, 10, TimeUnit.SECONDS)) {
+        throw new BusinessException(ErrorCode.RATE_LIMIT_EXCEEDED,
+            "Request is already being processed");
+      }
+      return transactionTemplate.execute(status ->
+          executeVerifyOtp(normalizedEmail, request, httpResponse));
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR,
+          "Authentication process interrupted");
+    } finally {
+      if (lock.isHeldByCurrentThread()) {
+        lock.unlock();
+      }
+    }
+  }
+
+  @Transactional
+  protected VerifyOtpResponse executeVerifyOtp(String normalizedEmail,
+      VerifyOtpRequest request, HttpServletResponse httpResponse) {
     long attempts = otpService.getAttempts(normalizedEmail);
     if (attempts >= iamProperties.getOtp().getMaxAttempts()) {
       otpService.deleteOtpAndAttempts(normalizedEmail);
@@ -177,10 +205,31 @@ public class AuthService {
         userMapper.toUserInfo(user));
   }
 
-  @Transactional
   public void resendOtp(ResendOtpRequest request) {
     String normalizedEmail = request.email().trim().toLowerCase();
+    String lockKey = "lock:otp:resend:" + normalizedEmail;
+    RLock lock = redissonClient.getLock(lockKey);
 
+    try {
+      if (!lock.tryLock(3, 10, TimeUnit.SECONDS)) {
+        throw new BusinessException(ErrorCode.RATE_LIMIT_EXCEEDED,
+            "Request is already being processed");
+      }
+      transactionTemplate.executeWithoutResult(status ->
+          executeResendOtp(normalizedEmail));
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR,
+          "Process interrupted");
+    } finally {
+      if (lock.isHeldByCurrentThread()) {
+        lock.unlock();
+      }
+    }
+  }
+
+  @Transactional
+  protected void executeResendOtp(String normalizedEmail) {
     User user = userRepository.findByEmailAndDeletedFalse(normalizedEmail)
         .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED,
             "User does not exist"));

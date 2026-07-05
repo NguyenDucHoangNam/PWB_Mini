@@ -29,6 +29,12 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -42,6 +48,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
@@ -78,6 +85,12 @@ class AuthServiceTest {
   private ValueOperations<String, String> valueOperations;
   @Mock
   private HttpServletResponse httpResponse;
+  @Mock
+  private RedissonClient redissonClient;
+  @Mock
+  private RLock rLock;
+  @Mock
+  private TransactionTemplate transactionTemplate;
 
   private IamProperties iamProperties;
 
@@ -89,6 +102,23 @@ class AuthServiceTest {
     iamProperties.getOtp().setMaxAttempts(5);
     iamProperties.getJwt().setAccessTokenExpiration(900); // 15 mins
     iamProperties.getJwt().setRefreshTokenExpiration(604800); // 7 days
+
+    lenient().when(redissonClient.getLock(anyString())).thenReturn(rLock);
+    try {
+      lenient().when(rLock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).thenReturn(true);
+    } catch (InterruptedException e) {
+      // ignore
+    }
+
+    lenient().when(transactionTemplate.execute(any())).thenAnswer(invocation -> {
+      TransactionCallback<?> callback = invocation.getArgument(0);
+      return callback.doInTransaction(null);
+    });
+    lenient().doAnswer(invocation -> {
+      Consumer<org.springframework.transaction.TransactionStatus> callback = invocation.getArgument(0);
+      callback.accept(null);
+      return null;
+    }).when(transactionTemplate).executeWithoutResult(any());
 
     authService = new AuthService(
         userRepository,
@@ -102,7 +132,9 @@ class AuthServiceTest {
         objectMapper,
         iamProperties,
         redisTemplate,
-        userMapper
+        userMapper,
+        redissonClient,
+        transactionTemplate
     );
   }
 
