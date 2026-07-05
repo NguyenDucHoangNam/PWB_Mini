@@ -65,7 +65,7 @@ class AuthServiceTest {
   @Mock
   private JwtService jwtService;
   @Mock
-  private DisposableEmailChecker disposableEmailChecker;
+  private DisposableEmailCheckerService disposableEmailChecker;
   @Mock
   private ApplicationEventPublisher eventPublisher;
   @Mock

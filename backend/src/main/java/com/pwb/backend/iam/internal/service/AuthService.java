@@ -55,7 +55,7 @@ public class AuthService {
   private final PasswordEncoder passwordEncoder;
   private final OtpService otpService;
   private final JwtService jwtService;
-  private final DisposableEmailChecker disposableEmailChecker;
+  private final DisposableEmailCheckerService disposableEmailChecker;
   private final ApplicationEventPublisher eventPublisher;
   private final ObjectMapper objectMapper;
   private final IamProperties iamProperties;

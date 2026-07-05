@@ -5,7 +5,7 @@ import org.springframework.stereotype.Component;
 import java.util.Set;
 
 @Component
-public class DisposableEmailChecker {
+public class DisposableEmailCheckerService {
 
   private static final Set<String> BLOCKED_DOMAINS = Set.of(
       "tempmail.com",

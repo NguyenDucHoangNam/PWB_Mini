@@ -1,5 +1,7 @@
 package com.pwb.backend.shared.service.impl;
 
+import com.pwb.backend.shared.exception.StorageException;
+
 import com.pwb.backend.shared.config.StorageProperties;
 import com.pwb.backend.shared.service.StorageService;
 import jakarta.annotation.PostConstruct;
@@ -66,7 +68,7 @@ public class S3StorageService implements StorageService {
       log.info("Uploaded file successfully to S3/MinIO: key={}", key);
     } catch (Exception ex) {
       log.error("Failed to upload file to S3/MinIO: key={}", key, ex);
-      throw new RuntimeException("Storage upload error", ex);
+      throw new StorageException("Storage upload error", ex);
     }
   }
 
@@ -82,7 +84,7 @@ public class S3StorageService implements StorageService {
       log.info("Deleted file successfully from S3/MinIO: key={}", key);
     } catch (Exception ex) {
       log.error("Failed to delete file from S3/MinIO: key={}", key, ex);
-      throw new RuntimeException("Storage delete error", ex);
+      throw new StorageException("Storage delete error", ex);
     }
   }
 
@@ -98,7 +100,7 @@ public class S3StorageService implements StorageService {
       return objectBytes.asByteArray();
     } catch (Exception ex) {
       log.error("Failed to read file from S3/MinIO: key={}", key, ex);
-      throw new RuntimeException("Storage read error", ex);
+      throw new StorageException("Storage read error", ex);
     }
   }
 
@@ -121,7 +123,7 @@ public class S3StorageService implements StorageService {
       return presigned.url().toString();
     } catch (Exception ex) {
       log.error("Failed to generate presigned upload URL: key={}", key, ex);
-      throw new RuntimeException("Failed to generate presigned URL", ex);
+      throw new StorageException("Failed to generate presigned URL", ex);
     }
   }
 
@@ -142,7 +144,7 @@ public class S3StorageService implements StorageService {
       return presigned.url().toString();
     } catch (Exception ex) {
       log.error("Failed to generate presigned download URL: key={}", key, ex);
-      throw new RuntimeException("Failed to generate presigned URL", ex);
+      throw new StorageException("Failed to generate presigned URL", ex);
     }
   }
 
