@@ -11,10 +11,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 
 @Configuration
 @EnableWebSocketMessageBroker
-@RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
-
-  private final WebSocketAuthInterceptor webSocketAuthInterceptor;
 
   @Override
   public void registerStompEndpoints(StompEndpointRegistry registry) {
@@ -35,10 +32,5 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         .setHeartbeatValue(new long[]{10000, 10000})
         .setTaskScheduler(heartbeatScheduler);
     registry.setUserDestinationPrefix("/user");
-  }
-
-  @Override
-  public void configureClientInboundChannel(ChannelRegistration registration) {
-    registration.interceptors(webSocketAuthInterceptor);
   }
 }
