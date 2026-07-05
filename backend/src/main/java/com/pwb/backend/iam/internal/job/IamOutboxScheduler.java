@@ -21,7 +21,7 @@ public class IamOutboxScheduler {
   private final OutboxEventRepository outboxEventRepository;
   private final OutboxPublisher outboxPublisher;
 
-  @Scheduled(fixedDelay = 5000)
+  @Scheduled(fixedDelay = 30000)
   @Transactional
   public void pollPendingOutboxEvents() {
     List<OutboxEvent> pendingEvents = outboxEventRepository

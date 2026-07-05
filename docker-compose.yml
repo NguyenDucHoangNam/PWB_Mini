@@ -10,6 +10,7 @@ services:
       POSTGRES_DB: pwb_db
       POSTGRES_USER: pwb_user
       POSTGRES_PASSWORD: pwb_password
+    command: ["postgres", "-c", "wal_level=logical"]
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
