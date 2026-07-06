@@ -24,3 +24,6 @@ app:
     secret-key: ${AWS_SECRET_ACCESS_KEY}
     region: ${AWS_REGION:us-east-1}
     public-url-prefix: ${STORAGE_PUBLIC_URL_PREFIX}
+  security:
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS}
