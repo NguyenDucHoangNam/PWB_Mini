@@ -193,3 +193,33 @@ Quản lý vòng đời phòng phát trực tuyến và kết nối cộng tác 
 
 > [!TIP]
 > Tất cả các tài liệu đặc tả trên đều tuân thủ quy chuẩn thiết kế 6 phần đồng nhất (Business & Requirements, User Flow & Sequence, Database & Cache, API Specs, UI/UX & Frontend Integration, Logging & Observability) để các thành viên dễ dàng phát triển đồng bộ.
+
+---
+
+## 🌐 6. Đa Ngôn Ngữ Hệ Thống (Internationalization - i18n)
+
+Để phục vụ tốt nhất cho các nhà sản xuất âm nhạc tại Việt Nam và quốc tế, PWB MiNi hỗ trợ dịch tự động thông điệp lỗi API và nội dung email.
+
+### ⚙️ Quy tắc thiết lập
+- **Ngôn ngữ mặc định**: Tiếng Việt (`vi`).
+- **Ngôn ngữ hỗ trợ**: Tiếng Việt (`vi`) và Tiếng Anh (`en`).
+- **Cách chỉ định ngôn ngữ**: Client gửi yêu cầu kèm Header HTTP tiêu chuẩn:
+  `Accept-Language: vi` hoặc `Accept-Language: en`
+
+### 🔧 Cơ chế Hoạt động của Backend
+1.  **Dịch thông điệp lỗi API**:
+    - Sử dụng `AcceptHeaderLocaleResolver` để tự động nhận dạng ngôn ngữ từ request.
+    - `GlobalExceptionHandler` sẽ bắt lỗi và sử dụng `MessageSource` để tra cứu bản dịch từ các tệp `messages.properties` dựa trên Enum Name của `ErrorCode` (ví dụ: `BAD_CREDENTIALS`).
+    - Nếu không tìm thấy cấu hình dịch trong file properties, hệ thống tự động rơi về thông báo mặc định của Enum (`getDefaultMessage()`) làm fallback.
+2.  **Dịch email bất đồng bộ qua Kafka**:
+    - Do tiến trình gửi email chạy bất đồng bộ trên thread của Kafka Listener (mất ngữ cảnh request servlet), `AuthService` sẽ chủ động đính kèm thông tin locale hiện tại vào JSON payload của Outbox Event:
+      `payload.put("locale", LocaleContextHolder.getLocale().getLanguage());`
+    - `MailWorkerService` khi đọc event từ Kafka sẽ trích xuất trường `locale` này để cấu hình cho Thymeleaf `Context(locale)`.
+    - Tiêu đề email (`subject`) được dịch tự động bằng `MessageSource`, còn nội dung email được Thymeleaf tự động phân giải qua các biểu thức `th:text="#{email.key}"` được cấu hình trong `messages.properties`.
+
+### 📂 Cấu trúc các file Properties
+Tất cả các tài liệu dịch thuật được lưu trữ tập trung tại thư mục `src/main/resources/messages/`:
+- `messages.properties` (Bản dịch mặc định - Tiếng Việt)
+- `messages_vi.properties` (Bản dịch Tiếng Việt)
+- `messages_en.properties` (Bản dịch Tiếng Anh)
+

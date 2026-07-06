@@ -42,6 +42,33 @@ public class JwtService {
     return extractClaims(token).getSubject();
   }
 
+  public Claims extractClaimsFromExpiredToken(String token) {
+    try {
+      return Jwts.parser()
+          .verifyWith(getSigningKey())
+          .build()
+          .parseSignedClaims(token)
+          .getPayload();
+    } catch (io.jsonwebtoken.ExpiredJwtException e) {
+      return e.getClaims();
+    }
+  }
+
+  public String extractEmailFromExpiredToken(String token) {
+    return extractClaimsFromExpiredToken(token).getSubject();
+  }
+
+  public String getSignature(String token) {
+    if (token == null) {
+      return null;
+    }
+    int lastDot = token.lastIndexOf('.');
+    if (lastDot == -1) {
+      return token;
+    }
+    return token.substring(lastDot + 1);
+  }
+
   public boolean isTokenValid(String token) {
     try {
       extractClaims(token);
@@ -49,6 +76,10 @@ public class JwtService {
     } catch (Exception e) {
       return false;
     }
+  }
+
+  public String extractRole(String token) {
+    return extractClaims(token).get("role", String.class);
   }
 
   private Claims extractClaims(String token) {

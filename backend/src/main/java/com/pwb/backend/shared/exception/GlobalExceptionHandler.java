@@ -10,19 +10,38 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.context.NoSuchMessageException;
+import lombok.RequiredArgsConstructor;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final MessageSource messageSource;
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex) {
         log.warn("Business exception occurred: code={}, message={}", ex.getErrorCode().getCode(), ex.getMessage());
         ErrorCode errorCode = ex.getErrorCode();
-        ErrorDetail detail = new ErrorDetail(errorCode.getCode(), null, ex.getMessage());
-        ApiResponse<Void> response = ApiResponse.error(ex.getMessage(), List.of(detail));
+        
+        String translatedMessage;
+        try {
+            translatedMessage = messageSource.getMessage(
+                errorCode.name(),
+                ex.getArgs(),
+                LocaleContextHolder.getLocale()
+            );
+        } catch (NoSuchMessageException e) {
+            translatedMessage = ex.getMessage() != null ? ex.getMessage() : errorCode.getDefaultMessage();
+        }
+
+        ErrorDetail detail = new ErrorDetail(errorCode.getCode(), null, translatedMessage);
+        ApiResponse<Void> response = ApiResponse.error(translatedMessage, List.of(detail));
         return new ResponseEntity<>(response, errorCode.getHttpStatus());
     }
 
@@ -41,8 +60,18 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(AccessDeniedException ex) {
-        ErrorDetail detail = new ErrorDetail(ErrorCode.FORBIDDEN.getCode(), null, ex.getMessage());
-        ApiResponse<Void> response = ApiResponse.error(ErrorCode.FORBIDDEN.getDefaultMessage(), List.of(detail));
+        String translatedMessage;
+        try {
+            translatedMessage = messageSource.getMessage(
+                ErrorCode.FORBIDDEN.name(),
+                null,
+                LocaleContextHolder.getLocale()
+            );
+        } catch (NoSuchMessageException e) {
+            translatedMessage = ErrorCode.FORBIDDEN.getDefaultMessage();
+        }
+        ErrorDetail detail = new ErrorDetail(ErrorCode.FORBIDDEN.getCode(), null, translatedMessage);
+        ApiResponse<Void> response = ApiResponse.error(translatedMessage, List.of(detail));
         return new ResponseEntity<>(response, ErrorCode.FORBIDDEN.getHttpStatus());
     }
 

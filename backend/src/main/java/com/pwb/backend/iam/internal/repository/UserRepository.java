@@ -21,6 +21,10 @@ public interface UserRepository extends JpaRepository<User, String> {
 
   Optional<User> findByUsernameAndDeletedFalse(String username);
 
+  @Query("SELECT u FROM User u WHERE (u.username = :usernameOrEmail OR u.email = :usernameOrEmail) "
+      + "AND u.deleted = false")
+  Optional<User> findByUsernameOrEmailAndDeletedFalse(@Param("usernameOrEmail") String usernameOrEmail);
+
   boolean existsByUsernameAndStatusAndDeletedFalse(String username, UserStatus status);
 
   boolean existsByEmailAndStatusAndDeletedFalse(String email, UserStatus status);
@@ -35,6 +39,12 @@ public interface UserRepository extends JpaRepository<User, String> {
   @Query("SELECT u FROM User u WHERE u.status = 'PENDING_VERIFICATION' "
       + "AND u.deleted = false AND u.createdAt < :cutoff")
   List<User> findExpiredPendingUsers(@Param("cutoff") Instant cutoff);
+
+  @Query("SELECT u FROM User u WHERE u.status = 'PENDING_DELETION' "
+      + "AND u.deleted = false AND u.deletionRequestedAt <= :cutoff")
+  List<User> findUsersPendingDeletionBefore(
+      @Param("cutoff") Instant cutoff,
+      org.springframework.data.domain.Pageable pageable);
 
   @Modifying
   @Query("DELETE FROM User u WHERE u.id IN :ids")

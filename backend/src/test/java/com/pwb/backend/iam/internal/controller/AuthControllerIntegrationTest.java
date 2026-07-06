@@ -6,6 +6,7 @@ import com.pwb.backend.iam.api.dto.request.ResendOtpRequest;
 import com.pwb.backend.iam.api.dto.request.VerifyOtpRequest;
 import com.pwb.backend.iam.api.dto.response.RegisterResponse;
 import com.pwb.backend.iam.api.dto.response.VerifyOtpResponse;
+import com.pwb.backend.iam.internal.config.JwtAuthenticationFilter;
 import com.pwb.backend.iam.internal.service.AuthService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,91 +23,95 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = AuthController.class)
-@AutoConfigureMockMvc(addFilters = false) // Táº¯t bá»™ lá»c Security Ä‘á»ƒ test validation & routing cá»§a Controller
+@AutoConfigureMockMvc(addFilters = false)
 class AuthControllerIntegrationTest {
 
-  @Autowired
-  private MockMvc mockMvc;
+    @Autowired
+    private MockMvc mockMvc;
 
-  private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-  @MockitoBean // Replaces @MockBean in Spring Boot 4.0+ / Spring 7.0+
-  private AuthService authService;
+    @MockitoBean // Replaces @MockBean in Spring Boot 4.0+ / Spring 7.0+
+    private AuthService authService;
 
-  @Test
-  void testRegister_validRequest_returns200() throws Exception {
-    RegisterRequest request = new RegisterRequest(
-        "testuser", "test@gmail.com", "Password@123", "Password@123", "Test User");
+    @MockitoBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    RegisterResponse mockResponse = new RegisterResponse(
-        "testuser", "test@gmail.com", "Test User", "PENDING_VERIFICATION");
+    @Test
+    void testRegister_validRequest_returns200() throws Exception {
+        RegisterRequest request = new RegisterRequest(
+                "testuser", "test@gmail.com", "Password@123", "Password@123", "Test User");
 
-    when(authService.register(any(RegisterRequest.class))).thenReturn(mockResponse);
+        RegisterResponse mockResponse = new RegisterResponse(
+                "testuser", "test@gmail.com", "Test User", "PENDING_VERIFICATION");
 
-    mockMvc.perform(post("/api/v1/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.success").value(true))
-        .andExpect(jsonPath("$.message").value("Registration successful, please check your email for OTP verification"))
-        .andExpect(jsonPath("$.data.username").value("testuser"))
-        .andExpect(jsonPath("$.data.status").value("PENDING_VERIFICATION"));
-  }
+        when(authService.register(any(RegisterRequest.class))).thenReturn(mockResponse);
 
-  @Test
-  void testRegister_invalidEmail_returns400() throws Exception {
-    RegisterRequest request = new RegisterRequest(
-        "testuser", "invalid-email", "Password@123", "Password@123", "Test User");
+        mockMvc.perform(post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message")
+                        .value("Registration successful, please check your email for OTP verification"))
+                .andExpect(jsonPath("$.data.username").value("testuser"))
+                .andExpect(jsonPath("$.data.status").value("PENDING_VERIFICATION"));
+    }
 
-    mockMvc.perform(post("/api/v1/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.success").value(false))
-        .andExpect(jsonPath("$.message").value("Validation failed"));
-  }
+    @Test
+    void testRegister_invalidEmail_returns400() throws Exception {
+        RegisterRequest request = new RegisterRequest(
+                "testuser", "invalid-email", "Password@123", "Password@123", "Test User");
 
-  @Test
-  void testRegister_passwordsDoNotMatch_returns400() throws Exception {
-    RegisterRequest request = new RegisterRequest(
-        "testuser", "test@gmail.com", "Password@123", "Different@123", "Test User");
+        mockMvc.perform(post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Validation failed"));
+    }
 
-    mockMvc.perform(post("/api/v1/auth/register")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.success").value(false))
-        .andExpect(jsonPath("$.message").value("Validation failed"));
-  }
+    @Test
+    void testRegister_passwordsDoNotMatch_returns400() throws Exception {
+        RegisterRequest request = new RegisterRequest(
+                "testuser", "test@gmail.com", "Password@123", "Different@123", "Test User");
 
-  @Test
-  void testVerifyOtp_validRequest_returns200() throws Exception {
-    VerifyOtpRequest request = new VerifyOtpRequest("test@gmail.com", "123456");
+        mockMvc.perform(post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Validation failed"));
+    }
 
-    VerifyOtpResponse.UserInfo userInfo = new VerifyOtpResponse.UserInfo(
-        "testuser", "test@gmail.com", "Test User", "ACTIVE");
-    VerifyOtpResponse mockResponse = new VerifyOtpResponse("access-token", 900L, userInfo);
+    @Test
+    void testVerifyOtp_validRequest_returns200() throws Exception {
+        VerifyOtpRequest request = new VerifyOtpRequest("test@gmail.com", "123456");
 
-    when(authService.verifyOtp(any(VerifyOtpRequest.class), any())).thenReturn(mockResponse);
+        VerifyOtpResponse.UserInfo userInfo = new VerifyOtpResponse.UserInfo(
+                "testuser", "test@gmail.com", "Test User", "ACTIVE");
+        VerifyOtpResponse mockResponse = new VerifyOtpResponse("access-token", 900L, userInfo);
 
-    mockMvc.perform(post("/api/v1/auth/verify-otp")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.success").value(true))
-        .andExpect(jsonPath("$.data.accessToken").value("access-token"))
-        .andExpect(jsonPath("$.data.user.status").value("ACTIVE"));
-  }
+        when(authService.verifyOtp(any(VerifyOtpRequest.class), any())).thenReturn(mockResponse);
 
-  @Test
-  void testResendOtp_validRequest_returns200() throws Exception {
-    ResendOtpRequest request = new ResendOtpRequest("test@gmail.com");
+        mockMvc.perform(post("/api/v1/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.accessToken").value("access-token"))
+                .andExpect(jsonPath("$.data.user.status").value("ACTIVE"));
+    }
 
-    mockMvc.perform(post("/api/v1/auth/resend-otp")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.success").value(true))
-        .andExpect(jsonPath("$.message").value("OTP has been sent successfully, please check your email"));
-  }
+    @Test
+    void testResendOtp_validRequest_returns200() throws Exception {
+        ResendOtpRequest request = new ResendOtpRequest("test@gmail.com");
+
+        mockMvc.perform(post("/api/v1/auth/resend-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("OTP has been sent successfully, please check your email"));
+    }
 }

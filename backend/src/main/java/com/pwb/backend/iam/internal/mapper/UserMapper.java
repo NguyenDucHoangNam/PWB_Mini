@@ -2,6 +2,7 @@ package com.pwb.backend.iam.internal.mapper;
 
 import com.pwb.backend.iam.api.dto.request.RegisterRequest;
 import com.pwb.backend.iam.api.dto.response.RegisterResponse;
+import com.pwb.backend.iam.api.dto.response.UserProfileResponse;
 import com.pwb.backend.iam.api.dto.response.VerifyOtpResponse;
 import com.pwb.backend.iam.internal.model.User;
 import org.mapstruct.Mapper;
@@ -23,9 +24,14 @@ public interface UserMapper {
   @Mapping(target = "oauthId", ignore = true)
   @Mapping(target = "avatarUrl", ignore = true)
   @Mapping(target = "password", ignore = true)
+  @Mapping(target = "phone", ignore = true)
+  @Mapping(target = "deletionRequestedAt", ignore = true)
   User toEntity(RegisterRequest request);
 
   RegisterResponse toRegisterResponse(User user);
 
   VerifyOtpResponse.UserInfo toUserInfo(User user);
+
+  @Mapping(target = "role", source = "user.role.name")
+  UserProfileResponse toUserProfileResponse(User user);
 }

@@ -10,6 +10,10 @@ app:
       max-attempts: 5
     anonymization:
       cron: "0 0 0 * * ?"
+    google:
+      client-id: ${GOOGLE_CLIENT_ID}
+    geoip:
+      database-path: ${GEOIP_DB_PATH:classpath:geoip/GeoLite2-City.mmdb}
 
 spring:
   mail:

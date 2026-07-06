@@ -51,4 +51,10 @@ public class User extends BaseEntity {
 
   @Column(name = "oauth_id", length = 100)
   private String oauthId;
+
+  @Column(length = 20)
+  private String phone;
+
+  @Column(name = "deletion_requested_at")
+  private java.time.Instant deletionRequestedAt;
 }

@@ -34,15 +34,19 @@ public class OutboxPublisher {
 
   public void processOutboxEvent(OutboxEvent outboxEvent) {
     try {
-      JsonNode payload = objectMapper.readTree(outboxEvent.getPayload());
-      String email = payload.get("email").asText();
-      String otpCode = payload.get("otpCode").asText();
-
       if ("REGISTRATION_OTP".equals(outboxEvent.getEventType())) {
+        JsonNode payload = objectMapper.readTree(outboxEvent.getPayload());
+        String email = payload.get("email").asText();
+        String otpCode = payload.get("otpCode").asText();
         otpService.storeOtp(email, otpCode);
       }
 
-      kafkaTemplate.send(NOTIFICATION_TOPIC, outboxEvent.getPayload())
+      String topic = NOTIFICATION_TOPIC;
+      if ("ACCOUNT_ANONYMIZED".equals(outboxEvent.getEventType())) {
+        topic = "iam-account-events";
+      }
+
+      kafkaTemplate.send(topic, outboxEvent.getPayload())
           .whenComplete((result, ex) -> {
             if (ex != null) {
               log.warn("Failed to publish outbox event to Kafka: eventId={}, error={}",

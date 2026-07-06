@@ -13,6 +13,8 @@ public class IamProperties {
 
   private Jwt jwt = new Jwt();
   private Otp otp = new Otp();
+  private Google google = new Google();
+  private GeoIp geoip = new GeoIp();
 
   @Getter
   @Setter
@@ -28,5 +30,17 @@ public class IamProperties {
     private long expiration;
     private long cooldown;
     private int maxAttempts;
+  }
+
+  @Getter
+  @Setter
+  public static class Google {
+    private String clientId;
+  }
+
+  @Getter
+  @Setter
+  public static class GeoIp {
+    private String databasePath;
   }
 }
