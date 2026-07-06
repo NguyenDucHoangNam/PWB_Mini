@@ -2,20 +2,24 @@ package com.pwb.backend.shared.exception;
 
 import com.pwb.backend.shared.response.ApiResponse;
 import com.pwb.backend.shared.response.ErrorDetail;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex) {
+        log.warn("Business exception occurred: code={}, message={}", ex.getErrorCode().getCode(), ex.getMessage());
         ErrorCode errorCode = ex.getErrorCode();
         ErrorDetail detail = new ErrorDetail(errorCode.getCode(), null, ex.getMessage());
         ApiResponse<Void> response = ApiResponse.error(ex.getMessage(), List.of(detail));
@@ -35,8 +39,27 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, ErrorCode.VALIDATION_FAILED.getHttpStatus());
     }
 
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(AccessDeniedException ex) {
+        ErrorDetail detail = new ErrorDetail(ErrorCode.FORBIDDEN.getCode(), null, ex.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ErrorCode.FORBIDDEN.getDefaultMessage(), List.of(detail));
+        return new ResponseEntity<>(response, ErrorCode.FORBIDDEN.getHttpStatus());
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatchException(MethodArgumentTypeMismatchException ex) {
+        ErrorDetail detail = new ErrorDetail(
+                ErrorCode.VALIDATION_FAILED.getCode(),
+                ex.getName(),
+                String.format("Parameter '%s' should be of type '%s'", ex.getName(), ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown")
+        );
+        ApiResponse<Void> response = ApiResponse.error("Validation failed", List.of(detail));
+        return new ResponseEntity<>(response, ErrorCode.VALIDATION_FAILED.getHttpStatus());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
+        log.error("Unhandled exception occurred", ex);
         ErrorDetail detail = new ErrorDetail(
                 ErrorCode.INTERNAL_SERVER_ERROR.getCode(),
                 null,

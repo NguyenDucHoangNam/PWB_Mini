@@ -19,9 +19,6 @@ import org.thymeleaf.context.Context;
 @RequiredArgsConstructor
 public class MailWorkerService {
 
-  private static final String DLQ_TOPIC = "notification-events-dlq";
-  private static final int MAX_RETRIES = 3;
-
   private final JavaMailSender mailSender;
   private final TemplateEngine templateEngine;
   private final ObjectMapper objectMapper;
@@ -41,34 +38,25 @@ public class MailWorkerService {
   }
 
   private void sendRegistrationOtpEmail(String toEmail, String otpCode, String fullName) {
-    int retryCount = 0;
-    while (retryCount < MAX_RETRIES) {
-      try {
-        Context context = new Context();
-        context.setVariable("fullName", fullName);
-        context.setVariable("otpCode", otpCode);
+    try {
+      Context context = new Context();
+      context.setVariable("fullName", fullName);
+      context.setVariable("otpCode", otpCode);
 
-        String htmlContent = templateEngine.process("iam/registration-otp", context);
+      String htmlContent = templateEngine.process("iam/registration-otp", context);
 
-        MimeMessage mimeMessage = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
-        helper.setFrom("PWB MiNi <noreply@pwbmini.com>");
-        helper.setTo(toEmail);
-        helper.setSubject("[PWB MiNi] MÃ£ xÃ¡c thá»±c Ä‘Äƒng kÃ½ tÃ i khoáº£n: " + otpCode);
-        helper.setText(htmlContent, true);
+      MimeMessage mimeMessage = mailSender.createMimeMessage();
+      MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+      helper.setFrom("PWB MiNi <noreply@pwbmini.com>");
+      helper.setTo(toEmail);
+      helper.setSubject("[PWB MiNi] Mã xác thực đăng ký tài khoản: " + otpCode);
+      helper.setText(htmlContent, true);
 
-        mailSender.send(mimeMessage);
-        log.info("OTP email sent successfully to: {}", maskEmail(toEmail));
-        return;
-      } catch (MessagingException ex) {
-        retryCount++;
-        log.warn("Failed to send OTP email (attempt {}/{}): {}",
-            retryCount, MAX_RETRIES, ex.getMessage());
-        if (retryCount >= MAX_RETRIES) {
-          log.error("Max retries exceeded for email: {}, sending to DLQ",
-              maskEmail(toEmail));
-        }
-      }
+      mailSender.send(mimeMessage);
+      log.info("OTP email sent successfully to: {}", maskEmail(toEmail));
+    } catch (MessagingException ex) {
+      log.error("Failed to send OTP email to: {}", maskEmail(toEmail), ex);
+      throw new RuntimeException("Failed to send registration OTP email", ex);
     }
   }
 

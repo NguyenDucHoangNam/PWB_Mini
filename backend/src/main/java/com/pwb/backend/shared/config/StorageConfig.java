@@ -8,6 +8,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
+import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 import java.net.URI;
@@ -45,7 +46,10 @@ public class StorageConfig {
         .region(Region.of(properties.getRegion()));
 
     if (properties.getEndpoint() != null && !properties.getEndpoint().isBlank()) {
-      builder.endpointOverride(URI.create(properties.getEndpoint()));
+      builder.endpointOverride(URI.create(properties.getEndpoint()))
+          .serviceConfiguration(S3Configuration.builder()
+              .pathStyleAccessEnabled(true)
+              .build());
     }
 
     return builder.build();

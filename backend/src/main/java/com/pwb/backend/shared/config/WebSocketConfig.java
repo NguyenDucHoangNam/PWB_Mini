@@ -1,6 +1,9 @@
 package com.pwb.backend.shared.config;
 
+import com.pwb.backend.iam.internal.config.WebSocketAuthInterceptor;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -11,7 +14,13 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 
 @Configuration
 @EnableWebSocketMessageBroker
+@RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+
+  private final WebSocketAuthInterceptor webSocketAuthInterceptor;
+
+  @Autowired
+  private ThreadPoolTaskScheduler messageBrokerTaskScheduler;
 
   @Override
   public void registerStompEndpoints(StompEndpointRegistry registry) {
@@ -22,15 +31,23 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
   @Override
   public void configureMessageBroker(MessageBrokerRegistry registry) {
-    ThreadPoolTaskScheduler heartbeatScheduler = new ThreadPoolTaskScheduler();
-    heartbeatScheduler.setPoolSize(1);
-    heartbeatScheduler.setThreadNamePrefix("ws-heartbeat-thread-");
-    heartbeatScheduler.initialize();
-
     registry.setApplicationDestinationPrefixes("/app");
     registry.enableSimpleBroker("/topic", "/queue")
-        .setHeartbeatValue(new long[]{10000, 10000})
-        .setTaskScheduler(heartbeatScheduler);
+        .setHeartbeatValue(new long[] { 10000, 10000 })
+        .setTaskScheduler(messageBrokerTaskScheduler);
     registry.setUserDestinationPrefix("/user");
+  }
+
+  @Override
+  public void configureClientInboundChannel(ChannelRegistration registration) {
+    registration.interceptors(webSocketAuthInterceptor);
+  }
+
+  @Bean
+  public ThreadPoolTaskScheduler messageBrokerTaskScheduler() {
+    ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+    scheduler.setPoolSize(1);
+    scheduler.setThreadNamePrefix("ws-heartbeat-thread-");
+    return scheduler;
   }
 }

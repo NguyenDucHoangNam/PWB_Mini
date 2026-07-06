@@ -29,6 +29,7 @@ services:
   redis:
     image: redis:7.2-alpine
     container_name: pwb-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-pwb_redis_secret_pass}
     ports:
       - "6379:6379"
     volumes:

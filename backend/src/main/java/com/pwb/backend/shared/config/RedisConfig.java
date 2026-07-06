@@ -1,5 +1,6 @@
 package com.pwb.backend.shared.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import net.javacrumbs.shedlock.core.LockProvider;
 import net.javacrumbs.shedlock.provider.redis.spring.RedisLockProvider;
 import net.javacrumbs.shedlock.spring.annotation.EnableSchedulerLock;
@@ -15,12 +16,15 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 public class RedisConfig {
 
   @Bean
-  public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
+  @SuppressWarnings({"deprecation", "removal"})
+  public RedisTemplate<String, Object> redisTemplate(
+      RedisConnectionFactory connectionFactory,
+      ObjectMapper objectMapper) {
     RedisTemplate<String, Object> template = new RedisTemplate<>();
     template.setConnectionFactory(connectionFactory);
 
     StringRedisSerializer stringSerializer = new StringRedisSerializer();
-    GenericJackson2JsonRedisSerializer jsonSerializer = new GenericJackson2JsonRedisSerializer();
+    GenericJackson2JsonRedisSerializer jsonSerializer = new GenericJackson2JsonRedisSerializer(objectMapper);
 
     template.setKeySerializer(stringSerializer);
     template.setValueSerializer(jsonSerializer);

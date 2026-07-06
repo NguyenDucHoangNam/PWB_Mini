@@ -3,6 +3,7 @@ package com.pwb.backend.shared.config;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,6 +17,9 @@ import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
+import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -24,24 +28,31 @@ import java.util.Map;
 public class KafkaConfig {
 
   private final String bootstrapServers;
+  private final int topicPartitions;
+  private final int topicReplicas;
 
-  public KafkaConfig(@Value("${spring.kafka.bootstrap-servers}") String bootstrapServers) {
+  public KafkaConfig(
+      @Value("${spring.kafka.bootstrap-servers}") String bootstrapServers,
+      @Value("${spring.kafka.topic.partitions:1}") int topicPartitions,
+      @Value("${spring.kafka.topic.replicas:1}") int topicReplicas) {
     this.bootstrapServers = bootstrapServers;
+    this.topicPartitions = topicPartitions;
+    this.topicReplicas = topicReplicas;
   }
 
   @Bean
   public NewTopic notificationEventsTopic() {
     return TopicBuilder.name("notification-events")
-        .partitions(1)
-        .replicas(1)
+        .partitions(topicPartitions)
+        .replicas(topicReplicas)
         .build();
   }
 
   @Bean
   public NewTopic notificationEventsDlqTopic() {
     return TopicBuilder.name("notification-events-dlq")
-        .partitions(1)
-        .replicas(1)
+        .partitions(topicPartitions)
+        .replicas(topicReplicas)
         .build();
   }
 
@@ -74,11 +85,20 @@ public class KafkaConfig {
   }
 
   @Bean
-  public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory() {
+  public DefaultErrorHandler errorHandler(KafkaTemplate<String, String> template) {
+    DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(template,
+        (record, ex) -> new TopicPartition(record.topic() + "-dlq", record.partition()));
+    return new DefaultErrorHandler(recoverer, new FixedBackOff(2000L, 3L));
+  }
+
+  @Bean
+  public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
+      DefaultErrorHandler errorHandler) {
     ConcurrentKafkaListenerContainerFactory<String, String> factory =
         new ConcurrentKafkaListenerContainerFactory<>();
     factory.setConsumerFactory(consumerFactory());
-    factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+    factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.RECORD);
+    factory.setCommonErrorHandler(errorHandler);
     return factory;
   }
 }
