@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/sonner";
 import { DEFAULT_STALE_TIME } from "@/lib/constants";
 
 function makeQueryClient() {
@@ -36,8 +38,12 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>{children}</TooltipProvider>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <TooltipProvider>{children}</TooltipProvider>
+        <Toaster />
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
+
 

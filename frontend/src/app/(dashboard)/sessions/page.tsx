@@ -1,0 +1,14 @@
+import { SessionsTable } from "@/features/auth/components/sessions-table";
+
+export const metadata = {
+  title: "Quản lý phiên | PWB MiNi",
+  description: "Quản lý các thiết bị và trình duyệt đang đăng nhập vào tài khoản",
+};
+
+export default function SessionsPage() {
+  return (
+    <div className="border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black rounded-xl p-6 sm:p-8">
+      <SessionsTable />
+    </div>
+  );
+}

@@ -267,6 +267,9 @@ class AuthServiceTest {
     mockUser.setEmail("test@gmail.com");
     mockUser.setStatus(UserStatus.PENDING_VERIFICATION);
     mockUser.setFullName("Test User");
+    Role mockRole = new Role();
+    mockRole.setName("ROLE_USER");
+    mockUser.setRole(mockRole);
     when(userRepository.findByEmailAndDeletedFalse(anyString())).thenReturn(Optional.of(mockUser));
     when(userRepository.save(any(User.class))).thenReturn(mockUser);
 
@@ -821,7 +824,7 @@ class AuthServiceTest {
     mockUser.setStatus(UserStatus.ACTIVE);
 
     when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-    when(valueOperations.get("password_reset_token:reset-token")).thenReturn("test@gmail.com");
+    when(valueOperations.getAndDelete("password_reset_token:reset-token")).thenReturn("test@gmail.com");
     when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
 
     org.springframework.data.redis.core.ZSetOperations zSetOperations = Mockito.mock(org.springframework.data.redis.core.ZSetOperations.class);
@@ -831,8 +834,7 @@ class AuthServiceTest {
     authService.resetPassword(request);
 
     Mockito.verify(userRepository).save(mockUser);
-    Mockito.verify(redisTemplate).delete(java.util.List.of("session:refresh_token:session-1", "user:sessions:user-uuid"));
-    Mockito.verify(redisTemplate).delete("password_reset_token:reset-token");
+    Mockito.verify(redisTemplate).delete(java.util.List.of("session:refresh_token:session-1", "session:metadata:session-1", "user:sessions:user-uuid"));
     Mockito.verify(redisTemplate).delete("login_lockout:user-uuid");
   }
 
@@ -923,10 +925,6 @@ class AuthServiceTest {
 
     when(hashOperations.get("session:metadata:session-2", "active_jwt_signature")).thenReturn("signature-to-blacklist");
 
-    io.jsonwebtoken.Claims mockClaims = Mockito.mock(io.jsonwebtoken.Claims.class);
-    when(jwtService.extractClaimsFromExpiredToken("access-token")).thenReturn(mockClaims);
-    when(mockClaims.getExpiration()).thenReturn(new java.util.Date(System.currentTimeMillis() + 900000));
-
     when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
     authService.revokeSession("session-2", authHeader, "session-1");
@@ -992,10 +990,6 @@ class AuthServiceTest {
         any(RedisScript.class),
         Mockito.eq(List.of("user:sessions:user-uuid")),
         Mockito.eq("session-1"))).thenReturn(mockSignatures);
-
-    io.jsonwebtoken.Claims mockClaims = Mockito.mock(io.jsonwebtoken.Claims.class);
-    when(jwtService.extractClaimsFromExpiredToken("access-token")).thenReturn(mockClaims);
-    when(mockClaims.getExpiration()).thenReturn(new java.util.Date(System.currentTimeMillis() + 900000));
 
     authService.revokeOtherSessions(authHeader, "session-1");
 
