@@ -15,8 +15,6 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 import org.springframework.context.MessageSource;
 import java.util.Locale;
-import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
 
 @Slf4j
 @Service
@@ -34,7 +32,7 @@ public class MailWorkerService {
       JsonNode payload = objectMapper.readTree(message);
       String eventType = payload.has("eventType") ? payload.get("eventType").asText() : "REGISTRATION_OTP";
       String localeStr = payload.has("locale") ? payload.get("locale").asText() : "vi";
-      Locale locale = new Locale(localeStr);
+      Locale locale = Locale.forLanguageTag(localeStr);
 
       switch (eventType) {
         case "REGISTRATION_OTP":
@@ -57,6 +55,8 @@ public class MailWorkerService {
       }
     } catch (JsonProcessingException ex) {
       log.error("Failed to parse notification event: {}", ex.getMessage());
+    } catch (Exception ex) {
+      log.error("Unexpected error processing notification event: {}", ex.getMessage(), ex);
     }
   }
 
@@ -110,7 +110,6 @@ public class MailWorkerService {
       log.info("Password reset email sent successfully to: {}", maskEmail(toEmail));
     } catch (MessagingException ex) {
       log.error("Failed to send password reset email to: {}", maskEmail(toEmail), ex);
-      throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "Failed to send password reset email: " + ex.getMessage());
     }
   }
 
@@ -141,7 +140,6 @@ public class MailWorkerService {
       log.info("Account deletion request email sent successfully to: {}", maskEmail(toEmail));
     } catch (MessagingException ex) {
       log.error("Failed to send account deletion email to: {}", maskEmail(toEmail), ex);
-      throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "Failed to send account deletion requested email: " + ex.getMessage());
     }
   }
 
@@ -165,7 +163,6 @@ public class MailWorkerService {
       log.info("OTP email sent successfully to: {}", maskEmail(toEmail));
     } catch (MessagingException ex) {
       log.error("Failed to send OTP email to: {}", maskEmail(toEmail), ex);
-      throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "Failed to send registration OTP email: " + ex.getMessage());
     }
   }
 
@@ -192,7 +189,6 @@ public class MailWorkerService {
       log.info("Anomalous login warning email sent successfully to: {}", maskEmail(toEmail));
     } catch (MessagingException ex) {
       log.error("Failed to send anomalous login email to: {}", maskEmail(toEmail), ex);
-      throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "Failed to send anomalous login warning email: " + ex.getMessage());
     }
   }
 
@@ -215,7 +211,6 @@ public class MailWorkerService {
       log.info("Welcome email sent successfully to: {}", maskEmail(toEmail));
     } catch (MessagingException ex) {
       log.error("Failed to send welcome email to: {}", maskEmail(toEmail), ex);
-      throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "Failed to send welcome email: " + ex.getMessage());
     }
   }
 

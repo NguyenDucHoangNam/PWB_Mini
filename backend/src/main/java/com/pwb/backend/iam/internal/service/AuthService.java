@@ -16,45 +16,50 @@ import com.pwb.backend.iam.api.dto.request.ResetPasswordRequest;
 import com.pwb.backend.iam.api.dto.request.ResendOtpRequest;
 import com.pwb.backend.iam.api.dto.request.UpdateProfileRequest;
 import com.pwb.backend.iam.api.dto.request.VerifyOtpRequest;
+import com.pwb.backend.iam.api.dto.response.ActiveSessionResponse;
 import com.pwb.backend.iam.api.dto.response.CheckUsernameResponse;
 import com.pwb.backend.iam.api.dto.response.LoginResponse;
-import com.pwb.backend.iam.api.dto.response.RegisterResponse;
 import com.pwb.backend.iam.api.dto.response.RefreshResponse;
-import com.pwb.backend.iam.api.dto.response.ActiveSessionResponse;
+import com.pwb.backend.iam.api.dto.response.RegisterResponse;
 import com.pwb.backend.iam.api.dto.response.TriggerAnonymizationResponse;
 import com.pwb.backend.iam.api.dto.response.UserProfileResponse;
 import com.pwb.backend.iam.api.dto.response.VerifyOtpResponse;
 import com.pwb.backend.iam.api.event.LoginSuccessEvent;
-import com.pwb.backend.iam.internal.service.GeoIpService;
 import com.pwb.backend.iam.api.event.OutboxCreatedEvent;
 import com.pwb.backend.iam.internal.config.IamProperties;
 import com.pwb.backend.iam.internal.enums.OAuthProvider;
 import com.pwb.backend.iam.internal.enums.OutboxEventStatus;
 import com.pwb.backend.iam.internal.enums.UserStatus;
+import com.pwb.backend.iam.internal.mapper.UserMapper;
 import com.pwb.backend.iam.internal.model.OutboxEvent;
 import com.pwb.backend.iam.internal.model.Role;
 import com.pwb.backend.iam.internal.model.User;
-import com.pwb.backend.iam.internal.mapper.UserMapper;
 import com.pwb.backend.iam.internal.repository.OutboxEventRepository;
 import com.pwb.backend.iam.internal.repository.RoleRepository;
 import com.pwb.backend.iam.internal.repository.UserRepository;
 import com.pwb.backend.shared.exception.BusinessException;
 import com.pwb.backend.shared.exception.ErrorCode;
+import io.jsonwebtoken.Claims;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.context.i18n.LocaleContextHolder;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -62,13 +67,16 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -101,16 +109,16 @@ public class AuthService {
   private final RedisScript<String> sessionRotationScript;
   private final GeoIpService geoIpService;
   private final RedisScript<List<String>> revokeOtherSessionsScript;
-  private final org.springframework.transaction.PlatformTransactionManager transactionManager;
-  private org.springframework.transaction.support.TransactionTemplate requiresNewTemplate;
+  private final PlatformTransactionManager transactionManager;
+  private TransactionTemplate requiresNewTemplate;
 
 
   private GoogleIdTokenVerifier googleVerifier;
 
   @PostConstruct
   public void init() {
-    this.requiresNewTemplate = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
-    this.requiresNewTemplate.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    this.requiresNewTemplate = new TransactionTemplate(transactionManager);
+    this.requiresNewTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 
     if (iamProperties.getGoogle() != null && iamProperties.getGoogle().getClientId() != null) {
       NetHttpTransport transport = new NetHttpTransport();
@@ -146,6 +154,7 @@ public class AuthService {
       otpService.deleteAllOtpKeys(pendingUser.getEmail());
       updatePendingUser(pendingUser, request, normalizedEmail);
       String otpCode = otpService.generateOtp();
+      otpService.storeOtpWithAttemptsReset(normalizedEmail, otpCode);
       createOutboxEvent(pendingUser, normalizedEmail, otpCode, pendingUser.getFullName());
 
       return userMapper.toRegisterResponse(pendingUser);
@@ -166,6 +175,7 @@ public class AuthService {
 
     try {
       User newUser = createNewUser(request, normalizedEmail);
+      otpService.storeOtp(normalizedEmail, otpCode);
       createOutboxEvent(newUser, normalizedEmail, otpCode, newUser.getFullName());
 
       return userMapper.toRegisterResponse(newUser);
@@ -233,31 +243,11 @@ public class AuthService {
             "User does not exist"));
 
     user.setStatus(UserStatus.ACTIVE);
-    User savedUser = userRepository.save(user);
+    userRepository.save(user);
 
-    createWelcomeEmailOutbox(savedUser);
+    createWelcomeEmailOutbox(user);
 
-    String accessToken = jwtService.generateAccessToken(user);
-    String refreshToken = jwtService.generateRefreshToken();
-
-    redisTemplate.opsForValue().set(
-        SESSION_KEY_PREFIX + refreshToken,
-        user.getEmail(),
-        Duration.ofSeconds(iamProperties.getJwt().getRefreshTokenExpiration()));
-
-    Cookie refreshCookie = new Cookie("refreshToken", refreshToken);
-    refreshCookie.setHttpOnly(true);
-    refreshCookie.setSecure(true);
-    refreshCookie.setPath("/");
-    refreshCookie.setMaxAge(
-        (int) iamProperties.getJwt().getRefreshTokenExpiration());
-    refreshCookie.setAttribute("SameSite", "Strict");
-    httpResponse.addCookie(refreshCookie);
-
-    return new VerifyOtpResponse(
-        accessToken,
-        iamProperties.getJwt().getAccessTokenExpiration(),
-        userMapper.toUserInfo(user));
+    return generateVerifyOtpResponse(user, httpResponse);
   }
 
   public void resendOtp(ResendOtpRequest request) {
@@ -300,6 +290,7 @@ public class AuthService {
     }
 
     String otpCode = otpService.generateOtp();
+    otpService.storeOtpWithAttemptsReset(normalizedEmail, otpCode);
     createOutboxEvent(user, normalizedEmail, otpCode, user.getFullName());
   }
 
@@ -481,13 +472,7 @@ public class AuthService {
         redisTemplate.expire(newMetadataKey, refreshTokenExpiry, TimeUnit.SECONDS);
       }
 
-      Cookie refreshCookie = new Cookie("refreshToken", newRefreshToken);
-      refreshCookie.setHttpOnly(true);
-      refreshCookie.setSecure(true);
-      refreshCookie.setPath("/");
-      refreshCookie.setMaxAge((int) refreshTokenExpiry);
-      refreshCookie.setAttribute("SameSite", "Strict");
-      response.addCookie(refreshCookie);
+      setRefreshCookie(response, newRefreshToken, (int) refreshTokenExpiry);
 
       return new RefreshResponse(newAccessToken, iamProperties.getJwt().getAccessTokenExpiration());
     }
@@ -502,13 +487,7 @@ public class AuthService {
       String newAccessToken = jwtService.generateAccessToken(user);
 
       long refreshTokenExpiry = iamProperties.getJwt().getRefreshTokenExpiration();
-      Cookie refreshCookie = new Cookie("refreshToken", newToken);
-      refreshCookie.setHttpOnly(true);
-      refreshCookie.setSecure(true);
-      refreshCookie.setPath("/");
-      refreshCookie.setMaxAge((int) refreshTokenExpiry);
-      refreshCookie.setAttribute("SameSite", "Strict");
-      response.addCookie(refreshCookie);
+      setRefreshCookie(response, newToken, (int) refreshTokenExpiry);
 
       return new RefreshResponse(newAccessToken, iamProperties.getJwt().getAccessTokenExpiration());
     }
@@ -517,16 +496,7 @@ public class AuthService {
     if (revokedUserId != null) {
       log.warn("Token Theft detected for user {} using revoked token {}", revokedUserId, refreshToken);
 
-      String zsetKey = "user:sessions:" + revokedUserId;
-      java.util.Set<String> sessionTokens = redisTemplate.opsForZSet().range(zsetKey, 0, -1);
-      if (sessionTokens != null && !sessionTokens.isEmpty()) {
-        List<String> keysToDelete = new java.util.ArrayList<>();
-        for (String t : sessionTokens) {
-          keysToDelete.add("session:refresh_token:" + t);
-        }
-        keysToDelete.add(zsetKey);
-        redisTemplate.delete(keysToDelete);
-      }
+      revokeAllUserSessions(revokedUserId);
       throw new BusinessException(ErrorCode.TOKEN_THEFT_DETECTED, "Token reuse detected, all sessions revoked");
     }
 
@@ -540,7 +510,7 @@ public class AuthService {
     String expiredToken = expiredAccessTokenHeader.substring(7);
 
     String email;
-    io.jsonwebtoken.Claims claims;
+    Claims claims;
     try {
       claims = jwtService.extractClaimsFromExpiredToken(expiredToken);
       email = claims.getSubject();
@@ -554,10 +524,7 @@ public class AuthService {
     String userId = user.getId();
     String jwtSignature = jwtService.getSignature(expiredToken);
 
-    long currentTimeSeconds = Instant.now().getEpochSecond();
-    long expTimeSeconds = claims.getExpiration().getTime() / 1000;
-    long diff = expTimeSeconds - currentTimeSeconds;
-    long blacklistTtl = diff + 30;
+    long blacklistTtl = calculateBlacklistTtl(claims);
 
     String blacklistKey = "session:blacklist_token:" + jwtSignature;
     String activeKey = "session:refresh_token:" + refreshToken;
@@ -569,16 +536,11 @@ public class AuthService {
 
     if (refreshToken != null && !refreshToken.isEmpty()) {
       redisTemplate.delete(activeKey);
+      redisTemplate.delete("session:metadata:" + refreshToken);
       redisTemplate.opsForZSet().remove(zsetKey, refreshToken);
     }
 
-    Cookie refreshCookie = new Cookie("refreshToken", "");
-    refreshCookie.setHttpOnly(true);
-    refreshCookie.setSecure(true);
-    refreshCookie.setPath("/");
-    refreshCookie.setMaxAge(0);
-    refreshCookie.setAttribute("SameSite", "Strict");
-    response.addCookie(refreshCookie);
+    clearRefreshCookie(response);
   }
 
   public void forgotPassword(ForgotPasswordRequest request) {
@@ -588,10 +550,10 @@ public class AuthService {
 
     if (userOpt.isEmpty() || userOpt.get().getStatus() != UserStatus.ACTIVE || userOpt.get().getPassword() == null) {
       long duration = System.currentTimeMillis() - startTime;
-      long targetDuration = 100;
+      long targetDuration = 500;
       if (duration < targetDuration) {
         try {
-          long delay = (targetDuration - duration) + (long) (Math.random() * 20);
+          long delay = (targetDuration - duration) + (long) (Math.random() * 50);
           Thread.sleep(delay);
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
@@ -609,7 +571,7 @@ public class AuthService {
       outboxEvent.setAggregateId(user.getId());
       outboxEvent.setEventType("PASSWORD_RESET");
 
-      java.util.Map<String, Object> payload = new java.util.HashMap<>();
+      Map<String, Object> payload = new HashMap<>();
       payload.put("email", user.getEmail());
       payload.put("fullName", user.getFullName());
       payload.put("token", token);
@@ -621,6 +583,8 @@ public class AuthService {
         throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "Failed to serialize outbox event payload");
       }
 
+      outboxEvent.setIdempotencyKey(UUID.randomUUID().toString());
+      outboxEvent.setStatus(OutboxEventStatus.PENDING);
       OutboxEvent savedEvent = outboxEventRepository.save(outboxEvent);
       eventPublisher.publishEvent(new OutboxCreatedEvent(savedEvent.getId()));
     });
@@ -634,7 +598,7 @@ public class AuthService {
     }
 
     String tokenKey = "password_reset_token:" + request.token();
-    String email = redisTemplate.opsForValue().get(tokenKey);
+    String email = redisTemplate.opsForValue().getAndDelete(tokenKey);
     if (email == null) {
       throw new BusinessException(ErrorCode.INVALID_RESET_TOKEN, "Reset token is invalid or expired");
     }
@@ -652,18 +616,8 @@ public class AuthService {
     });
 
     String userId = user.getId();
-    String zsetKey = "user:sessions:" + userId;
-    java.util.Set<String> sessionTokens = redisTemplate.opsForZSet().range(zsetKey, 0, -1);
-    if (sessionTokens != null && !sessionTokens.isEmpty()) {
-      java.util.List<String> keysToDelete = new java.util.ArrayList<>();
-      for (String t : sessionTokens) {
-        keysToDelete.add("session:refresh_token:" + t);
-      }
-      keysToDelete.add(zsetKey);
-      redisTemplate.delete(keysToDelete);
-    }
+    revokeAllUserSessions(userId);
 
-    redisTemplate.delete(tokenKey);
     redisTemplate.delete("login_lockout:" + userId);
     redisTemplate.delete("login_attempts:" + userId);
   }
@@ -707,11 +661,14 @@ public class AuthService {
 
     String userId = user.getId();
     String zsetKey = "user:sessions:" + userId;
-    java.util.Set<String> sessionTokens = redisTemplate.opsForZSet().range(zsetKey, 0, -1);
+    Set<String> sessionTokens = redisTemplate.opsForZSet().range(zsetKey, 0, -1);
     if (sessionTokens != null && !sessionTokens.isEmpty()) {
+      long blacklistTtl = iamProperties.getJwt().getAccessTokenExpiration() + 30;
       for (String t : sessionTokens) {
         if (!t.equals(currentRefreshToken)) {
+          blacklistSessionJwt(t, blacklistTtl);
           redisTemplate.delete("session:refresh_token:" + t);
+          redisTemplate.delete("session:metadata:" + t);
           redisTemplate.opsForZSet().remove(zsetKey, t);
         }
       }
@@ -819,14 +776,14 @@ public class AuthService {
       outboxEvent.setAggregateId(user.getId());
       outboxEvent.setEventType("ACCOUNT_DELETION_REQUESTED");
 
-      java.util.Map<String, Object> payload = new java.util.HashMap<>();
+      Map<String, Object> payload = new HashMap<>();
       payload.put("email", user.getEmail());
       payload.put("fullName", user.getFullName());
 
-      java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter
+      DateTimeFormatter formatter = DateTimeFormatter
           .ofPattern("yyyy-MM-dd HH:mm:ss")
-          .withZone(java.time.ZoneId.systemDefault());
-      String deletionDate = formatter.format(Instant.now().plus(30, java.time.temporal.ChronoUnit.DAYS));
+          .withZone(ZoneId.systemDefault());
+      String deletionDate = formatter.format(Instant.now().plus(30, ChronoUnit.DAYS));
       payload.put("deletionDate", deletionDate);
       payload.put("locale", LocaleContextHolder.getLocale().getLanguage());
 
@@ -836,30 +793,16 @@ public class AuthService {
         throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "Failed to serialize outbox event payload");
       }
 
+      outboxEvent.setIdempotencyKey(UUID.randomUUID().toString());
+      outboxEvent.setStatus(OutboxEventStatus.PENDING);
       OutboxEvent savedEvent = outboxEventRepository.save(outboxEvent);
       eventPublisher.publishEvent(new OutboxCreatedEvent(savedEvent.getId()));
     });
 
-    String zsetKey = "user:sessions:" + userId;
-    java.util.Set<String> sessionTokens = redisTemplate.opsForZSet().range(zsetKey, 0, -1);
-    if (sessionTokens != null && !sessionTokens.isEmpty()) {
-      java.util.List<String> keysToDelete = new java.util.ArrayList<>();
-      for (String t : sessionTokens) {
-        keysToDelete.add("session:refresh_token:" + t);
-        keysToDelete.add("session:metadata:" + t);
-      }
-      keysToDelete.add(zsetKey);
-      redisTemplate.delete(keysToDelete);
-    }
+    revokeAllUserSessions(userId);
     redisTemplate.delete("user:last_login:" + userId);
 
-    Cookie refreshCookie = new Cookie("refreshToken", "");
-    refreshCookie.setHttpOnly(true);
-    refreshCookie.setSecure(true);
-    refreshCookie.setPath("/");
-    refreshCookie.setMaxAge(0);
-    refreshCookie.setAttribute("SameSite", "Strict");
-    response.addCookie(refreshCookie);
+    clearRefreshCookie(response);
   }
 
   public List<ActiveSessionResponse> getActiveSessions(String authHeader, String currentRefreshToken) {
@@ -873,9 +816,9 @@ public class AuthService {
 
     String userId = user.getId();
     String zsetKey = "user:sessions:" + userId;
-    java.util.Set<String> sessionTokens = redisTemplate.opsForZSet().range(zsetKey, 0, -1);
+    Set<String> sessionTokens = redisTemplate.opsForZSet().range(zsetKey, 0, -1);
 
-    List<ActiveSessionResponse> responseList = new java.util.ArrayList<>();
+    List<ActiveSessionResponse> responseList = new ArrayList<>();
     if (sessionTokens != null) {
       for (String t : sessionTokens) {
         String metadataKey = "session:metadata:" + t;
@@ -930,18 +873,8 @@ public class AuthService {
     redisTemplate.opsForZSet().remove(zsetKey, tokenUuid);
 
     if (signature != null && !signature.isEmpty()) {
-      long remainingTtl = 900;
-      try {
-        io.jsonwebtoken.Claims claims = jwtService.extractClaimsFromExpiredToken(token);
-        long currentTimeSeconds = Instant.now().getEpochSecond();
-        long expTimeSeconds = claims.getExpiration().getTime() / 1000;
-        long diff = expTimeSeconds - currentTimeSeconds;
-        if (diff > 0) {
-          remainingTtl = diff;
-        }
-      } catch (Exception e) {
-      }
-      redisTemplate.opsForValue().set("session:blacklist_token:" + signature, "true", Duration.ofSeconds(remainingTtl));
+      long blacklistTtl = iamProperties.getJwt().getAccessTokenExpiration() + 30;
+      redisTemplate.opsForValue().set("session:blacklist_token:" + signature, "true", Duration.ofSeconds(blacklistTtl));
     }
   }
 
@@ -963,23 +896,13 @@ public class AuthService {
     List<String> blacklistedSignatures = redisTemplate.execute(revokeOtherSessionsScript, keys, args);
 
     if (blacklistedSignatures != null && !blacklistedSignatures.isEmpty()) {
-      long remainingTtl = 900;
-      try {
-        io.jsonwebtoken.Claims claims = jwtService.extractClaimsFromExpiredToken(token);
-        long currentTimeSeconds = Instant.now().getEpochSecond();
-        long expTimeSeconds = claims.getExpiration().getTime() / 1000;
-        long diff = expTimeSeconds - currentTimeSeconds;
-        if (diff > 0) {
-          remainingTtl = diff;
-        }
-      } catch (Exception e) {
-      }
+      long blacklistTtl = iamProperties.getJwt().getAccessTokenExpiration() + 30;
 
-      redisTemplate.executePipelined(new BlacklistSessionCallbackService(blacklistedSignatures, remainingTtl));
+      redisTemplate.executePipelined(new BlacklistSessionCallbackService(blacklistedSignatures, blacklistTtl));
     }
   }
 
-  private static class BlacklistSessionCallbackService implements org.springframework.data.redis.core.SessionCallback<Object> {
+  private static class BlacklistSessionCallbackService implements SessionCallback<Object> {
     private final List<String> blacklistedSignatures;
     private final long finalRemainingTtl;
 
@@ -1020,17 +943,7 @@ public class AuthService {
 
   public void anonymizeUser(User user) {
     String userId = user.getId();
-    String zsetKey = "user:sessions:" + userId;
-    java.util.Set<String> sessionTokens = redisTemplate.opsForZSet().range(zsetKey, 0, -1);
-    if (sessionTokens != null && !sessionTokens.isEmpty()) {
-      List<String> keysToDelete = new java.util.ArrayList<>();
-      for (String t : sessionTokens) {
-        keysToDelete.add("session:refresh_token:" + t);
-        keysToDelete.add("session:metadata:" + t);
-      }
-      keysToDelete.add(zsetKey);
-      redisTemplate.delete(keysToDelete);
-    }
+    revokeAllUserSessions(userId);
     redisTemplate.delete("user:last_login:" + userId);
     redisTemplate.delete("login_lockout:" + userId);
     redisTemplate.delete("login_attempts:" + userId);
@@ -1054,7 +967,7 @@ public class AuthService {
     outboxEvent.setAggregateId(userId);
     outboxEvent.setEventType("ACCOUNT_ANONYMIZED");
 
-    java.util.Map<String, Object> payload = new java.util.HashMap<>();
+    Map<String, Object> payload = new HashMap<>();
     payload.put("userId", userId);
     payload.put("email", "deleted_" + userId + "@pwbmini.com");
     payload.put("status", "ANONYMIZED");
@@ -1066,6 +979,8 @@ public class AuthService {
       throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "Failed to serialize outbox event payload");
     }
 
+    outboxEvent.setIdempotencyKey(UUID.randomUUID().toString());
+    outboxEvent.setStatus(OutboxEventStatus.PENDING);
     OutboxEvent savedEvent = outboxEventRepository.save(outboxEvent);
     eventPublisher.publishEvent(new OutboxCreatedEvent(savedEvent.getId()));
   }
@@ -1110,12 +1025,7 @@ public class AuthService {
     }
 
     String baseUsername = email.substring(0, email.indexOf("@"));
-    String username = baseUsername;
-    Random random = new Random();
-    while (userRepository.existsByUsernameAndStatusAndDeletedFalse(username, UserStatus.ACTIVE)
-        || userRepository.existsByUsernameAndStatusAndDeletedFalse(username, UserStatus.PENDING_VERIFICATION)) {
-      username = baseUsername + (random.nextInt(9000) + 1000);
-    }
+    String username = baseUsername + "_" + UUID.randomUUID().toString().substring(0, 8);
 
     Role defaultRole = roleRepository.findByName(ROLE_USER)
         .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR,
@@ -1132,10 +1042,16 @@ public class AuthService {
     newUser.setOauthId(sub);
     newUser.setRole(defaultRole);
 
-    User savedNewUser = userRepository.save(newUser);
-    createWelcomeEmailOutbox(savedNewUser);
-
-    return savedNewUser;
+    try {
+      User savedNewUser = userRepository.save(newUser);
+      createWelcomeEmailOutbox(savedNewUser);
+      return savedNewUser;
+    } catch (DataIntegrityViolationException ex) {
+      newUser.setUsername(baseUsername + "_" + UUID.randomUUID().toString().substring(0, 8));
+      User savedNewUser = userRepository.save(newUser);
+      createWelcomeEmailOutbox(savedNewUser);
+      return savedNewUser;
+    }
   }
 
   private LoginResponse generateSessionAndResponse(User user, HttpServletResponse httpResponse) {
@@ -1190,13 +1106,7 @@ public class AuthService {
     redisTemplate.opsForHash().putAll(metadataKey, metadata);
     redisTemplate.expire(metadataKey, refreshTokenExpiry, TimeUnit.SECONDS);
 
-    Cookie refreshCookie = new Cookie("refreshToken", refreshToken);
-    refreshCookie.setHttpOnly(true);
-    refreshCookie.setSecure(true);
-    refreshCookie.setPath("/");
-    refreshCookie.setMaxAge((int) refreshTokenExpiry);
-    refreshCookie.setAttribute("SameSite", "Strict");
-    httpResponse.addCookie(refreshCookie);
+    setRefreshCookie(httpResponse, refreshToken, (int) refreshTokenExpiry);
 
     eventPublisher.publishEvent(new LoginSuccessEvent(
         this, user.getId(), getClientIp(), getUserAgent()));
@@ -1219,10 +1129,10 @@ public class AuthService {
     if (attributes != null) {
       HttpServletRequest request = attributes.getRequest();
       String ip = request.getHeader("X-Forwarded-For");
-      if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-        ip = request.getRemoteAddr();
+      if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
+        return ip.split(",")[0].trim();
       }
-      return ip;
+      return request.getRemoteAddr();
     }
     return "Unknown";
   }
@@ -1311,6 +1221,60 @@ public class AuthService {
       eventPublisher.publishEvent(new OutboxCreatedEvent(savedEvent.getId()));
     } catch (JsonProcessingException ex) {
       log.error("Failed to serialize welcome email outbox event payload", ex);
+    }
+  }
+
+  private VerifyOtpResponse generateVerifyOtpResponse(User user, HttpServletResponse httpResponse) {
+    LoginResponse loginResponse = generateSessionAndResponse(user, httpResponse);
+    return new VerifyOtpResponse(
+        loginResponse.accessToken(),
+        loginResponse.expiresIn(),
+        userMapper.toUserInfo(user));
+  }
+
+  private void setRefreshCookie(HttpServletResponse response, String value, int maxAge) {
+    Cookie refreshCookie = new Cookie("refreshToken", value);
+    refreshCookie.setHttpOnly(true);
+    refreshCookie.setSecure(true);
+    refreshCookie.setPath("/");
+    refreshCookie.setMaxAge(maxAge);
+    refreshCookie.setAttribute("SameSite", "Strict");
+    response.addCookie(refreshCookie);
+  }
+
+  private void clearRefreshCookie(HttpServletResponse response) {
+    setRefreshCookie(response, "", 0);
+  }
+
+  private long calculateBlacklistTtl(Claims claims) {
+    long currentTimeSeconds = Instant.now().getEpochSecond();
+    long expTimeSeconds = claims.getExpiration().getTime() / 1000;
+    long diff = expTimeSeconds - currentTimeSeconds;
+    return Math.max(30, diff + 30);
+  }
+
+  private void revokeAllUserSessions(String userId) {
+    String zsetKey = "user:sessions:" + userId;
+    Set<String> sessionTokens = redisTemplate.opsForZSet().range(zsetKey, 0, -1);
+    if (sessionTokens != null && !sessionTokens.isEmpty()) {
+      long blacklistTtl = iamProperties.getJwt().getAccessTokenExpiration() + 30;
+      List<String> keysToDelete = new ArrayList<>();
+      for (String t : sessionTokens) {
+        blacklistSessionJwt(t, blacklistTtl);
+        keysToDelete.add("session:refresh_token:" + t);
+        keysToDelete.add("session:metadata:" + t);
+      }
+      keysToDelete.add(zsetKey);
+      redisTemplate.delete(keysToDelete);
+    }
+  }
+
+  private void blacklistSessionJwt(String refreshToken, long ttlSeconds) {
+    String metadataKey = "session:metadata:" + refreshToken;
+    String signature = (String) redisTemplate.opsForHash().get(metadataKey, "active_jwt_signature");
+    if (signature != null && !signature.isEmpty()) {
+      redisTemplate.opsForValue().set(
+          "session:blacklist_token:" + signature, "true", Duration.ofSeconds(ttlSeconds));
     }
   }
 }

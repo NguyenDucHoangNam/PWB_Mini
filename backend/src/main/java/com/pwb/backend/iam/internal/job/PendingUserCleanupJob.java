@@ -5,6 +5,7 @@ import com.pwb.backend.iam.internal.repository.UserRepository;
 import com.pwb.backend.iam.internal.service.OtpService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,11 @@ public class PendingUserCleanupJob {
   private final OtpService otpService;
 
   @Scheduled(cron = "0 0 * * * *")
+  @SchedulerLock(
+      name = "pending_user_cleanup_lock",
+      lockAtMostFor = "PT5M",
+      lockAtLeastFor = "PT30S"
+  )
   @Transactional
   public void cleanupExpiredPendingUsers() {
     Instant cutoff = Instant.now().minus(EXPIRY_HOURS, ChronoUnit.HOURS);

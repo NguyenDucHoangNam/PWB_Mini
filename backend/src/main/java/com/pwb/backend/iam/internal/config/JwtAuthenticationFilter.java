@@ -56,9 +56,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
           email, null, java.util.Collections.singletonList(authority));
       authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
       SecurityContextHolder.getContext().setAuthentication(authentication);
+      filterChain.doFilter(request, response);
+    } else {
+      sendUnauthorizedError(response);
     }
-
-    filterChain.doFilter(request, response);
   }
 
   private void sendUnauthorizedError(HttpServletResponse response) throws IOException {

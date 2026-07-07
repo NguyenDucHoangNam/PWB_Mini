@@ -69,11 +69,12 @@ public class GeoIpService {
   }
 
   private boolean isLocalAddress(String ipAddress) {
-    return "127.0.0.1".equals(ipAddress)
-        || "0:0:0:0:0:0:0:1".equals(ipAddress)
-        || ipAddress.startsWith("192.168.")
-        || ipAddress.startsWith("10.")
-        || ipAddress.startsWith("172.");
+    try {
+      java.net.InetAddress addr = java.net.InetAddress.getByName(ipAddress);
+      return addr.isLoopbackAddress() || addr.isSiteLocalAddress() || addr.isLinkLocalAddress();
+    } catch (Exception e) {
+      return false;
+    }
   }
 
   @PreDestroy

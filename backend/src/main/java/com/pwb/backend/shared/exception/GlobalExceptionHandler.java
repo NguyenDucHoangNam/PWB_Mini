@@ -89,12 +89,22 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
         log.error("Unhandled exception occurred", ex);
+        String translatedMessage;
+        try {
+            translatedMessage = messageSource.getMessage(
+                ErrorCode.INTERNAL_SERVER_ERROR.name(),
+                null,
+                LocaleContextHolder.getLocale()
+            );
+        } catch (NoSuchMessageException e) {
+            translatedMessage = ErrorCode.INTERNAL_SERVER_ERROR.getDefaultMessage();
+        }
         ErrorDetail detail = new ErrorDetail(
                 ErrorCode.INTERNAL_SERVER_ERROR.getCode(),
                 null,
-                ex.getMessage()
+                translatedMessage
         );
-        ApiResponse<Void> response = ApiResponse.error("An unexpected error occurred", List.of(detail));
+        ApiResponse<Void> response = ApiResponse.error(translatedMessage, List.of(detail));
         return new ResponseEntity<>(response, ErrorCode.INTERNAL_SERVER_ERROR.getHttpStatus());
     }
 }

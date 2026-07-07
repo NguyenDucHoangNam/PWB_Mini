@@ -156,7 +156,7 @@ public class AuthController {
 
   @DeleteMapping("/account")
   public ResponseEntity<ApiResponse<Void>> deleteAccount(
-      @RequestBody DeleteAccountRequest request,
+      @Valid @RequestBody DeleteAccountRequest request,
       @RequestHeader("Authorization") String authorizationHeader,
       @CookieValue(value = "refreshToken", required = false) String refreshToken,
       HttpServletResponse httpResponse) {
