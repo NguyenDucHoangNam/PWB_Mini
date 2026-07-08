@@ -6,6 +6,7 @@ import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.GeneralCodingRules.NO_CLASSES_SHOULD_ACCESS_STANDARD_STREAMS;
 import static com.tngtech.archunit.library.GeneralCodingRules.NO_CLASSES_SHOULD_THROW_GENERIC_EXCEPTIONS;
 import static com.tngtech.archunit.library.GeneralCodingRules.NO_CLASSES_SHOULD_USE_FIELD_INJECTION;
@@ -48,4 +49,16 @@ public class ArchitectureConventionsTests {
           .that().areAssignableTo(org.springframework.data.repository.Repository.class)
           .should().haveSimpleNameEndingWith("Repository")
           .andShould().beInterfaces();
+
+  @ArchTest
+  static final ArchRule iam_should_not_depend_on_notification_internal =
+      noClasses()
+          .that().resideInAPackage("..iam..")
+          .should().dependOnClassesThat().resideInAPackage("..notification.internal..");
+
+  @ArchTest
+  static final ArchRule notification_should_not_depend_on_iam_internal =
+      noClasses()
+          .that().resideInAPackage("..notification..")
+          .should().dependOnClassesThat().resideInAPackage("..iam.internal..");
 }

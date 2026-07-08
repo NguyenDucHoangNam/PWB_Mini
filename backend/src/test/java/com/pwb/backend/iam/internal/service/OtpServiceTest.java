@@ -75,14 +75,76 @@ class OtpServiceTest {
   }
 
   @Test
-  void testGetStoredOtp_returnsValue() {
+  void testVerifyOtp_correctCode_returnsTrue() {
     String email = "test@gmail.com";
     when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-    when(valueOperations.get("otp:registration:" + email)).thenReturn("123456");
+    String hash = computeExpectedHash(email, "123456");
+    when(valueOperations.get("otp:registration:" + email)).thenReturn(hash);
 
-    String stored = otpService.getStoredOtp(email);
+    assertTrue(otpService.verifyOtp(email, "123456"));
+  }
 
-    assertEquals("123456", stored);
+  @Test
+  void testVerifyOtp_wrongCode_returnsFalse() {
+    String email = "test@gmail.com";
+    when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+    String hash = computeExpectedHash(email, "123456");
+    when(valueOperations.get("otp:registration:" + email)).thenReturn(hash);
+
+    assertFalse(otpService.verifyOtp(email, "000000"));
+  }
+
+  @Test
+  void testVerifyOtp_emptyStore_returnsFalse() {
+    String email = "test@gmail.com";
+    when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+    when(valueOperations.get("otp:registration:" + email)).thenReturn(null);
+
+    assertFalse(otpService.verifyOtp(email, "123456"));
+  }
+
+  @Test
+  void testVerifyOtp_emailCaseInsensitive() {
+    String storedEmail = "test@gmail.com";
+    String submittedEmail = "TEST@GMAIL.COM";
+    when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+    String hash = computeExpectedHash(storedEmail, "123456");
+    when(valueOperations.get("otp:registration:" + submittedEmail)).thenReturn(null);
+
+    assertFalse(otpService.verifyOtp(submittedEmail, "123456"));
+  }
+
+  private static String computeExpectedHash(String email, String code) {
+    try {
+      java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+      digest.update(email.toLowerCase().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      byte[] hash = digest.digest(code.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      StringBuilder sb = new StringBuilder(hash.length * 2);
+      for (byte b : hash) {
+        sb.append(String.format("%02x", b));
+      }
+      return sb.toString();
+    } catch (java.security.NoSuchAlgorithmException ex) {
+      throw new IllegalStateException(ex);
+    }
+  }
+
+  @Test
+  void testGetAttempts_corruptedValue_returnsZero() {
+    String email = "test@gmail.com";
+    when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+    when(valueOperations.get("otp:attempts:" + email)).thenReturn("not-a-number");
+
+    assertEquals(0L, otpService.getAttempts(email));
+  }
+
+  @Test
+  void testGetAttempts_nullValue_returnsZero() {
+    String email = "test@gmail.com";
+    when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+    when(valueOperations.get("otp:attempts:" + email)).thenReturn(null);
+
+    assertEquals(0L, otpService.getAttempts(email));
   }
 
   @Test

@@ -18,7 +18,25 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class JwtService {
 
+  private static final int MIN_SECRET_LENGTH_BYTES = 32;
+
   private final IamProperties iamProperties;
+
+  @jakarta.annotation.PostConstruct
+  void validateSecret() {
+    String secret = iamProperties.getJwt().getSecret();
+    if (secret == null || secret.isBlank()) {
+      throw new IllegalStateException(
+          "JWT_SECRET is required but not set. Set the JWT_SECRET environment variable "
+              + "with at least " + MIN_SECRET_LENGTH_BYTES + " bytes (256 bits) of random data.");
+    }
+    int byteLength = secret.getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
+    if (byteLength < MIN_SECRET_LENGTH_BYTES) {
+      throw new IllegalStateException(
+          "JWT_SECRET must be at least " + MIN_SECRET_LENGTH_BYTES + " bytes (256 bits). "
+              + "Current length: " + byteLength + " bytes.");
+    }
+  }
 
   public String generateAccessToken(User user) {
     Instant now = Instant.now();
@@ -28,14 +46,25 @@ public class JwtService {
         .subject(user.getEmail())
         .claim("username", user.getUsername())
         .claim("role", user.getRole().getName())
+        .id(UUID.randomUUID().toString())
         .issuedAt(Date.from(now))
         .expiration(Date.from(expiry))
         .signWith(getSigningKey())
         .compact();
   }
 
-  public String generateRefreshToken() {
-    return UUID.randomUUID().toString();
+  public String generateRefreshToken(User user) {
+    Instant now = Instant.now();
+    Instant expiry = now.plusSeconds(iamProperties.getJwt().getRefreshTokenExpiration());
+
+    return Jwts.builder()
+        .subject(user.getEmail())
+        .id(UUID.randomUUID().toString())
+        .claim("type", "refresh")
+        .issuedAt(Date.from(now))
+        .expiration(Date.from(expiry))
+        .signWith(getSigningKey())
+        .compact();
   }
 
   public String extractEmail(String token) {
@@ -75,6 +104,32 @@ public class JwtService {
       return true;
     } catch (Exception e) {
       return false;
+    }
+  }
+
+  public boolean isRefreshTokenValid(String token) {
+    try {
+      Claims claims = Jwts.parser()
+          .verifyWith(getSigningKey())
+          .build()
+          .parseSignedClaims(token)
+          .getPayload();
+      return "refresh".equals(claims.get("type", String.class));
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
+  public String extractJti(String token) {
+    try {
+      return Jwts.parser()
+          .verifyWith(getSigningKey())
+          .build()
+          .parseSignedClaims(token)
+          .getPayload()
+          .getId();
+    } catch (Exception e) {
+      return null;
     }
   }
 

@@ -38,7 +38,8 @@ public enum ErrorCode {
   INVALID_PASSWORD("INVALID_PASSWORD", "Incorrect password confirmation", HttpStatus.BAD_REQUEST),
   DELETION_ALREADY_REQUESTED("DELETION_ALREADY_REQUESTED", "Account deletion has already been requested", HttpStatus.BAD_REQUEST),
   SESSION_NOT_FOUND("SESSION_NOT_FOUND", "Session not found or does not belong to this user", HttpStatus.NOT_FOUND),
-  CANNOT_REVOKE_CURRENT_SESSION("CANNOT_REVOKE_CURRENT_SESSION", "Cannot revoke current session, use logout endpoint instead", HttpStatus.BAD_REQUEST);
+  CANNOT_REVOKE_CURRENT_SESSION("CANNOT_REVOKE_CURRENT_SESSION", "Cannot revoke current session, use logout endpoint instead", HttpStatus.BAD_REQUEST),
+  OAUTH_LINK_PASSWORD_REQUIRED("OAUTH_LINK_PASSWORD_REQUIRED", "This email is already registered. Provide the current account password to link Google sign-in.", HttpStatus.CONFLICT);
 
   private final String code;
   private final String defaultMessage;

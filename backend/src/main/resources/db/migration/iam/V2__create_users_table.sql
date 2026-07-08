@@ -9,12 +9,14 @@ CREATE TABLE users (
     role_id VARCHAR(36) NOT NULL CONSTRAINT fk_users_role_id REFERENCES roles(id),
     oauth_provider VARCHAR(20) NOT NULL DEFAULT 'LOCAL',
     oauth_id VARCHAR(100),
+    phone VARCHAR(20),
     deleted BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(50) DEFAULT 'system',
     updated_by VARCHAR(50) DEFAULT 'system',
-    deleted_at TIMESTAMP WITH TIME ZONE
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    deletion_requested_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE UNIQUE INDEX idx_users_username_active ON users(username) WHERE deleted = FALSE;

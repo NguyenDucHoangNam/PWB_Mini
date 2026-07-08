@@ -11,6 +11,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.Instant;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -36,4 +38,13 @@ public class OutboxEvent extends BaseEntity {
   @Enumerated(EnumType.STRING)
   @Column(length = 20, nullable = false)
   private OutboxEventStatus status = OutboxEventStatus.PENDING;
+
+  @Column(name = "retry_count", nullable = false)
+  private int retryCount = 0;
+
+  @Column(name = "last_error", length = 1000)
+  private String lastError;
+
+  @Column(name = "dead_lettered_at")
+  private Instant deadLetteredAt;
 }

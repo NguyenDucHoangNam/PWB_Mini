@@ -3,7 +3,12 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { AppProviders } from "@/providers/app-providers";
+import { NetworkStatusBanner } from "@/components/network-status-banner";
+import { SessionTimeoutWarning } from "@/components/session-timeout-warning";
+import { GoogleIdentityScript } from "@/components/google-identity-script";
 import "./globals.css";
+
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,8 +41,13 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
+        <GoogleIdentityScript />
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <AppProviders>{children}</AppProviders>
+          <AppProviders>
+            <NetworkStatusBanner />
+            <SessionTimeoutWarning />
+            {children}
+          </AppProviders>
         </NextIntlClientProvider>
       </body>
     </html>

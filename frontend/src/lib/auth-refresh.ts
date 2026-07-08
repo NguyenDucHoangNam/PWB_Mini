@@ -9,6 +9,7 @@ let failedQueue: Array<{
   resolve: (token: string) => void;
   reject: (error: any) => void;
 }> = [];
+let activeRefreshController: AbortController | null = null;
 
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach((prom) => {
@@ -21,6 +22,16 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
+export const abortRefresh = () => {
+  if (activeRefreshController) {
+    activeRefreshController.abort();
+    activeRefreshController = null;
+  }
+  // Reset state
+  isRefreshing = false;
+  failedQueue = [];
+};
+
 export const refreshAccessToken = async (): Promise<string> => {
   if (isRefreshing) {
     return new Promise((resolve, reject) => {
@@ -29,6 +40,7 @@ export const refreshAccessToken = async (): Promise<string> => {
   }
 
   isRefreshing = true;
+  activeRefreshController = new AbortController();
 
   try {
     const expiredToken = useAuthStore.getState().accessToken;
@@ -41,6 +53,7 @@ export const refreshAccessToken = async (): Promise<string> => {
           Authorization: `Bearer ${expiredToken || ""}`,
         },
         withCredentials: true, // Send httpOnly cookie
+        signal: activeRefreshController.signal,
       }
     );
 
@@ -59,10 +72,18 @@ export const refreshAccessToken = async (): Promise<string> => {
       throw new Error(response.data.message || "Failed to refresh token");
     }
   } catch (error: any) {
+    // Ignore abort errors
+    if (error.name === "AbortError" || error.code === "ERR_CANCELED") {
+      const abortError = new Error("Refresh aborted");
+      abortError.name = "AbortError";
+      processQueue(abortError, null);
+      throw abortError;
+    }
     processQueue(error, null);
     useAuthStore.getState().clearAuth();
     throw error;
   } finally {
     isRefreshing = false;
+    activeRefreshController = null;
   }
 };

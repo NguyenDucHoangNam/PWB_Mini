@@ -1,6 +1,6 @@
 package com.pwb.backend.iam.internal.job;
 
-import com.pwb.backend.iam.internal.service.AuthService;
+import com.pwb.backend.iam.internal.service.AccountLifecycleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AccountAnonymizationJob {
 
-  private final AuthService authService;
+  private final AccountLifecycleService accountLifecycleService;
 
   @Scheduled(cron = "${app.jobs.anonymization.cron:0 0 2 * * *}")
   @SchedulerLock(
@@ -23,7 +23,7 @@ public class AccountAnonymizationJob {
   public void runAnonymization() {
     log.info("ANONYMIZATION_JOB_STARTED");
     try {
-      var response = authService.triggerAnonymization();
+      var response = accountLifecycleService.triggerAnonymization();
       log.info("ANONYMIZATION_JOB_FINISHED: processedUsers={}, durationMs={}",
           response.processedUsersCount(), response.executionTimeMs());
     } catch (Exception e) {

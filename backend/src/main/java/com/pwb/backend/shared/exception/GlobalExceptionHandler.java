@@ -13,6 +13,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.context.NoSuchMessageException;
+import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -83,6 +84,19 @@ public class GlobalExceptionHandler {
                 String.format("Parameter '%s' should be of type '%s'", ex.getName(), ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown")
         );
         ApiResponse<Void> response = ApiResponse.error("Validation failed", List.of(detail));
+        return new ResponseEntity<>(response, ErrorCode.VALIDATION_FAILED.getHttpStatus());
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(ConstraintViolationException ex) {
+        List<ErrorDetail> errors = ex.getConstraintViolations().stream()
+                .map(v -> new ErrorDetail(
+                        ErrorCode.VALIDATION_FAILED.getCode(),
+                        v.getPropertyPath() != null ? v.getPropertyPath().toString() : null,
+                        v.getMessage()
+                ))
+                .collect(Collectors.toList());
+        ApiResponse<Void> response = ApiResponse.error("Validation failed", errors);
         return new ResponseEntity<>(response, ErrorCode.VALIDATION_FAILED.getHttpStatus());
     }
 

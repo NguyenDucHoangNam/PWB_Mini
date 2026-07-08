@@ -47,7 +47,7 @@ public class PendingUserCleanupJob {
         .map(User::getId)
         .toList();
 
-    userRepository.hardDeleteByIds(ids);
+    userRepository.softDeleteByIds(ids);
 
     log.info("Cleaned up {} expired pending users", expiredUsers.size());
   }

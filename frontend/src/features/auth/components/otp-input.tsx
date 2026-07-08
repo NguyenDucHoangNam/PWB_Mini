@@ -70,7 +70,11 @@ export function OtpInput({ disabled = false, onChange }: OtpInputProps) {
   };
 
   return (
-    <div className="flex justify-between gap-2 md:gap-4 w-full max-w-[320px] mx-auto font-sans">
+    <div
+      role="group"
+      aria-label="OTP code input - 6 digits"
+      className="flex justify-between gap-2 md:gap-4 w-full max-w-[320px] mx-auto font-sans"
+    >
       {Array(6)
         .fill(null)
         .map((_, index) => (
@@ -82,6 +86,8 @@ export function OtpInput({ disabled = false, onChange }: OtpInputProps) {
             maxLength={1}
             value={otp[index]}
             disabled={disabled}
+            aria-label={`OTP digit ${index + 1} of 6`}
+            aria-describedby="otp-instructions"
             ref={(el) => {
               inputRefs.current[index] = el;
             }}

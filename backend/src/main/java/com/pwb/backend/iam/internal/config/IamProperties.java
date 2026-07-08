@@ -13,6 +13,9 @@ public class IamProperties {
 
   private Jwt jwt = new Jwt();
   private Otp otp = new Otp();
+  private Login login = new Login();
+  private Account account = new Account();
+  private Outbox outbox = new Outbox();
   private Google google = new Google();
   private GeoIp geoip = new GeoIp();
 
@@ -30,6 +33,27 @@ public class IamProperties {
     private long expiration;
     private long cooldown;
     private int maxAttempts;
+  }
+
+  @Getter
+  @Setter
+  public static class Login {
+    private int maxFailedAttempts;
+    private long lockoutTtlSeconds;
+    private long passwordResetTokenTtlSeconds;
+  }
+
+  @Getter
+  @Setter
+  public static class Account {
+    private int deletionGraceDays;
+  }
+
+  @Getter
+  @Setter
+  public static class Outbox {
+    private int deadLetterAfterRetries;
+    private String anonymizationCron;
   }
 
   @Getter

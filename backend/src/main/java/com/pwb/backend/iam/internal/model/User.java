@@ -3,6 +3,7 @@ package com.pwb.backend.iam.internal.model;
 import com.pwb.backend.iam.internal.enums.OAuthProvider;
 import com.pwb.backend.iam.internal.enums.UserStatus;
 import com.pwb.backend.shared.model.BaseEntity;
+import com.pwb.backend.shared.model.SoftDelete;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -20,6 +21,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @Entity
 @Table(name = "users")
+@SoftDelete
 public class User extends BaseEntity {
 
   @Column(length = 50, nullable = false)
@@ -31,7 +33,7 @@ public class User extends BaseEntity {
   @Column(length = 100)
   private String password;
 
-  @Column(name = "full_name", length = 100, nullable = false)
+  @Column(name = "full_name", length = 100)
   private String fullName;
 
   @Column(name = "avatar_url", length = 255)
@@ -46,7 +48,7 @@ public class User extends BaseEntity {
   private Role role;
 
   @Enumerated(EnumType.STRING)
-  @Column(name = "oauth_provider", length = 20, nullable = false)
+  @Column(name = "oauth_provider", length = 20)
   private OAuthProvider oauthProvider = OAuthProvider.LOCAL;
 
   @Column(name = "oauth_id", length = 100)

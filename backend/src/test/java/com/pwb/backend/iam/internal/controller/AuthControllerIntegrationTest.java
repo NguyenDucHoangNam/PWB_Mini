@@ -7,12 +7,16 @@ import com.pwb.backend.iam.api.dto.request.VerifyOtpRequest;
 import com.pwb.backend.iam.api.dto.response.RegisterResponse;
 import com.pwb.backend.iam.api.dto.response.VerifyOtpResponse;
 import com.pwb.backend.iam.internal.config.JwtAuthenticationFilter;
+import com.pwb.backend.iam.internal.service.AccountLifecycleService;
 import com.pwb.backend.iam.internal.service.AuthService;
+import com.pwb.backend.iam.internal.service.SessionService;
+import com.pwb.backend.shared.security.IpRateLimitFilter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -24,6 +28,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = AuthController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@TestPropertySource(properties = {
+    "app.security.cors.allowed-origins=http://localhost:3000",
+    "JWT_SECRET=test-secret-32-bytes-aaaaaaaaaaaaaaaaaaaaaaaa"
+})
 class AuthControllerIntegrationTest {
 
     @Autowired
@@ -35,7 +43,16 @@ class AuthControllerIntegrationTest {
     private AuthService authService;
 
     @MockitoBean
+    private SessionService sessionService;
+
+    @MockitoBean
+    private AccountLifecycleService accountLifecycleService;
+
+    @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockitoBean
+    private IpRateLimitFilter ipRateLimitFilter;
 
     @Test
     void testRegister_validRequest_returns200() throws Exception {

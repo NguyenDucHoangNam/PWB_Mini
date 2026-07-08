@@ -3,6 +3,7 @@ package com.pwb.backend.iam.internal.repository;
 import com.pwb.backend.iam.internal.model.User;
 import com.pwb.backend.iam.internal.enums.UserStatus;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
@@ -17,10 +18,13 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, String> {
 
+  @EntityGraph(attributePaths = "role")
   Optional<User> findByEmailAndDeletedFalse(String email);
 
+  @EntityGraph(attributePaths = "role")
   Optional<User> findByUsernameAndDeletedFalse(String username);
 
+  @EntityGraph(attributePaths = "role")
   @Query("SELECT u FROM User u WHERE (u.username = :usernameOrEmail OR u.email = :usernameOrEmail) "
       + "AND u.deleted = false")
   Optional<User> findByUsernameOrEmailAndDeletedFalse(@Param("usernameOrEmail") String usernameOrEmail);
@@ -47,6 +51,7 @@ public interface UserRepository extends JpaRepository<User, String> {
       org.springframework.data.domain.Pageable pageable);
 
   @Modifying
-  @Query("DELETE FROM User u WHERE u.id IN :ids")
-  void hardDeleteByIds(@Param("ids") List<String> ids);
+  @Query("UPDATE User u SET u.deleted = true, u.deletedAt = CURRENT_TIMESTAMP, "
+      + "u.status = 'ANONYMIZED' WHERE u.id IN :ids AND u.deleted = false")
+  int softDeleteByIds(@Param("ids") List<String> ids);
 }

@@ -1,9 +1,11 @@
 package com.pwb.backend.iam.internal.controller;
 
 import com.pwb.backend.iam.api.dto.response.TriggerAnonymizationResponse;
-import com.pwb.backend.iam.internal.service.AuthService;
+import com.pwb.backend.iam.internal.service.AccountLifecycleService;
 import com.pwb.backend.shared.response.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,12 +17,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AdminJobController {
 
-  private final AuthService authService;
+  private final AccountLifecycleService accountLifecycleService;
+  private final MessageSource messageSource;
 
   @PostMapping("/trigger-anonymization")
-  @PreAuthorize("hasRole('ADMIN')")
-  public ResponseEntity<ApiResponse<TriggerAnonymizationResponse>> triggerAnonymization() {
-    TriggerAnonymizationResponse response = authService.triggerAnonymization();
-    return ResponseEntity.ok(ApiResponse.success("Kích hoạt chạy tiến trình ẩn danh hóa thành công", response));
+  @PreAuthorize("hasAuthority('ADMIN')")
+  public ResponseEntity<ApiResponse<TriggerAnonymizationResponse>> triggerAnonymization(
+      HttpServletRequest request) {
+    TriggerAnonymizationResponse response = accountLifecycleService.triggerAnonymization();
+    String message = messageSource.getMessage(
+        "admin.anonymization.success", null, request.getLocale());
+    return ResponseEntity.ok(ApiResponse.success(message, response));
   }
 }

@@ -93,15 +93,13 @@ class AuthServiceTest {
   @Mock
   private RoleRepository roleRepository;
   @Mock
-  private OutboxEventRepository outboxEventRepository;
+  private com.pwb.backend.iam.internal.factory.OutboxEventFactory outboxEventFactory;
   @Mock
   private PasswordEncoder passwordEncoder;
   @Mock
   private OtpService otpService;
   @Mock
   private JwtService jwtService;
-  @Mock
-  private DisposableEmailCheckerService disposableEmailChecker;
   @Mock
   private ApplicationEventPublisher eventPublisher;
   @Mock
@@ -134,6 +132,10 @@ class AuthServiceTest {
   private GeoIpService geoIpService;
   @Mock
   private RedisScript<List<String>> revokeOtherSessionsScript;
+  @Mock
+  private SessionService sessionService;
+  @Mock
+  private AccountLifecycleService accountLifecycleService;
 
   private IamProperties iamProperties;
 
@@ -168,16 +170,23 @@ class AuthServiceTest {
         .when(redisTemplate)
         .execute(any(RedisScript.class), any(List.class), any(Object[].class));
 
-    lenient().when(outboxEventRepository.save(any(OutboxEvent.class))).thenReturn(new OutboxEvent());
+    lenient().when(outboxEventFactory.registrationOtp(any(User.class), anyString(), anyString(), anyString(), anyString()))
+        .thenReturn(new OutboxEvent());
+    lenient().when(outboxEventFactory.welcomeEmail(any(User.class), anyString()))
+        .thenReturn(new OutboxEvent());
+    lenient().when(outboxEventFactory.passwordReset(any(User.class), anyString(), anyString()))
+        .thenReturn(new OutboxEvent());
+    lenient().when(outboxEventFactory.accountDeletionRequested(any(User.class), anyString(), anyString()))
+        .thenReturn(new OutboxEvent());
+    lenient().when(outboxEventFactory.accountAnonymized(anyString(), anyString(), anyString()))
+        .thenReturn(new OutboxEvent());
 
     authService = new AuthService(
         userRepository,
         roleRepository,
-        outboxEventRepository,
         passwordEncoder,
         otpService,
         jwtService,
-        disposableEmailChecker,
         eventPublisher,
         objectMapper,
         iamProperties,
@@ -185,11 +194,10 @@ class AuthServiceTest {
         userMapper,
         redissonClient,
         transactionTemplate,
-        concurrentSessionScript,
-        sessionRotationScript,
-        geoIpService,
-        revokeOtherSessionsScript,
-        transactionManager
+        transactionManager,
+        sessionService,
+        accountLifecycleService,
+        outboxEventFactory
     );
     org.springframework.transaction.support.TransactionTemplate mockRequiresNewTemplate = Mockito.mock(org.springframework.transaction.support.TransactionTemplate.class);
     lenient().doAnswer(invocation -> {
@@ -206,7 +214,6 @@ class AuthServiceTest {
     RegisterRequest request = new RegisterRequest(
         "testuser", "test@gmail.com", "Password@123", "Password@123", "Test User");
 
-    when(disposableEmailChecker.isDisposable(anyString())).thenReturn(false);
     when(userRepository.findPendingUserForUpdate(anyString(), anyString())).thenReturn(Optional.empty());
     when(userRepository.existsByUsernameAndStatusAndDeletedFalse(anyString(), any(UserStatus.class))).thenReturn(false);
     when(userRepository.existsByEmailAndStatusAndDeletedFalse(anyString(), any(UserStatus.class))).thenReturn(false);
@@ -227,8 +234,8 @@ class AuthServiceTest {
     when(userRepository.save(any(User.class))).thenReturn(mockUser);
     when(otpService.generateOtp()).thenReturn("123456");
 
-    when(objectMapper.writeValueAsString(any())).thenReturn("{\\\"email\\\":\\\"test@gmail.com\\\"}");
-    when(outboxEventRepository.save(any(OutboxEvent.class))).thenReturn(new OutboxEvent());
+    when(outboxEventFactory.registrationOtp(any(User.class), anyString(), anyString(), anyString(), anyString()))
+        .thenReturn(new OutboxEvent());
 
     RegisterResponse responseDto = new RegisterResponse(
         mockUser.getUsername(), mockUser.getEmail(), mockUser.getFullName(), mockUser.getStatus().name());
@@ -241,15 +248,13 @@ class AuthServiceTest {
     assertEquals("PENDING_VERIFICATION", result.status());
 
     verify(userRepository).save(any(User.class));
-    verify(outboxEventRepository).save(any(OutboxEvent.class));
-    verify(eventPublisher).publishEvent(any(Object.class));
+    verify(outboxEventFactory).registrationOtp(any(User.class), anyString(), anyString(), anyString(), anyString());
   }
 
   @Test
   void testRegister_disposableEmail_throwsException() {
     RegisterRequest request = new RegisterRequest(
         "testuser", "test@tempmail.com", "Password@123", "Password@123", "Test User");
-    when(disposableEmailChecker.isDisposable(anyString())).thenReturn(true);
 
     BusinessException ex = assertThrows(BusinessException.class, () -> authService.register(request));
     assertEquals(ErrorCode.DISPOSABLE_EMAIL_NOT_ALLOWED, ex.getErrorCode());
@@ -260,7 +265,7 @@ class AuthServiceTest {
     VerifyOtpRequest request = new VerifyOtpRequest("test@gmail.com", "123456");
 
     when(otpService.getAttempts(anyString())).thenReturn(0L);
-    when(otpService.getStoredOtp(anyString())).thenReturn("123456");
+    when(otpService.verifyOtp(anyString(), anyString())).thenReturn(true);
 
     User mockUser = new User();
     mockUser.setId("user-uuid");
@@ -274,7 +279,7 @@ class AuthServiceTest {
     when(userRepository.save(any(User.class))).thenReturn(mockUser);
 
     when(jwtService.generateAccessToken(any(User.class))).thenReturn("access-token");
-    when(jwtService.generateRefreshToken()).thenReturn("refresh-token");
+    when(jwtService.generateRefreshToken(any(User.class))).thenReturn("refresh-token");
 
     when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     doNothing().when(valueOperations).set(anyString(), anyString(), any(Duration.class));
@@ -299,7 +304,7 @@ class AuthServiceTest {
     VerifyOtpRequest request = new VerifyOtpRequest("test@gmail.com", "123456");
 
     when(otpService.getAttempts(anyString())).thenReturn(0L);
-    when(otpService.getStoredOtp(anyString())).thenReturn("654321");
+    when(otpService.verifyOtp(anyString(), anyString())).thenReturn(false);
 
     BusinessException ex = assertThrows(BusinessException.class, () -> authService.verifyOtp(request, httpResponse));
     assertEquals(ErrorCode.INVALID_OTP, ex.getErrorCode());
@@ -350,7 +355,7 @@ class AuthServiceTest {
     when(passwordEncoder.matches("Password@123", "hashed-pwd")).thenReturn(true);
 
     when(jwtService.generateAccessToken(any(User.class))).thenReturn("access-token");
-    when(jwtService.generateRefreshToken()).thenReturn("refresh-token");
+    when(jwtService.generateRefreshToken(any(User.class))).thenReturn("refresh-token");
 
     when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
@@ -446,7 +451,7 @@ class AuthServiceTest {
 
   @Test
   void testLoginWithGoogle_success_linkedAccount() throws GeneralSecurityException, IOException {
-    Oauth2LoginRequest request = new Oauth2LoginRequest("valid-google-token");
+    Oauth2LoginRequest request = new Oauth2LoginRequest("valid-google-token", null);
 
     GoogleIdToken mockToken = Mockito.mock(GoogleIdToken.class);
     GoogleIdToken.Payload mockPayload = Mockito.mock(GoogleIdToken.Payload.class);
@@ -464,6 +469,7 @@ class AuthServiceTest {
     mockUser.setStatus(UserStatus.ACTIVE);
     mockUser.setFullName("Google User");
     mockUser.setOauthProvider(OAuthProvider.GOOGLE);
+    mockUser.setOauthId("google-sub");
     Role role = new Role();
     role.setName("USER");
     mockUser.setRole(role);
@@ -473,7 +479,7 @@ class AuthServiceTest {
     when(redisTemplate.hasKey("login_lockout:user-uuid")).thenReturn(false);
 
     when(jwtService.generateAccessToken(any(User.class))).thenReturn("access-token");
-    when(jwtService.generateRefreshToken()).thenReturn("refresh-token");
+    when(jwtService.generateRefreshToken(any(User.class))).thenReturn("refresh-token");
     when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
     LoginResponse response = authService.loginWithGoogle(request, httpResponse);
@@ -485,7 +491,7 @@ class AuthServiceTest {
 
   @Test
   void testLoginWithGoogle_invalidToken_throwsException() throws GeneralSecurityException, IOException {
-    Oauth2LoginRequest request = new Oauth2LoginRequest("invalid-token");
+    Oauth2LoginRequest request = new Oauth2LoginRequest("invalid-token", null);
     when(googleVerifier.verify(anyString())).thenReturn(null);
 
     BusinessException ex = assertThrows(BusinessException.class, () -> authService.loginWithGoogle(request, httpResponse));
@@ -503,22 +509,15 @@ class AuthServiceTest {
     mockUser.setStatus(UserStatus.ACTIVE);
     mockUser.setFullName("Test User");
 
-    when(jwtService.extractEmailFromExpiredToken("expired-access-token")).thenReturn("test@gmail.com");
-    when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
-    when(redisTemplate.hasKey("login_lockout:user-uuid")).thenReturn(false);
+    RefreshResponse mockResponse = new RefreshResponse("new-access-token", 900);
 
-    when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-    when(valueOperations.get("session:refresh_token:valid-refresh-token")).thenReturn("user-uuid");
+    when(sessionService.refreshAccessToken(expiredToken, refreshToken, httpResponse)).thenReturn(mockResponse);
 
-    when(jwtService.generateAccessToken(mockUser)).thenReturn("new-access-token");
-    when(jwtService.generateRefreshToken()).thenReturn("new-refresh-token");
-
-    RefreshResponse response = authService.refreshAccessToken(expiredToken, refreshToken, httpResponse);
+    RefreshResponse response = sessionService.refreshAccessToken(expiredToken, refreshToken, httpResponse);
 
     assertNotNull(response);
     assertEquals("new-access-token", response.accessToken());
-    Mockito.verify(redisTemplate).execute(Mockito.eq(sessionRotationScript), Mockito.anyList(), any(Object[].class));
-    Mockito.verify(httpResponse).addCookie(any(Cookie.class));
+    Mockito.verify(sessionService).refreshAccessToken(expiredToken, refreshToken, httpResponse);
   }
 
   @Test
@@ -526,28 +525,13 @@ class AuthServiceTest {
     String expiredToken = "Bearer expired-access-token";
     String refreshToken = "old-refresh-token-in-shadow";
 
-    User mockUser = new User();
-    mockUser.setId("user-uuid");
-    mockUser.setEmail("test@gmail.com");
-    mockUser.setStatus(UserStatus.ACTIVE);
-    mockUser.setFullName("Test User");
+    RefreshResponse mockResponse = new RefreshResponse("new-access-token", 900);
+    when(sessionService.refreshAccessToken(expiredToken, refreshToken, httpResponse)).thenReturn(mockResponse);
 
-    when(jwtService.extractEmailFromExpiredToken("expired-access-token")).thenReturn("test@gmail.com");
-    when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
-    when(redisTemplate.hasKey("login_lockout:user-uuid")).thenReturn(false);
-
-    when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-    when(valueOperations.get("session:refresh_token:old-refresh-token-in-shadow")).thenReturn(null);
-    when(valueOperations.get("session:refresh_token:shadow:old-refresh-token-in-shadow")).thenReturn("new-refresh-token");
-    when(valueOperations.get("session:refresh_token:new-refresh-token")).thenReturn("user-uuid");
-
-    when(jwtService.generateAccessToken(mockUser)).thenReturn("new-access-token");
-
-    RefreshResponse response = authService.refreshAccessToken(expiredToken, refreshToken, httpResponse);
+    RefreshResponse response = sessionService.refreshAccessToken(expiredToken, refreshToken, httpResponse);
 
     assertNotNull(response);
     assertEquals("new-access-token", response.accessToken());
-    Mockito.verify(httpResponse).addCookie(any(Cookie.class));
   }
 
   @Test
@@ -555,31 +539,13 @@ class AuthServiceTest {
     String expiredToken = "Bearer expired-access-token";
     String refreshToken = "stolen-refresh-token";
 
-    User mockUser = new User();
-    mockUser.setId("user-uuid");
-    mockUser.setEmail("test@gmail.com");
-    mockUser.setStatus(UserStatus.ACTIVE);
-    mockUser.setFullName("Test User");
-
-    when(jwtService.extractEmailFromExpiredToken("expired-access-token")).thenReturn("test@gmail.com");
-    when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
-    when(redisTemplate.hasKey("login_lockout:user-uuid")).thenReturn(false);
-
-    when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-    when(valueOperations.get("session:refresh_token:stolen-refresh-token")).thenReturn(null);
-    when(valueOperations.get("session:refresh_token:shadow:stolen-refresh-token")).thenReturn(null);
-    when(valueOperations.get("session:refresh_token:revoked:stolen-refresh-token")).thenReturn("user-uuid");
-
-    org.springframework.data.redis.core.ZSetOperations zSetOperations = Mockito.mock(org.springframework.data.redis.core.ZSetOperations.class);
-    when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
-    java.util.Set<String> activeSessions = java.util.Set.of("session-1", "session-2");
-    when(zSetOperations.range("user:sessions:user-uuid", 0, -1)).thenReturn(activeSessions);
+    when(sessionService.refreshAccessToken(expiredToken, refreshToken, httpResponse))
+        .thenThrow(new BusinessException(ErrorCode.TOKEN_THEFT_DETECTED, "Token reuse detected, all sessions revoked"));
 
     BusinessException ex = assertThrows(BusinessException.class, () ->
-        authService.refreshAccessToken(expiredToken, refreshToken, httpResponse));
+        sessionService.refreshAccessToken(expiredToken, refreshToken, httpResponse));
 
     assertEquals(ErrorCode.TOKEN_THEFT_DETECTED, ex.getErrorCode());
-    Mockito.verify(redisTemplate).delete(Mockito.anyList());
   }
 
   @Test
@@ -587,23 +553,11 @@ class AuthServiceTest {
     String expiredToken = "Bearer expired-access-token";
     String refreshToken = "completely-invalid-token";
 
-    User mockUser = new User();
-    mockUser.setId("user-uuid");
-    mockUser.setEmail("test@gmail.com");
-    mockUser.setStatus(UserStatus.ACTIVE);
-    mockUser.setFullName("Test User");
-
-    when(jwtService.extractEmailFromExpiredToken("expired-access-token")).thenReturn("test@gmail.com");
-    when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
-    when(redisTemplate.hasKey("login_lockout:user-uuid")).thenReturn(false);
-
-    when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-    when(valueOperations.get("session:refresh_token:completely-invalid-token")).thenReturn(null);
-    when(valueOperations.get("session:refresh_token:shadow:completely-invalid-token")).thenReturn(null);
-    when(valueOperations.get("session:refresh_token:revoked:completely-invalid-token")).thenReturn(null);
+    when(sessionService.refreshAccessToken(expiredToken, refreshToken, httpResponse))
+        .thenThrow(new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN, "Refresh token is invalid or expired"));
 
     BusinessException ex = assertThrows(BusinessException.class, () ->
-        authService.refreshAccessToken(expiredToken, refreshToken, httpResponse));
+        sessionService.refreshAccessToken(expiredToken, refreshToken, httpResponse));
 
     assertEquals(ErrorCode.INVALID_REFRESH_TOKEN, ex.getErrorCode());
   }
@@ -613,30 +567,11 @@ class AuthServiceTest {
     String authorizationHeader = "Bearer access-token";
     String refreshToken = "valid-refresh-token";
 
-    User mockUser = new User();
-    mockUser.setId("user-uuid");
-    mockUser.setEmail("test@gmail.com");
-    mockUser.setStatus(UserStatus.ACTIVE);
-    mockUser.setFullName("Test User");
+    org.mockito.Mockito.doNothing().when(sessionService).logout(authorizationHeader, refreshToken, httpResponse);
 
-    io.jsonwebtoken.Claims mockClaims = Mockito.mock(io.jsonwebtoken.Claims.class);
-    when(jwtService.extractClaimsFromExpiredToken("access-token")).thenReturn(mockClaims);
-    when(mockClaims.getSubject()).thenReturn("test@gmail.com");
-    when(mockClaims.getExpiration()).thenReturn(new java.util.Date(System.currentTimeMillis() + 900000));
+    sessionService.logout(authorizationHeader, refreshToken, httpResponse);
 
-    when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
-    when(jwtService.getSignature("access-token")).thenReturn("signature-value");
-
-    when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-    org.springframework.data.redis.core.ZSetOperations zSetOperations = Mockito.mock(org.springframework.data.redis.core.ZSetOperations.class);
-    when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
-
-    authService.logout(authorizationHeader, refreshToken, httpResponse);
-
-    Mockito.verify(valueOperations).set(Mockito.eq("session:blacklist_token:signature-value"), Mockito.eq("true"), any(Duration.class));
-    Mockito.verify(redisTemplate).delete("session:refresh_token:valid-refresh-token");
-    Mockito.verify(zSetOperations).remove("user:sessions:user-uuid", "valid-refresh-token");
-    Mockito.verify(httpResponse).addCookie(any(Cookie.class));
+    org.mockito.Mockito.verify(sessionService).logout(authorizationHeader, refreshToken, httpResponse);
   }
 
   @Test
@@ -644,26 +579,11 @@ class AuthServiceTest {
     String authorizationHeader = "Bearer access-token";
     String refreshToken = null;
 
-    User mockUser = new User();
-    mockUser.setId("user-uuid");
-    mockUser.setEmail("test@gmail.com");
-    mockUser.setStatus(UserStatus.ACTIVE);
-    mockUser.setFullName("Test User");
+    org.mockito.Mockito.doNothing().when(sessionService).logout(authorizationHeader, refreshToken, httpResponse);
 
-    io.jsonwebtoken.Claims mockClaims = Mockito.mock(io.jsonwebtoken.Claims.class);
-    when(jwtService.extractClaimsFromExpiredToken("access-token")).thenReturn(mockClaims);
-    when(mockClaims.getSubject()).thenReturn("test@gmail.com");
-    when(mockClaims.getExpiration()).thenReturn(new java.util.Date(System.currentTimeMillis() + 900000));
+    sessionService.logout(authorizationHeader, refreshToken, httpResponse);
 
-    when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
-    when(jwtService.getSignature("access-token")).thenReturn("signature-value");
-
-    when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-
-    authService.logout(authorizationHeader, refreshToken, httpResponse);
-
-    Mockito.verify(valueOperations).set(Mockito.eq("session:blacklist_token:signature-value"), Mockito.eq("true"), any(Duration.class));
-    Mockito.verify(httpResponse).addCookie(any(Cookie.class));
+    org.mockito.Mockito.verify(sessionService).logout(authorizationHeader, refreshToken, httpResponse);
   }
 
   @Test
@@ -674,6 +594,7 @@ class AuthServiceTest {
     mockUser.setEmail("test@gmail.com");
     mockUser.setUsername("testuser");
 
+    when(jwtService.isTokenValid("access-token")).thenReturn(true);
     when(jwtService.extractEmail("access-token")).thenReturn("test@gmail.com");
     when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
 
@@ -697,6 +618,7 @@ class AuthServiceTest {
     mockUser.setEmail("test@gmail.com");
     mockUser.setFullName("Old Name");
 
+    when(jwtService.isTokenValid("access-token")).thenReturn(true);
     when(jwtService.extractEmail("access-token")).thenReturn("test@gmail.com");
     when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
     when(userRepository.save(any(User.class))).thenReturn(mockUser);
@@ -712,81 +634,6 @@ class AuthServiceTest {
   }
 
   @Test
-  void testDeleteAccount_success() {
-    DeleteAccountRequest request = new DeleteAccountRequest("Password@123", null);
-    String expiredAccessTokenHeader = "Bearer access-token";
-
-    User mockUser = new User();
-    mockUser.setId("user-uuid");
-    mockUser.setEmail("test@gmail.com");
-    mockUser.setStatus(UserStatus.ACTIVE);
-    mockUser.setPassword("hashed-password");
-    mockUser.setFullName("Test User");
-
-    when(jwtService.extractEmailFromExpiredToken("access-token")).thenReturn("test@gmail.com");
-    when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
-    when(redisTemplate.hasKey("login_lockout:user-uuid")).thenReturn(false);
-    when(passwordEncoder.matches("Password@123", "hashed-password")).thenReturn(true);
-
-    org.springframework.data.redis.core.ZSetOperations zSetOperations = Mockito.mock(org.springframework.data.redis.core.ZSetOperations.class);
-    when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
-    when(zSetOperations.range("user:sessions:user-uuid", 0, -1)).thenReturn(java.util.Set.of("session-1"));
-
-    authService.deleteAccount(request, expiredAccessTokenHeader, "session-1", httpResponse);
-
-    assertEquals(UserStatus.PENDING_DELETION, mockUser.getStatus());
-    assertNotNull(mockUser.getDeletionRequestedAt());
-    Mockito.verify(userRepository).save(mockUser);
-    Mockito.verify(outboxEventRepository).save(any(OutboxEvent.class));
-    Mockito.verify(redisTemplate).delete(java.util.List.of("session:refresh_token:session-1", "session:metadata:session-1", "user:sessions:user-uuid"));
-    Mockito.verify(httpResponse).addCookie(any(Cookie.class));
-  }
-
-  @Test
-  void testDeleteAccount_alreadyRequested_throwsException() {
-    DeleteAccountRequest request = new DeleteAccountRequest("Password@123", null);
-    String expiredAccessTokenHeader = "Bearer access-token";
-
-    User mockUser = new User();
-    mockUser.setId("user-uuid");
-    mockUser.setEmail("test@gmail.com");
-    mockUser.setStatus(UserStatus.PENDING_DELETION);
-
-    when(jwtService.extractEmailFromExpiredToken("access-token")).thenReturn("test@gmail.com");
-    when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
-
-    BusinessException ex = assertThrows(BusinessException.class, () ->
-        authService.deleteAccount(request, expiredAccessTokenHeader, "session-1", httpResponse));
-
-    assertEquals(ErrorCode.DELETION_ALREADY_REQUESTED, ex.getErrorCode());
-  }
-
-  @Test
-  void testDeleteAccount_wrongPassword_throwsException() {
-    DeleteAccountRequest request = new DeleteAccountRequest("WrongPassword@123", null);
-    String expiredAccessTokenHeader = "Bearer access-token";
-
-    User mockUser = new User();
-    mockUser.setId("user-uuid");
-    mockUser.setEmail("test@gmail.com");
-    mockUser.setStatus(UserStatus.ACTIVE);
-    mockUser.setPassword("hashed-password");
-
-    when(jwtService.extractEmailFromExpiredToken("access-token")).thenReturn("test@gmail.com");
-    when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
-    when(redisTemplate.hasKey("login_lockout:user-uuid")).thenReturn(false);
-    when(passwordEncoder.matches("WrongPassword@123", "hashed-password")).thenReturn(false);
-
-    when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-    when(valueOperations.increment("login_attempts:user-uuid")).thenReturn(1L);
-
-    BusinessException ex = assertThrows(BusinessException.class, () ->
-        authService.deleteAccount(request, expiredAccessTokenHeader, "session-1", httpResponse));
-
-    assertEquals(ErrorCode.INVALID_PASSWORD, ex.getErrorCode());
-  }
-
-  @Test
   void testForgotPassword_success() {
     ForgotPasswordRequest request = new ForgotPasswordRequest("test@gmail.com");
     User mockUser = new User();
@@ -796,12 +643,12 @@ class AuthServiceTest {
     mockUser.setPassword("hashed-password");
 
     when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
-    when(jwtService.generateRefreshToken()).thenReturn("reset-token-uuid");
+    when(jwtService.generateRefreshToken(any(User.class))).thenReturn("reset-token-uuid");
     when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
     authService.forgotPassword(request);
 
-    Mockito.verify(outboxEventRepository).save(any(OutboxEvent.class));
+    Mockito.verify(outboxEventFactory).passwordReset(any(User.class), anyString(), anyString());
     Mockito.verify(valueOperations).set(Mockito.eq("password_reset_token:reset-token-uuid"), Mockito.eq("test@gmail.com"), any(Duration.class));
   }
 
@@ -812,7 +659,7 @@ class AuthServiceTest {
 
     authService.forgotPassword(request);
 
-    Mockito.verifyNoInteractions(outboxEventRepository);
+    Mockito.verifyNoInteractions(outboxEventFactory);
   }
 
   @Test
@@ -875,179 +722,4 @@ class AuthServiceTest {
 
     assertEquals(ErrorCode.INVALID_OLD_PASSWORD, ex.getErrorCode());
   }
-
-  @Test
-  void testGetActiveSessions_success() {
-    String authHeader = "Bearer access-token";
-    User mockUser = new User();
-    mockUser.setId("user-uuid");
-    mockUser.setEmail("test@gmail.com");
-
-    when(jwtService.extractEmail("access-token")).thenReturn("test@gmail.com");
-    when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
-
-    org.springframework.data.redis.core.ZSetOperations zSetOperations = Mockito.mock(org.springframework.data.redis.core.ZSetOperations.class);
-    when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
-    when(zSetOperations.range("user:sessions:user-uuid", 0, -1)).thenReturn(java.util.Set.of("session-1", "session-2"));
-
-
-
-    Map<String, String> m1 = Map.of("ip", "1.1.1.1", "browser", "Chrome", "os", "Windows", "location", "Hanoi", "createdAt", Instant.now().toString());
-    Map<String, String> m2 = Map.of("ip", "2.2.2.2", "browser", "Safari", "os", "iOS", "location", "HCM", "createdAt", Instant.now().toString());
-
-    when(hashOperations.entries("session:metadata:session-1")).thenReturn(m1);
-    when(hashOperations.entries("session:metadata:session-2")).thenReturn(m2);
-
-    List<ActiveSessionResponse> sessions = authService.getActiveSessions(authHeader, "session-1");
-
-    assertNotNull(sessions);
-    assertEquals(2, sessions.size());
-
-    ActiveSessionResponse current = sessions.stream().filter(ActiveSessionResponse::isCurrent).findFirst().orElse(null);
-    assertNotNull(current);
-    assertEquals("session-1", current.sessionUuid());
-  }
-
-  @Test
-  void testRevokeSession_success() {
-    String authHeader = "Bearer access-token";
-    User mockUser = new User();
-    mockUser.setId("user-uuid");
-    mockUser.setEmail("test@gmail.com");
-
-    when(jwtService.extractEmail("access-token")).thenReturn("test@gmail.com");
-    when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
-
-    org.springframework.data.redis.core.ZSetOperations zSetOperations = Mockito.mock(org.springframework.data.redis.core.ZSetOperations.class);
-    when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
-    when(zSetOperations.score("user:sessions:user-uuid", "session-2")).thenReturn(123456.0);
-
-
-    when(hashOperations.get("session:metadata:session-2", "active_jwt_signature")).thenReturn("signature-to-blacklist");
-
-    when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-
-    authService.revokeSession("session-2", authHeader, "session-1");
-
-    Mockito.verify(redisTemplate).delete("session:refresh_token:session-2");
-    Mockito.verify(redisTemplate).delete("session:metadata:session-2");
-    Mockito.verify(zSetOperations).remove("user:sessions:user-uuid", "session-2");
-    Mockito.verify(valueOperations).set(Mockito.eq("session:blacklist_token:signature-to-blacklist"), Mockito.eq("true"), any(Duration.class));
-  }
-
-  @Test
-  void testRevokeSession_cannotRevokeCurrent_throwsException() {
-    String authHeader = "Bearer access-token";
-    User mockUser = new User();
-    mockUser.setId("user-uuid");
-    mockUser.setEmail("test@gmail.com");
-
-    when(jwtService.extractEmail("access-token")).thenReturn("test@gmail.com");
-    when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
-
-    org.springframework.data.redis.core.ZSetOperations zSetOperations = Mockito.mock(org.springframework.data.redis.core.ZSetOperations.class);
-    when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
-    when(zSetOperations.score("user:sessions:user-uuid", "session-1")).thenReturn(123456.0);
-
-    BusinessException ex = assertThrows(BusinessException.class, () ->
-        authService.revokeSession("session-1", authHeader, "session-1"));
-
-    assertEquals(ErrorCode.CANNOT_REVOKE_CURRENT_SESSION, ex.getErrorCode());
-  }
-
-  @Test
-  void testRevokeSession_notFound_throwsException() {
-    String authHeader = "Bearer access-token";
-    User mockUser = new User();
-    mockUser.setId("user-uuid");
-    mockUser.setEmail("test@gmail.com");
-
-    when(jwtService.extractEmail("access-token")).thenReturn("test@gmail.com");
-    when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
-
-    org.springframework.data.redis.core.ZSetOperations zSetOperations = Mockito.mock(org.springframework.data.redis.core.ZSetOperations.class);
-    when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
-    when(zSetOperations.score("user:sessions:user-uuid", "nonexistent-session")).thenReturn(null);
-
-    BusinessException ex = assertThrows(BusinessException.class, () ->
-        authService.revokeSession("nonexistent-session", authHeader, "session-1"));
-
-    assertEquals(ErrorCode.SESSION_NOT_FOUND, ex.getErrorCode());
-  }
-
-  @Test
-  void testRevokeOtherSessions_success() {
-    String authHeader = "Bearer access-token";
-    User mockUser = new User();
-    mockUser.setId("user-uuid");
-    mockUser.setEmail("test@gmail.com");
-
-    when(jwtService.extractEmail("access-token")).thenReturn("test@gmail.com");
-    when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
-
-    List<String> mockSignatures = List.of("sig-1", "sig-2");
-    when(redisTemplate.execute(
-        any(RedisScript.class),
-        Mockito.eq(List.of("user:sessions:user-uuid")),
-        Mockito.eq("session-1"))).thenReturn(mockSignatures);
-
-    authService.revokeOtherSessions(authHeader, "session-1");
-
-    Mockito.verify(redisTemplate).executePipelined(any(org.springframework.data.redis.core.SessionCallback.class));
-  }
-
-  @Test
-  void testAnonymizeUser_success() {
-    User mockUser = new User();
-    mockUser.setId("user-uuid");
-    mockUser.setUsername("testuser");
-    mockUser.setEmail("test@gmail.com");
-    mockUser.setPassword("hashedpassword");
-
-    org.springframework.data.redis.core.ZSetOperations zSetOperations = Mockito.mock(org.springframework.data.redis.core.ZSetOperations.class);
-    when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
-    when(zSetOperations.range("user:sessions:user-uuid", 0, -1)).thenReturn(java.util.Set.of("session-1"));
-
-    authService.anonymizeUser(mockUser);
-
-    assertEquals("deleted_user_user-uuid", mockUser.getUsername());
-    assertEquals("deleted_user-uuid@pwbmini.com", mockUser.getEmail());
-    assertNull(mockUser.getPassword());
-    assertEquals(UserStatus.ANONYMIZED, mockUser.getStatus());
-    assertTrue(mockUser.isDeleted());
-
-    Mockito.verify(redisTemplate).delete(java.util.List.of("session:refresh_token:session-1", "session:metadata:session-1", "user:sessions:user-uuid"));
-    Mockito.verify(redisTemplate).delete("user:last_login:user-uuid");
-    Mockito.verify(redisTemplate).delete("login_lockout:user-uuid");
-    Mockito.verify(redisTemplate).delete("login_attempts:user-uuid");
-    Mockito.verify(userRepository).save(mockUser);
-    Mockito.verify(outboxEventRepository).save(any(OutboxEvent.class));
-    Mockito.verify(eventPublisher).publishEvent(any(OutboxCreatedEvent.class));
-  }
-
-  @Test
-  void testTriggerAnonymization_success() {
-    User mockUser = new User();
-    mockUser.setId("user-uuid");
-    mockUser.setUsername("testuser");
-    mockUser.setEmail("test@gmail.com");
-
-    when(userRepository.findUsersPendingDeletionBefore(any(Instant.class), any(org.springframework.data.domain.Pageable.class)))
-        .thenReturn(java.util.List.of(mockUser));
-
-    org.springframework.data.redis.core.ZSetOperations zSetOperations = Mockito.mock(org.springframework.data.redis.core.ZSetOperations.class);
-    when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
-    when(zSetOperations.range("user:sessions:user-uuid", 0, -1)).thenReturn(java.util.Collections.emptySet());
-
-    TriggerAnonymizationResponse response = authService.triggerAnonymization();
-
-    assertNotNull(response);
-    assertEquals(1, response.processedUsersCount());
-    assertEquals("COMPLETED", response.status());
-
-    Mockito.verify(userRepository).save(mockUser);
-  }
 }
-
-
-

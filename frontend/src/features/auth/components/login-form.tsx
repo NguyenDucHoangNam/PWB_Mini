@@ -1,26 +1,100 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useLogin } from "../api/login";
+import { useLogin, useLoginWithGoogle } from "../api/login";
 import { useAuthStore } from "../stores/use-auth-store";
 import { PasswordInput } from "./password-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+
+const LOCKOUT_DURATION = 15 * 60; // 15 minutes in seconds
+const STORAGE_KEY_USERNAME = "login_username";
+const STORAGE_KEY_REMEMBER = "login_remember";
 
 export function LoginForm() {
   const t = useTranslations("auth.login");
   const router = useRouter();
   const { mutate: loginMutate, isPending } = useLogin();
+  const { mutate: loginWithGoogleMutate } = useLoginWithGoogle();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const usernameInputRef = useRef<HTMLInputElement>(null);
 
   const [usernameOrEmail, setUsernameOrEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lockoutRemaining, setLockoutRemaining] = useState(0);
+
+  // Load saved username and remember preference on mount
+  useEffect(() => {
+    const savedUsername = localStorage.getItem(STORAGE_KEY_USERNAME);
+    const savedRemember = localStorage.getItem(STORAGE_KEY_REMEMBER);
+    if (savedUsername && savedRemember === "true") {
+      setUsernameOrEmail(savedUsername);
+      setRememberMe(true);
+    }
+  }, []);
+
+  // Auto-focus username field on mount
+  useEffect(() => {
+    if (usernameInputRef.current) {
+      usernameInputRef.current.focus();
+    }
+  }, []);
+
+  // Handle countdown for lockout
+  useEffect(() => {
+    if (lockoutRemaining <= 0) return;
+    const interval = setInterval(() => {
+      setLockoutRemaining((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [lockoutRemaining]);
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter" && !isPending && lockoutRemaining === 0) {
+        const target = e.target as HTMLElement;
+        if (target.tagName !== "INPUT" && target.tagName !== "TEXTAREA") {
+          return;
+        }
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isPending, lockoutRemaining]);
+
+  const formatLockoutTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const handleRememberMeChange = (checked: boolean) => {
+    setRememberMe(checked);
+    if (checked) {
+      localStorage.setItem(STORAGE_KEY_REMEMBER, "true");
+    } else {
+      localStorage.removeItem(STORAGE_KEY_REMEMBER);
+    }
+  };
+
+  const handleUsernameChange = (value: string) => {
+    setUsernameOrEmail(value);
+    // Save username for form persistence
+    if (value && rememberMe) {
+      localStorage.setItem(STORAGE_KEY_USERNAME, value);
+    } else {
+      localStorage.removeItem(STORAGE_KEY_USERNAME);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +113,14 @@ export function LoginForm() {
         onSuccess: (response) => {
           if (response.success && response.data) {
             setAuth(response.data.accessToken, response.data.user);
+            // Update remember me storage on successful login
+            if (rememberMe) {
+              localStorage.setItem(STORAGE_KEY_USERNAME, usernameOrEmail);
+              localStorage.setItem(STORAGE_KEY_REMEMBER, "true");
+            } else {
+              localStorage.removeItem(STORAGE_KEY_USERNAME);
+              localStorage.removeItem(STORAGE_KEY_REMEMBER);
+            }
             toast.success(t("successToast"));
             router.push("/dashboard");
           } else {
@@ -47,8 +129,21 @@ export function LoginForm() {
         },
         onError: (err: any) => {
           const apiError = err.errors?.[0];
-          if (apiError?.code === "BAD_CREDENTIALS" || err.message === "Bad credentials") {
+          const errorCode = apiError?.code;
+
+          if (errorCode === "BAD_CREDENTIALS") {
             setError(t("incorrectCredentials"));
+          } else if (errorCode === "ACCOUNT_TEMPORARILY_LOCKED") {
+            setError(t("accountLocked"));
+            setLockoutRemaining(LOCKOUT_DURATION);
+          } else if (errorCode === "REGISTRATION_IN_PROGRESS") {
+            // Redirect to OTP verification page with email
+            const redirectTo = err.data?.redirectTo || "/verify-otp";
+            const email = err.data?.email || usernameOrEmail;
+            router.push(`${redirectTo}?email=${encodeURIComponent(email)}`);
+            return;
+          } else if (errorCode === "ACCOUNT_BANNED") {
+            setError(t("accountBanned"));
           } else {
             setError(err.message || t("errorToast"));
           }
@@ -58,8 +153,45 @@ export function LoginForm() {
     );
   };
 
-  const handleGoogleLoginMock = () => {
-    toast.info(t("googleLoginPlaceholder"));
+  const handleGoogleLogin = () => {
+    // Check if Google Identity Services is available
+    if (typeof window !== "undefined" && (window as any).google) {
+      const client = (window as any).google.accounts.oauth2.initTokenClient({
+        client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+        scope: "email profile openid",
+        callback: (response: any) => {
+          if (response.error) {
+            toast.error(t("googleLoginError") || "Google login failed");
+            return;
+          }
+          loginWithGoogleMutate(
+            { data: { idToken: response.access_token } },
+            {
+              onSuccess: (res) => {
+                if (res.success && res.data) {
+                  setAuth(res.data.accessToken, res.data.user);
+                  toast.success(t("googleLoginSuccess") || "Login successful");
+                  router.push("/dashboard");
+                } else {
+                  toast.error(res.message || t("errorToast"));
+                }
+              },
+              onError: (err: any) => {
+                const apiError = err.errors?.[0];
+                if (apiError?.code === "ACCOUNT_BANNED") {
+                  toast.error(t("accountBanned"));
+                } else {
+                  toast.error(err.message || t("googleLoginError") || "Google login failed");
+                }
+              },
+            }
+          );
+        },
+      });
+      client.requestAccessToken();
+    } else {
+      toast.info(t("googleLoginUnavailable") || "Google login is not available");
+    }
   };
 
   return (
@@ -87,15 +219,17 @@ export function LoginForm() {
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="usernameOrEmail">{t("usernameLabel")}</Label>
         <Input
+          ref={usernameInputRef}
           id="usernameOrEmail"
           type="text"
           disabled={isPending}
           value={usernameOrEmail}
-          onChange={(e) => setUsernameOrEmail(e.target.value)}
+          onChange={(e) => handleUsernameChange(e.target.value)}
           placeholder={t("usernamePlaceholder")}
           required
           tabIndex={1}
           aria-invalid={!!error}
+          autoComplete="username"
         />
       </div>
 
@@ -106,7 +240,7 @@ export function LoginForm() {
           <Link
             href="/forgot-password"
             className="text-xs font-medium text-neutral-500 hover:text-black dark:hover:text-white hover:underline"
-            tabIndex={3}
+            tabIndex={4}
           >
             {t("forgotPassword")}
           </Link>
@@ -121,7 +255,25 @@ export function LoginForm() {
           tabIndex={2}
           error={error ? "true" : undefined}
           aria-invalid={!!error}
+          autoComplete="current-password"
         />
+      </div>
+
+      {/* Remember Me */}
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="rememberMe"
+          checked={rememberMe}
+          onCheckedChange={handleRememberMeChange}
+          disabled={isPending}
+          tabIndex={3}
+        />
+        <Label
+          htmlFor="rememberMe"
+          className="text-sm font-normal text-neutral-600 dark:text-neutral-400 cursor-pointer"
+        >
+          {t("rememberMe")}
+        </Label>
       </div>
 
       {/* Submit Button */}
@@ -129,7 +281,7 @@ export function LoginForm() {
         type="submit"
         variant="default"
         size="lg"
-        disabled={isPending}
+        disabled={isPending || lockoutRemaining > 0}
         className="w-full justify-center h-10 font-bold"
         tabIndex={4}
       >
@@ -156,6 +308,8 @@ export function LoginForm() {
             </svg>
             {t("submitting")}
           </span>
+        ) : lockoutRemaining > 0 ? (
+          formatLockoutTime(lockoutRemaining)
         ) : (
           t("submit")
         )}
@@ -172,8 +326,8 @@ export function LoginForm() {
         type="button"
         variant="outline"
         size="lg"
-        disabled={isPending}
-        onClick={handleGoogleLoginMock}
+        disabled={isPending || lockoutRemaining > 0}
+        onClick={handleGoogleLogin}
         className="w-full justify-center gap-2 border-neutral-200 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-900"
       >
         <svg className="size-4" viewBox="0 0 24 24" fill="currentColor">

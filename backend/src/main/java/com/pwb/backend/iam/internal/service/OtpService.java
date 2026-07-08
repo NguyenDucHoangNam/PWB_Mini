@@ -6,6 +6,9 @@ import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.List;
@@ -33,7 +36,7 @@ public class OtpService {
 
     byte[] otpKey = (OTP_KEY_PREFIX + email).getBytes();
     byte[] cooldownKey = (COOLDOWN_KEY_PREFIX + email).getBytes();
-    byte[] otpValue = otpCode.getBytes();
+    byte[] otpValue = hashOtp(email, otpCode).getBytes();
     byte[] cooldownValue = "true".getBytes();
 
     redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
@@ -50,7 +53,7 @@ public class OtpService {
     byte[] attemptsKey = (ATTEMPTS_KEY_PREFIX + email).getBytes();
     byte[] otpKey = (OTP_KEY_PREFIX + email).getBytes();
     byte[] cooldownKey = (COOLDOWN_KEY_PREFIX + email).getBytes();
-    byte[] otpValue = otpCode.getBytes();
+    byte[] otpValue = hashOtp(email, otpCode).getBytes();
     byte[] cooldownValue = "true".getBytes();
 
     redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
@@ -61,12 +64,26 @@ public class OtpService {
     });
   }
 
-  public String getStoredOtp(String email) {
+  public boolean verifyOtp(String email, String submittedOtp) {
+    String storedHash = redisTemplate.opsForValue().get(OTP_KEY_PREFIX + email);
+    if (storedHash == null) {
+      return false;
+    }
+    return constantTimeEquals(storedHash, hashOtp(email, submittedOtp));
+  }
+
+  public String getStoredOtpHash(String email) {
     return redisTemplate.opsForValue().get(OTP_KEY_PREFIX + email);
   }
 
   public boolean checkCooldown(String email) {
     return Boolean.TRUE.equals(redisTemplate.hasKey(COOLDOWN_KEY_PREFIX + email));
+  }
+
+  public boolean tryAcquireCooldown(String email, Duration ttl) {
+    Boolean ok = redisTemplate.opsForValue()
+        .setIfAbsent(COOLDOWN_KEY_PREFIX + email, "true", ttl);
+    return Boolean.TRUE.equals(ok);
   }
 
   public long incrementAttempts(String email) {
@@ -80,7 +97,14 @@ public class OtpService {
 
   public long getAttempts(String email) {
     String value = redisTemplate.opsForValue().get(ATTEMPTS_KEY_PREFIX + email);
-    return value != null ? Long.parseLong(value) : 0;
+    if (value == null) {
+      return 0;
+    }
+    try {
+      return Long.parseLong(value);
+    } catch (NumberFormatException ex) {
+      return 0;
+    }
   }
 
   public void deleteAllOtpKeys(String email) {
@@ -96,5 +120,31 @@ public class OtpService {
         OTP_KEY_PREFIX + email,
         ATTEMPTS_KEY_PREFIX + email
     ));
+  }
+
+  private String hashOtp(String email, String otpCode) {
+    try {
+      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      digest.update(email.toLowerCase().getBytes(StandardCharsets.UTF_8));
+      byte[] hash = digest.digest(otpCode.getBytes(StandardCharsets.UTF_8));
+      StringBuilder sb = new StringBuilder(hash.length * 2);
+      for (byte b : hash) {
+        sb.append(String.format("%02x", b));
+      }
+      return sb.toString();
+    } catch (NoSuchAlgorithmException ex) {
+      throw new IllegalStateException("SHA-256 not available", ex);
+    }
+  }
+
+  private boolean constantTimeEquals(String a, String b) {
+    if (a == null || b == null || a.length() != b.length()) {
+      return false;
+    }
+    int diff = 0;
+    for (int i = 0; i < a.length(); i++) {
+      diff |= a.charAt(i) ^ b.charAt(i);
+    }
+    return diff == 0;
   }
 }

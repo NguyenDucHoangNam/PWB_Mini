@@ -55,8 +55,11 @@ public class GeoIpService {
     try {
       InetAddress ip = InetAddress.getByName(ipAddress);
       CityResponse response = databaseReader.city(ip);
-      String cityName = response.getCity().getName();
-      String countryName = response.getCountry().getName();
+      if (response == null) {
+        return "Unknown";
+      }
+      String cityName = response.getCity() != null ? response.getCity().getName() : null;
+      String countryName = response.getCountry() != null ? response.getCountry().getName() : null;
 
       if (cityName != null && !cityName.isEmpty()) {
         return cityName + ", " + countryName;

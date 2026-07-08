@@ -13,15 +13,27 @@ import java.util.Optional;
 @EnableJpaAuditing(auditorAwareRef = "auditorProvider")
 public class JpaAuditingConfig {
 
+  private static final String SYSTEM_PRINCIPAL = "system";
+  private static final String ANONYMOUS_PRINCIPAL = "anonymous";
+
   @Bean
   public AuditorAware<String> auditorProvider() {
     return () -> {
       Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-      if (authentication == null || !authentication.isAuthenticated()
-          || "anonymousUser".equals(authentication.getPrincipal())) {
-        return Optional.of("system");
+      if (authentication == null
+          || !authentication.isAuthenticated()
+          || ANONYMOUS_PRINCIPAL.equals(authentication.getPrincipal())) {
+        return Optional.of(SYSTEM_PRINCIPAL);
       }
-      return Optional.of(authentication.getName());
+      String name = authentication.getName();
+      if (name == null || name.isBlank() || SYSTEM_PRINCIPAL.equals(name)) {
+        return Optional.of(SYSTEM_PRINCIPAL);
+      }
+      int atIndex = name.indexOf('@');
+      if (atIndex > 0 && atIndex < name.length() - 1) {
+        return Optional.of("user:" + name.substring(0, Math.min(atIndex, 8)) + "***");
+      }
+      return Optional.of("user:" + name);
     };
   }
 }

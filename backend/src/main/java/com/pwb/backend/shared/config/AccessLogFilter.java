@@ -20,6 +20,14 @@ import java.io.IOException;
 public class AccessLogFilter extends OncePerRequestFilter {
 
   @Override
+  protected boolean shouldNotFilter(HttpServletRequest request) {
+    String path = request.getRequestURI();
+    return path.startsWith("/actuator")
+        || path.equals("/favicon.ico")
+        || path.startsWith("/error");
+  }
+
+  @Override
   protected void doFilterInternal(
       HttpServletRequest request,
       HttpServletResponse response,
@@ -34,7 +42,7 @@ public class AccessLogFilter extends OncePerRequestFilter {
       String userId = extractUserId();
       String clientIp = extractClientIp(request);
 
-      log.info("ACCESS_LOG method={} uri={} status={} duration={}ms ip={} user={}",
+      log.debug("ACCESS_LOG method={} uri={} status={} duration={}ms ip={} user={}",
           request.getMethod(),
           request.getRequestURI(),
           response.getStatus(),

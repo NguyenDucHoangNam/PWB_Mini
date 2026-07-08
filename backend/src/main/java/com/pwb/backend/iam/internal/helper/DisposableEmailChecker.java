@@ -1,11 +1,11 @@
-package com.pwb.backend.iam.internal.service;
-
-import org.springframework.stereotype.Component;
+package com.pwb.backend.iam.internal.helper;
 
 import java.util.Set;
 
-@Component
-public class DisposableEmailCheckerService {
+public final class DisposableEmailChecker {
+
+  private DisposableEmailChecker() {
+  }
 
   private static final Set<String> BLOCKED_DOMAINS = Set.of(
       "tempmail.com",
@@ -26,7 +26,7 @@ public class DisposableEmailCheckerService {
       "mohmal.com"
   );
 
-  public boolean isDisposable(String email) {
+  public static boolean isDisposable(String email) {
     if (email == null || email.isBlank()) {
       return false;
     }

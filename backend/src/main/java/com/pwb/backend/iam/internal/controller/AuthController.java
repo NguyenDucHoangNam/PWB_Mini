@@ -19,10 +19,16 @@ import java.util.List;
 import com.pwb.backend.iam.api.dto.response.VerifyOtpResponse;
 import com.pwb.backend.iam.api.dto.response.RefreshResponse;
 import com.pwb.backend.iam.internal.service.AuthService;
+import com.pwb.backend.iam.internal.service.SessionService;
+import com.pwb.backend.iam.internal.service.AccountLifecycleService;
 import com.pwb.backend.shared.response.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CookieValue;
@@ -31,7 +37,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -40,118 +46,154 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
+@Validated
 public class AuthController {
 
   private final AuthService authService;
+  private final SessionService sessionService;
+  private final AccountLifecycleService accountLifecycleService;
+  private final MessageSource messageSource;
 
   @PostMapping("/register")
   public ResponseEntity<ApiResponse<RegisterResponse>> register(
-      @Valid @RequestBody RegisterRequest request) {
+      @Valid @RequestBody RegisterRequest request,
+      HttpServletRequest httpRequest) {
     RegisterResponse response = authService.register(request);
+    String message = messageSource.getMessage(
+        "auth.register.success", null, httpRequest.getLocale());
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(ApiResponse.success(
-            "Registration successful, please check your email for OTP verification",
-            response));
+        .body(ApiResponse.success(message, response));
   }
 
   @PostMapping("/verify-otp")
   public ResponseEntity<ApiResponse<VerifyOtpResponse>> verifyOtp(
       @Valid @RequestBody VerifyOtpRequest request,
+      HttpServletRequest httpRequest,
       HttpServletResponse httpResponse) {
     VerifyOtpResponse response = authService.verifyOtp(request, httpResponse);
-    return ResponseEntity.ok(ApiResponse.success(
-        "Account verified successfully", response));
+    String message = messageSource.getMessage(
+        "auth.otp.verified", null, httpRequest.getLocale());
+    return ResponseEntity.ok(ApiResponse.success(message, response));
   }
 
   @PostMapping("/resend-otp")
   public ResponseEntity<ApiResponse<Void>> resendOtp(
-      @Valid @RequestBody ResendOtpRequest request) {
+      @Valid @RequestBody ResendOtpRequest request,
+      HttpServletRequest httpRequest) {
     authService.resendOtp(request);
-    return ResponseEntity.ok(ApiResponse.success(
-        "OTP has been sent successfully, please check your email"));
+    String message = messageSource.getMessage(
+        "auth.otp.sent", null, httpRequest.getLocale());
+    return ResponseEntity.ok(ApiResponse.success(message));
   }
 
   @GetMapping("/check-username")
   public ResponseEntity<ApiResponse<CheckUsernameResponse>> checkUsername(
-      @RequestParam("q") String username) {
+      @RequestParam("q") String username,
+      HttpServletRequest httpRequest) {
     CheckUsernameResponse response = authService.checkUsernameAvailability(username);
-    String message = response.available() ? "Username is available" : "Username is already taken";
+    String message = messageSource.getMessage(
+        response.available() ? "auth.username.available" : "auth.username.taken",
+        null, httpRequest.getLocale());
     return ResponseEntity.ok(ApiResponse.success(message, response));
   }
 
   @PostMapping("/login")
   public ResponseEntity<ApiResponse<LoginResponse>> login(
       @Valid @RequestBody LoginRequest request,
+      HttpServletRequest httpRequest,
       HttpServletResponse httpResponse) {
     LoginResponse response = authService.login(request, httpResponse);
-    return ResponseEntity.ok(ApiResponse.success("Login successful", response));
+    String message = messageSource.getMessage(
+        "auth.login.success", null, httpRequest.getLocale());
+    return ResponseEntity.ok(ApiResponse.success(message, response));
   }
 
   @PostMapping("/login/google")
   public ResponseEntity<ApiResponse<LoginResponse>> loginWithGoogle(
       @Valid @RequestBody Oauth2LoginRequest request,
+      HttpServletRequest httpRequest,
       HttpServletResponse httpResponse) {
     LoginResponse response = authService.loginWithGoogle(request, httpResponse);
-    return ResponseEntity.ok(ApiResponse.success("Google login successful", response));
+    String message = messageSource.getMessage(
+        "auth.login.google.success", null, httpRequest.getLocale());
+    return ResponseEntity.ok(ApiResponse.success(message, response));
   }
 
   @PostMapping("/refresh")
   public ResponseEntity<ApiResponse<RefreshResponse>> refresh(
-      @RequestHeader("Authorization") String authorizationHeader,
-      @CookieValue("refreshToken") String refreshToken,
+      @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+      @CookieValue(value = "refreshToken", required = false) String refreshToken,
+      HttpServletRequest httpRequest,
       HttpServletResponse httpResponse) {
-    RefreshResponse response = authService.refreshAccessToken(authorizationHeader, refreshToken, httpResponse);
-    return ResponseEntity.ok(ApiResponse.success("Token refreshed successfully", response));
+    RefreshResponse response = sessionService.refreshAccessToken(authorizationHeader, refreshToken, httpResponse);
+    String message = messageSource.getMessage(
+        "auth.token.refreshed", null, httpRequest.getLocale());
+    return ResponseEntity.ok(ApiResponse.success(message, response));
   }
 
   @PostMapping("/logout")
   public ResponseEntity<ApiResponse<Void>> logout(
       @RequestHeader("Authorization") String authorizationHeader,
       @CookieValue(value = "refreshToken", required = false) String refreshToken,
+      HttpServletRequest httpRequest,
       HttpServletResponse httpResponse) {
-    authService.logout(authorizationHeader, refreshToken, httpResponse);
-    return ResponseEntity.ok(ApiResponse.success("Logout successful", null));
+    sessionService.logout(authorizationHeader, refreshToken, httpResponse);
+    String message = messageSource.getMessage(
+        "auth.logout.success", null, httpRequest.getLocale());
+    return ResponseEntity.ok(ApiResponse.success(message, null));
   }
 
   @PostMapping("/forgot-password")
   public ResponseEntity<ApiResponse<Void>> forgotPassword(
-      @Valid @RequestBody ForgotPasswordRequest request) {
+      @Valid @RequestBody ForgotPasswordRequest request,
+      HttpServletRequest httpRequest) {
     authService.forgotPassword(request);
-    return ResponseEntity.ok(ApiResponse.success(
-        "If the email exists in our system, a password reset link has been sent.", null));
+    String message = messageSource.getMessage(
+        "auth.password.forgot.sent", null, httpRequest.getLocale());
+    return ResponseEntity.ok(ApiResponse.success(message, null));
   }
 
   @PostMapping("/reset-password")
   public ResponseEntity<ApiResponse<Void>> resetPassword(
-      @Valid @RequestBody ResetPasswordRequest request) {
+      @Valid @RequestBody ResetPasswordRequest request,
+      HttpServletRequest httpRequest) {
     authService.resetPassword(request);
-    return ResponseEntity.ok(ApiResponse.success(
-        "Password has been reset successfully. All other active sessions have been logged out safely.", null));
+    String message = messageSource.getMessage(
+        "auth.password.reset.success", null, httpRequest.getLocale());
+    return ResponseEntity.ok(ApiResponse.success(message, null));
   }
 
   @PostMapping("/change-password")
   public ResponseEntity<ApiResponse<Void>> changePassword(
       @Valid @RequestBody ChangePasswordRequest request,
       @RequestHeader("Authorization") String authorizationHeader,
-      @CookieValue(value = "refreshToken", required = false) String refreshToken) {
+      @CookieValue(value = "refreshToken", required = false) String refreshToken,
+      HttpServletRequest httpRequest) {
     authService.changePassword(request, authorizationHeader, refreshToken);
-    return ResponseEntity.ok(ApiResponse.success(
-        "Password changed successfully. Sessions on other devices have been logged out.", null));
+    String message = messageSource.getMessage(
+        "auth.password.changed.success", null, httpRequest.getLocale());
+    return ResponseEntity.ok(ApiResponse.success(message, null));
   }
 
   @GetMapping("/me")
   public ResponseEntity<ApiResponse<UserProfileResponse>> getMyProfile(
-      @RequestHeader("Authorization") String authHeader) {
+      @RequestHeader("Authorization") String authHeader,
+      HttpServletRequest httpRequest) {
     UserProfileResponse response = authService.getMyProfile(authHeader);
-    return ResponseEntity.ok(ApiResponse.success("Get profile successful", response));
+    String message = messageSource.getMessage(
+        "auth.profile.get.success", null, httpRequest.getLocale());
+    return ResponseEntity.ok(ApiResponse.success(message, response));
   }
 
-  @PutMapping("/profile")
+  @PatchMapping("/profile")
   public ResponseEntity<ApiResponse<UserProfileResponse>> updateProfile(
       @Valid @RequestBody UpdateProfileRequest request,
-      @RequestHeader("Authorization") String authHeader) {
+      @RequestHeader("Authorization") String authHeader,
+      HttpServletRequest httpRequest) {
     UserProfileResponse response = authService.updateProfile(request, authHeader);
-    return ResponseEntity.ok(ApiResponse.success("Update profile successful", response));
+    String message = messageSource.getMessage(
+        "auth.profile.update.success", null, httpRequest.getLocale());
+    return ResponseEntity.ok(ApiResponse.success(message, response));
   }
 
   @DeleteMapping("/account")
@@ -159,34 +201,45 @@ public class AuthController {
       @Valid @RequestBody DeleteAccountRequest request,
       @RequestHeader("Authorization") String authorizationHeader,
       @CookieValue(value = "refreshToken", required = false) String refreshToken,
+      HttpServletRequest httpRequest,
       HttpServletResponse httpResponse) {
-    authService.deleteAccount(request, authorizationHeader, refreshToken, httpResponse);
-    return ResponseEntity.ok(ApiResponse.success(
-        "Account deletion requested successfully. The account will be frozen for 30 days.", null));
+    accountLifecycleService.deleteAccount(request, authorizationHeader, refreshToken, httpResponse);
+    String message = messageSource.getMessage(
+        "auth.account.delete.requested", null, httpRequest.getLocale());
+    return ResponseEntity.ok(ApiResponse.success(message, null));
   }
 
   @GetMapping("/sessions")
   public ResponseEntity<ApiResponse<List<ActiveSessionResponse>>> getActiveSessions(
       @RequestHeader("Authorization") String authHeader,
-      @CookieValue(value = "refreshToken", required = false) String refreshToken) {
-    List<ActiveSessionResponse> response = authService.getActiveSessions(authHeader, refreshToken);
-    return ResponseEntity.ok(ApiResponse.success("Get active sessions successful", response));
+      @CookieValue(value = "refreshToken", required = false) String refreshToken,
+      HttpServletRequest httpRequest) {
+    List<ActiveSessionResponse> response = sessionService.getActiveSessions(authHeader, refreshToken);
+    String message = messageSource.getMessage(
+        "auth.sessions.get.success", null, httpRequest.getLocale());
+    return ResponseEntity.ok(ApiResponse.success(message, response));
   }
 
   @DeleteMapping("/sessions/{tokenUuid}")
   public ResponseEntity<ApiResponse<Void>> revokeSession(
-      @PathVariable("tokenUuid") String tokenUuid,
+      @PathVariable("tokenUuid") @Size(max = 4000, message = "tokenUuid must not exceed 4000 characters") String tokenUuid,
       @RequestHeader("Authorization") String authHeader,
-      @CookieValue(value = "refreshToken", required = false) String refreshToken) {
-    authService.revokeSession(tokenUuid, authHeader, refreshToken);
-    return ResponseEntity.ok(ApiResponse.success("Session revoked successfully", null));
+      @CookieValue(value = "refreshToken", required = false) String refreshToken,
+      HttpServletRequest httpRequest) {
+    sessionService.revokeSession(tokenUuid, authHeader, refreshToken);
+    String message = messageSource.getMessage(
+        "auth.session.revoked", null, httpRequest.getLocale());
+    return ResponseEntity.ok(ApiResponse.success(message, null));
   }
 
   @DeleteMapping("/sessions")
   public ResponseEntity<ApiResponse<Void>> revokeOtherSessions(
       @RequestHeader("Authorization") String authHeader,
-      @CookieValue(value = "refreshToken", required = false) String refreshToken) {
-    authService.revokeOtherSessions(authHeader, refreshToken);
-    return ResponseEntity.ok(ApiResponse.success("All other sessions revoked successfully", null));
+      @CookieValue(value = "refreshToken", required = false) String refreshToken,
+      HttpServletRequest httpRequest) {
+    sessionService.revokeOtherSessions(authHeader, refreshToken);
+    String message = messageSource.getMessage(
+        "auth.sessions.revoked.all", null, httpRequest.getLocale());
+    return ResponseEntity.ok(ApiResponse.success(message, null));
   }
 }

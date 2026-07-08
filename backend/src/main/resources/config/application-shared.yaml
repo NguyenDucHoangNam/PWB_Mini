@@ -1,13 +1,87 @@
+# ==============================================================================
+# Common datasource / Redis / Kafka settings shared by every profile.
+# Environment-specific values are still overridden in profile files.
+# ==============================================================================
+
 spring:
-  flyway:
-    enabled: true
-    locations:
-      - classpath:db/migration/iam
-      - classpath:db/migration/liveroom
-      - classpath:db/migration/audio
+  # ----- PostgreSQL / HikariCP ------------------------------------------------
+  datasource:
+    hikari:
+      # Pool sizing tuned for a single instance handling ~200 RPS.
+      # In a horizontally scaled deployment, divide these by the number
+      # of application instances pointing at the same database.
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000            # 5 min
+      max-lifetime: 1800000           # 30 min
+      connection-timeout: 10000       # 10 s
+      pool-name: pwb-hikari-pool
+      # Health check that prunes dead connections after idle.
+      keepalive-time: 60000           # 1 min
+      validation-timeout: 3000        # 3 s
+      auto-commit: false
+      leak-detection-threshold: 30000 # 30 s; surfaces leaked connections in logs
+  jpa:
+    open-in-view: false               # disable OSIV to prevent lazy-load in HTTP response
+    properties:
+      hibernate:
+        jdbc.time_zone: UTC
+        format_sql: false
+        connection.provider_disables_autocommit: true
+
+  # ----- MongoDB --------------------------------------------------------------
+  # Disable auto-index creation in shared config: indexes should be created
+  # explicitly via migration scripts (e.g. mongo-init scripts or
+  # spring.data.mongodb.index-creation) to avoid surprising production
+  # workloads during startup.
   mongodb:
-    auto-index-creation: true
+    auto-index-creation: false
+
+  # ----- Redis / Lettuce ------------------------------------------------------
   data:
     redis:
       repositories:
         enabled: true
+      lettuce:
+        pool:
+          enabled: true
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+          max-wait: 2000ms
+      timeout: 2000ms
+
+  # ----- Kafka ----------------------------------------------------------------
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      acks: all
+      retries: 5
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        delivery.timeout.ms: 120000
+        request.timeout.ms: 30000
+        # SASL/TLS settings are wired here but left empty by default so
+        # plain local development keeps working. To enable SASL/SSL,
+        # set the KAFKA_SASL_MECHANISM, KAFKA_SASL_USERNAME,
+        # KAFKA_SASL_PASSWORD and KAFKA_SECURITY_PROTOCOL env vars.
+        sasl.mechanism: ${KAFKA_SASL_MECHANISM:}
+        security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+        sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: pwb-backend
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      max-poll-records: 50
+      properties:
+        sasl.mechanism: ${KAFKA_SASL_MECHANISM:}
+        security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+        sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}
+    listener:
+      ack-mode: manual_immediate
+      missing-topics-fatal: false

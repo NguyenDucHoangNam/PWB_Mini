@@ -23,7 +23,8 @@
     "changePassword": "Change password",
     "account": "User",
     "login": "Log In",
-    "register": "Register"
+    "register": "Register",
+    "sessionExpired": "Session expired on another tab"
   },
   "footer": {
     "description": "Play With Beats MiNi — Real-time audio collaboration and secure demo sharing platform for music producers.",
@@ -63,6 +64,13 @@
       "description": "Play With Beats MiNi - Real-time music collaboration platform.",
       "footer": "© 2026 PWB MiNi. Minimal version & optimized security."
     },
+    "session": {
+      "sessionExpiringTitle": "Session Expiring Soon",
+      "sessionExpiringDesc": "Your login session will expire in {time}. Would you like to continue?",
+      "sessionExpiringHint": "Move your mouse or press any key to update activity time.",
+      "extendSession": "Continue",
+      "logoutNow": "Log out now"
+    },
     "login": {
       "title": "LOG IN TO SYSTEM",
       "subtitle": "Welcome back! Please enter your credentials.",
@@ -77,10 +85,15 @@
       "noAccount": "Don't have an account?",
       "registerLink": "Register now",
       "googleLoginPlaceholder": "Google Login feature is currently under development.",
+      "googleLoginUnavailable": "Google Login is unavailable",
+      "googleLoginError": "Google login failed",
+      "googleLoginSuccess": "Google login successful",
       "fillAll": "Please fill in all information",
       "successToast": "Logged in successfully",
       "errorToast": "Login failed",
       "incorrectCredentials": "Incorrect username/email or password.",
+      "accountLocked": "Account locked due to too many attempts. Please try again later.",
+      "accountBanned": "Your account has been disabled. Please contact support.",
       "or": "OR",
       "googleBtn": "Continue with Google"
     },
@@ -329,5 +342,8 @@
       "btn": "RETRY",
       "contact": "Contact Support"
     }
+  },
+  "network": {
+    "offline": "Network connection lost. Please check your connection!"
   }
 }

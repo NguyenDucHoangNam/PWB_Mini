@@ -1,13 +1,21 @@
 app:
   iam:
     jwt:
-      secret: ${JWT_SECRET:defaultSecretKeyForDevelopmentOnlyPleaseChangeInProduction_atLeast256Bits}
+      secret: ${JWT_SECRET}
       access-token-expiration: 900
       refresh-token-expiration: 604800
     otp:
       expiration: 300
       cooldown: 60
       max-attempts: 5
+    login:
+      max-failed-attempts: 5
+      lockout-ttl-seconds: 900
+      password-reset-token-ttl-seconds: 600
+    account:
+      deletion-grace-days: 30
+    outbox:
+      dead-letter-after-retries: 5
     anonymization:
       cron: "0 0 0 * * ?"
     google:

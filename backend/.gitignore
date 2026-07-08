@@ -4,6 +4,12 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+### Environment files (spring-dotenv auto-loads from cwd)
+.env
+.env.local
+.env.*.local
+!.env.example
+
 ### STS ###
 .apt_generated
 .classpath

@@ -11,12 +11,14 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.config.core.GrantedAuthorityDefaults;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import com.pwb.backend.shared.security.IpRateLimitFilter;
 
 import java.util.List;
 
@@ -27,12 +29,36 @@ public class SecurityConfig {
 
   private final List<String> allowedOrigins;
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
+  private final IpRateLimitFilter ipRateLimitFilter;
+  private final AuthenticationEntryPoint authenticationEntryPoint;
 
   public SecurityConfig(
-      @Value("${app.security.cors.allowed-origins:http://localhost:3000}") List<String> allowedOrigins,
-      JwtAuthenticationFilter jwtAuthenticationFilter) {
-    this.allowedOrigins = allowedOrigins;
+      @Value("${app.security.cors.allowed-origins}") String allowedOriginsCsv,
+      JwtAuthenticationFilter jwtAuthenticationFilter,
+      IpRateLimitFilter ipRateLimitFilter,
+      AuthenticationEntryPoint authenticationEntryPoint) {
+    this.allowedOrigins = parseAllowedOrigins(allowedOriginsCsv);
     this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    this.ipRateLimitFilter = ipRateLimitFilter;
+    this.authenticationEntryPoint = authenticationEntryPoint;
+  }
+
+  private static List<String> parseAllowedOrigins(String csv) {
+    if (csv == null || csv.isBlank()) {
+      throw new IllegalStateException(
+          "Property 'app.security.cors.allowed-origins' is required. "
+              + "Set it to a comma-separated list of explicit origins "
+              + "(e.g. https://app.example.com). Wildcard '*' is not allowed.");
+    }
+    List<String> origins = java.util.Arrays.stream(csv.split(","))
+        .map(String::trim)
+        .filter(s -> !s.isBlank())
+        .toList();
+    if (origins.contains("*")) {
+      throw new IllegalStateException(
+          "Wildcard '*' is not allowed for 'app.security.cors.allowed-origins'.");
+    }
+    return origins;
   }
 
   @Bean
@@ -53,7 +79,9 @@ public class SecurityConfig {
             .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
             .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
             .anyRequest().authenticated())
-        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        .addFilterBefore(ipRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+        .exceptionHandling(eh -> eh.authenticationEntryPoint(authenticationEntryPoint));
     return http.build();
   }
 
@@ -73,6 +101,6 @@ public class SecurityConfig {
 
   @Bean
   public PasswordEncoder passwordEncoder() {
-    return new BCryptPasswordEncoder(10);
+    return new BCryptPasswordEncoder(12);
   }
 }

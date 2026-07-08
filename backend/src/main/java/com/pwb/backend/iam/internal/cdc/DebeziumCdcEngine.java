@@ -67,6 +67,8 @@ public class DebeziumCdcEngine {
         .with("topic.prefix", "pwb-cdc")
         .with("table.include.list", "public.outbox_events")
         .with("plugin.name", "pgoutput")
+        .with("bootstrap.servers",
+            environment.getProperty("spring.kafka.bootstrap-servers", "localhost:9092"))
         .build();
   }
 

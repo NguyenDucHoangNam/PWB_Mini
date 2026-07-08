@@ -23,7 +23,8 @@
     "changePassword": "Đổi mật khẩu",
     "account": "Người dùng",
     "login": "Đăng nhập",
-    "register": "Đăng ký"
+    "register": "Đăng ký",
+    "sessionExpired": "Phiên đăng nhập đã hết hạn trên tab khác"
   },
   "footer": {
     "description": "Play With Beats MiNi — Cộng tác âm thanh thời gian thực và nền tảng chia sẻ demo bảo mật cho nhà sản xuất âm nhạc.",
@@ -63,6 +64,13 @@
       "description": "Play With Beats MiNi Nền tảng cộng tác âm nhạc thời gian thực.",
       "footer": "© 2026 PWB MiNi. Phiên bản tối giản & tối ưu hóa bảo mật."
     },
+    "session": {
+      "sessionExpiringTitle": "Phiên sắp hết hạn",
+      "sessionExpiringDesc": "Phiên đăng nhập của bạn sẽ hết hạn sau {time}. Bạn có muốn tiếp tục không?",
+      "sessionExpiringHint": "Di chuyển chuột hoặc nhấn phím bất kỳ để cập nhật thời gian hoạt động.",
+      "extendSession": "Tiếp tục",
+      "logoutNow": "Đăng xuất ngay"
+    },
     "login": {
       "title": "ĐĂNG NHẬP HỆ THỐNG",
       "subtitle": "Chào mừng bạn quay lại. Hãy nhập thông tin đăng nhập.",
@@ -77,10 +85,15 @@
       "noAccount": "Chưa có tài khoản?",
       "registerLink": "Đăng ký ngay",
       "googleLoginPlaceholder": "Tính năng Google Login đang được phát triển.",
+      "googleLoginUnavailable": "Google Login không khả dụng",
+      "googleLoginError": "Đăng nhập Google thất bại",
+      "googleLoginSuccess": "Đăng nhập Google thành công",
       "fillAll": "Vui lòng điền đầy đủ thông tin",
       "successToast": "Đăng nhập thành công",
       "errorToast": "Đăng nhập thất bại",
       "incorrectCredentials": "Mật khẩu hoặc tài khoản không chính xác.",
+      "accountLocked": "Tài khoản đã bị khóa do nhập sai quá nhiều. Vui lòng thử lại sau.",
+      "accountBanned": "Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ hỗ trợ.",
       "or": "HOẶC",
       "googleBtn": "Tiếp tục với Google"
     },
@@ -329,5 +342,8 @@
       "btn": "THỬ LẠI",
       "contact": "Liên hệ hỗ trợ"
     }
+  },
+  "network": {
+    "offline": "Mất kết nối mạng, vui lòng kiểm tra lại!"
   }
 }

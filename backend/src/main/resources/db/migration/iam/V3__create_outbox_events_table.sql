@@ -11,7 +11,10 @@ CREATE TABLE outbox_events (
     created_by VARCHAR(50),
     updated_by VARCHAR(50),
     deleted BOOLEAN DEFAULT FALSE NOT NULL,
-    deleted_at TIMESTAMP WITH TIME ZONE
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    retry_count INTEGER DEFAULT 0 NOT NULL,
+    last_error VARCHAR(1000),
+    dead_lettered_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX idx_outbox_pending ON outbox_events(status, created_at);
