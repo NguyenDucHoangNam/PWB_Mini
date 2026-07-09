@@ -21,8 +21,16 @@ export function LandingContent() {
 function BackgroundGlow() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className="absolute -left-32 -top-32 h-80 w-80 rounded-full bg-neutral-500/5 blur-3xl dark:bg-neutral-500/10" />
-      <div className="absolute -right-32 -bottom-32 h-80 w-80 rounded-full bg-neutral-500/5 blur-3xl dark:bg-neutral-500/10" />
+      {/* Soft spotlight behind the keyboard */}
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[800px] rounded-full bg-neutral-200/30 blur-[120px] dark:bg-neutral-800/15" />
+
+      {/* Sand Image Background */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center opacity-[0.08] dark:opacity-[0.14] transition-opacity duration-300 mix-blend-luminosity"
+        style={{
+          backgroundImage: "url('/sand-bg.png')"
+        }}
+      />
     </div>
   );
 }

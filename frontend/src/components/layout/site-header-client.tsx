@@ -177,15 +177,15 @@ export function SiteHeaderClient() {
         {/* Center: Signature (Desktop) */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden lg:flex items-center gap-4 pointer-events-none select-none">
           {/* Left Line */}
-          <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-neutral-400/40 dark:to-neutral-600/40" />
+          <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-neutral-400/40 dark:to-neutral-400/30" />
           
           {/* Text */}
-          <span className="font-mono text-[11px] uppercase tracking-[0.35em] text-neutral-400 opacity-45 dark:text-neutral-600 dark:opacity-35 transition-colors">
+          <span className="font-mono text-[11px] uppercase tracking-[0.35em] text-neutral-400 opacity-45 dark:text-neutral-400 dark:opacity-30 transition-colors">
             NAM IN THE MIX
           </span>
           
           {/* Right Line */}
-          <div className="h-[1px] w-12 bg-gradient-to-r from-neutral-400/40 dark:from-neutral-600/40 to-transparent" />
+          <div className="h-[1px] w-12 bg-gradient-to-r from-neutral-400/40 dark:from-neutral-400/30 to-transparent" />
         </div>
 
         {/* Right: Actions (Desktop) & Hamburger (Mobile) */}
