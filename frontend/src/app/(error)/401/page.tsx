@@ -1,18 +1,21 @@
 "use client";
 
-import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import { broadcastAuthMessage } from "@/lib/broadcast-channel";
+import { abortRefresh } from "@/lib/auth-refresh";
+import { useEffect } from "react";
 
 export default function UnauthorizedPage() {
   const t = useTranslations("errors.401");
 
-  // Clear tokens immediately to ensure user is logged out
+  // Clear auth state and broadcast logout to sync across tabs.
   useEffect(() => {
-    localStorage.removeItem("accessToken");
-    // Trigger storage change to sync state across other tabs
-    window.dispatchEvent(new Event("storage"));
+    abortRefresh();
+    useAuthStore.getState().clearAuth();
+    broadcastAuthMessage({ type: "LOGOUT" });
   }, []);
 
   return (

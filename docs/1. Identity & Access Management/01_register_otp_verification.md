@@ -95,7 +95,7 @@ sequenceDiagram
     alt Trùng lặp tài khoản hoạt động
         BE-->>FE: HTTP 400 Bad Request (EMAIL_EXISTED / USERNAME_EXISTED)
     else Hợp lệ
-        BE->>BE: Băm mật khẩu (BCrypt strength = 10)
+        BE->>BE: Băm mật khẩu (BCrypt strength = 12)
         BE->>BE: Sinh OTP 6 số ngẫu nhiên bằng SecureRandom (chỉ tạo trong bộ nhớ)
         Note over BE, DB: Bắt đầu Transaction
         BE->>DB: Lưu User mới (status='PENDING_VERIFICATION', role='ROLE_USER')
@@ -155,7 +155,7 @@ sequenceDiagram
     *   *⚡ Xử lý Concurrency (Chống Race Condition)*: Tiến trình tìm kiếm tài khoản trùng và cập nhật/upsert này bắt buộc phải sử dụng cơ chế khóa bi quan (**Pessimistic Write Lock - `SELECT ... FOR UPDATE`**) để tuần tự hóa các request gửi đồng thời cho cùng một tài khoản. Ngoài ra, Backend bắt buộc phải bắt tường minh exception `DataIntegrityViolationException` (khi vi phạm ràng buộc duy nhất trong DB) để chuyển đổi thành lỗi nghiệp vụ `REGISTRATION_IN_PROGRESS` (HTTP 400), tránh sập luồng búng ra lỗi 500.
 6.  **Kiểm tra trùng tài khoản đang hoạt động**: Backend truy vấn PostgreSQL kiểm tra trùng lặp với các tài khoản đã kích hoạt (`ACTIVE`).
 7.  **Phản hồi lỗi trùng**: Nếu trùng tài khoản `ACTIVE`, Backend lập tức trả về lỗi HTTP 400 Bad Request (`EMAIL_EXISTED` hoặc `USERNAME_EXISTED`) phản hồi cho Frontend hiển thị cảnh báo.
-8.  **Mã hóa mật khẩu**: Nếu tất cả thông tin hợp lệ, Backend thực hiện băm mật khẩu người dùng bằng thuật toán bảo mật BCrypt (độ mạnh mặc định là 10).
+7.  **Mã hóa mật khẩu**: Nếu tất cả thông tin hợp lệ, Backend thực hiện băm mật khẩu người dùng bằng thuật toán bảo mật BCrypt (độ mạnh mặc định là 12).
 8b. **Sinh mã OTP**: Backend sinh mã OTP ngẫu nhiên 6 chữ số bằng thư viện bảo mật mã hóa **`java.security.SecureRandom`** trong bộ nhớ (in-memory), chưa lưu vào Redis tại thời điểm này.
 9.  **Giao dịch Cơ sở dữ liệu (Transaction)**: Backend khởi chạy một Database Transaction cục bộ nhằm đảm bảo tính toàn vẹn:
     *   Lưu thông tin người dùng mới vào bảng `users` với trạng thái `PENDING_VERIFICATION` và gán vai trò là `ROLE_USER`.

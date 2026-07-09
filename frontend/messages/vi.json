@@ -67,7 +67,7 @@
     "session": {
       "sessionExpiringTitle": "Phiên sắp hết hạn",
       "sessionExpiringDesc": "Phiên đăng nhập của bạn sẽ hết hạn sau {time}. Bạn có muốn tiếp tục không?",
-      "sessionExpiringHint": "Di chuyển chuột hoặc nhấn phím bất kỳ để cập nhật thời gian hoạt động.",
+      "sessionExpiringHint": "Nhấn Tiếp tục để làm mới phiên hoặc Đăng xuất để kết thúc.",
       "extendSession": "Tiếp tục",
       "logoutNow": "Đăng xuất ngay"
     },
@@ -78,7 +78,7 @@
       "usernamePlaceholder": "Nhập tên đăng nhập hoặc email",
       "passwordLabel": "Mật khẩu *",
       "passwordPlaceholder": "Nhập mật khẩu",
-      "rememberMe": "Ghi nhớ đăng nhập",
+      "rememberMe": "Chỉ nhớ tên đăng nhập",
       "forgotPassword": "Quên mật khẩu?",
       "submit": "ĐĂNG NHẬP",
       "submitting": "Đang đăng nhập...",
@@ -92,10 +92,15 @@
       "successToast": "Đăng nhập thành công",
       "errorToast": "Đăng nhập thất bại",
       "incorrectCredentials": "Mật khẩu hoặc tài khoản không chính xác.",
-      "accountLocked": "Tài khoản đã bị khóa do nhập sai quá nhiều. Vui lòng thử lại sau.",
+      "accountLocked": "Tài khoản đã bị khóa do nhập sai quá nhiều. Vui lòng thử lại sau hoặc đặt lại mật khẩu.",
       "accountBanned": "Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ hỗ trợ.",
+      "resetPasswordLink": "Đặt lại mật khẩu ngay",
       "or": "HOẶC",
-      "googleBtn": "Tiếp tục với Google"
+      "googleBtn": "Tiếp tục với Google",
+      "googleInitFailed": "Không thể khởi tạo Google Sign-In. Vui lòng thử lại.",
+      "oauthLinkTitle": "Nhập mật khẩu để liên kết {email}",
+      "oauthLinkDesc": "Đã tồn tại tài khoản với email này. Nhập mật khẩu hiện tại để liên kết Google.",
+      "cancel": "Hủy bỏ"
     },
     "register": {
       "title": "ĐĂNG KÝ",
@@ -273,8 +278,9 @@
     "timeMinutes": "{minutes} phút trước",
     "timeHours": "{hours} giờ trước",
     "timeDays": "{days} ngày trước",
-    "loadError": "Có lỗi xảy ra khi tải danh sách phiên đăng nhập. Vui lòng tải lại trang."
-  },
+"loadError": "Có lỗi xảy ra khi tải danh sách phiên đăng nhập. Vui lòng tải lại trang.",
+      "cancel": "Hủy bỏ"
+    },
   "account": {
     "delete": {
       "title": "XÓA TÀI KHOẢN VĨNH VIỄN",

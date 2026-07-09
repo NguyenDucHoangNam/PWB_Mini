@@ -26,7 +26,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -43,6 +42,7 @@ public class SessionService {
   private final RedisScript<List<String>> concurrentSessionScript;
   private final RedisScript<String> sessionRotationScript;
   private final RedisScript<List<String>> revokeOtherSessionsScript;
+  private final LoginLockoutHelper loginLockoutHelper;
 
   public RefreshResponse refreshAccessToken(String expiredAccessTokenHeader, String refreshToken, HttpServletResponse response) {
     String email;
@@ -64,7 +64,7 @@ public class SessionService {
     }
 
     String userId = user.getId();
-    LoginLockoutHelper.ensureNotLocked(redisTemplate, userId);
+    loginLockoutHelper.ensureNotLocked(redisTemplate, userId);
 
     if (refreshToken == null || refreshToken.isBlank()) {
       throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN, "Refresh token is required");
@@ -116,7 +116,7 @@ public class SessionService {
       if (Boolean.TRUE.equals(redisTemplate.hasKey(oldMetadataKey))) {
         redisTemplate.rename(oldMetadataKey, newMetadataKey);
         redisTemplate.opsForHash().put(newMetadataKey, "active_jwt_signature", jwtService.getSignature(newAccessToken));
-        redisTemplate.expire(newMetadataKey, refreshTokenExpiry, TimeUnit.SECONDS);
+        redisTemplate.expire(newMetadataKey, Duration.ofSeconds(refreshTokenExpiry));
       } else {
         Map<String, String> metadata = SessionMetadataBuilder.buildForNewSession(user, jwtService, geoIpService, newAccessToken);
         SessionMetadataBuilder.store(redisTemplate, newRefreshToken, metadata, iamProperties);
@@ -344,10 +344,13 @@ public class SessionService {
   private void setRefreshCookie(HttpServletResponse response, String value, int maxAge) {
     Cookie refreshCookie = new Cookie("refreshToken", value);
     refreshCookie.setHttpOnly(true);
-    refreshCookie.setSecure(true);
+    refreshCookie.setSecure(iamProperties.getSession().isCookieSecure());
     refreshCookie.setPath("/");
     refreshCookie.setMaxAge(maxAge);
-    refreshCookie.setAttribute("SameSite", "Strict");
+    String sameSite = iamProperties.getSession().getCookieSameSite();
+    if (sameSite != null && !sameSite.isBlank()) {
+      refreshCookie.setAttribute("SameSite", sameSite);
+    }
     response.addCookie(refreshCookie);
   }
 

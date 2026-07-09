@@ -199,13 +199,6 @@ class AuthServiceTest {
         accountLifecycleService,
         outboxEventFactory
     );
-    org.springframework.transaction.support.TransactionTemplate mockRequiresNewTemplate = Mockito.mock(org.springframework.transaction.support.TransactionTemplate.class);
-    lenient().doAnswer(invocation -> {
-      Consumer<org.springframework.transaction.TransactionStatus> callback = invocation.getArgument(0);
-      callback.accept(null);
-      return null;
-    }).when(mockRequiresNewTemplate).executeWithoutResult(any());
-    ReflectionTestUtils.setField(authService, "requiresNewTemplate", mockRequiresNewTemplate);
     ReflectionTestUtils.setField(authService, "googleVerifier", googleVerifier);
   }
 
@@ -279,13 +272,13 @@ class AuthServiceTest {
     when(userRepository.save(any(User.class))).thenReturn(mockUser);
 
     when(jwtService.generateAccessToken(any(User.class))).thenReturn("access-token");
-    when(jwtService.generateRefreshToken(any(User.class))).thenReturn("refresh-token");
+    lenient().when(jwtService.generateRefreshToken(any(User.class))).thenReturn("refresh-token");
 
-    when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-    doNothing().when(valueOperations).set(anyString(), anyString(), any(Duration.class));
+    lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+    lenient().doNothing().when(valueOperations).set(anyString(), anyString(), any(Duration.class));
 
     VerifyOtpResponse.UserInfo userInfo = new VerifyOtpResponse.UserInfo(
-        "testuser", "test@gmail.com", "Test User", "ACTIVE");
+        "testuser", "test@gmail.com", "Test User", "ACTIVE", "LOCAL");
     when(userMapper.toUserInfo(any(User.class))).thenReturn(userInfo);
 
     VerifyOtpResponse result = authService.verifyOtp(request, httpResponse);
@@ -296,7 +289,7 @@ class AuthServiceTest {
     assertEquals(UserStatus.ACTIVE, mockUser.getStatus());
 
     verify(otpService).deleteAllOtpKeys("test@gmail.com");
-    verify(httpResponse).addCookie(any(Cookie.class));
+    verify(sessionService).createSession(mockUser, httpResponse);
   }
 
   @Test
@@ -354,10 +347,10 @@ class AuthServiceTest {
     when(redisTemplate.hasKey("login_lockout:user-uuid")).thenReturn(false);
     when(passwordEncoder.matches("Password@123", "hashed-pwd")).thenReturn(true);
 
-    when(jwtService.generateAccessToken(any(User.class))).thenReturn("access-token");
-    when(jwtService.generateRefreshToken(any(User.class))).thenReturn("refresh-token");
+    lenient().when(jwtService.generateAccessToken(any(User.class))).thenReturn("access-token");
+    lenient().when(jwtService.generateRefreshToken(any(User.class))).thenReturn("refresh-token");
 
-    when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+    lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
     LoginResponse response = authService.login(request, httpResponse);
 
@@ -478,9 +471,9 @@ class AuthServiceTest {
     when(userRepository.save(any(User.class))).thenReturn(mockUser);
     when(redisTemplate.hasKey("login_lockout:user-uuid")).thenReturn(false);
 
-    when(jwtService.generateAccessToken(any(User.class))).thenReturn("access-token");
-    when(jwtService.generateRefreshToken(any(User.class))).thenReturn("refresh-token");
-    when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+    lenient().when(jwtService.generateAccessToken(any(User.class))).thenReturn("access-token");
+    lenient().when(jwtService.generateRefreshToken(any(User.class))).thenReturn("refresh-token");
+    lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
     LoginResponse response = authService.loginWithGoogle(request, httpResponse);
 
@@ -598,7 +591,7 @@ class AuthServiceTest {
     when(jwtService.extractEmail("access-token")).thenReturn("test@gmail.com");
     when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
 
-    UserProfileResponse mockResponse = new UserProfileResponse("testuser", "test@gmail.com", "Test User", "USER", "ACTIVE", "avatar", "0987654321");
+    UserProfileResponse mockResponse = new UserProfileResponse("testuser", "test@gmail.com", "Test User", "USER", "ACTIVE", "avatar", "0987654321", "LOCAL", null);
     when(userMapper.toUserProfileResponse(mockUser)).thenReturn(mockResponse);
 
     UserProfileResponse response = authService.getMyProfile(authHeader);
@@ -623,7 +616,7 @@ class AuthServiceTest {
     when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
     when(userRepository.save(any(User.class))).thenReturn(mockUser);
 
-    UserProfileResponse mockResponse = new UserProfileResponse("testuser", "test@gmail.com", "New Name", "USER", "ACTIVE", "new-avatar", "0912345678");
+    UserProfileResponse mockResponse = new UserProfileResponse("testuser", "test@gmail.com", "New Name", "USER", "ACTIVE", "new-avatar", "0912345678", "LOCAL", null);
     when(userMapper.toUserProfileResponse(mockUser)).thenReturn(mockResponse);
 
     UserProfileResponse response = authService.updateProfile(request, authHeader);
@@ -674,15 +667,10 @@ class AuthServiceTest {
     when(valueOperations.getAndDelete("password_reset_token:reset-token")).thenReturn("test@gmail.com");
     when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
 
-    org.springframework.data.redis.core.ZSetOperations zSetOperations = Mockito.mock(org.springframework.data.redis.core.ZSetOperations.class);
-    when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
-    when(zSetOperations.range("user:sessions:user-uuid", 0, -1)).thenReturn(java.util.Set.of("session-1"));
-
     authService.resetPassword(request);
 
     Mockito.verify(userRepository).save(mockUser);
-    Mockito.verify(redisTemplate).delete(java.util.List.of("session:refresh_token:session-1", "session:metadata:session-1", "user:sessions:user-uuid"));
-    Mockito.verify(redisTemplate).delete("login_lockout:user-uuid");
+    Mockito.verify(sessionService).revokeAllUserSessions("user-uuid");
   }
 
   @Test
@@ -698,7 +686,7 @@ class AuthServiceTest {
     when(passwordEncoder.matches("OldPassword@123", "hashed-old-password")).thenReturn(true);
     when(passwordEncoder.matches("NewPassword@123", "hashed-old-password")).thenReturn(false);
 
-    when(redisTemplate.opsForZSet()).thenReturn(Mockito.mock(org.springframework.data.redis.core.ZSetOperations.class));
+    lenient().when(redisTemplate.opsForZSet()).thenReturn(Mockito.mock(org.springframework.data.redis.core.ZSetOperations.class));
 
     authService.changePassword(request, "Bearer access-token", "current-refresh-token");
 

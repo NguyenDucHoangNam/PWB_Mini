@@ -10,6 +10,7 @@ public record LoginResponse(
       String email,
       String fullName,
       String role,
-      String status
+      String status,
+      String oauthProvider
   ) {}
 }

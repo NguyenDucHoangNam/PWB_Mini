@@ -18,6 +18,14 @@ public class IamProperties {
   private Outbox outbox = new Outbox();
   private Google google = new Google();
   private GeoIp geoip = new GeoIp();
+  private Session session = new Session();
+
+  @Getter
+  @Setter
+  public static class Session {
+    private boolean cookieSecure = true;
+    private String cookieSameSite = "Lax";
+  }
 
   @Getter
   @Setter
@@ -41,6 +49,14 @@ public class IamProperties {
     private int maxFailedAttempts;
     private long lockoutTtlSeconds;
     private long passwordResetTokenTtlSeconds;
+    private Lockout lockout = new Lockout();
+
+    @Getter
+    @Setter
+    public static class Lockout {
+      private int maxAttempts = 5;
+      private long windowDurationMinutes = 15;
+    }
   }
 
   @Getter

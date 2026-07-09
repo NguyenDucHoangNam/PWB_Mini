@@ -1,45 +1,55 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "../stores/use-auth-store";
-import { useLogout } from "../api/account";
+import { useCancelDeletion, useLogout } from "../api/account";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+
+const DELETION_GRACE_DAYS = 30;
+
+function computeDaysLeft(deletionRequestedAt: string | null | undefined): number {
+  if (!deletionRequestedAt) return DELETION_GRACE_DAYS;
+  const requestedAt = new Date(deletionRequestedAt).getTime();
+  if (Number.isNaN(requestedAt)) return DELETION_GRACE_DAYS;
+  const elapsedMs = Date.now() - requestedAt;
+  const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
+  return Math.max(0, Math.ceil(DELETION_GRACE_DAYS - elapsedDays));
+}
 
 export function AccountRecoveryPage() {
   const t = useTranslations("account.recovery");
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
-  const setAuth = useAuthStore((state) => state.setAuth);
-  const accessToken = useAuthStore((state) => state.accessToken);
+  const { mutate: cancelDeletionMutate, isPending: isRecovering } = useCancelDeletion();
   const { mutate: logoutMutate } = useLogout();
 
-  const [isRecovering, setIsRecovering] = useState(false);
-  const [daysLeft, setDaysLeft] = useState(24);
   const [error, setError] = useState<string | null>(null);
 
+  const daysLeft = useMemo(
+    () => computeDaysLeft((user as { deletionRequestedAt?: string | null } | null)?.deletionRequestedAt ?? null),
+    [user],
+  );
   const isUrgent = daysLeft <= 3;
 
   const handleCancelDeletion = () => {
-    setIsRecovering(true);
     setError(null);
-
-    // Simulate API call to cancel deletion
-    setTimeout(() => {
-      setIsRecovering(false);
-      if (user && accessToken) {
-        // Re-write Zustand auth store user status to ACTIVE to mock recovery status locally
-        const updatedUser = { ...user, status: "ACTIVE" };
-        setAuth(accessToken, updatedUser);
-        toast.success(t("toastSuccess"));
-        router.push("/dashboard");
-      } else {
+    cancelDeletionMutate(undefined, {
+      onSuccess: (response) => {
+        if (response.success) {
+          toast.success(t("toastSuccess"));
+          router.push("/dashboard");
+        } else {
+          setError(response.message || t("toastError"));
+        }
+      },
+      onError: () => {
+        setError(t("toastError"));
         toast.error(t("toastError"));
-        router.push("/login");
-      }
-    }, 1500);
+      },
+    });
   };
 
   const handleLogoutClick = () => {
@@ -49,7 +59,6 @@ export function AccountRecoveryPage() {
         router.push("/login");
       },
       onError: () => {
-        // Fallback clear auth on error
         useAuthStore.getState().clearAuth();
         router.push("/login");
       },
@@ -98,7 +107,10 @@ export function AccountRecoveryPage() {
       </div>
 
       {error && (
-        <div role="alert" className="rounded-lg bg-neutral-100 p-3 text-xs font-semibold text-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 mb-4 w-full max-w-sm">
+        <div
+          role="alert"
+          className="rounded-lg bg-neutral-100 p-3 text-xs font-semibold text-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 mb-4 w-full max-w-sm"
+        >
           {error}
         </div>
       )}
@@ -114,9 +126,24 @@ export function AccountRecoveryPage() {
         >
           {isRecovering ? (
             <span className="flex items-center gap-2 justify-center">
-              <svg className="animate-spin size-4 text-white dark:text-black" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              <svg
+                className="animate-spin size-4 text-white dark:text-black"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
               </svg>
               {t("submitting")}
             </span>

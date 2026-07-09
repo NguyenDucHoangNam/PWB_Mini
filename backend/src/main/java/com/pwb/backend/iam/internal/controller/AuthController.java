@@ -11,17 +11,19 @@ import com.pwb.backend.iam.api.dto.request.UpdateProfileRequest;
 import com.pwb.backend.iam.api.dto.request.ResendOtpRequest;
 import com.pwb.backend.iam.api.dto.request.VerifyOtpRequest;
 import com.pwb.backend.iam.api.dto.response.CheckUsernameResponse;
+import com.pwb.backend.iam.api.dto.response.AvatarUploadResponse;
 import com.pwb.backend.iam.api.dto.response.LoginResponse;
 import com.pwb.backend.iam.api.dto.response.ActiveSessionResponse;
 import com.pwb.backend.iam.api.dto.response.RegisterResponse;
 import com.pwb.backend.iam.api.dto.response.UserProfileResponse;
-import java.util.List;
 import com.pwb.backend.iam.api.dto.response.VerifyOtpResponse;
 import com.pwb.backend.iam.api.dto.response.RefreshResponse;
 import com.pwb.backend.iam.internal.service.AuthService;
 import com.pwb.backend.iam.internal.service.SessionService;
 import com.pwb.backend.iam.internal.service.AccountLifecycleService;
+import com.pwb.backend.iam.internal.service.AvatarUploadService;
 import com.pwb.backend.shared.response.ApiResponse;
+import java.util.List;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -42,6 +44,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -52,6 +55,7 @@ public class AuthController {
   private final AuthService authService;
   private final SessionService sessionService;
   private final AccountLifecycleService accountLifecycleService;
+  private final AvatarUploadService avatarUploadService;
   private final MessageSource messageSource;
 
   @PostMapping("/register")
@@ -196,6 +200,17 @@ public class AuthController {
     return ResponseEntity.ok(ApiResponse.success(message, response));
   }
 
+  @PostMapping(value = "/profile/avatar", consumes = "multipart/form-data")
+  public ResponseEntity<ApiResponse<AvatarUploadResponse>> uploadAvatar(
+      @RequestParam("file") MultipartFile file,
+      @RequestHeader("Authorization") String authHeader,
+      HttpServletRequest httpRequest) {
+    AvatarUploadResponse response = authService.uploadAvatar(authHeader, file, avatarUploadService);
+    String message = messageSource.getMessage(
+        "auth.profile.avatar.uploaded", null, httpRequest.getLocale());
+    return ResponseEntity.ok(ApiResponse.success(message, response));
+  }
+
   @DeleteMapping("/account")
   public ResponseEntity<ApiResponse<Void>> deleteAccount(
       @Valid @RequestBody DeleteAccountRequest request,
@@ -207,6 +222,16 @@ public class AuthController {
     String message = messageSource.getMessage(
         "auth.account.delete.requested", null, httpRequest.getLocale());
     return ResponseEntity.ok(ApiResponse.success(message, null));
+  }
+
+  @PostMapping("/account/cancel-deletion")
+  public ResponseEntity<ApiResponse<UserProfileResponse>> cancelDeletion(
+      @RequestHeader("Authorization") String authorizationHeader,
+      HttpServletRequest httpRequest) {
+    UserProfileResponse response = accountLifecycleService.cancelDeletion(authorizationHeader);
+    String message = messageSource.getMessage(
+        "auth.account.delete.cancelled", null, httpRequest.getLocale());
+    return ResponseEntity.ok(ApiResponse.success(message, response));
   }
 
   @GetMapping("/sessions")

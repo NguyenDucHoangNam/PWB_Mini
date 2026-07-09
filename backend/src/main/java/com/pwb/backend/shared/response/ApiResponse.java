@@ -21,4 +21,8 @@ public record ApiResponse<T>(
     public static <T> ApiResponse<T> error(String message, List<ErrorDetail> errors) {
         return new ApiResponse<>(false, message, null, errors, Instant.now());
     }
+
+    public static <T> ApiResponse<T> error(String message, T data, List<ErrorDetail> errors) {
+        return new ApiResponse<>(false, message, data, errors, Instant.now());
+    }
 }

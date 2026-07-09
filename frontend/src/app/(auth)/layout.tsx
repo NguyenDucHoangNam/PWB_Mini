@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthLayout } from "@/features/auth/components/auth-layout";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import { refreshAccessToken } from "@/lib/auth-refresh";
 
 export default function AuthRouteLayout({
   children,
@@ -10,17 +12,34 @@ export default function AuthRouteLayout({
   children: React.ReactNode;
 }>) {
   const router = useRouter();
+  const accessToken = useAuthStore((state) => state.accessToken);
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    // Check if token exists in localStorage
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      router.replace("/dashboard");
-    } else {
-      setIsChecking(false);
-    }
-  }, [router]);
+    let cancelled = false;
+
+    const run = async () => {
+      // If we already have a token in memory, redirect immediately.
+      if (accessToken) {
+        router.replace("/dashboard");
+        return;
+      }
+      // Otherwise, attempt a silent refresh from the httpOnly cookie.
+      try {
+        await refreshAccessToken();
+        if (cancelled) return;
+        router.replace("/dashboard");
+      } catch {
+        if (cancelled) return;
+        setIsChecking(false);
+      }
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, router]);
 
   if (isChecking) {
     return (

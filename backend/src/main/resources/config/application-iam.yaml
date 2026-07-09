@@ -22,6 +22,12 @@ app:
       client-id: ${GOOGLE_CLIENT_ID}
     geoip:
       database-path: ${GEOIP_DB_PATH:classpath:geoip/GeoLite2-City.mmdb}
+    session:
+      # Localhost runs over plain HTTP - marking the refresh cookie
+      # Secure would prevent it from being sent on every request and
+      # break the silent refresh flow. Override to `true` in prod.
+      cookie-secure: ${SESSION_COOKIE_SECURE:false}
+      cookie-same-site: ${SESSION_COOKIE_SAME_SITE:Lax}
 
 spring:
   mail:

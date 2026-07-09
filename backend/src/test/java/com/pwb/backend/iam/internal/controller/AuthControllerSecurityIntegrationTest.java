@@ -8,7 +8,9 @@ import com.pwb.backend.iam.api.dto.response.LoginResponse;
 import com.pwb.backend.iam.internal.config.JwtAuthenticationFilter;
 import com.pwb.backend.iam.internal.service.AccountLifecycleService;
 import com.pwb.backend.iam.internal.service.AuthService;
+import com.pwb.backend.iam.internal.service.AvatarUploadService;
 import com.pwb.backend.iam.internal.service.SessionService;
+import com.pwb.backend.shared.config.I18nConfig;
 import com.pwb.backend.shared.exception.BusinessException;
 import com.pwb.backend.shared.exception.ErrorCode;
 import com.pwb.backend.shared.security.IpRateLimitFilter;
@@ -20,6 +22,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -32,6 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = AuthController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@Import(I18nConfig.class)
 @TestPropertySource(properties = {
     "app.security.cors.allowed-origins=http://localhost:3000",
     "JWT_SECRET=test-secret-32-bytes-aaaaaaaaaaaaaaaaaaaaaaaa"
@@ -53,6 +57,9 @@ class AuthControllerSecurityIntegrationTest {
   private AccountLifecycleService accountLifecycleService;
 
   @MockitoBean
+  private AvatarUploadService avatarUploadService;
+
+  @MockitoBean
   private JwtAuthenticationFilter jwtAuthenticationFilter;
 
   @MockitoBean
@@ -64,7 +71,7 @@ class AuthControllerSecurityIntegrationTest {
   @Test
   void testLogin_success_returns200() throws Exception {
     LoginRequest request = new LoginRequest("testuser", "Password@123");
-    LoginResponse.UserInfo info = new LoginResponse.UserInfo("testuser", "test@gmail.com", "Test User", "USER", "ACTIVE");
+    LoginResponse.UserInfo info = new LoginResponse.UserInfo("testuser", "test@gmail.com", "Test User", "USER", "ACTIVE", "LOCAL");
     LoginResponse mockResponse = new LoginResponse("access-token", 900L, info);
     when(authService.login(any(LoginRequest.class), any())).thenReturn(mockResponse);
 
@@ -116,7 +123,7 @@ class AuthControllerSecurityIntegrationTest {
   @Test
   void testLoginWithGoogle_success_returns200() throws Exception {
     Oauth2LoginRequest request = new Oauth2LoginRequest("google-id-token", null);
-    LoginResponse.UserInfo info = new LoginResponse.UserInfo("oauthuser", "oauth@gmail.com", "OAuth User", "USER", "ACTIVE");
+    LoginResponse.UserInfo info = new LoginResponse.UserInfo("oauthuser", "oauth@gmail.com", "OAuth User", "USER", "ACTIVE", "GOOGLE");
     LoginResponse mockResponse = new LoginResponse("access-token", 900L, info);
     when(authService.loginWithGoogle(any(Oauth2LoginRequest.class), any())).thenReturn(mockResponse);
 

@@ -13,7 +13,7 @@ function makeQueryClient() {
       queries: {
         staleTime: DEFAULT_STALE_TIME,
         refetchOnWindowFocus: false,
-        retry: 1,
+        retry: false,
       },
     },
   });
@@ -45,5 +45,3 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     </QueryClientProvider>
   );
 }
-
-

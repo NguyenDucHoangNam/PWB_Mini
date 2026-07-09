@@ -67,7 +67,7 @@
     "session": {
       "sessionExpiringTitle": "Session Expiring Soon",
       "sessionExpiringDesc": "Your login session will expire in {time}. Would you like to continue?",
-      "sessionExpiringHint": "Move your mouse or press any key to update activity time.",
+      "sessionExpiringHint": "Press Continue to refresh your session, or Log out now to end it.",
       "extendSession": "Continue",
       "logoutNow": "Log out now"
     },
@@ -78,7 +78,7 @@
       "usernamePlaceholder": "Enter username or email",
       "passwordLabel": "Password *",
       "passwordPlaceholder": "Enter password",
-      "rememberMe": "Remember session",
+      "rememberMe": "Remember username only",
       "forgotPassword": "Forgot password?",
       "submit": "LOG IN",
       "submitting": "Logging in...",
@@ -92,10 +92,15 @@
       "successToast": "Logged in successfully",
       "errorToast": "Login failed",
       "incorrectCredentials": "Incorrect username/email or password.",
-      "accountLocked": "Account locked due to too many attempts. Please try again later.",
+      "accountLocked": "Account locked due to too many attempts. Please try again later or reset your password.",
       "accountBanned": "Your account has been disabled. Please contact support.",
+      "resetPasswordLink": "Reset password now",
       "or": "OR",
-      "googleBtn": "Continue with Google"
+      "googleBtn": "Continue with Google",
+      "googleInitFailed": "Google Sign-In could not be initialized. Please try again.",
+      "oauthLinkTitle": "Confirm password to link {email}",
+      "oauthLinkDesc": "An account already exists with this email. Enter your existing password to link Google login.",
+      "cancel": "Cancel"
     },
     "register": {
       "title": "REGISTER",
@@ -273,8 +278,9 @@
     "timeMinutes": "{minutes}m ago",
     "timeHours": "{hours}h ago",
     "timeDays": "{days}d ago",
-    "loadError": "An error occurred while loading active sessions. Please reload page."
-  },
+"loadError": "An error occurred while loading active sessions. Please reload page.",
+      "cancel": "Cancel"
+    },
   "account": {
     "delete": {
       "title": "DELETE ACCOUNT PERMANENTLY",

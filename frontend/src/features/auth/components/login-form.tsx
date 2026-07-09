@@ -1,21 +1,51 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useLogin, useLoginWithGoogle } from "../api/login";
-import { useAuthStore } from "../stores/use-auth-store";
+import { useAuthStore, type AuthUser } from "../stores/use-auth-store";
+import { useCaptureReturnTo, readReturnTo, persistReturnTo } from "@/hooks/use-return-to";
+import { decodeJwtExpiry } from "@/lib/jwt-decode";
 import { PasswordInput } from "./password-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 const LOCKOUT_DURATION = 15 * 60; // 15 minutes in seconds
 const STORAGE_KEY_USERNAME = "login_username";
 const STORAGE_KEY_REMEMBER = "login_remember";
+const STORAGE_KEY_PENDING_EMAIL = "pwb_pending_email";
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: { credential?: string }) => void;
+            auto_select?: boolean;
+            cancel_on_tap_outside?: boolean;
+          }) => void;
+          prompt: () => void;
+          renderButton: (parent: HTMLElement, options: Record<string, unknown>) => void;
+        };
+      };
+    };
+  }
+}
+
+function maskEmail(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!local || !domain) return email;
+  if (local.length <= 2) return `${local}**@${domain}`;
+  return `${local.substring(0, 2)}******@${domain}`;
+}
 
 export function LoginForm() {
   const t = useTranslations("auth.login");
@@ -24,12 +54,20 @@ export function LoginForm() {
   const { mutate: loginWithGoogleMutate } = useLoginWithGoogle();
   const setAuth = useAuthStore((state) => state.setAuth);
   const usernameInputRef = useRef<HTMLInputElement>(null);
+  const googleInitRef = useRef(false);
 
   const [usernameOrEmail, setUsernameOrEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lockoutRemaining, setLockoutRemaining] = useState(0);
+  const [oauthLinkOpen, setOauthLinkOpen] = useState(false);
+  const [oauthLinkEmail, setOauthLinkEmail] = useState("");
+  const [oauthLinkPassword, setOauthLinkPassword] = useState("");
+  const [pendingGoogleIdToken, setPendingGoogleIdToken] = useState<string | null>(null);
+
+  // Capture ?returnTo= so we can send the user back after login.
+  useCaptureReturnTo();
 
   // Load saved username and remember preference on mount
   useEffect(() => {
@@ -57,44 +95,71 @@ export function LoginForm() {
     return () => clearInterval(interval);
   }, [lockoutRemaining]);
 
-  // Handle keyboard shortcuts
+  // Initialize Google Identity Services (GIS) for ID-token flow.
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Enter" && !isPending && lockoutRemaining === 0) {
-        const target = e.target as HTMLElement;
-        if (target.tagName !== "INPUT" && target.tagName !== "TEXTAREA") {
-          return;
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId || typeof window === "undefined" || !window.google) {
+      return;
+    }
+    if (googleInitRef.current) return;
+    googleInitRef.current = true;
+
+    window.google.accounts.id.initialize({
+      client_id: clientId,
+      callback: (response) => {
+        if (response.credential) {
+          handleGoogleCredential(response.credential);
         }
+      },
+      cancel_on_tap_outside: true,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const redirectAfterLogin = useCallback(() => {
+    const target = readReturnTo();
+    if (target) {
+      router.push(target);
+    } else {
+      router.push("/dashboard");
+    }
+  }, [router]);
+
+  const handleAuthSuccess = useCallback(
+    (token: string, user: AuthUser) => {
+      const expiresAt = decodeJwtExpiry(token);
+      setAuth(token, user, expiresAt ?? undefined);
+
+      // Remember-me only persists the username (not the password or token).
+      if (rememberMe) {
+        localStorage.setItem(STORAGE_KEY_USERNAME, usernameOrEmail);
+        localStorage.setItem(STORAGE_KEY_REMEMBER, "true");
+      } else {
+        localStorage.removeItem(STORAGE_KEY_USERNAME);
+        localStorage.removeItem(STORAGE_KEY_REMEMBER);
       }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isPending, lockoutRemaining]);
 
-  const formatLockoutTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
+      // Route based on account status.
+      if (user.status === "PENDING_DELETION") {
+        router.push("/account-recovery");
+        return;
+      }
+      redirectAfterLogin();
+    },
+    [rememberMe, usernameOrEmail, setAuth, router, redirectAfterLogin],
+  );
 
-  const handleRememberMeChange = (checked: boolean) => {
-    setRememberMe(checked);
-    if (checked) {
-      localStorage.setItem(STORAGE_KEY_REMEMBER, "true");
-    } else {
-      localStorage.removeItem(STORAGE_KEY_REMEMBER);
-    }
-  };
-
-  const handleUsernameChange = (value: string) => {
-    setUsernameOrEmail(value);
-    // Save username for form persistence
-    if (value && rememberMe) {
-      localStorage.setItem(STORAGE_KEY_USERNAME, value);
-    } else {
-      localStorage.removeItem(STORAGE_KEY_USERNAME);
-    }
-  };
+  const handleLoginResponse = useCallback(
+    (response: { success: boolean; data?: { accessToken: string; user: AuthUser } | null; message?: string }) => {
+      if (!response.success || !response.data) {
+        return false;
+      }
+      toast.success(t("successToast"));
+      handleAuthSuccess(response.data.accessToken, response.data.user);
+      return true;
+    },
+    [t, handleAuthSuccess],
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,24 +176,12 @@ export function LoginForm() {
       },
       {
         onSuccess: (response) => {
-          if (response.success && response.data) {
-            setAuth(response.data.accessToken, response.data.user);
-            // Update remember me storage on successful login
-            if (rememberMe) {
-              localStorage.setItem(STORAGE_KEY_USERNAME, usernameOrEmail);
-              localStorage.setItem(STORAGE_KEY_REMEMBER, "true");
-            } else {
-              localStorage.removeItem(STORAGE_KEY_USERNAME);
-              localStorage.removeItem(STORAGE_KEY_REMEMBER);
-            }
-            toast.success(t("successToast"));
-            router.push("/dashboard");
-          } else {
+          if (!handleLoginResponse(response)) {
             setError(response.message || t("errorToast"));
           }
         },
         onError: (err: any) => {
-          const apiError = err.errors?.[0];
+          const apiError = err?.errors?.[0];
           const errorCode = apiError?.code;
 
           if (errorCode === "BAD_CREDENTIALS") {
@@ -137,15 +190,16 @@ export function LoginForm() {
             setError(t("accountLocked"));
             setLockoutRemaining(LOCKOUT_DURATION);
           } else if (errorCode === "REGISTRATION_IN_PROGRESS") {
-            // Redirect to OTP verification page with email
-            const redirectTo = err.data?.redirectTo || "/verify-otp";
-            const email = err.data?.email || usernameOrEmail;
-            router.push(`${redirectTo}?email=${encodeURIComponent(email)}`);
+            const redirectTo = err?.data?.redirectTo || "/verify-otp";
+            const email = err?.data?.email || usernameOrEmail;
+            // Persist email in sessionStorage so the user does not see it in the URL.
+            sessionStorage.setItem(STORAGE_KEY_PENDING_EMAIL, email);
+            router.push(redirectTo);
             return;
           } else if (errorCode === "ACCOUNT_BANNED") {
             setError(t("accountBanned"));
           } else {
-            setError(err.message || t("errorToast"));
+            setError(err?.message || t("errorToast"));
           }
           toast.error(t("errorToast"));
         },
@@ -153,45 +207,79 @@ export function LoginForm() {
     );
   };
 
-  const handleGoogleLogin = () => {
-    // Check if Google Identity Services is available
-    if (typeof window !== "undefined" && (window as any).google) {
-      const client = (window as any).google.accounts.oauth2.initTokenClient({
-        client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
-        scope: "email profile openid",
-        callback: (response: any) => {
-          if (response.error) {
-            toast.error(t("googleLoginError") || "Google login failed");
+  const handleGoogleCredential = (idToken: string) => {
+    loginWithGoogleMutate(
+      { data: { idToken } },
+      {
+        onSuccess: (response) => {
+          if (!handleLoginResponse(response)) {
+            toast.error(response.message || t("errorToast"));
+          }
+        },
+        onError: (err: any) => {
+          const apiError = err?.errors?.[0];
+          if (apiError?.code === "OAUTH_LINK_PASSWORD_REQUIRED") {
+            // Backend wants the existing LOCAL password to link Google.
+            // We need to retry the same call with linkingPassword.
+            setPendingGoogleIdToken(idToken);
+            setOauthLinkEmail(err?.data?.email || usernameOrEmail);
+            setOauthLinkOpen(true);
             return;
           }
-          loginWithGoogleMutate(
-            { data: { idToken: response.access_token } },
-            {
-              onSuccess: (res) => {
-                if (res.success && res.data) {
-                  setAuth(res.data.accessToken, res.data.user);
-                  toast.success(t("googleLoginSuccess") || "Login successful");
-                  router.push("/dashboard");
-                } else {
-                  toast.error(res.message || t("errorToast"));
-                }
-              },
-              onError: (err: any) => {
-                const apiError = err.errors?.[0];
-                if (apiError?.code === "ACCOUNT_BANNED") {
-                  toast.error(t("accountBanned"));
-                } else {
-                  toast.error(err.message || t("googleLoginError") || "Google login failed");
-                }
-              },
-            }
-          );
+          if (apiError?.code === "ACCOUNT_BANNED") {
+            toast.error(t("accountBanned"));
+          } else {
+            toast.error(err?.message || t("googleLoginError"));
+          }
         },
-      });
-      client.requestAccessToken();
-    } else {
-      toast.info(t("googleLoginUnavailable") || "Google login is not available");
+      }
+    );
+  };
+
+  const handleGoogleLogin = () => {
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      toast.error(t("googleInitFailed"));
+      return;
     }
+    if (typeof window === "undefined" || !window.google) {
+      toast.error(t("googleLoginUnavailable"));
+      return;
+    }
+    try {
+      window.google.accounts.id.prompt();
+    } catch {
+      toast.error(t("googleInitFailed"));
+    }
+  };
+
+  const handleOauthLinkSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pendingGoogleIdToken || !oauthLinkPassword) return;
+    loginWithGoogleMutate(
+      { data: { idToken: pendingGoogleIdToken, linkingPassword: oauthLinkPassword } },
+      {
+        onSuccess: (response) => {
+          if (response.success && response.data) {
+            toast.success(t("successToast"));
+            handleAuthSuccess(response.data.accessToken, response.data.user);
+          } else {
+            toast.error(response.message || t("errorToast"));
+          }
+          setOauthLinkOpen(false);
+          setOauthLinkPassword("");
+          setPendingGoogleIdToken(null);
+        },
+        onError: (err: any) => {
+          const apiError = err?.errors?.[0];
+          if (apiError?.code === "INVALID_PASSWORD") {
+            toast.error(t("incorrectCredentials"));
+          } else {
+            toast.error(err?.message || t("errorToast"));
+          }
+        },
+      }
+    );
   };
 
   return (
@@ -211,7 +299,12 @@ export function LoginForm() {
           aria-live="assertive"
           className="rounded-lg bg-neutral-100 p-3 text-xs font-semibold text-neutral-800 dark:bg-neutral-900 dark:text-neutral-200"
         >
-          {error}
+          <p>{error}</p>
+          {error === t("accountLocked") && (
+            <Link href="/forgot-password" className="mt-1 block underline">
+              {t("resetPasswordLink")}
+            </Link>
+          )}
         </div>
       )}
 
@@ -224,7 +317,7 @@ export function LoginForm() {
           type="text"
           disabled={isPending}
           value={usernameOrEmail}
-          onChange={(e) => handleUsernameChange(e.target.value)}
+          onChange={(e) => setUsernameOrEmail(e.target.value)}
           placeholder={t("usernamePlaceholder")}
           required
           tabIndex={1}
@@ -259,12 +352,21 @@ export function LoginForm() {
         />
       </div>
 
-      {/* Remember Me */}
+      {/* Remember Me - username only, not session */}
       <div className="flex items-center gap-2">
         <Checkbox
           id="rememberMe"
           checked={rememberMe}
-          onCheckedChange={handleRememberMeChange}
+          onCheckedChange={(checked: boolean) => {
+            const next = !!checked;
+            setRememberMe(next);
+            if (next) {
+              localStorage.setItem(STORAGE_KEY_REMEMBER, "true");
+            } else {
+              localStorage.removeItem(STORAGE_KEY_REMEMBER);
+              localStorage.removeItem(STORAGE_KEY_USERNAME);
+            }
+          }}
           disabled={isPending}
           tabIndex={3}
         />
@@ -321,7 +423,7 @@ export function LoginForm() {
         <div className="flex-grow border-t border-neutral-200 dark:border-neutral-800" />
       </div>
 
-      {/* Google Login button */}
+      {/* Google Login button - uses Google Identity Services (ID token) */}
       <Button
         type="button"
         variant="outline"
@@ -345,6 +447,40 @@ export function LoginForm() {
           {t("registerLink")}
         </Link>
       </div>
+
+      {/* OAuth account linking dialog */}
+      <Dialog open={oauthLinkOpen} onOpenChange={setOauthLinkOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("oauthLinkTitle", { email: maskEmail(oauthLinkEmail) })}</DialogTitle>
+            <DialogDescription>{t("oauthLinkDesc")}</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleOauthLinkSubmit} className="flex flex-col gap-4">
+            <PasswordInput
+              id="oauthLinkPassword"
+              value={oauthLinkPassword}
+              onChange={(e) => setOauthLinkPassword(e.target.value)}
+              placeholder={t("passwordPlaceholder")}
+              required
+              autoComplete="current-password"
+            />
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button type="button" variant="outline" onClick={() => setOauthLinkOpen(false)}>
+                {t("cancel")}
+              </Button>
+              <Button type="submit">{t("submit")}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </form>
   );
 }
+
+function formatLockoutTime(seconds: number) {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+void persistReturnTo; // re-export style placeholder

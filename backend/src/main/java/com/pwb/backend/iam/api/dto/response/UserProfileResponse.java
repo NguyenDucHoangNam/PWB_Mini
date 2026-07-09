@@ -1,5 +1,7 @@
 package com.pwb.backend.iam.api.dto.response;
 
+import java.time.Instant;
+
 public record UserProfileResponse(
     String username,
     String email,
@@ -7,5 +9,7 @@ public record UserProfileResponse(
     String role,
     String status,
     String avatarUrl,
-    String phone
+    String phone,
+    String oauthProvider,
+    Instant deletionRequestedAt
 ) {}

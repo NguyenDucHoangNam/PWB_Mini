@@ -1,21 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { MinimalLayout } from "@/components/layout/minimal-layout";
 import { Button } from "@/components/ui/button";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 
 export default function NotFound() {
   const t = useTranslations("errors.404");
-  const [homePath, setHomePath] = useState("/");
-
-  useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      setHomePath("/dashboard");
-    }
-  }, []);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
 
   return (
     <MinimalLayout>
@@ -52,7 +45,7 @@ export default function NotFound() {
         </p>
 
         {/* CTA */}
-        <Link href={homePath} className="mt-8 w-full">
+        <Link href={isAuthenticated ? "/dashboard" : "/"} className="mt-8 w-full">
           <Button variant="default" size="lg" className="w-full h-11 text-sm font-semibold">
             {t("btn")}
           </Button>

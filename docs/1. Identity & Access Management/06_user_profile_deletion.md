@@ -379,3 +379,30 @@ graph TD
 | `INFO` | Profile update success | `{"event": "PROFILE_UPDATE_SUCCESS", "userId": "c8b74f51-...", "updatedFields": ["fullName", "phone"]}` |
 | `WARN` | Account deletion requested | `{"event": "ACCOUNT_DELETION_REQUESTED", "userId": "c8b74f51-...", "email": "h***@gmail.com", "deletionDate": "2026-08-01T12:10:00Z"}` |
 | `ERROR` | Profile update validation failure | `{"event": "PROFILE_UPDATE_VALIDATION_FAILED", "userId": "c8b74f51-...", "errors": "..."}` |
+
+---
+
+## ➕ Phụ lục (Addendum - bổ sung theo audit 2026-07-08)
+
+### A1. Endpoint hủy yêu cầu xóa tài khoản
+
+*   `POST /api/v1/auth/account/cancel-deletion` (Bearer access token)
+*   Phản hồi thành công: HTTP 200 với `ApiResponse<UserProfileResponse>` mới (status = `ACTIVE`, `deletionRequestedAt = null`).
+*   Mã lỗi có thể trả về:
+    *   `VALIDATION_FAILED` - tài khoản không ở trạng thái `PENDING_DELETION`.
+    *   `USER_NOT_EXISTED` - access token không hợp lệ / user không tồn tại.
+    *   `UNAUTHORIZED` - thiếu hoặc sai Authorization header.
+*   Backend đồng thời ghi outbox event `ACCOUNT_DELETION_CANCELLED` để Kafka phát tín hiệu soft-unhide dữ liệu của các module nghiệp vụ khác.
+
+### A2. Endpoint upload avatar trực tiếp (multipart)
+
+*   `POST /api/v1/auth/profile/avatar` với Content-Type `multipart/form-data` và field `file` (image/jpeg, image/jpg, image/png, ≤ 2MB).
+*   Phản hồi thành công: HTTP 200 với `ApiResponse<AvatarUploadResponse>` trong đó `data.avatarUrl` là URL public trên object storage.
+*   Backend tự upload lên storage, cập nhật `users.avatar_url` của user hiện tại, trả về response chứa URL mới để frontend cập nhật UI.
+*   Frontend phải `URL.revokeObjectURL` cho object URL preview để tránh leak memory; chỉ gọi upload khi submit form.
+
+### A3. Route khôi phục tài khoản
+
+*   Trang `/account-recovery` được FE mount khi login API trả về `data.user.status === "PENDING_DELETION"` hoặc khi `GET /auth/me` phát hiện status đó (sau khi dashboard layout refresh).
+*   Số ngày còn lại hiển thị = `30 - (now - user.deletionRequestedAt) ngày`, làm tròn lên (`Math.ceil`).
+*   Trang gọi endpoint `POST /api/v1/auth/account/cancel-deletion` (xem A1) — KHÔNG dùng mock timeout.

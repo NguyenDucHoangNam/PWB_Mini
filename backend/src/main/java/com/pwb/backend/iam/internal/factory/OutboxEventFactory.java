@@ -33,6 +33,7 @@ public class OutboxEventFactory {
   public static final String EVENT_TYPE_WELCOME_EMAIL = "WELCOME_EMAIL";
   public static final String EVENT_TYPE_PASSWORD_RESET = "PASSWORD_RESET";
   public static final String EVENT_TYPE_ACCOUNT_DELETION_REQUESTED = "ACCOUNT_DELETION_REQUESTED";
+  public static final String EVENT_TYPE_ACCOUNT_DELETION_CANCELLED = "ACCOUNT_DELETION_CANCELLED";
   public static final String EVENT_TYPE_ACCOUNT_ANONYMIZED = "ACCOUNT_ANONYMIZED";
 
   private final OutboxEventRepository outboxEventRepository;
@@ -107,6 +108,17 @@ public class OutboxEventFactory {
     payload.put("status", "ANONYMIZED");
     payload.put("locale", locale);
     return createAndPublish(EVENT_TYPE_ACCOUNT_ANONYMIZED, userId, payload);
+  }
+
+  public OutboxEvent accountDeletionCancelled(User user, String locale) {
+    Map<String, Object> payload = new HashMap<>();
+    payload.put("eventType", EVENT_TYPE_ACCOUNT_DELETION_CANCELLED);
+    payload.put("email", user.getEmail());
+    payload.put("fullName", user.getFullName() == null ? "" : user.getFullName());
+    payload.put("userId", user.getId());
+    payload.put("status", user.getStatus() == null ? "ACTIVE" : user.getStatus().name());
+    payload.put("locale", locale);
+    return createAndPublish(EVENT_TYPE_ACCOUNT_DELETION_CANCELLED, user.getId(), payload);
   }
 
   public OutboxEvent anomalousLogin(User user, String ip, String location, String device) {

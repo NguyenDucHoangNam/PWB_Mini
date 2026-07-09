@@ -9,11 +9,10 @@ import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useLogout } from "@/features/auth/api/account";
 import { abortRefresh } from "@/lib/auth-refresh";
+import { useAuthChannelSync, broadcastAuthMessage } from "@/lib/use-auth-channel";
+import { isPublicPath } from "@/lib/config";
 import { LocaleSwitcher } from "./locale-switcher";
 import { toast } from "sonner";
-
-// BroadcastChannel for multi-tab sync
-const AUTH_CHANNEL = "pwb_auth_channel";
 
 export function SiteHeaderClient() {
   const t = useTranslations("header");
@@ -32,37 +31,25 @@ export function SiteHeaderClient() {
 
   const { mutate: logoutMutate } = useLogout();
 
+  // Cross-tab auth sync (singleton BroadcastChannel).
+  useAuthChannelSync();
+
   // Handle Hydration mismatch
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Setup BroadcastChannel for multi-tab logout sync
+  // On cross-tab LOGOUT, redirect to /login (useAuthChannelSync already
+  // clears the auth store). Skip redirect if on a public path.
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    const channel = new BroadcastChannel(AUTH_CHANNEL);
-    channel.onmessage = (event) => {
-      if (event.data.type === "LOGOUT") {
-        // Cancel any ongoing refresh
-        abortRefresh();
-        // Clear auth state
-        useAuthStore.getState().clearAuth();
-        // Redirect to login
-        router.push("/login");
-        toast.info(t("sessionExpired") || "Session expired on another tab");
-      } else if (event.data.type === "TOKEN_UPDATED") {
-        // Sync token from another tab
-        if (event.data.token && event.data.user) {
-          useAuthStore.getState().setAuth(event.data.token, event.data.user);
-        }
-      }
-    };
-
-    return () => {
-      channel.close();
-    };
-  }, [router, t]);
+    if (!isLoggedIn && !isPublicPath(pathname)) {
+      router.push("/login");
+      toast.info(t("sessionExpired"));
+    }
+    // We intentionally only react to isLoggedIn flipping to false.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn]);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -76,34 +63,20 @@ export function SiteHeaderClient() {
   }, []);
 
   const handleLogout = () => {
-    // Cancel any ongoing refresh requests first
     abortRefresh();
 
     logoutMutate(undefined, {
-      onSuccess: (res) => {
-        if (res.success) {
-          toast.success(t("logout") + " " + (res.message || "thành công"));
-        }
-        // Broadcast logout to other tabs
-        if (typeof window !== "undefined") {
-          const channel = new BroadcastChannel(AUTH_CHANNEL);
-          channel.postMessage({ type: "LOGOUT" });
-          channel.close();
-        }
+      onSuccess: () => {
+        broadcastAuthMessage({ type: "LOGOUT" });
         setShowDropdown(false);
         setIsOpen(false);
         router.push("/login");
       },
       onError: () => {
-        // Force clear auth even if API fails
+        // Force clear auth even if API fails.
         useAuthStore.getState().clearAuth();
-        // Broadcast logout to other tabs
-        if (typeof window !== "undefined") {
-          const channel = new BroadcastChannel(AUTH_CHANNEL);
-          channel.postMessage({ type: "LOGOUT" });
-          channel.close();
-        }
-        toast.success(t("logout") + " thành công");
+        broadcastAuthMessage({ type: "LOGOUT" });
+        toast.success(t("logout"));
         setShowDropdown(false);
         setIsOpen(false);
         router.push("/login");

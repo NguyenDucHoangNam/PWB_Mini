@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.iam.api.dto.request.LoginRequest;
 import com.pwb.backend.iam.internal.service.AccountLifecycleService;
 import com.pwb.backend.iam.internal.service.AuthService;
+import com.pwb.backend.iam.internal.service.AvatarUploadService;
 import com.pwb.backend.iam.internal.service.SessionService;
 import com.pwb.backend.shared.security.IpRateLimitFilter;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +30,7 @@ class AuthControllerRateLimitFilterIntegrationTest {
   private AuthService authService;
   private SessionService sessionService;
   private AccountLifecycleService accountLifecycleService;
+  private AvatarUploadService avatarUploadService;
   private MessageSource messageSource;
   private StringRedisTemplate redisTemplate;
   private IpRateLimitFilter rateLimitFilter;
@@ -39,6 +41,7 @@ class AuthControllerRateLimitFilterIntegrationTest {
     authService = mock(AuthService.class);
     sessionService = mock(SessionService.class);
     accountLifecycleService = mock(AccountLifecycleService.class);
+    avatarUploadService = mock(AvatarUploadService.class);
     messageSource = mock(MessageSource.class);
     redisTemplate = mock(StringRedisTemplate.class);
     ValueOperations<String, String> ops = mock(ValueOperations.class);
@@ -46,7 +49,7 @@ class AuthControllerRateLimitFilterIntegrationTest {
 
     rateLimitFilter = new IpRateLimitFilter(redisTemplate, 2, 60);
 
-    AuthController controller = new AuthController(authService, sessionService, accountLifecycleService, messageSource);
+    AuthController controller = new AuthController(authService, sessionService, accountLifecycleService, avatarUploadService, messageSource);
     mockMvc = MockMvcBuilders.standaloneSetup(controller)
         .addFilters(rateLimitFilter)
         .build();
@@ -81,7 +84,7 @@ class AuthControllerRateLimitFilterIntegrationTest {
 
   @Test
   void requestToNonAuthEndpoint_skipsFilter() throws Exception {
-    AuthController controller = new AuthController(authService, sessionService, accountLifecycleService, messageSource);
+    AuthController controller = new AuthController(authService, sessionService, accountLifecycleService, avatarUploadService, messageSource);
     mockMvc = MockMvcBuilders.standaloneSetup(controller)
         .addFilters(rateLimitFilter)
         .build();

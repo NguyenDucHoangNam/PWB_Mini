@@ -9,6 +9,7 @@ public record VerifyOtpResponse(
       String username,
       String email,
       String fullName,
-      String status
+      String status,
+      String oauthProvider
   ) {}
 }

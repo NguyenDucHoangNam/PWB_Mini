@@ -1,17 +1,19 @@
 import axios from "axios";
 import { API_BASE_URL } from "./constants";
-import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import { useAuthStore, type AuthUser } from "@/features/auth/stores/use-auth-store";
+import { decodeJwtExpiry } from "./jwt-decode";
 import type { ApiResponse } from "@/types/api";
 import type { RefreshResponse } from "@/features/auth/types";
+import { AUTH_CHANNEL, broadcastAuthMessage } from "./broadcast-channel";
 
 let isRefreshing = false;
 let failedQueue: Array<{
   resolve: (token: string) => void;
-  reject: (error: any) => void;
+  reject: (error: unknown) => void;
 }> = [];
 let activeRefreshController: AbortController | null = null;
 
-const processQueue = (error: any, token: string | null = null) => {
+const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
@@ -27,7 +29,6 @@ export const abortRefresh = () => {
     activeRefreshController.abort();
     activeRefreshController = null;
   }
-  // Reset state
   isRefreshing = false;
   failedQueue = [];
 };
@@ -43,37 +44,61 @@ export const refreshAccessToken = async (): Promise<string> => {
   activeRefreshController = new AbortController();
 
   try {
-    const expiredToken = useAuthStore.getState().accessToken;
-    // Call refresh API with expired access token in auth header and refresh token in cookie
+    // Refresh relies solely on the httpOnly refresh cookie. Do NOT send
+    // Authorization header here - sending an empty Bearer token is a
+    // common bug and leaks a partial header to the server.
     const response = await axios.post<ApiResponse<RefreshResponse>>(
       `${API_BASE_URL}/auth/refresh`,
       {},
       {
-        headers: {
-          Authorization: `Bearer ${expiredToken || ""}`,
-        },
-        withCredentials: true, // Send httpOnly cookie
+        withCredentials: true,
         signal: activeRefreshController.signal,
-      }
+      },
     );
 
-    if (response.data.success && response.data.data) {
-      const { accessToken } = response.data.data;
-      const currentUser = useAuthStore.getState().user;
-
-      if (currentUser) {
-        // Save new token to store (this will trigger tab sync)
-        useAuthStore.getState().setAuth(accessToken, currentUser);
-      }
-
-      processQueue(null, accessToken);
-      return accessToken;
-    } else {
+    if (!response.data.success || !response.data.data) {
       throw new Error(response.data.message || "Failed to refresh token");
     }
-  } catch (error: any) {
-    // Ignore abort errors
-    if (error.name === "AbortError" || error.code === "ERR_CANCELED") {
+
+    const { accessToken } = response.data.data;
+    const expiresAt = decodeJwtExpiry(accessToken);
+    let user: AuthUser | null = useAuthStore.getState().user;
+
+    // If we don't have a user in memory yet (e.g. fresh tab refresh), fetch
+    // the profile so other tabs and the rest of the app have valid data.
+    if (!user) {
+      try {
+        const profileResponse = await axios.get<ApiResponse<AuthUser>>(
+          `${API_BASE_URL}/auth/me`,
+          {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            withCredentials: true,
+          },
+        );
+        if (profileResponse.data.success && profileResponse.data.data) {
+          user = profileResponse.data.data;
+        }
+      } catch {
+        // If profile fetch fails we still keep the new token; downstream
+        // requests will surface the error.
+      }
+    }
+
+    if (user) {
+      useAuthStore.getState().setAuth(accessToken, user, expiresAt ?? undefined);
+    } else {
+      useAuthStore.setState({ accessToken, accessTokenExpiresAt: expiresAt });
+    }
+
+    // Cross-tab sync - propagate the new token so other tabs can update.
+    if (user) {
+      broadcastAuthMessage({ type: "TOKEN_UPDATED", token: accessToken, user });
+    }
+
+    processQueue(null, accessToken);
+    return accessToken;
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error) && (error.name === "CanceledError" || error.code === "ERR_CANCELED")) {
       const abortError = new Error("Refresh aborted");
       abortError.name = "AbortError";
       processQueue(abortError, null);

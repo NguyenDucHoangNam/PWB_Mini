@@ -23,15 +23,36 @@ public interface UserMapper {
   @Mapping(target = "oauthProvider", ignore = true)
   @Mapping(target = "oauthId", ignore = true)
   @Mapping(target = "avatarUrl", ignore = true)
-  @Mapping(target = "password", ignore = true)
   @Mapping(target = "phone", ignore = true)
   @Mapping(target = "deletionRequestedAt", ignore = true)
+  @Mapping(target = "password", ignore = true)
   User toEntity(RegisterRequest request);
 
   RegisterResponse toRegisterResponse(User user);
 
-  VerifyOtpResponse.UserInfo toUserInfo(User user);
+  default VerifyOtpResponse.UserInfo toUserInfo(User user) {
+    if (user == null) return null;
+    return new VerifyOtpResponse.UserInfo(
+        user.getUsername(),
+        user.getEmail(),
+        user.getFullName(),
+        user.getStatus() == null ? null : user.getStatus().name(),
+        user.getOauthProvider() == null ? "LOCAL" : user.getOauthProvider().name()
+    );
+  }
 
-  @Mapping(target = "role", source = "user.role.name")
-  UserProfileResponse toUserProfileResponse(User user);
+  default UserProfileResponse toUserProfileResponse(User user) {
+    if (user == null) return null;
+    return new UserProfileResponse(
+        user.getUsername(),
+        user.getEmail(),
+        user.getFullName(),
+        user.getRole() == null ? null : user.getRole().getName(),
+        user.getStatus() == null ? null : user.getStatus().name(),
+        user.getAvatarUrl(),
+        user.getPhone(),
+        user.getOauthProvider() == null ? "LOCAL" : user.getOauthProvider().name(),
+        user.getDeletionRequestedAt()
+    );
+  }
 }

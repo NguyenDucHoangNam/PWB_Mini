@@ -1,43 +1,98 @@
 import { useMutation } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
-import type { MutationConfig } from "@/lib/react-query";
 import type { ApiResponse } from "@/types/api";
-import type { LoginRequest, LoginResponse, Oauth2LoginRequest } from "../types";
+import type {
+  LoginRequest,
+  LoginResponse,
+  Oauth2LoginRequest,
+  VerifyOtpResponse,
+  RegisterRequest,
+  RegisterResponse,
+  ResendOtpRequest,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
+  VerifyOtpRequest,
+  CheckUsernameResponse,
+} from "../types";
 
-export const login = ({
-  data,
-}: {
-  data: LoginRequest;
-}): Promise<ApiResponse<LoginResponse>> => {
-  return apiClient.post("/auth/login", data).then((res) => res.data);
-};
-
-export const loginWithGoogle = ({
-  data,
-}: {
-  data: Oauth2LoginRequest;
-}): Promise<ApiResponse<LoginResponse>> => {
-  return apiClient.post("/auth/login/google", data).then((res) => res.data);
-};
-
-type UseLoginOptions = {
-  mutationConfig?: MutationConfig<typeof login>;
-};
-
-export const useLogin = ({ mutationConfig }: UseLoginOptions = {}) => {
+export function useLogin() {
   return useMutation({
-    ...mutationConfig,
-    mutationFn: login,
+    mutationFn: async ({ data }: { data: LoginRequest }): Promise<ApiResponse<LoginResponse>> => {
+      const res = await apiClient.post<ApiResponse<LoginResponse>>("/auth/login", data);
+      return res.data;
+    },
   });
-};
+}
 
-type UseLoginWithGoogleOptions = {
-  mutationConfig?: MutationConfig<typeof loginWithGoogle>;
-};
-
-export const useLoginWithGoogle = ({ mutationConfig }: UseLoginWithGoogleOptions = {}) => {
+export function useLoginWithGoogle() {
   return useMutation({
-    ...mutationConfig,
-    mutationFn: loginWithGoogle,
+    mutationFn: async ({
+      data,
+    }: {
+      data: Oauth2LoginRequest;
+    }): Promise<ApiResponse<LoginResponse>> => {
+      const res = await apiClient.post<ApiResponse<LoginResponse>>("/auth/oauth2/google", data);
+      return res.data;
+    },
   });
-};
+}
+
+export function useVerifyOtp() {
+  return useMutation({
+    mutationFn: async ({
+      data,
+    }: {
+      data: VerifyOtpRequest;
+    }): Promise<ApiResponse<VerifyOtpResponse>> => {
+      const res = await apiClient.post<ApiResponse<VerifyOtpResponse>>("/auth/verify-otp", data);
+      return res.data;
+    },
+  });
+}
+
+export function useResendOtp() {
+  return useMutation({
+    mutationFn: async ({ data }: { data: ResendOtpRequest }) => {
+      const res = await apiClient.post<ApiResponse<unknown>>("/auth/otp/resend", data);
+      return res.data;
+    },
+  });
+}
+
+export function useRegister() {
+  return useMutation({
+    mutationFn: async ({
+      data,
+    }: {
+      data: RegisterRequest;
+    }): Promise<ApiResponse<RegisterResponse>> => {
+      const res = await apiClient.post<ApiResponse<RegisterResponse>>("/auth/register", data);
+      return res.data;
+    },
+  });
+}
+
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: async ({ data }: { data: ForgotPasswordRequest }) => {
+      const res = await apiClient.post<ApiResponse<unknown>>("/auth/forgot-password", data);
+      return res.data;
+    },
+  });
+}
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: async ({ data }: { data: ResetPasswordRequest }) => {
+      const res = await apiClient.post<ApiResponse<unknown>>("/auth/reset-password", data);
+      return res.data;
+    },
+  });
+}
+
+export async function checkUsername(username: string): Promise<ApiResponse<CheckUsernameResponse>> {
+  const res = await apiClient.get<ApiResponse<CheckUsernameResponse>>(
+    `/auth/check-username?username=${encodeURIComponent(username)}`,
+  );
+  return res.data;
+}

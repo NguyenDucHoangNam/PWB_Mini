@@ -27,3 +27,7 @@ app:
   security:
     cors:
       allowed-origins: ${CORS_ALLOWED_ORIGINS}
+iam:
+  session:
+    cookie-secure: true
+    cookie-same-site: Lax

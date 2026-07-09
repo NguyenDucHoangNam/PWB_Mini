@@ -6,10 +6,13 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.pwb.backend.iam.api.dto.request.DeleteAccountRequest;
 import com.pwb.backend.iam.api.dto.response.TriggerAnonymizationResponse;
+import com.pwb.backend.iam.api.dto.response.UserProfileResponse;
 import com.pwb.backend.iam.internal.config.IamProperties;
 import com.pwb.backend.iam.internal.enums.UserStatus;
 import com.pwb.backend.iam.internal.factory.OutboxEventFactory;
+import com.pwb.backend.iam.internal.helper.JwtPrincipalExtractor;
 import com.pwb.backend.iam.internal.helper.LoginLockoutHelper;
+import com.pwb.backend.iam.internal.mapper.UserMapper;
 import com.pwb.backend.iam.internal.model.User;
 import com.pwb.backend.iam.internal.repository.UserRepository;
 import com.pwb.backend.shared.exception.BusinessException;
@@ -24,6 +27,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -46,7 +50,9 @@ public class AccountLifecycleService {
   private final JwtService jwtService;
   private final IamProperties iamProperties;
   private final OutboxEventFactory outboxEventFactory;
+  private final UserMapper userMapper;
   private final PlatformTransactionManager transactionManager;
+  private final LoginLockoutHelper loginLockoutHelper;
   private GoogleIdTokenVerifier googleVerifier;
 
   @PostConstruct
@@ -81,14 +87,14 @@ public class AccountLifecycleService {
     }
 
     String userId = user.getId();
-    LoginLockoutHelper.ensureNotLocked(redisTemplate, userId);
+    loginLockoutHelper.ensureNotLocked(redisTemplate, userId);
 
     if (user.getPassword() != null) {
       if (request.password() == null || !passwordEncoder.matches(request.password(), user.getPassword())) {
-        LoginLockoutHelper.recordFailure(redisTemplate, userId);
+        loginLockoutHelper.recordFailure(redisTemplate, userId);
         throw new BusinessException(ErrorCode.INVALID_PASSWORD, "Incorrect password confirmation");
       }
-      redisTemplate.delete(LoginLockoutHelper.attemptsKey(userId));
+      redisTemplate.delete(loginLockoutHelper.attemptsKey(userId));
     } else {
       if (request.idToken() == null) {
         throw new BusinessException(ErrorCode.INVALID_OAUTH_TOKEN, "Google idToken is required");
@@ -125,6 +131,34 @@ public class AccountLifecycleService {
     sessionService.clearRefreshCookie(response);
   }
 
+  @Transactional
+  public UserProfileResponse cancelDeletion(String authHeader) {
+    String email = JwtPrincipalExtractor.requireEmailFromHeader(authHeader, jwtService);
+
+    User user = userRepository.findByEmailAndDeletedFalse(email)
+        .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
+
+    if (user.getStatus() != UserStatus.PENDING_DELETION) {
+      throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+          "Account is not pending deletion");
+    }
+
+    Instant now = Instant.now();
+    if (user.getDeletionRequestedAt() != null
+        && now.isAfter(user.getDeletionRequestedAt().plus(30, ChronoUnit.DAYS))) {
+      throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+          "The 30-day grace period has elapsed, account cannot be recovered");
+    }
+
+    user.setStatus(UserStatus.ACTIVE);
+    user.setDeletionRequestedAt(null);
+    User saved = userRepository.save(user);
+
+    outboxEventFactory.accountDeletionCancelled(saved, LocaleContextHolder.getLocale().getLanguage());
+
+    return userMapper.toUserProfileResponse(saved);
+  }
+
   public TriggerAnonymizationResponse triggerAnonymization() {
     long startTime = System.currentTimeMillis();
     Instant cutoff = Instant.now().minus(30, ChronoUnit.DAYS);
@@ -152,7 +186,7 @@ public class AccountLifecycleService {
     String userId = user.getId();
     sessionService.revokeAllUserSessions(userId);
     redisTemplate.delete("user:last_login:" + userId);
-    LoginLockoutHelper.clear(redisTemplate, userId);
+    loginLockoutHelper.clear(redisTemplate, userId);
 
     user.setUsername("deleted_user_" + userId);
     user.setEmail("deleted_" + userId + "@pwbmini.com");

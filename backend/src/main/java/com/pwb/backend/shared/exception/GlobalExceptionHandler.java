@@ -26,10 +26,10 @@ public class GlobalExceptionHandler {
     private final MessageSource messageSource;
 
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex) {
+    public ResponseEntity<ApiResponse<Object>> handleBusinessException(BusinessException ex) {
         log.warn("Business exception occurred: code={}, message={}", ex.getErrorCode().getCode(), ex.getMessage());
         ErrorCode errorCode = ex.getErrorCode();
-        
+
         String translatedMessage;
         try {
             translatedMessage = messageSource.getMessage(
@@ -42,7 +42,7 @@ public class GlobalExceptionHandler {
         }
 
         ErrorDetail detail = new ErrorDetail(errorCode.getCode(), null, translatedMessage);
-        ApiResponse<Void> response = ApiResponse.error(translatedMessage, List.of(detail));
+        ApiResponse<Object> response = ApiResponse.error(translatedMessage, ex.getData(), List.of(detail));
         return new ResponseEntity<>(response, errorCode.getHttpStatus());
     }
 

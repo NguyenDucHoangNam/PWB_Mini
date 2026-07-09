@@ -1,61 +1,56 @@
 import { create } from "zustand";
-import { LoginUserInfo } from "../types";
+import type { LoginUserInfo } from "../types";
+
+export type OAuthProvider = "LOCAL" | "GOOGLE";
+
+export interface AuthUser extends LoginUserInfo {
+  oauthProvider: OAuthProvider;
+}
 
 interface AuthState {
   accessToken: string | null;
-  user: LoginUserInfo | null;
-  lastActivity: number;
-  setAuth: (token: string, user: LoginUserInfo) => void;
+  user: AuthUser | null;
+  // Mirror of accessToken expiry in epoch milliseconds (so we can compute session-timeout from real JWT exp).
+  // Stored in memory only (never persisted).
+  accessTokenExpiresAt: number | null;
+  setAuth: (token: string, user: AuthUser, expiresAt?: number) => void;
+  setUser: (user: AuthUser) => void;
   clearAuth: () => void;
-  setLastActivity: (timestamp: number) => void;
   isAuthenticated: () => boolean;
 }
 
+/**
+ * Auth store - in-memory only.
+ *
+ * Security: the access token lives in memory (Zustand) and is NEVER written to
+ * localStorage / sessionStorage. The httpOnly refresh cookie (issued by the
+ * backend) is the only persistent credential carrier. This prevents XSS from
+ * exfiltrating the access token.
+ *
+ * Cross-tab sync is done through BroadcastChannel (`pwb_auth_channel`) which
+ * posts `LOGOUT` and `TOKEN_UPDATED` messages. localStorage `storage` events
+ * are not used because they are unreliable for non-storage changes.
+ */
 export const useAuthStore = create<AuthState>((set, get) => ({
-  accessToken: typeof window !== "undefined" ? localStorage.getItem("accessToken") : null,
-  user: typeof window !== "undefined" ? (() => {
-    const userStr = localStorage.getItem("authUser");
-    try {
-      return userStr ? JSON.parse(userStr) : null;
-    } catch {
-      return null;
-    }
-  })() : null,
-  lastActivity: typeof window !== "undefined" ? (() => {
-    const saved = localStorage.getItem("lastActivity");
-    return saved ? parseInt(saved, 10) : Date.now();
-  })() : Date.now(),
+  accessToken: null,
+  user: null,
+  accessTokenExpiresAt: null,
 
-  setAuth: (token, user) => {
-    const now = Date.now();
-    if (typeof window !== "undefined") {
-      localStorage.setItem("accessToken", token);
-      localStorage.setItem("authUser", JSON.stringify(user));
-      localStorage.setItem("lastActivity", now.toString());
-      // Trigger storage event to sync other components/tabs
-      window.dispatchEvent(new Event("storage"));
-    }
-    set({ accessToken: token, user, lastActivity: now });
+  setAuth: (token, user, expiresAt) => {
+    set({
+      accessToken: token,
+      user,
+      accessTokenExpiresAt: expiresAt ?? get().accessTokenExpiresAt,
+    });
+  },
+
+  setUser: (user) => {
+    set({ user });
   },
 
   clearAuth: () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("authUser");
-      localStorage.removeItem("lastActivity");
-      window.dispatchEvent(new Event("storage"));
-    }
-    set({ accessToken: null, user: null, lastActivity: 0 });
+    set({ accessToken: null, user: null, accessTokenExpiresAt: null });
   },
 
-  setLastActivity: (timestamp: number) => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("lastActivity", timestamp.toString());
-    }
-    set({ lastActivity: timestamp });
-  },
-
-  isAuthenticated: () => {
-    return !!get().accessToken;
-  },
+  isAuthenticated: () => !!get().accessToken,
 }));

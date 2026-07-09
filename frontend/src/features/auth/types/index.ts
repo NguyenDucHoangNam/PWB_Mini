@@ -3,12 +3,15 @@ export interface LoginRequest {
   password: string;
 }
 
+export type OAuthProvider = "LOCAL" | "GOOGLE";
+
 export interface LoginUserInfo {
   username: string;
   email: string;
   fullName: string;
   role?: string;
   status: string;
+  oauthProvider: OAuthProvider;
 }
 
 export interface LoginResponse {
@@ -19,6 +22,7 @@ export interface LoginResponse {
 
 export interface Oauth2LoginRequest {
   idToken: string;
+  linkingPassword?: string;
 }
 
 export interface RegisterRequest {
@@ -74,12 +78,18 @@ export interface UserProfileResponse {
   status: string;
   avatarUrl: string | null;
   phone: string | null;
+  oauthProvider: OAuthProvider;
+  deletionRequestedAt: string | null;
 }
 
 export interface UpdateProfileRequest {
   fullName: string;
   phone: string | null;
   avatarUrl: string | null;
+}
+
+export interface AvatarUploadResponse {
+  avatarUrl: string;
 }
 
 export interface ChangePasswordRequest {
@@ -107,3 +117,7 @@ export interface RefreshResponse {
   expiresIn: number;
 }
 
+export interface RegistrationInProgressData {
+  redirectTo: string;
+  email: string;
+}

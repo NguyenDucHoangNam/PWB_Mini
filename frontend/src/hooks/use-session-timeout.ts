@@ -1,68 +1,120 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import { refreshAccessToken, abortRefresh } from "@/lib/auth-refresh";
 
-const WARNING_BEFORE_EXPIRY = 60; // Show warning 60 seconds before token expiry
-const MIN_CHECK_INTERVAL = 5; // Check every 5 seconds
+const WARNING_THRESHOLD_MS = 60 * 1000; // warn when 60s remain before expiry
+const CHECK_INTERVAL_MS = 5 * 1000;
 
-export interface SessionStatus {
-  isExpiring: boolean;
-  secondsRemaining: number;
-  extendSession: () => void;
+interface UseSessionTimeoutOptions {
+  /**
+   * Called when the user has chosen to extend the session (the "Continue"
+   * button in the warning dialog). The implementation should attempt a
+   * refresh and reset the warning state.
+   */
+  onExtend?: () => Promise<void> | void;
+  /**
+   * Called when the user has chosen to log out immediately. The
+   * implementation should clear auth state and redirect to /login.
+   */
+  onLogout?: () => void;
 }
 
-export function useSessionTimeout(): SessionStatus {
-  const { accessToken, lastActivity, setLastActivity } = useAuthStore();
-  const [secondsRemaining, setSecondsRemaining] = useState(0);
-  const [isExpiring, setIsExpiring] = useState(false);
+export interface SessionTimeoutState {
+  showWarning: boolean;
+  remainingMs: number;
+  extend: () => Promise<void>;
+  logout: () => void;
+}
 
-  const extendSession = useCallback(() => {
-    setLastActivity(Date.now());
-    setIsExpiring(false);
-  }, [setLastActivity]);
+/**
+ * Detects when the JWT access token is about to expire and surfaces a
+ * warning UI before the user is silently logged out.
+ *
+ * The warning threshold is driven by the real JWT `exp` claim
+ * (decoded on token set) rather than a separate inactivity timer.
+ *
+ * Continue: refreshes the token via the silent refresh endpoint.
+ * Logout: clears auth state via the supplied `onLogout` callback.
+ */
+export function useSessionTimeout(options: UseSessionTimeoutOptions = {}): SessionTimeoutState {
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const accessTokenExpiresAt = useAuthStore((s) => s.accessTokenExpiresAt);
+  const user = useAuthStore((s) => s.user);
+  const [showWarning, setShowWarning] = useState(false);
+  const [remainingMs, setRemainingMs] = useState<number>(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isRefreshingRef = useRef(false);
 
-  useEffect(() => {
-    if (!accessToken) {
-      setSecondsRemaining(0);
-      setIsExpiring(false);
+  const evaluate = useCallback(() => {
+    if (!accessToken || !accessTokenExpiresAt || !user) {
+      // setState only when actually changing - prevents a re-render every
+      // 5 seconds for users who simply aren't logged in.
+      setShowWarning((prev) => (prev ? false : prev));
+      setRemainingMs((prev) => (prev === 0 ? prev : 0));
       return;
     }
+    const remaining = Math.max(0, accessTokenExpiresAt - Date.now());
+    const shouldShow = remaining > 0 && remaining <= WARNING_THRESHOLD_MS;
 
-    const checkSession = () => {
-      const now = Date.now();
-      const timeSinceActivity = now - lastActivity;
-      // Assume session timeout is 30 minutes (1800000ms)
-      const sessionTimeout = 30 * 60 * 1000;
-      const remaining = Math.max(0, sessionTimeout - timeSinceActivity);
-      
-      setSecondsRemaining(Math.floor(remaining / 1000));
-      setIsExpiring(remaining <= WARNING_BEFORE_EXPIRY * 1000 && remaining > 0);
-    };
+    // Conditional setters avoid triggering re-renders when nothing has
+    // changed (e.g. the user is on a long-lived stable session).
+    setRemainingMs((prev) => (prev === remaining ? prev : remaining));
+    setShowWarning((prev) => (prev === shouldShow ? prev : shouldShow));
+  }, [accessToken, accessTokenExpiresAt, user]);
 
-    // Initial check
-    checkSession();
-
-    // Set up interval
-    const interval = setInterval(checkSession, MIN_CHECK_INTERVAL * 1000);
-
-    // Update on activity
-    const handleActivity = () => {
-      checkSession();
-    };
-    window.addEventListener("mousemove", handleActivity);
-    window.addEventListener("keydown", handleActivity);
-    window.addEventListener("click", handleActivity);
-    window.addEventListener("scroll", handleActivity);
-
+  useEffect(() => {
+    // evaluate() reads from the auth store and derives `remaining`/
+    // `shouldShow`. Calling it on mount seeds the timer; the setState
+    // calls inside are guarded by `prev === next` checks so they produce
+    // no re-render when nothing has actually changed.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    evaluate();
+    intervalRef.current = setInterval(evaluate, CHECK_INTERVAL_MS);
     return () => {
-      clearInterval(interval);
-      window.removeEventListener("mousemove", handleActivity);
-      window.removeEventListener("keydown", handleActivity);
-      window.removeEventListener("click", handleActivity);
-      window.removeEventListener("scroll", handleActivity);
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [accessToken, lastActivity, setLastActivity]);
+  }, [evaluate]);
 
-  return { isExpiring, secondsRemaining, extendSession };
+  const extend = useCallback(async () => {
+    if (isRefreshingRef.current) return;
+    isRefreshingRef.current = true;
+    try {
+      if (options.onExtend) {
+        await options.onExtend();
+      } else {
+        await refreshAccessToken();
+      }
+      // The store update via refreshAccessToken() will trigger evaluate().
+      setShowWarning(false);
+    } catch {
+      // Refresh failed - the api-client interceptor will redirect to /login.
+      setShowWarning(false);
+    } finally {
+      isRefreshingRef.current = false;
+    }
+  }, [options]);
+
+  const logout = useCallback(() => {
+    if (options.onLogout) {
+      options.onLogout();
+      return;
+    }
+    abortRefresh();
+    useAuthStore.getState().clearAuth();
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
+  }, [options]);
+
+  return { showWarning, remainingMs, extend, logout };
+}
+
+export function formatRemainingTime(ms: number): string {
+  if (ms <= 0) return "0:00";
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }

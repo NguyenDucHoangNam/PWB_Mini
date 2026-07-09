@@ -8,6 +8,14 @@ import { useProfile } from "../api/profile";
 import { PasswordInput } from "./password-input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 interface DeleteAccountDialogProps {
@@ -22,15 +30,20 @@ export function DeleteAccountDialog({ isOpen, onClose }: DeleteAccountDialogProp
   const { mutate: deleteAccountMutate, isPending } = useDeleteAccount();
 
   const [password, setPassword] = useState("");
+  const [googleIdToken, setGoogleIdToken] = useState<string | null>(null);
   const [googleReauthSuccess, setGoogleReauthSuccess] = useState(false);
   const [countdown, setCountdown] = useState(3);
   const [error, setError] = useState<string | null>(null);
 
-  // Countdown timer when dialog opens
+  // Countdown timer when dialog opens.
   useEffect(() => {
     if (!isOpen) return;
-
     setCountdown(3);
+    setError(null);
+    setPassword("");
+    setGoogleIdToken(null);
+    setGoogleReauthSuccess(false);
+
     const interval = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
@@ -44,16 +57,33 @@ export function DeleteAccountDialog({ isOpen, onClose }: DeleteAccountDialogProp
     return () => clearInterval(interval);
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  const oauthProvider = profileResponse?.data?.oauthProvider;
+  const isGoogleUser = oauthProvider === "GOOGLE";
 
-  const isGoogleUser = profileResponse?.data?.email.includes("google") || false;
-
-  const handleGoogleReauthMock = () => {
+  const handleGoogleReauth = () => {
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId || typeof window === "undefined" || !window.google) {
+      toast.error("Google Identity Services not available");
+      return;
+    }
     toast.info(t("googleReauthToast"));
-    setTimeout(() => {
-      setGoogleReauthSuccess(true);
-      toast.success(t("googleReauthSuccessToast"));
-    }, 1500);
+    // For one-shot re-auth we initialize a temporary instance so we
+    // don't disturb the login-form's initialization.
+    window.google.accounts.id.initialize({
+      client_id: clientId,
+      callback: (response) => {
+        if (response.credential) {
+          setGoogleIdToken(response.credential);
+          setGoogleReauthSuccess(true);
+          toast.success(t("googleReauthSuccessToast"));
+        }
+      },
+    });
+    try {
+      window.google.accounts.id.prompt();
+    } catch {
+      toast.error("Google re-authentication failed");
+    }
   };
 
   const handleDeleteSubmit = (e: React.FormEvent) => {
@@ -73,9 +103,7 @@ export function DeleteAccountDialog({ isOpen, onClose }: DeleteAccountDialogProp
 
     deleteAccountMutate(
       {
-        data: isGoogleUser
-          ? { idToken: "mock-google-reauth-token" }
-          : { password },
+        data: isGoogleUser ? { idToken: googleIdToken ?? undefined } : { password },
       },
       {
         onSuccess: (res) => {
@@ -88,53 +116,53 @@ export function DeleteAccountDialog({ isOpen, onClose }: DeleteAccountDialogProp
           }
         },
         onError: (err: any) => {
-          const apiError = err.errors?.[0];
+          const apiError = err?.errors?.[0];
           if (apiError?.code === "INVALID_PASSWORD") {
             setError(t("incorrectPassword"));
           } else if (apiError?.code === "ACCOUNT_TEMPORARILY_LOCKED") {
             setError(t("accountLocked"));
           } else {
-            setError(err.message || t("toastError"));
+            setError(err?.message || t("toastError"));
           }
-          toast.error(t("toastError"));
+          toast.error(t("toastToast") || t("toastError"));
         },
       }
     );
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center bg-black/50 p-0 sm:p-4 font-sans">
-      <div className="fixed inset-0" onClick={onClose} aria-hidden="true" />
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t("title")}</DialogTitle>
+          <DialogDescription>{t("warningDesc")}</DialogDescription>
+        </DialogHeader>
 
-      <div className="relative z-10 w-full max-w-md rounded-t-2xl sm:rounded-2xl border border-neutral-200 bg-white p-6 shadow-2xl animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 dark:border-neutral-800 dark:bg-neutral-950 max-h-[85vh] overflow-y-auto">
         <form onSubmit={handleDeleteSubmit} className="flex flex-col gap-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-black dark:text-white">
-              {t("title")}
-            </h2>
-            <button
-              onClick={onClose}
-              type="button"
-              className="text-neutral-400 hover:text-black dark:hover:text-white"
-            >
-              <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
           <div className="rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-4 text-xs leading-relaxed text-neutral-500">
             <strong className="text-black dark:text-white flex items-center gap-1.5 mb-1.5">
-              <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              <svg
+                className="size-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
               </svg>
               {t("warningTitle")}
             </strong>
-            {t("warningDesc")}
           </div>
 
           {error && (
-            <div role="alert" className="rounded-lg bg-neutral-100 p-3 text-xs font-semibold text-neutral-800 dark:bg-neutral-900 dark:text-neutral-200">
+            <div
+              role="alert"
+              className="rounded-lg bg-neutral-100 p-3 text-xs font-semibold text-neutral-800 dark:bg-neutral-900 dark:text-neutral-200"
+            >
               {error}
             </div>
           )}
@@ -145,7 +173,7 @@ export function DeleteAccountDialog({ isOpen, onClose }: DeleteAccountDialogProp
               <Button
                 type="button"
                 variant="outline"
-                onClick={handleGoogleReauthMock}
+                onClick={handleGoogleReauth}
                 disabled={countdown > 0 || googleReauthSuccess || isPending}
                 className="w-full justify-center gap-2"
               >
@@ -170,12 +198,12 @@ export function DeleteAccountDialog({ isOpen, onClose }: DeleteAccountDialogProp
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={t("passwordPlaceholder")}
                 required
+                autoComplete="current-password"
               />
             </div>
           )}
 
-          {/* Confirm Button */}
-          <div className="flex flex-col gap-2 mt-2">
+          <div className="flex flex-col gap-2">
             <Button
               type="submit"
               variant="default"
@@ -191,8 +219,19 @@ export function DeleteAccountDialog({ isOpen, onClose }: DeleteAccountDialogProp
               {isPending ? (
                 <span className="flex items-center gap-2">
                   <svg className="animate-spin size-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
                   </svg>
                   {t("submitting")}
                 </span>
@@ -206,7 +245,9 @@ export function DeleteAccountDialog({ isOpen, onClose }: DeleteAccountDialogProp
               </span>
             )}
           </div>
+        </form>
 
+        <DialogFooter>
           <Button
             type="button"
             variant="ghost"
@@ -216,8 +257,8 @@ export function DeleteAccountDialog({ isOpen, onClose }: DeleteAccountDialogProp
           >
             {t("cancel")}
           </Button>
-        </form>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

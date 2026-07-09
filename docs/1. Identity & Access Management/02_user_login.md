@@ -497,6 +497,8 @@ Mỗi lỗi nghiệp vụ được định nghĩa trong `ErrorCode` Enum với H
 *   Frontend chỉ nhận và quản lý `accessToken` thông qua Zustand Store được định nghĩa trong ứng dụng Client.
 *   `refreshToken` được trình duyệt tự động gửi và nhận thông qua tiêu chuẩn `Set-Cookie` ở header của mỗi request. Phía Javascript ở Client không thể đọc, chỉnh sửa hoặc can thiệp vào token này nhằm bảo vệ hệ thống khỏi các lỗ hổng bảo mật tấn công XSS.
 
+> **Cập nhật 2026-07-08**: Access Token được lưu trong **bộ nhớ của Zustand** (không phải localStorage) để giảm thiểu rủi ro XSS. Khi tab được refresh, FE tự động gọi `POST /auth/refresh` dựa trên httpOnly cookie để khôi phục token trong bộ nhớ.
+
 ---
 
 ### 5.4. Sơ đồ Luồng Màn hình (Screen Flow)
@@ -519,13 +521,13 @@ graph TD
     
     LocalLogin -->|Thất bại: Chưa xác thực OTP| VerifyOtpPage["Màn hình Xác thực OTP <br> /verify-otp"]:::screen
     
-    LocalLogin -->|Thành công: Tài khoản PENDING_DELETION| RestorePage["Màn hình Khôi phục tài khoản <br> /restore-account"]:::screen
+    LocalLogin -->|Thành công: Tài khoản PENDING_DELETION| RestorePage["Màn hình Khôi phục tài khoản <br> /account-recovery"]:::screen
     LocalLogin -->|Thành công: Tài khoản ACTIVE| DashboardPage["Màn hình Dashboard <br> /dashboard"]:::screen
 ```
 
 ##### 📝 Giải thích các chuyển hướng giao diện:
 1.  **Từ `/login` chuyển sang `/verify-otp`**: Nếu đăng nhập bằng một tài khoản có status `PENDING_VERIFICATION`, Backend trả về lỗi `REGISTRATION_IN_PROGRESS`. Frontend tự động lấy thông tin email từ payload lỗi và chuyển hướng người dùng đến `/verify-otp?email=...`.
-2.  **Từ `/login` chuyển sang `/restore-account`**: Nếu đăng nhập bằng tài khoản đang trong trạng thái yêu cầu xóa (`PENDING_DELETION`), Frontend sẽ nhận biết qua API response và buộc người dùng di chuyển tới `/restore-account`. Tại đây, người dùng chỉ có thể bấm nút "Hủy yêu cầu xóa tài khoản" để kích hoạt lại tài khoản thành `ACTIVE`, hoặc bấm "Đăng xuất" để quay lại trang login.
+2.  **Từ `/login` chuyển sang `/account-recovery`**: Nếu đăng nhập bằng tài khoản đang trong trạng thái yêu cầu xóa (`PENDING_DELETION`), Frontend sẽ nhận biết qua API response và buộc người dùng di chuyển tới `/account-recovery`. Tại đây, người dùng chỉ có thể bấm nút "Hủy yêu cầu xóa tài khoản" để kích hoạt lại tài khoản thành `ACTIVE`, hoặc bấm "Đăng xuất" để quay lại trang login.
 3.  **Đăng nhập thành công thông thường**: Lưu Access Token vào Zustand, trình duyệt tự động lưu HttpOnly Refresh Token, sau đó tự động điều hướng người dùng tới màn hình làm việc chính `/dashboard`.
 
 ---

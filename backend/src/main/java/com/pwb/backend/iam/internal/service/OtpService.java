@@ -6,9 +6,7 @@ import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.List;
@@ -34,14 +32,15 @@ public class OtpService {
     long otpTtlSeconds = iamProperties.getOtp().getExpiration();
     long cooldownTtlSeconds = iamProperties.getOtp().getCooldown();
 
-    byte[] otpKey = (OTP_KEY_PREFIX + email).getBytes();
-    byte[] cooldownKey = (COOLDOWN_KEY_PREFIX + email).getBytes();
-    byte[] otpValue = hashOtp(email, otpCode).getBytes();
-    byte[] cooldownValue = "true".getBytes();
-
     redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
-      connection.stringCommands().setEx(otpKey, otpTtlSeconds, otpValue);
-      connection.stringCommands().setEx(cooldownKey, cooldownTtlSeconds, cooldownValue);
+      connection.stringCommands().setEx(
+          (OTP_KEY_PREFIX + email).getBytes(),
+          otpTtlSeconds,
+          otpCode.getBytes());
+      connection.stringCommands().setEx(
+          (COOLDOWN_KEY_PREFIX + email).getBytes(),
+          cooldownTtlSeconds,
+          "true".getBytes());
       return null;
     });
   }
@@ -50,26 +49,28 @@ public class OtpService {
     long otpTtlSeconds = iamProperties.getOtp().getExpiration();
     long cooldownTtlSeconds = iamProperties.getOtp().getCooldown();
 
-    byte[] attemptsKey = (ATTEMPTS_KEY_PREFIX + email).getBytes();
-    byte[] otpKey = (OTP_KEY_PREFIX + email).getBytes();
-    byte[] cooldownKey = (COOLDOWN_KEY_PREFIX + email).getBytes();
-    byte[] otpValue = hashOtp(email, otpCode).getBytes();
-    byte[] cooldownValue = "true".getBytes();
-
     redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
-      connection.keyCommands().del(attemptsKey);
-      connection.stringCommands().setEx(otpKey, otpTtlSeconds, otpValue);
-      connection.stringCommands().setEx(cooldownKey, cooldownTtlSeconds, cooldownValue);
+      connection.keyCommands().del((ATTEMPTS_KEY_PREFIX + email).getBytes());
+      connection.stringCommands().setEx(
+          (OTP_KEY_PREFIX + email).getBytes(),
+          otpTtlSeconds,
+          otpCode.getBytes());
+      connection.stringCommands().setEx(
+          (COOLDOWN_KEY_PREFIX + email).getBytes(),
+          cooldownTtlSeconds,
+          "true".getBytes());
       return null;
     });
   }
 
   public boolean verifyOtp(String email, String submittedOtp) {
-    String storedHash = redisTemplate.opsForValue().get(OTP_KEY_PREFIX + email);
-    if (storedHash == null) {
+    String storedOtp = redisTemplate.opsForValue().get(OTP_KEY_PREFIX + email);
+    if (storedOtp == null) {
       return false;
     }
-    return constantTimeEquals(storedHash, hashOtp(email, submittedOtp));
+    return MessageDigest.isEqual(
+        storedOtp.getBytes(),
+        submittedOtp.getBytes());
   }
 
   public String getStoredOtpHash(String email) {
@@ -120,31 +121,5 @@ public class OtpService {
         OTP_KEY_PREFIX + email,
         ATTEMPTS_KEY_PREFIX + email
     ));
-  }
-
-  private String hashOtp(String email, String otpCode) {
-    try {
-      MessageDigest digest = MessageDigest.getInstance("SHA-256");
-      digest.update(email.toLowerCase().getBytes(StandardCharsets.UTF_8));
-      byte[] hash = digest.digest(otpCode.getBytes(StandardCharsets.UTF_8));
-      StringBuilder sb = new StringBuilder(hash.length * 2);
-      for (byte b : hash) {
-        sb.append(String.format("%02x", b));
-      }
-      return sb.toString();
-    } catch (NoSuchAlgorithmException ex) {
-      throw new IllegalStateException("SHA-256 not available", ex);
-    }
-  }
-
-  private boolean constantTimeEquals(String a, String b) {
-    if (a == null || b == null || a.length() != b.length()) {
-      return false;
-    }
-    int diff = 0;
-    for (int i = 0; i < a.length(); i++) {
-      diff |= a.charAt(i) ^ b.charAt(i);
-    }
-    return diff == 0;
   }
 }

@@ -41,6 +41,7 @@ public class IpRateLimitFilter extends OncePerRequestFilter {
     return !(path.startsWith("/api/v1/auth/login")
         || path.startsWith("/api/v1/auth/login/google")
         || path.startsWith("/api/v1/auth/register")
+        || path.startsWith("/api/v1/auth/check-username")
         || path.startsWith("/api/v1/auth/forgot-password")
         || path.startsWith("/api/v1/auth/resend-otp")
         || path.startsWith("/api/v1/auth/refresh")

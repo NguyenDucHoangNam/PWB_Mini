@@ -14,8 +14,11 @@ import com.pwb.backend.iam.api.dto.request.ResendOtpRequest;
 import com.pwb.backend.iam.api.dto.request.UpdateProfileRequest;
 import com.pwb.backend.iam.api.dto.request.VerifyOtpRequest;
 import com.pwb.backend.iam.api.dto.response.CheckUsernameResponse;
+import com.pwb.backend.iam.api.dto.response.AvatarUploadResponse;
 import com.pwb.backend.iam.api.dto.response.LoginResponse;
+import com.pwb.backend.iam.api.dto.response.OAuthLinkPasswordRequiredData;
 import com.pwb.backend.iam.api.dto.response.RegisterResponse;
+import com.pwb.backend.iam.api.dto.response.RegistrationInProgressData;
 import com.pwb.backend.iam.api.dto.response.UserProfileResponse;
 import com.pwb.backend.iam.api.dto.response.VerifyOtpResponse;
 import com.pwb.backend.iam.api.event.LoginSuccessEvent;
@@ -52,6 +55,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -86,6 +90,7 @@ public class AuthService {
   private final SessionService sessionService;
   private final AccountLifecycleService accountLifecycleService;
   private final com.pwb.backend.iam.internal.factory.OutboxEventFactory outboxEventFactory;
+  private final LoginLockoutHelper loginLockoutHelper;
 
   private GoogleIdTokenVerifier googleVerifier;
 
@@ -268,23 +273,30 @@ public class AuthService {
             "Incorrect username or password"));
 
     String userId = user.getId();
-    LoginLockoutHelper.ensureNotLocked(redisTemplate, userId);
 
     if (user.getStatus() == UserStatus.BANNED) {
       throw new BusinessException(ErrorCode.ACCOUNT_BANNED, "Account has been banned");
     }
 
     if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
-      throw new BusinessException(ErrorCode.REGISTRATION_IN_PROGRESS,
-          "Please verify your account");
+      throw new BusinessException(
+          ErrorCode.REGISTRATION_IN_PROGRESS,
+          "Please verify your account",
+          new RegistrationInProgressData(
+              "/verify-otp",
+              user.getEmail()
+          )
+      );
     }
 
+    loginLockoutHelper.ensureNotLocked(redisTemplate, userId);
+
     if (!passwordEncoder.matches(request.password(), user.getPassword())) {
-      LoginLockoutHelper.recordFailure(redisTemplate, userId);
+      loginLockoutHelper.recordFailure(redisTemplate, userId);
       throw new BusinessException(ErrorCode.BAD_CREDENTIALS, "Incorrect username or password");
     }
 
-    redisTemplate.delete(LoginLockoutHelper.attemptsKey(userId));
+    redisTemplate.delete(loginLockoutHelper.attemptsKey(userId));
 
     return generateSessionAndResponse(user, httpResponse);
   }
@@ -310,6 +322,13 @@ public class AuthService {
     }
 
     GoogleIdToken.Payload payload = idToken.getPayload();
+
+    String issuer = payload.getIssuer();
+    if (!issuer.equals("https://accounts.google.com") && !issuer.equals("accounts.google.com")) {
+      throw new BusinessException(ErrorCode.INVALID_OAUTH_TOKEN,
+          "Invalid OAuth token issuer");
+    }
+
     if (!Boolean.TRUE.equals(payload.getEmailVerified())) {
       throw new BusinessException(ErrorCode.INVALID_OAUTH_TOKEN,
           "Google email is not verified");
@@ -323,10 +342,29 @@ public class AuthService {
     User user = handleOauthAccountLinker(email, sub, name, picture, request.linkingPassword());
 
     String userId = user.getId();
-    LoginLockoutHelper.ensureNotLocked(redisTemplate, userId);
+    loginLockoutHelper.ensureNotLocked(redisTemplate, userId);
 
     if (user.getStatus() == UserStatus.BANNED) {
       throw new BusinessException(ErrorCode.ACCOUNT_BANNED, "Account has been banned");
+    }
+
+    if (user.getStatus() == UserStatus.PENDING_DELETION) {
+      sessionService.createSession(user, httpResponse);
+      String accessToken = jwtService.generateAccessToken(user);
+      eventPublisher.publishEvent(new LoginSuccessEvent(
+          this, user.getId(), getClientIp(), getUserAgent()));
+      return new LoginResponse(
+          accessToken,
+          iamProperties.getJwt().getAccessTokenExpiration(),
+          new LoginResponse.UserInfo(
+              user.getUsername(),
+              user.getEmail(),
+              user.getFullName(),
+              user.getRole().getName(),
+              user.getStatus().name(),
+              user.getOauthProvider() == null ? "LOCAL" : user.getOauthProvider().name()
+          )
+      );
     }
 
     return generateSessionAndResponse(user, httpResponse);
@@ -387,7 +425,7 @@ public class AuthService {
     String userId = user.getId();
     sessionService.revokeAllUserSessions(userId);
 
-    LoginLockoutHelper.clear(redisTemplate, userId);
+    loginLockoutHelper.clear(redisTemplate, userId);
   }
 
   @Transactional
@@ -422,7 +460,7 @@ public class AuthService {
     String userId = user.getId();
     sessionService.revokeOtherSessions(expiredAccessTokenHeader, currentRefreshToken);
 
-    LoginLockoutHelper.clear(redisTemplate, userId);
+    loginLockoutHelper.clear(redisTemplate, userId);
   }
 
   public UserProfileResponse getMyProfile(String authHeader) {
@@ -452,6 +490,21 @@ public class AuthService {
     return userMapper.toUserProfileResponse(savedUser);
   }
 
+  @Transactional
+  public AvatarUploadResponse uploadAvatar(String authHeader, MultipartFile file, AvatarUploadService avatarUploadService) {
+    String email = com.pwb.backend.iam.internal.helper.JwtPrincipalExtractor
+        .requireEmailFromHeader(authHeader, jwtService);
+    User user = userRepository.findByEmailAndDeletedFalse(email)
+        .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
+
+    String avatarUrl = avatarUploadService.uploadAvatar(user.getId(), file);
+    user.setAvatarUrl(avatarUrl);
+    userRepository.save(user);
+
+    return new AvatarUploadResponse(avatarUrl);
+  }
+
+  @Transactional
   private User handleOauthAccountLinker(String email, String sub, String name, String picture, String linkingPassword) {
     Optional<User> existingUserOpt = userRepository.findByEmailAndDeletedFalse(email);
 
@@ -464,7 +517,7 @@ public class AuthService {
 
       if (user.getOauthProvider() == OAuthProvider.GOOGLE) {
         if (!sub.equals(user.getOauthId())) {
-          log.error("OAuth sub mismatch for existing Google-linked account email={}", email);
+          log.warn("OAuth sub mismatch for existing Google-linked account email={}", email);
           throw new BusinessException(ErrorCode.INVALID_OAUTH_TOKEN,
               "OAuth identity does not match the account on file");
         }
@@ -475,8 +528,11 @@ public class AuthService {
         if (user.getStatus() == UserStatus.ACTIVE || user.getStatus() == UserStatus.PENDING_DELETION) {
           if (linkingPassword == null || linkingPassword.isBlank()) {
             log.warn("Refused silent OAuth link to existing LOCAL account email={}", email);
-            throw new BusinessException(ErrorCode.OAUTH_LINK_PASSWORD_REQUIRED,
-                "This email is already registered. Provide the current account password to link Google sign-in.");
+            throw new BusinessException(
+                ErrorCode.OAUTH_LINK_PASSWORD_REQUIRED,
+                "This email is already registered. Provide the current account password to link Google sign-in.",
+                new OAuthLinkPasswordRequiredData(email)
+            );
           }
           if (user.getPassword() == null || !passwordEncoder.matches(linkingPassword, user.getPassword())) {
             throw new BusinessException(ErrorCode.INVALID_PASSWORD,
@@ -551,7 +607,8 @@ public class AuthService {
             user.getEmail(),
             user.getFullName(),
             user.getRole().getName(),
-            user.getStatus().name()
+            user.getStatus().name(),
+            user.getOauthProvider() == null ? "LOCAL" : user.getOauthProvider().name()
         )
     );
   }

@@ -2,8 +2,11 @@ package com.pwb.backend.shared.config;
 
 import com.pwb.backend.iam.internal.config.JwtAuthenticationFilter;
 import com.pwb.backend.iam.internal.controller.AuthController;
+import com.pwb.backend.iam.internal.service.AccountLifecycleService;
 import com.pwb.backend.iam.internal.service.AuthService;
+import com.pwb.backend.iam.internal.service.AvatarUploadService;
 import com.pwb.backend.iam.internal.service.JwtService;
+import com.pwb.backend.iam.internal.service.SessionService;
 import com.pwb.backend.shared.exception.BusinessException;
 import com.pwb.backend.shared.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
@@ -37,6 +40,15 @@ class I18nIntegrationTest {
 
   @MockitoBean
   private AuthService authService;
+
+  @MockitoBean
+  private SessionService sessionService;
+
+  @MockitoBean
+  private AccountLifecycleService accountLifecycleService;
+
+  @MockitoBean
+  private AvatarUploadService avatarUploadService;
 
   @MockitoBean
   private JwtService jwtService;

@@ -5,11 +5,13 @@ import com.pwb.backend.iam.api.dto.response.TriggerAnonymizationResponse;
 import com.pwb.backend.iam.internal.config.JwtAuthenticationFilter;
 import com.pwb.backend.iam.internal.service.AccountLifecycleService;
 import com.pwb.backend.iam.internal.service.JwtService;
+import com.pwb.backend.shared.config.I18nConfig;
 import com.pwb.backend.shared.security.IpRateLimitFilter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
@@ -23,6 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = AdminJobController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@Import(I18nConfig.class)
 @TestPropertySource(properties = {
     "app.security.cors.allowed-origins=http://localhost:3000",
     "JWT_SECRET=test-secret-32-bytes-aaaaaaaaaaaaaaaaaaaaaaaa"
