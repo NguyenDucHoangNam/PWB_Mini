@@ -51,6 +51,8 @@ export const PUBLIC_PREFIX_PATHS: readonly string[] = [
   "/account-recovery",
   "/401",
   "/403",
+  "/features",
+  "/contact",
 ];
 
 export function isPublicPath(pathname: string): boolean {

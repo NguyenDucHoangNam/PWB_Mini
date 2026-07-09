@@ -28,11 +28,11 @@ export function LocaleSwitcher() {
   };
 
   return (
-    <div className="flex items-center gap-1.5 font-mono text-xs font-semibold text-neutral-400 dark:text-neutral-500 select-none">
+    <div className="flex items-center gap-2 font-mono text-sm font-semibold text-neutral-400 dark:text-neutral-500 select-none">
       <button
         onClick={() => switchLocale("vi")}
         type="button"
-        className={`hover:text-black dark:hover:text-white transition-colors cursor-pointer min-h-[32px] px-1 flex items-center ${
+        className={`hover:text-black dark:hover:text-white transition-colors cursor-pointer h-9 px-1.5 flex items-center ${
           currentLocale === "vi" ? "text-black dark:text-white font-bold" : ""
         }`}
       >
@@ -42,7 +42,7 @@ export function LocaleSwitcher() {
       <button
         onClick={() => switchLocale("en")}
         type="button"
-        className={`hover:text-black dark:hover:text-white transition-colors cursor-pointer min-h-[32px] px-1 flex items-center ${
+        className={`hover:text-black dark:hover:text-white transition-colors cursor-pointer h-9 px-1.5 flex items-center ${
           currentLocale === "en" ? "text-black dark:text-white font-bold" : ""
         }`}
       >

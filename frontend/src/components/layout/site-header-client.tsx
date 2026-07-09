@@ -87,6 +87,8 @@ export function SiteHeaderClient() {
 
   const menuItems = [
     { label: t("home"), href: "/" },
+    { label: t("features"), href: "/features" },
+    { label: t("contact"), href: "/contact" },
   ];
 
   const loggedInMenuItems = [
@@ -144,7 +146,7 @@ export function SiteHeaderClient() {
           href={item.href}
           className={`text-sm font-medium transition-colors hover:text-black dark:hover:text-white ${
             isActive
-              ? "text-black dark:text-white border-b-2 border-black dark:border-white pb-1"
+              ? "text-black dark:text-white border-b-2 border-black dark:border-white pb-0.5"
               : "text-neutral-500 dark:text-neutral-400"
           }`}
         >
@@ -161,122 +163,138 @@ export function SiteHeaderClient() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-neutral-200 bg-white/80 backdrop-blur-md dark:border-neutral-800 dark:bg-black/80">
-      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-6 md:px-8">
-        {/* Left: Logo */}
-        <Link href="/" className="px-3 py-1 border-2 border-black dark:border-white">
-          <span className="text-xl font-bold tracking-tight text-black dark:text-white">
-            PWB
-          </span>
-        </Link>
-
-        {/* Center: Navigation Links (Desktop) */}
-        <nav className="hidden items-center gap-6 lg:flex">{isMounted && renderNavLinks()}</nav>
-
-        {/* Right: Actions (Desktop) */}
-        <div className="hidden items-center gap-4 lg:flex">
-          <ThemeToggle />
-          <LocaleSwitcher />
-          {isMounted && (
-            <>
-              {isLoggedIn ? (
-                <div className="relative" ref={dropdownRef} onKeyDown={handleKeyDown}>
-                  <button
-                    ref={triggerRef}
-                    onClick={() => setShowDropdown(!showDropdown)}
-                    type="button"
-                    className="flex size-9 items-center justify-center rounded-full bg-neutral-100 border border-neutral-200 text-sm font-bold text-neutral-800 hover:bg-neutral-200 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white focus:ring-offset-2"
-                    aria-label="User menu"
-                    aria-haspopup="menu"
-                    aria-expanded={showDropdown}
-                  >
-                    {getInitials()}
-                  </button>
-
-                  {/* Dropdown Menu */}
-                  {showDropdown && (
-                    <div
-                      role="menu"
-                      className="absolute right-0 mt-2 w-52 rounded-lg border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-800 dark:bg-neutral-950 animate-in fade-in slide-in-from-top-2 duration-100"
-                    >
-                      <div className="px-4 py-2 border-b border-neutral-100 dark:border-neutral-800">
-                        <p className="text-xs text-neutral-400 font-bold truncate">
-                          {user?.fullName || t("account")}
-                        </p>
-                        <p className="truncate text-xs text-neutral-500 mt-0.5">
-                          {user?.email || ""}
-                        </p>
-                      </div>
-                      
-                      {dropdownMenuItems.map((item, idx) => {
-                        const isFocused = idx === focusedIndex;
-                        if (item.href) {
-                          return (
-                            <Link
-                              key={item.href}
-                              href={item.href}
-                              role="menuitem"
-                              className={`block px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 focus:outline-none ${
-                                isFocused ? "bg-neutral-100 dark:bg-neutral-800" : ""
-                              }`}
-                              onClick={() => setShowDropdown(false)}
-                            >
-                              {item.label}
-                            </Link>
-                          );
-                        } else {
-                          return (
-                            <button
-                              key={item.label}
-                              onClick={item.onClick}
-                              type="button"
-                              role="menuitem"
-                              className={`w-full text-left block px-4 py-2 text-sm text-black dark:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 border-t border-neutral-100 dark:border-neutral-800 font-semibold focus:outline-none ${
-                                isFocused ? "bg-neutral-100 dark:bg-neutral-800" : ""
-                              }`}
-                            >
-                              {item.label}
-                            </button>
-                          );
-                        }
-                      })}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <Link href="/login">
-                    <Button variant="ghost" size="sm">
-                      {t("login")}
-                    </Button>
-                  </Link>
-                  <Link href="/register">
-                    <Button variant="default" size="sm">
-                      {t("register")}
-                    </Button>
-                  </Link>
-                </>
-              )}
-            </>
-          )}
+      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-6 md:px-8 relative">
+        {/* Left: Logo & Navigation */}
+        <div className="flex items-center gap-8">
+          <Link href="/" className="px-3 py-0.5 border-2 border-black dark:border-white">
+            <span className="text-2xl font-bold tracking-tight text-black dark:text-white">
+              PWB
+            </span>
+          </Link>
+          <nav className="hidden items-center gap-6 lg:flex">{isMounted && renderNavLinks()}</nav>
         </div>
 
-        {/* Right: Hamburger (Mobile) */}
-        <button
-          onClick={() => setIsOpen(true)}
-          type="button"
-          aria-label="Open menu"
-          className="flex size-10 items-center justify-center rounded-lg border border-transparent text-neutral-500 hover:bg-neutral-100 hover:text-black lg:hidden dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
-        >
-          <svg
-            className="size-6"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth="2"
+        {/* Center: Signature (Desktop) */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden lg:flex items-center gap-4 pointer-events-none select-none">
+          {/* Left Line */}
+          <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-neutral-400/40 dark:to-neutral-600/40" />
+          
+          {/* Text */}
+          <span className="font-mono text-[11px] uppercase tracking-[0.35em] text-neutral-400 opacity-45 dark:text-neutral-600 dark:opacity-35 transition-colors">
+            NAM IN THE MIX
+          </span>
+          
+          {/* Right Line */}
+          <div className="h-[1px] w-12 bg-gradient-to-r from-neutral-400/40 dark:from-neutral-600/40 to-transparent" />
+        </div>
+
+        {/* Right: Actions (Desktop) & Hamburger (Mobile) */}
+        <div className="flex items-center gap-6">
+          <div className="hidden items-center gap-6 lg:flex">
+            <ThemeToggle />
+            <LocaleSwitcher />
+            {isMounted && (
+              <>
+                {isLoggedIn ? (
+                  <div className="relative" ref={dropdownRef} onKeyDown={handleKeyDown}>
+                    <button
+                      ref={triggerRef}
+                      onClick={() => setShowDropdown(!showDropdown)}
+                      type="button"
+                      className="flex size-9 items-center justify-center rounded-full bg-neutral-100 border border-neutral-200 text-sm font-bold text-neutral-800 hover:bg-neutral-200 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white focus:ring-offset-2"
+                      aria-label="User menu"
+                      aria-haspopup="menu"
+                      aria-expanded={showDropdown}
+                    >
+                      {getInitials()}
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {showDropdown && (
+                      <div
+                        role="menu"
+                        className="absolute right-0 mt-2 w-52 rounded-lg border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-800 dark:bg-neutral-950 animate-in fade-in slide-in-from-top-2 duration-100"
+                      >
+                        <div className="px-4 py-2 border-b border-neutral-100 dark:border-neutral-800">
+                          <p className="text-xs text-neutral-400 font-bold truncate">
+                            {user?.fullName || t("account")}
+                          </p>
+                          <p className="truncate text-xs text-neutral-500 mt-0.5">
+                            {user?.email || ""}
+                          </p>
+                        </div>
+                        
+                        {dropdownMenuItems.map((item, idx) => {
+                          const isFocused = idx === focusedIndex;
+                          if (item.href) {
+                            return (
+                              <Link
+                                key={item.href}
+                                href={item.href}
+                                role="menuitem"
+                                className={`block px-4 py-2 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 focus:outline-none ${
+                                  isFocused ? "bg-neutral-100 dark:bg-neutral-800" : ""
+                                }`}
+                                onClick={() => setShowDropdown(false)}
+                              >
+                                {item.label}
+                              </Link>
+                            );
+                          } else {
+                            return (
+                              <button
+                                key={item.label}
+                                onClick={item.onClick}
+                                type="button"
+                                role="menuitem"
+                                className={`w-full text-left block px-4 py-2 text-sm text-black dark:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 border-t border-neutral-100 dark:border-neutral-800 font-semibold focus:outline-none ${
+                                  isFocused ? "bg-neutral-100 dark:bg-neutral-800" : ""
+                                }`}
+                              >
+                                {item.label}
+                              </button>
+                            );
+                          }
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <Link href="/login">
+                      <Button variant="ghost" className="h-9 text-sm px-4">
+                        {t("login")}
+                      </Button>
+                    </Link>
+                    <Link href="/register">
+                      <Button variant="default" className="h-9 text-sm px-4">
+                        {t("register")}
+                      </Button>
+                    </Link>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Right: Hamburger (Mobile) */}
+          <button
+            onClick={() => setIsOpen(true)}
+            type="button"
+            aria-label="Open menu"
+            className="flex size-10 items-center justify-center rounded-lg border border-transparent text-neutral-500 hover:bg-neutral-100 hover:text-black lg:hidden dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
+            <svg
+              className="size-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Mobile Drawer */}
@@ -357,6 +375,20 @@ export function SiteHeaderClient() {
                   className="text-base text-neutral-700 hover:text-black dark:text-neutral-300 dark:hover:text-white"
                 >
                   {t("home")}
+                </Link>
+                <Link
+                  href="/features"
+                  onClick={() => setIsOpen(false)}
+                  className="text-base text-neutral-700 hover:text-black dark:text-neutral-300 dark:hover:text-white"
+                >
+                  {t("features")}
+                </Link>
+                <Link
+                  href="/contact"
+                  onClick={() => setIsOpen(false)}
+                  className="text-base text-neutral-700 hover:text-black dark:text-neutral-300 dark:hover:text-white"
+                >
+                  {t("contact")}
                 </Link>
                 <hr className="border-neutral-200 dark:border-neutral-800" />
                 <Link href="/login" onClick={() => setIsOpen(false)}>
