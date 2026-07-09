@@ -163,34 +163,34 @@ export function SiteHeaderClient() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-neutral-200 bg-white/80 backdrop-blur-md dark:border-neutral-800 dark:bg-black/80">
-      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-6 md:px-8 relative">
+      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 md:px-8 relative">
         {/* Left: Logo & Navigation */}
-        <div className="flex items-center gap-8">
-          <Link href="/" className="px-3 py-0.5 border-2 border-black dark:border-white">
-            <span className="text-2xl font-bold tracking-tight text-black dark:text-white">
+        <div className="flex items-center gap-4 sm:gap-6 lg:gap-8 min-w-0">
+          <Link href="/" className="shrink-0 px-3 py-0.5 border-2 border-black dark:border-white">
+            <span className="text-xl sm:text-2xl font-bold tracking-tight text-black dark:text-white">
               PWB
             </span>
           </Link>
-          <nav className="hidden items-center gap-6 lg:flex">{isMounted && renderNavLinks()}</nav>
+          <nav className="hidden items-center gap-6 xl:flex">{isMounted && renderNavLinks()}</nav>
         </div>
 
         {/* Center: Signature (Desktop) */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden lg:flex items-center gap-4 pointer-events-none select-none">
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden xl:flex items-center gap-4 pointer-events-none select-none">
           {/* Left Line */}
           <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-neutral-400/40 dark:to-neutral-400/30" />
-          
+
           {/* Text */}
           <span className="font-mono text-[11px] uppercase tracking-[0.35em] text-neutral-400 opacity-45 dark:text-neutral-400 dark:opacity-30 transition-colors">
             NAM IN THE MIX
           </span>
-          
+
           {/* Right Line */}
           <div className="h-[1px] w-12 bg-gradient-to-r from-neutral-400/40 dark:from-neutral-400/30 to-transparent" />
         </div>
 
         {/* Right: Actions (Desktop) & Hamburger (Mobile) */}
-        <div className="flex items-center gap-6">
-          <div className="hidden items-center gap-6 lg:flex">
+        <div className="flex shrink-0 items-center gap-3 sm:gap-6">
+          <div className="hidden items-center gap-4 sm:gap-6 xl:flex">
             <ThemeToggle />
             <LocaleSwitcher />
             {isMounted && (
@@ -223,7 +223,7 @@ export function SiteHeaderClient() {
                             {user?.email || ""}
                           </p>
                         </div>
-                        
+
                         {dropdownMenuItems.map((item, idx) => {
                           const isFocused = idx === focusedIndex;
                           if (item.href) {
@@ -277,12 +277,18 @@ export function SiteHeaderClient() {
             )}
           </div>
 
-          {/* Right: Hamburger (Mobile) */}
+          {/* Tablet & Mobile: Compact actions (theme & lang) + Hamburger */}
+          <div className="flex items-center gap-1 xl:hidden">
+            <ThemeToggle />
+            <LocaleSwitcher />
+          </div>
+
+          {/* Hamburger (Mobile + Tablet) */}
           <button
             onClick={() => setIsOpen(true)}
             type="button"
             aria-label="Open menu"
-            className="flex size-10 items-center justify-center rounded-lg border border-transparent text-neutral-500 hover:bg-neutral-100 hover:text-black lg:hidden dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
+            className="flex size-11 items-center justify-center rounded-lg border border-transparent text-neutral-500 hover:bg-neutral-100 hover:text-black xl:hidden dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
           >
             <svg
               className="size-6"
@@ -310,10 +316,6 @@ export function SiteHeaderClient() {
                 PWB
               </span>
             </Link>
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-              <LocaleSwitcher />
-            </div>
           </div>
           <hr className="border-neutral-200 dark:border-neutral-800" />
           {isMounted &&
@@ -331,14 +333,14 @@ export function SiteHeaderClient() {
                 <Link
                   href="/dashboard"
                   onClick={() => setIsOpen(false)}
-                  className="text-base text-neutral-700 hover:text-black dark:text-neutral-300 dark:hover:text-white"
+                  className="rounded-lg px-3 py-2.5 text-base text-neutral-700 hover:bg-neutral-100 hover:text-black dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-white"
                 >
                   {t("dashboard")}
                 </Link>
                 <Link
                   href="/rooms"
                   onClick={() => setIsOpen(false)}
-                  className="text-base text-neutral-700 hover:text-black dark:text-neutral-300 dark:hover:text-white"
+                  className="rounded-lg px-3 py-2.5 text-base text-neutral-700 hover:bg-neutral-100 hover:text-black dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-white"
                 >
                   {t("liveRooms")}
                 </Link>
@@ -346,14 +348,14 @@ export function SiteHeaderClient() {
                 <Link
                   href="/profile"
                   onClick={() => setIsOpen(false)}
-                  className="text-base text-neutral-700 hover:text-black dark:text-neutral-300 dark:hover:text-white"
+                  className="rounded-lg px-3 py-2.5 text-base text-neutral-700 hover:bg-neutral-100 hover:text-black dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-white"
                 >
                   {t("profile")}
                 </Link>
                 <Link
                   href="/sessions"
                   onClick={() => setIsOpen(false)}
-                  className="text-base text-neutral-700 hover:text-black dark:text-neutral-300 dark:hover:text-white"
+                  className="rounded-lg px-3 py-2.5 text-base text-neutral-700 hover:bg-neutral-100 hover:text-black dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-white"
                 >
                   {t("sessions")}
                 </Link>
@@ -372,21 +374,21 @@ export function SiteHeaderClient() {
                 <Link
                   href="/"
                   onClick={() => setIsOpen(false)}
-                  className="text-base text-neutral-700 hover:text-black dark:text-neutral-300 dark:hover:text-white"
+                  className="rounded-lg px-3 py-2.5 text-base text-neutral-700 hover:bg-neutral-100 hover:text-black dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-white"
                 >
                   {t("home")}
                 </Link>
                 <Link
                   href="/features"
                   onClick={() => setIsOpen(false)}
-                  className="text-base text-neutral-700 hover:text-black dark:text-neutral-300 dark:hover:text-white"
+                  className="rounded-lg px-3 py-2.5 text-base text-neutral-700 hover:bg-neutral-100 hover:text-black dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-white"
                 >
                   {t("features")}
                 </Link>
                 <Link
                   href="/contact"
                   onClick={() => setIsOpen(false)}
-                  className="text-base text-neutral-700 hover:text-black dark:text-neutral-300 dark:hover:text-white"
+                  className="rounded-lg px-3 py-2.5 text-base text-neutral-700 hover:bg-neutral-100 hover:text-black dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-white"
                 >
                   {t("contact")}
                 </Link>

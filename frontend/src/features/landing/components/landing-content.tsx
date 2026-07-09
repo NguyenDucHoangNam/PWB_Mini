@@ -1,16 +1,17 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { Keyboard } from "./keyboard";
 import { FALL_DELAY, LEFT_WORD, RIGHT_WORD } from "../lib/piano-positions";
 
-const KEYBOARD_GAP = "w-8 sm:w-16 md:w-24";
+const KEYBOARD_GAP = "h-3 w-full sm:h-0 sm:w-2 md:w-16 lg:w-24";
 const POINTER_EVENTS_DELAY = 2.5;
 const HINT_DELAY = FALL_DELAY + 1.2;
 
 export function LandingContent() {
   return (
-    <section className="relative flex min-h-[calc(100vh-64px)] w-full flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-white via-neutral-50 to-neutral-100 px-4 dark:from-black dark:via-neutral-950 dark:to-neutral-900">
+    <section className="relative flex min-h-[calc(100vh-64px)] w-full flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-white via-neutral-50 to-neutral-100 px-3 py-24 sm:px-4 sm:py-0 dark:from-black dark:via-neutral-950 dark:to-neutral-900">
       <BackgroundGlow />
       <PianoTitle />
       <HoverHint delay={HINT_DELAY} />
@@ -38,20 +39,25 @@ function BackgroundGlow() {
 function PianoTitle() {
   return (
     <motion.div
-      className="relative z-10 flex items-end justify-center"
+      className="relative z-10 flex flex-col items-center gap-2 sm:flex-row sm:items-end sm:justify-center sm:gap-0"
       style={{ letterSpacing: "0.25rem" }}
       initial={{ pointerEvents: "none" }}
       animate={{ pointerEvents: "auto" }}
       transition={{ delay: POINTER_EVENTS_DELAY }}
     >
-      <Keyboard chars={LEFT_WORD} side="left" />
+      <div className="w-full max-w-[420px] sm:max-w-none sm:w-auto">
+        <Keyboard chars={LEFT_WORD} side="left" />
+      </div>
       <div className={KEYBOARD_GAP} />
-      <Keyboard chars={RIGHT_WORD} side="right" />
+      <div className="w-full max-w-[470px] sm:max-w-none sm:w-auto">
+        <Keyboard chars={RIGHT_WORD} side="right" />
+      </div>
     </motion.div>
   );
 }
 
 function HoverHint({ delay }: { delay: number }) {
+  const t = useTranslations("landing");
   return (
     <motion.p
       className="absolute bottom-12 mt-12 text-sm text-neutral-400 dark:text-neutral-500"
@@ -59,7 +65,7 @@ function HoverHint({ delay }: { delay: number }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.6 }}
     >
-      Hover to play notes
+      {t("hoverHint")}
     </motion.p>
   );
 }

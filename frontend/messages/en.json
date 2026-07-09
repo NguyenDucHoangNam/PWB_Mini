@@ -41,7 +41,9 @@
     "privacy": "Privacy Policy",
     "rights": "All rights reserved."
   },
-  "landing": {},
+  "landing": {
+    "hoverHint": "Hover to play notes"
+  },
   "auth": {
     "layout": {
       "description": "Producer Workbench - Real-time music collaboration platform.",

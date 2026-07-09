@@ -73,7 +73,7 @@ export function OtpInput({ disabled = false, onChange }: OtpInputProps) {
     <div
       role="group"
       aria-label="OTP code input - 6 digits"
-      className="flex justify-between gap-2 md:gap-4 w-full max-w-[320px] mx-auto font-sans"
+      className="flex justify-between gap-1.5 sm:gap-2 md:gap-3 w-full max-w-[360px] mx-auto font-sans"
     >
       {Array(6)
         .fill(null)
@@ -94,7 +94,7 @@ export function OtpInput({ disabled = false, onChange }: OtpInputProps) {
             onChange={(e) => handleChange(e.target.value, index)}
             onKeyDown={(e) => handleKeyDown(e, index)}
             onPaste={index === 0 ? handlePaste : undefined}
-            className="size-11 border border-neutral-200 text-center text-lg font-bold rounded-lg outline-none transition-colors focus:border-black focus:ring-3 focus:ring-black/10 disabled:bg-neutral-100 disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-900 dark:focus:border-white dark:focus:ring-white/10"
+            className="size-10 sm:size-11 md:size-12 border border-neutral-200 text-center text-lg font-bold rounded-lg outline-none transition-colors focus:border-black focus:ring-3 focus:ring-black/10 disabled:bg-neutral-100 disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-900 dark:focus:border-white dark:focus:ring-white/10"
           />
         ))}
     </div>

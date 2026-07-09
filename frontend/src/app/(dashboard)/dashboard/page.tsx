@@ -18,12 +18,12 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+      <div className="grid grid-cols-1 gap-4 mt-4 sm:gap-6 md:grid-cols-2">
         {/* Profile Settings Card */}
-        <div className="border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black rounded-xl p-6 flex flex-col justify-between">
+        <div className="border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black rounded-xl p-5 sm:p-6 flex flex-col justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold text-black dark:text-white mb-2">{t("profileCardTitle")}</h2>
-            <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-6">
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">
               {t("profileCardDesc")}
             </p>
           </div>
@@ -35,10 +35,10 @@ export default function DashboardPage() {
         </div>
 
         {/* Sessions Card */}
-        <div className="border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black rounded-xl p-6 flex flex-col justify-between">
+        <div className="border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black rounded-xl p-5 sm:p-6 flex flex-col justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold text-black dark:text-white mb-2">{t("sessionsCardTitle")}</h2>
-            <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-6">
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">
               {t("sessionsCardDesc")}
             </p>
           </div>

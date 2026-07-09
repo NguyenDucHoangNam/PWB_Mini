@@ -41,7 +41,9 @@
     "privacy": "Chính sách bảo mật",
     "rights": "All rights reserved."
   },
-  "landing": {},
+  "landing": {
+    "hoverHint": "Di chuột để phát nhạc"
+  },
   "auth": {
     "layout": {
       "description": "Producer Workbench Nền tảng cộng tác âm nhạc thời gian thực.",

@@ -4,9 +4,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useRef, useState } from "react";
 import { createAudioPlayer, getWhiteNoteFrequency, type Side } from "../lib/piano-audio";
 
-const KEY_GLYPH_SIZE = "clamp(1.5rem, 5vw, 3.5rem)";
-const KEY_BOX_SIZE = "clamp(2.2rem, 5vw, 3.5rem)";
-const WHITE_KEY_HEIGHT = "clamp(5rem, 12vw, 8rem)";
+const KEY_GLYPH_SIZE = "clamp(0.9rem, 4vw, 3.5rem)";
+const KEY_BOX_SIZE = "clamp(1.2rem, 4.5vw, 3.5rem)";
+const WHITE_KEY_HEIGHT = "clamp(3rem, 11vw, 8rem)";
 
 type PianoKeyProps = {
   char: string;
@@ -25,15 +25,39 @@ export function PianoKey({ char, index, side, animationDelay }: PianoKeyProps) {
     createAudioPlayer(audioCtxRef, frequency, 0.3, 0.15);
   }, [index, side]);
 
-  const handleMouseEnter = () => {
+  const activate = () => {
     setIsHovered(true);
     setIsPressed(true);
     playNote();
   };
 
-  const handleMouseLeave = () => {
+  const deactivate = () => {
     setIsHovered(false);
     setIsPressed(false);
+  };
+
+  const handleMouseEnter = () => {
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(hover: hover)").matches) {
+      activate();
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(hover: hover)").matches) {
+      deactivate();
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault();
+    activate();
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.preventDefault();
+    deactivate();
   };
 
   return (
@@ -46,6 +70,8 @@ export function PianoKey({ char, index, side, animationDelay }: PianoKeyProps) {
         animationDelay={animationDelay}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       />
       <WhiteKeyBody
         isHovered={isHovered}
@@ -53,6 +79,8 @@ export function PianoKey({ char, index, side, animationDelay }: PianoKeyProps) {
         animationDelay={animationDelay}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       />
       <HoverGlow isHovered={isHovered} />
     </div>
@@ -67,6 +95,8 @@ type KeyGlyphProps = {
   animationDelay: number;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
+  onTouchStart: (e: React.TouchEvent) => void;
+  onTouchEnd: (e: React.TouchEvent) => void;
 };
 
 function KeyGlyph({
@@ -77,6 +107,8 @@ function KeyGlyph({
   animationDelay,
   onMouseEnter,
   onMouseLeave,
+  onTouchStart,
+  onTouchEnd,
 }: KeyGlyphProps) {
   return (
     <div
@@ -91,6 +123,8 @@ function KeyGlyph({
         animationDelay={animationDelay}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
       />
     </div>
   );
@@ -136,6 +170,8 @@ type RealCharProps = {
   animationDelay: number;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
+  onTouchStart: (e: React.TouchEvent) => void;
+  onTouchEnd: (e: React.TouchEvent) => void;
 };
 
 function RealChar({
@@ -145,6 +181,8 @@ function RealChar({
   animationDelay,
   onMouseEnter,
   onMouseLeave,
+  onTouchStart,
+  onTouchEnd,
 }: RealCharProps) {
   const colorClass = isHovered
     ? "text-white dark:text-neutral-900"
@@ -161,6 +199,8 @@ function RealChar({
       }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
       initial={{ opacity: 0, y: -200, scale: 1.2 }}
       animate={{
         opacity: 1,
@@ -180,6 +220,8 @@ type WhiteKeyBodyProps = {
   animationDelay: number;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
+  onTouchStart: (e: React.TouchEvent) => void;
+  onTouchEnd: (e: React.TouchEvent) => void;
 };
 
 function WhiteKeyBody({
@@ -188,6 +230,8 @@ function WhiteKeyBody({
   animationDelay,
   onMouseEnter,
   onMouseLeave,
+  onTouchStart,
+  onTouchEnd,
 }: WhiteKeyBodyProps) {
   const pressedShadow = "inset 0 3px 6px rgba(0,0,0,0.2)";
   const idleShadow = "inset 0 -3px 6px rgba(0,0,0,0.06)";
@@ -201,6 +245,8 @@ function WhiteKeyBody({
       transition={{ duration: 0.4, delay: animationDelay + 0.1, ease: "easeOut" }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
     >
       <div
         className="absolute inset-0 overflow-hidden rounded-b-[2px]"

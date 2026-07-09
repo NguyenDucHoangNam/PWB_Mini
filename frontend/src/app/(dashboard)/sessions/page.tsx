@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function SessionsPage() {
   return (
-    <div className="border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black rounded-xl p-6 sm:p-8">
+    <div className="border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black rounded-xl p-4 sm:p-6 md:p-8">
       <SessionsTable />
     </div>
   );

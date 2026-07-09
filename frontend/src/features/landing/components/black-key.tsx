@@ -4,8 +4,8 @@ import { motion } from "framer-motion";
 import { useCallback, useRef, useState } from "react";
 import { createAudioPlayer, getBlackNoteFrequency, type Side } from "../lib/piano-audio";
 
-const BLACK_KEY_HEIGHT = "clamp(3rem, 7vw, 4.8rem)";
-const BLACK_KEY_MIN_WIDTH = "0.6rem";
+const BLACK_KEY_HEIGHT = "clamp(2rem, 6.5vw, 4.8rem)";
+const BLACK_KEY_MIN_WIDTH = "0.4rem";
 const BLACK_KEY_MAX_WIDTH = "2rem";
 const BLACK_KEY_WIDTH_RATIO = 0.6;
 
@@ -26,15 +26,39 @@ export function BlackKey({ side, animationDelay, totalKeys, centerPercent }: Bla
     createAudioPlayer(audioCtxRef, frequency, 0.25, 0.12);
   }, [side]);
 
-  const handleMouseEnter = () => {
+  const activate = () => {
     setIsHovered(true);
     setIsPressed(true);
     playNote();
   };
 
-  const handleMouseLeave = () => {
+  const deactivate = () => {
     setIsHovered(false);
     setIsPressed(false);
+  };
+
+  const handleMouseEnter = () => {
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(hover: hover)").matches) {
+      activate();
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(hover: hover)").matches) {
+      deactivate();
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault();
+    activate();
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.preventDefault();
+    deactivate();
   };
 
   return (
@@ -58,6 +82,8 @@ export function BlackKey({ side, animationDelay, totalKeys, centerPercent }: Bla
         transition={{ duration: 0.4, delay: animationDelay, ease: "easeOut" }}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
         <div
           className="absolute inset-0 overflow-hidden rounded-b-[2px]"
