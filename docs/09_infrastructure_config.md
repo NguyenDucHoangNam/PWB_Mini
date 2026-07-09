@@ -32,10 +32,17 @@ Apache Kafka đóng vai trò **Message Broker hướng sự kiện (Event-Driven
 | **Image** | `confluentinc/cp-kafka:7.6.0` | KRaft mode (không Zookeeper) |
 | **Node ID** | `1` | Single-node development |
 | **Process Roles** | `broker,controller` | Combined mode cho môi trường phát triển |
-| **Internal Listener** | `PLAINTEXT://kafka:29092` | Giao tiếp nội bộ giữa các container |
-| **External Listener** | `PLAINTEXT_HOST://localhost:9092` | Kết nối từ host machine |
+| **Internal Listener** | `PLAINTEXT://kafka:29092` | Giao tiếp nội bộ giữa các container (dev only) |
+| **External Listener (Production)** | `SASL_SSL://kafka:9093` | **BẮT BUỘC TLS 1.3 + SASL/SCRAM-SHA-512** ở production. Listener dev `PLAINTEXT_HOST://localhost:9092` chỉ dùng local. |
+| **SASL mechanism** | `SCRAM-SHA-512` (user `pwb-audio-producer`, `pwb-audio-worker`, `pwb-notification-mailer`) | Mỗi service có account riêng, ACL giới hạn WRITE/READ theo topic |
 | **Controller Quorum** | `1@kafka:29093` | KRaft controller |
 | **Replication Factor** | `1` (Offsets, Transaction State Log) | Chỉ dùng cho development, production yêu cầu ≥ 3 |
+
+> [!WARNING]
+> **Authentication & Encryption bắt buộc ở Production**:
+> 1. **SASL/SCRAM-SHA-512 + TLS 1.3** cho mọi listener (port 9093). Không bao giờ để `PLAINTEXT://` ở môi trường production — Kafka message chứa OTP email, share token, và personal info có thể bị sniff nội bộ.
+> 2. **ACL Authorization**: Config qua `kafka-acls.sh` — Producer service `pwb-audio-producer` chỉ `WRITE` trên `audio-processing-events`. Worker `pwb-audio-worker` chỉ `READ` + `WRITE` trên `-dlq`. Không dùng wildcard `*`.
+> 3. **Cert rotation**: Internal CA rotate mỗi 12 tháng, deployment tự động refresh truststore qua Vault.
 
 > [!WARNING]
 > Cấu hình `REPLICATION_FACTOR = 1` và `MIN_ISR = 1` chỉ phù hợp cho môi trường phát triển. Môi trường production **bắt buộc** phải cấu hình cluster ≥ 3 broker với `replication.factor = 3` và `min.insync.replicas = 2` để đảm bảo tính sẵn sàng và bền vững dữ liệu.
@@ -47,6 +54,8 @@ Apache Kafka đóng vai trò **Message Broker hướng sự kiện (Event-Driven
 | `notification-events` | 1 (dev) / 3+ (prod) | Chuyển tải các sự kiện thông báo bất đồng bộ (gửi email OTP kích hoạt, thông báo đăng nhập bất thường, cảnh báo bảo mật) | IAM | [01_register_otp_verification.md](./1.%20Identity%20&%20Access%20Management/01_register_otp_verification.md) |
 | `notification-events-dlq` | 1 | Dead Letter Queue — lưu trữ các tin nhắn gửi email thất bại sau 3 lần retry để giám sát và xử lý thủ công | IAM | [01_register_otp_verification.md](./1.%20Identity%20&%20Access%20Management/01_register_otp_verification.md) |
 | `room-lifecycle-events` *(tương lai)* | 1 (dev) / 3+ (prod) | Ghi nhận sự kiện `ROOM_LIFECYCLE_ENDED` khi phòng Live Room đóng, phục vụ tính toán Analytics | Live Room | [08_room_lifecycle_cleanup.md](./2.%20Live%20Room/08_room_lifecycle_cleanup.md) |
+| `audio-processing-events` | 1 (dev) / 3+ (prod) | Phát sự kiện upload Demo đã xác nhận thành công, Worker (cùng JVM) consume để bắt đầu xử lý HLS + Sidechain Ducking + Trích xuất Waveform | Secure Audio Streaming | [01_upload_process_demo.md](./3.%20Secure%20Audio%20Streaming/01_upload_process_demo.md) |
+| `audio-processing-events-dlq` | 1 | Dead Letter Queue — lưu trữ job xử lý âm thanh thất bại ≥ 3 lần (Poison Pill), cho phép Admin Console truy vết | Secure Audio Streaming | [01_upload_process_demo.md](./3.%20Secure%20Audio%20Streaming/01_upload_process_demo.md) |
 
 #### Quy tắc Đặt tên Topic (Topic Naming Convention)
 
@@ -55,7 +64,7 @@ Apache Kafka đóng vai trò **Message Broker hướng sự kiện (Event-Driven
 {domain}-events-dlq        → Dead Letter Queue tương ứng
 ```
 
-*Ví dụ*: `notification-events` / `notification-events-dlq`, `room-lifecycle-events` / `room-lifecycle-events-dlq`.
+*Ví dụ*: `notification-events` / `notification-events-dlq`, `room-lifecycle-events` / `room-lifecycle-events-dlq`, `audio-processing-events` / `audio-processing-events-dlq`.
 
 ### 1.4. Cấu hình Kafka Producer
 
@@ -81,8 +90,66 @@ Apache Kafka đóng vai trò **Message Broker hướng sự kiện (Event-Driven
 | `auto.offset.reset` | `earliest` | Đọc từ đầu khi Consumer Group mới được khởi tạo, đảm bảo không bỏ sót sự kiện |
 | `enable.auto.commit` | `false` | Tắt auto-commit để kiểm soát thủ công việc xác nhận offset sau khi xử lý thành công |
 | `max.poll.records` | `10` | Giới hạn số tin nhắn xử lý mỗi lần poll để kiểm soát throughput và tránh timeout |
+| `concurrency` (Spring `@KafkaListener`) | `3` (mặc định) — chia đều cho số partition của `notification-events` | Multi-thread Consumer trong cùng JVM — scale theo chiều dọc; **KHÔNG đặt** `concurrency > số partition` (sẽ có thread idle) |
+| `session.timeout.ms` | `30000` | Phát hiện Consumer chết trong 30s, sau đó Kafka rebalance partition cho instance khác |
+| `max.poll.interval.ms` | `300000` (5 phút) | Max thời gian giữa 2 poll — nếu SMTP gửi email chậm > 5 phút, Kafka tưởng Consumer chết và rebalance (gây duplicate). Nếu cần xử lý lâu hơn, **BẮT BUỘC** gọi `consumer.pause()` hoặc cắt nhỏ batch. |
+| `commit_strategy` | **Manual ACK sau khi xử lý thành công** (Spring `AckMode.MANUAL`) | Đảm bảo at-least-once: chỉ commit offset khi DB đã update `status='PROCESSED'` hoặc `status='DEAD_LETTER'`. Nếu Worker crash giữa chừng → Kafka re-deliver event. |
+
+**Idempotency Check Logic (Producer-side của Consumer pipeline)**:
+
+Tại tầng Service của Mail Worker, **trước khi** gửi SMTP, check Redis key `mail:processed:{idempotency_key}` TTL 7 ngày:
+```
+GET mail:processed:{idempotency_key}
+  ├─ EXISTS → log INFO OUTBOX_EVENT_DUPLICATE_SKIP {idempotencyKey}, return early (KHÔNG gửi lại)
+  └─ MISSING → tiếp tục xử lý
+```
+
+Nếu xử lý thành công:
+```
+SETEX mail:processed:{idempotency_key} 604800 {epochMs}  // 7 ngày
+```
+
+TTL 7 ngày đủ dài để cover Kafka retention (mặc định 7 ngày). Cấu hình `retention.ms = 604800000` cho topic `notification-events` phải khớp TTL Redis.
+
+**Lưu ý quan trọng**: Redis idempotency check + Outbox's `idempotency_key` column là **2 lớp bảo vệ**:
+- Lớp 1 (DB UNIQUE constraint): chống duplicate INSERT.
+- Lớp 2 (Redis SETEX): chống duplicate **process** (nếu Redis miss → re-process, idempotency_key trùng vẫn đi qua, nhưng DB constraint chặn).
+
+Lớp 2 là OPTIMIZATION — tránh gửi SMTP lần thứ 2 (đã tốn resource). Lớp 1 là correctness guarantee (không bao giờ có 2 row DB cùng idempotency_key).
 
 ### 1.6. Transactional Outbox Pattern
+
+**DDL chuẩn cho bảng `outbox_events`** (canonical schema dùng xuyên suốt tất cả module):
+
+```sql
+CREATE TABLE outbox_events (
+    id UUID PRIMARY KEY,
+    idempotency_key UUID NOT NULL UNIQUE,       -- UUID v4 sinh bởi Producer tại INSERT — Consumer check trùng (chống duplicate nếu Debezium hoặc scheduler replay)
+    aggregate_type VARCHAR(50) NOT NULL,        -- 'demo_distribution', 'voice_tag_create', 'password_reset', ...
+    aggregate_id UUID NOT NULL,                 -- id của aggregate gốc
+    event_type VARCHAR(50) NOT NULL,            -- 'SEND_SHARE_EMAIL', 'SEND_REVOKE_NOTICE', 'SEND_OTP', ...
+    payload BYTEA NOT NULL,                     -- AES-256-GCM encrypted: base64(nonce || ciphertext || authTag)
+    payload_key_version INT NOT NULL,           -- Version của outbox.encryption.key (rotation 90 ngày, dual-key overlap)
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',  -- 'PENDING', 'PROCESSED', 'FAILED', 'DEAD_LETTER'
+    retry_count INT NOT NULL DEFAULT 0,         -- Tối đa 5 (docs 03 §C)
+    last_error TEXT NULL,
+    available_at TIMESTAMP NOT NULL DEFAULT NOW(),  -- Earliest time to process (backoff)
+    processed_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL,
+    CONSTRAINT chk_outbox_status CHECK (status IN ('PENDING', 'PROCESSED', 'FAILED', 'DEAD_LETTER')),
+    CONSTRAINT chk_outbox_retry CHECK (retry_count >= 0 AND retry_count <= 5)
+);
+
+CREATE INDEX idx_outbox_status_available ON outbox_events(status, available_at) WHERE status IN ('PENDING', 'FAILED');
+CREATE INDEX idx_outbox_idempotency ON outbox_events(idempotency_key);
+```
+
+**Idempotency Key Generation (Producer-side Rule)**:
+- UUID v4 sinh bởi `SecureRandom` tại tầng Service trước khi INSERT.
+- Cùng logical event (vd `distributionId` cụ thể) phải dùng cùng `idempotency_key` — chống duplicate khi Producer retry giữa commit và Kafka publish.
+- Nếu INSERT fail với unique violation trên `idempotency_key`, Producer SELECT existing event rồi skip insert (idempotent retry safe).
+- Tại Consumer, mỗi lần xử lý event check `idempotency_key` đã từng process chưa (qua local cache `processed_keys:{consumerGroup}` hoặc DB mark).
 
 Mẫu thiết kế Transactional Outbox được áp dụng xuyên suốt hệ thống để đảm bảo tính nhất quán tuyệt đối giữa PostgreSQL và Kafka. Hệ thống triển khai **3 tuyến xử lý phân tầng** (Tiered Processing) để đạt At-Least-Once Delivery:
 
@@ -143,9 +210,11 @@ graph TD
 | :--- | :--- |
 | 1 | Consumer nhận tin nhắn từ topic `notification-events` |
 | 2 | Thực hiện xử lý (biên dịch template, gửi SMTP) |
-| 3 | Nếu thất bại → retry tự động (tối đa **3 lần**) |
-| 4 | Nếu vẫn thất bại sau 3 lần → chuyển tin nhắn sang topic `notification-events-dlq` |
-| 5 | Quản trị viên giám sát DLQ topic để xử lý thủ công hoặc cấu hình alert |
+| 3 | Nếu thất bại → retry tự động (tối đa **5 lần** — xem DDL `outbox_events` mục 1.6: `chk_outbox_retry CHECK (retry_count <= 5)`). Backoff: lần 1 ngay, lần 2 sau 30s, lần 3 sau 2 phút, lần 4 sau 10 phút, lần 5 sau 1 giờ. |
+| 4 | Nếu vẫn thất bại sau 5 lần → chuyển sang trạng thái `status='DEAD_LETTER'` trong bảng `outbox_events` (KHÔNG push sang Kafka DLQ topic). |
+| 5 | Quản trị viên giám sát `outbox_events WHERE status='DEAD_LETTER'` để xử lý thủ công hoặc cấu hình alert qua `outbox_dead_letter_total` Micrometer metric. |
+
+> **Lưu ý quan trọng**: docs 03 §1.2.C nói "DEAD_LETTER chuyển sang Kafka DLQ topic". Sau R5 review, quyết định **DEAD_LETTER giữ trong bảng `outbox_events`** (không push Kafka DLQ) để đơn giản hóa forensic — admin có thể query DB thay vì consume Kafka topic. Cấu hình này áp dụng thống nhất cho **Mọi event type** (SEND_SHARE_EMAIL, SEND_REVOKE_NOTICE, SEND_OTP...) chứ không riêng `notification-events`.
 
 ---
 
@@ -226,6 +295,7 @@ Hệ thống hỗ trợ **2 loại token** cho xác thực kết nối WebSocket
 | `/topic/rooms/{roomCode}/members` | Join/Leave/Kick | `MEMBERS_UPDATED` | Broadcast danh sách thành viên khi có người vào/ra/bị kick |
 | `/topic/rooms/{roomCode}/chat` | Chat & Reactions | `CHAT_RECEIVED` | Broadcast tin nhắn chat và biểu cảm tới toàn phòng |
 | `/topic/rooms/{roomCode}/host` | Waiting Room | `JOIN_REQUEST` | Thông báo riêng cho Host khi có yêu cầu tham gia mới |
+| `/topic/shared-threads/{threadId}/distributions` | Distribution Revoke | `DISTRIBUTION_REVOKED` | Thông báo cho cả 2 phía (Producer + Listener) của thread khi 1 distribution bị thu hồi |
 
 #### Kênh nhận tin Cá nhân (Server → Specific Client)
 
@@ -233,6 +303,7 @@ Hệ thống hỗ trợ **2 loại token** cho xác thực kết nối WebSocket
 | :--- | :--- | :--- | :--- |
 | `/user/queue/rooms/join-result` | Waiting Room | `APPROVED`, `REJECTED`, `KICKED` | Kết quả duyệt/từ chối/kick riêng tư gửi tới Listener cụ thể |
 | `/user/queue/rooms/signalling` | WebRTC | SDP Offer/Answer, ICE Candidate | Chuyển tiếp gói tin báo hiệu riêng tư tới đúng Peer |
+| `/user/queue/demos/status` | Demo Processing | `PROCESSING_COMPLETED`, `PROCESSING_FAILED` | Thông báo riêng cho Producer khi Demo xử lý xong/thất bại (kèm waveform_data nếu thành công) |
 
 ### 2.7. Giới hạn Tần suất Frame (Frame Rate Limiting)
 
@@ -288,9 +359,14 @@ Redis đóng **5 vai trò cốt lõi** trong kiến trúc PWB MiNi:
 | :--- | :--- | :--- |
 | **Image** | `redis:7.2-alpine` | Bản Alpine nhẹ, tối ưu cho container |
 | **Port** | `6379` | Cổng mặc định Redis |
+| **AUTH (CRITICAL)** | `requirepass ${REDIS_PASSWORD}` (production bắt buộc) | Dev/local có thể disable nhưng production LUÔN bật. Password lưu qua env var, không commit. Độ dài ≥ 32 ký tự ngẫu nhiên (`openssl rand -base64 32`). |
+| **TLS** | `redis-stack-server` chạy port `6380` với TLS 1.3 + mTLS (production) | Spring Boot: `spring.data.redis.ssl.enabled=true` + `spring.data.redis.ssl.bundle=classpath:redis-client.p12`. Connection string dạng `rediss://...`. |
 | **Connection Library** | Lettuce (mặc định Spring Boot) | Non-blocking, hỗ trợ reactive và cluster |
-| **Spring Config** | `spring.data.redis.host`, `spring.data.redis.port` | Env variables qua `${SPRING_DATA_REDIS_HOST}` |
+| **Spring Config** | `spring.data.redis.host`, `spring.data.redis.port`, `spring.data.redis.password`, `spring.data.redis.username` (Redis 6+ dùng ACL, default user `default`) | Env variables qua `${SPRING_DATA_REDIS_HOST}`. Username mặc định `default` nếu không bật ACL user riêng. |
 | **Repositories** | `spring.data.redis.repositories.enabled = true` | Kích hoạt Spring Data Redis Repositories |
+
+> [!WARNING]
+> **Redis AUTH/TLS là mandatory ở mọi môi trường trừ localhost dev**: Redis không có AUTH mặc định — bất kỳ ai có network access tới port 6379 đều có thể `FLUSHALL` hoặc đọc OTP, session token. Spring Boot dùng `Lettuce` hỗ trợ TLS nguyên thủy, bật `redis-cli --tls` để verify sau khi config. Với shared Redis (vd AWS ElastiCache), bật **encryption in transit + at-rest + AUTH Token** đồng thời.
 
 **Cấu hình Connection Pool (Lettuce) khuyến nghị cho Production:**
 
@@ -351,8 +427,27 @@ Bảng tổng hợp Redis key patterns sử dụng trong phân hệ truyền ph�
 
 | Redis Key Pattern | Type | Value | TTL | Mục đích | Tham chiếu Spec |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `demo:key:{demoId}` | String | Khóa AES-128 nhị phân 16 bytes | **5 phút** | Cache khóa giải mã HLS segments, tránh đọc S3/DB mỗi request | [04_stream_secure_audio.md](./3.%20Secure%20Audio%20Streaming/04_stream_secure_audio.md) |
-| `play_session:{shareToken}:{sessionId}` | String | `"1"` | **24 giờ** | Chống spam đếm lượt nghe ảo bằng SETNX nguyên tử (sessionId = MD5(IP + User-Agent) tính phía server) | [04_stream_secure_audio.md](./3.%20Secure%20Audio%20Streaming/04_stream_secure_audio.md) |
+| `demo:key:{demoId}` | Hash | `{keyBytes: <base64 16 bytes>, version: <int>, previousKeyBytes?: <base64>}` | **5 phút** | Cache khóa giải mã HLS segments, tránh đọc S3/DB mỗi request. Lưu dạng Hash để chứa cả version + previous key phục vụ rotation (xem docs 04 mục 1.2.E) | [04_stream_secure_audio.md](./3.%20Secure%20Audio%20Streaming/04_stream_secure_audio.md) |
+| `play_session:{shareToken}:{sessionId}` | String | `"1"` | **24 giờ** | Chống spam đếm lượt nghe ảo bằng SETNX nguyên tử. sessionId = SHA-256(IP + User-Agent + Accept-Language + Sec-CH-UA + Sec-CH-UA-Platform) tính phía server (xem docs 04 mục 1.2.C) | [04_stream_secure_audio.md](./3.%20Secure%20Audio%20Streaming/04_stream_secure_audio.md) |
+| `audio:job:lock:{demoId}` | String | `"locked"` | **10 phút** | Distributed lock chống 2 Worker cùng xử lý 1 demo (SETNX + Lua release) | [01_upload_process_demo.md](./3.%20Secure%20Audio%20Streaming/01_upload_process_demo.md) |
+| `voice_tag:daily_count:{userId}` | String | Counter (`INCR`) | **24 giờ rolling** | Đếm số Voice Tag đã tạo trong ngày của user. Khi vượt 30 → trả `RATE_LIMIT_EXCEEDED` | [02_generate_voice_tag.md](./3.%20Secure%20Audio%20Streaming/02_generate_voice_tag.md) |
+| `demo:distribution:{shareToken}` | String (JSON) | `{distributionId, threadId, demoId, recipientEmail, allowDownload, isRevoked, createdAt}` | **24 giờ** | Cache cấu hình phân phối để `/shared/{token}` / `/key` / `/play` truy vấn nhanh không qua DB | [03_distribute_share_demo.md](./3.%20Secure%20Audio%20Streaming/03_distribute_share_demo.md) |
+| `demo:distribution:revoked:{shareToken}` | String | `"true"` | **10 phút** | Blacklist token đã thu hồi. Check trước mỗi request stream/download | [06_revoke_shared_link.md](./3.%20Secure%20Audio%20Streaming/06_revoke_shared_link.md) |
+| `demo:distribution:active_sessions:{shareToken}` | `Set<UUID>` | Set of `jti` đang live | **30 phút** | Track cookie jti issued cho shareToken — dùng khi revoke (xem docs 06 mục 1.2.F) | [04_stream_secure_audio.md](./3.%20Secure%20Audio%20Streaming/04_stream_secure_audio.md) |
+| `stream:cookie:revoked:{jti}` | String | `"1"` | **30 phút** | Blacklist cookie jti sau khi distribution bị revoke (xem docs 04 mục 1.2.D) | [04_stream_secure_audio.md](./3.%20Secure%20Audio%20Streaming/04_stream_secure_audio.md) |
+| `demo:distribution:locked:{shareToken}` | String | `"1"` | **15 phút** | Khóa tạm thời shareToken khi bị brute-force quá 120 lần/5 phút (xem docs 04 mục 1.2.F) | [04_stream_secure_audio.md](./3.%20Secure%20Audio%20Streaming/04_stream_secure_audio.md) |
+| `demo:upload:claim:{s3Key}` | Hash | `{userId, expectedSizeBytes, expectedContentType, issuedAt}` | **2 giờ** | Claim mapping cho upload — xác thực ownership + size khi `/confirm-upload` (xem docs 01) | [01_upload_process_demo.md](./3.%20Secure%20Audio%20Streaming/01_upload_process_demo.md) |
+| `voice_tag:active_count:{userId}` | String | Counter (cached từ DB) | **1 giờ** | Số Voice Tag active (≤50 — xem docs 02 mục 1.2.G) | [02_generate_voice_tag.md](./3.%20Secure%20Audio%20Streaming/02_generate_voice_tag.md) |
+| `voice_tag:storage_bytes:{userId}` | String | Tổng bytes (lazy compute) | **1 giờ** | Tổng dung lượng S3 Voice Tag (≤200 MB — xem docs 02 mục 1.2.G) | [02_generate_voice_tag.md](./3.%20Secure%20Audio%20Streaming/02_generate_voice_tag.md) |
+| `share:daily_recipients:{producerId}` | String | Counter (`INCR`) | **24 giờ rolling** | Unique email đã gửi trong 24 giờ (≤100 — xem docs 03 mục 1.2.G) | [03_distribute_share_demo.md](./3.%20Secure%20Audio%20Streaming/03_distribute_share_demo.md) |
+| `share:daily_count:{producerId}` | String | Counter (`INCR`) | **24 giờ rolling** | Distribution đã tạo trong 24 giờ (≤500) | [03_distribute_share_demo.md](./3.%20Secure%20Audio%20Streaming/03_distribute_share_demo.md) |
+| `email:domain:blacklist` | Hash | `domain → reason` | **1 giờ** | Cache các domain email rác bị cấm (xem docs 03 mục 1.2.G) | [03_distribute_share_demo.md](./3.%20Secure%20Audio%20Streaming/03_distribute_share_demo.md) |
+| `share_token:fail_count:{ip}` | String | Counter (`INCR`) | **5 phút** | Số lần `/shared/{token}` trả 404 từ IP — vượt 50 → block IP | [03_distribute_share_demo.md](./3.%20Secure%20Audio%20Streaming/03_distribute_share_demo.md) |
+| `share_token:ip_blocked:{ip}` | String | `"1"` | **1 giờ** | IP bị chặn brute-force (xem docs 03 mục 1.2.I) | [03_distribute_share_demo.md](./3.%20Secure%20Audio%20Streaming/03_distribute_share_demo.md) |
+| `revoked:completed:{distributionId}` | String | `"1"` | **10 phút** | Idempotency tracking cho revoke endpoint (xem docs 06 mục 1.2.H) | [06_revoke_shared_link.md](./3.%20Secure%20Audio%20Streaming/06_revoke_shared_link.md) |
+| `revoke:user_count:{userId}` | String | Counter (`INCR`) | **60 giây** | Per-user rate limit cho revoke (≤30/phút — xem docs 06 mục 1.2.I) | [06_revoke_shared_link.md](./3.%20Secure%20Audio%20Streaming/06_revoke_shared_link.md) |
+| `download:count:{shareToken}:{sessionId}` | String | Counter (`INCR`) | **24 giờ** | Per-session download counter (≤10/ngày — xem docs 05 mục 1.2.E) | [05_download_original_audio.md](./3.%20Secure%20Audio%20Streaming/05_download_original_audio.md) |
+| `download:weekly_count:{shareToken}` | String | Counter (`INCR`) | **7 ngày rolling** | Per-shareToken download counter (≤100/tuần) | [05_download_original_audio.md](./3.%20Secure%20Audio%20Streaming/05_download_original_audio.md) |
 
 ### 3.6. Redis Pub/Sub Channels
 
@@ -530,12 +625,16 @@ CloudFront đứng trước S3 Bucket để phân phối các phân đoạn nh�
 
 ### 4.7. CORS Policy trên S3 Bucket
 
-Thiết lập CORS để cho phép Frontend upload và tải phân đoạn trực tiếp từ trình duyệt:
+> **CRITICAL — Phân biệt rõ CORS theo môi trường**:
+> - **Production bucket** (`pwbmini-prod-audio`): chỉ whitelist `https://pwbmini.com` và `https://*.pwbmini.com`. **KHÔNG ĐƯỢC** có `localhost:3000` ở production — đây là attack vector nếu attacker local lừa trình duyệt victim gửi request tới production bucket.
+> - **Dev/Staging bucket** (`pwbmini-dev-audio`, MinIO local): cho phép `http://localhost:3000`, `http://localhost:5173` (Vite), `http://127.0.0.1:8080`.
+
+**Cấu hình Production** (Terraform/CDK):
 
 ```json
 [
   {
-    "AllowedOrigins": ["https://pwbmini.com", "http://localhost:3000"],
+    "AllowedOrigins": ["https://pwbmini.com", "https://*.pwbmini.com"],
     "AllowedMethods": ["PUT", "GET"],
     "AllowedHeaders": ["Content-Type", "Content-Length"],
     "ExposedHeaders": ["ETag"],
@@ -544,8 +643,26 @@ Thiết lập CORS để cho phép Frontend upload và tải phân đoạn trự
 ]
 ```
 
+**Cấu hình Development (MinIO local)**:
+
+```json
+[
+  {
+    "AllowedOrigins": [
+      "http://localhost:3000",
+      "http://localhost:5173",
+      "http://127.0.0.1:8080"
+    ],
+    "AllowedMethods": ["PUT", "GET"],
+    "AllowedHeaders": ["*"],
+    "ExposedHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
 > [!NOTE]
-> Trong môi trường local development (MinIO), cấu hình CORS này được tự động thiết lập lúc khởi động bởi `S3StorageService` nếu thuộc tính `app.storage.auto-configure-cors` được bật là `true` trong cấu hình ứng dụng.
+> Trong môi trường local development (MinIO), cấu hình CORS dev được tự động thiết lập lúc khởi động bởi `S3StorageService` nếu thuộc tính `app.storage.auto-configure-cors` được bật là `true` trong cấu hình ứng dụng. **Ở production, property này BẮT BUỘC = false** để tránh logic runtime overwrite CORS config cố ý của DevOps.
 
 ### 4.8. S3 Lifecycle Rules
 
@@ -575,3 +692,90 @@ Danh mục kiểm tra trước khi triển khai lên Production:
 | 6 | **Cấu hình Lifecycle Rules** | Prefix `original/` expire sau 1 ngày |
 | 7 | **Thiết lập Env Variables** | `AWS_S3_BUCKET_NAME`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `STORAGE_PUBLIC_URL_PREFIX` |
 | 8 | **IAM Policy** | Tạo IAM User/Role với quyền tối thiểu: `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject`, `s3:HeadObject` trên bucket cụ thể |
+
+---
+
+## 🔐 5. Security Best Practices (Quy tắc Bảo mật Chung)
+
+Phần này tổng hợp các quy tắc bảo mật xuyên suốt hệ thống PWB MiNi, áp dụng chung cho cả 3 phân hệ (IAM, Live Room, Secure Audio Streaming). Mọi module mới hoặc feature extend BẮT BUỘC phải tuân thủ.
+
+### 5.1. Mã hóa Dữ liệu Nhạy cảm (Encryption)
+
+| Loại | Quy tắc | Tham chiếu |
+| :--- | :--- | :--- |
+| **At Rest (Database)** | Tất cả cột chứa PII nhạy cảm (email, full_name, phone) MÃ HÓA bằng AES-256-GCM với key từ AWS KMS. Không bao giờ lưu plaintext. |
+| **Database Backup Encryption (CRITICAL)** | Mọi `pg_dump` / `pg_basebackup` / snapshot phải mã hóa AES-256-GCM (hoặc PGP symmetric encryption với key từ AWS KMS `alias/pwb-db-backup`) trước khi upload lên S3 backup bucket. **Tuyệt đối KHÔNG** lưu backup plaintext ở bất kỳ storage nào (kể cả ephemeral disk của job runner). Kiểm tra tự động qua `pgbackrest` với `--encrypt` flag. Backup retention: daily 7 ngày + weekly 4 tuần + monthly 12 tháng. Compliance: GDPR Art. 32, SOC 2 CC6.1. | docs 09 §5.4 | docs IAM |
+| **At Rest (Redis)** | Cấu hình Redis với `appendonly yes` + `appendfsync everysec`. Dữ liệu nhạy cảm (OTP, session token) có thể lưu plaintext vì TTL ngắn nhưng key-value backups phải mã hóa disk-level (LUKS/luks). | docs 09 §3 |
+| **At Rest (S3)** | Bucket chính sách **Block Public Access = true**. Tất cả object lưu với `ServerSideEncryption: AES256` (S3 managed key) hoặc `aws:kms` (KMS key riêng). | docs 09 §4.2 |
+| **In Transit** | Tất cả client-server communication **HTTPS only** (TLS 1.2+). HSTS header `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`. Internal traffic giữa microservices **mTLS** (qua service mesh hoặc Spring Cloud Vault). | Cross-cutting |
+| **AES Key cho HLS** | Lưu trong KMS, encrypted column `demos.aes_key_encrypted`. Master key `alias/pwb-audio-master` rotate 90 ngày. | docs 04 §1.2.E |
+| **Outbox Payload** | Mã hóa AES-256-GCM với key `outbox.encryption.key` (rotation 90 ngày, dual-key overlap). | docs 03 §1.2.H |
+| **Secure Session Cookie** | JWT HS256 signed với secret rotation 30 ngày. Cookie name `__Host-` prefix + `Secure` + `SameSite=Strict`. | docs 04 §1.2.D |
+
+### 5.2. Quản lý Bí mật & Key Management
+
+| Quy tắc | Chi tiết |
+| :--- | :--- |
+| **Secret Storage** | KHÔNG BAO GIỜ lưu secret trong source code, application.yaml, hoặc Git. Bắt buộc dùng Vault / AWS Secrets Manager / Spring Cloud Config. |
+| **Secret Rotation** | JWT signing key: 30 ngày. AES master key: 90 ngày. DB password: 90 ngày. AWS access key: 180 ngày. |
+| **Dual-Key Overlap** | Mỗi lần rotate, giữ fallback key (cũ) trong 7-14 ngày để events/cookies cũ vẫn validate được. |
+| **Logging hygiene** | KHÔNG log raw secret, AES key, JWT signature, presigned URL params (AWSAccessKeyId, Signature, Expires). Chỉ log ID/metadata. |
+| **Algorithm Agility** | Tất cả JWT/cookie/encryption dùng thuật toán có thể swap (qua config). AES-128 → AES-256 nếu cần. HS256 → EdDSA khi hỗ trợ. |
+
+### 5.3. Network Security
+
+| Quy tắc | Chi tiết |
+| :--- | :--- |
+| **TLS** | TLS 1.2+ only (tắt TLS 1.0/1.1). Cipher suite whitelist: `TLS_AES_256_GCM_SHA384`, `TLS_CHACHA20_POLY1305_SHA256`, `TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384`. |
+| **Certificate Pinning** | Frontend (mobile) → Backend API dùng certificate pinning để chống MITM. Backend → third-party (Google TTS, SMTP, S3) pin CA chain. |
+| **WAF / DDoS Protection** | Triển khai AWS WAF + Cloudflare trước Backend. Rate limit layer 7 + IP reputation filter. |
+| **CIDR Allowlist** | Một số endpoint admin (`/admin/*`) chỉ cho phép IP từ dải IP văn phòng (qua `IpRateLimitFilter.allowedCidrs`). |
+| **Private Subnets** | Database, Redis, Kafka cluster KHÔNG public. Chỉ Backend Pod được gọi qua internal DNS. |
+
+### 5.4. Application-Level Defenses
+
+| Quy tục | Chi tiết | Tham chiếu |
+| :--- | :--- | :--- |
+| **IP Rate Limiting** | Mọi endpoint áp dụng IP rate limit (qua `IpRateLimitFilter`) với Bucket4j hoặc Redis-based token bucket. | docs 09 §3.5 + từng docs |
+| **Per-User Quota** | Mỗi user/account có quota tổng (vd: 50 voice tags, 20 active demos, 100 downloads/day). Track qua Redis counter + DB COUNT() race-safe. | docs 01-06 |
+| **Ownership / IDOR** | Mọi endpoint có path param `{id}` (UUID) kiểm tra `entity.owner_id == currentUserId` TRƯỚC business logic. Trả `403 FORBIDDEN_ACCESS` (không 404) để phân biệt rõ. | docs 02 §1.2.I |
+| **CSRF Protection** | State-changing endpoint (POST/PUT/DELETE) cho authenticated user phải có CSRF token (qua double-submit cookie pattern) HOẶC yêu cầu `Authorization: Bearer ...` (CSRF-safe). | docs 04 §5.1 (xhr.withCredentials) |
+| **SSRF Protection** | Outbound HTTP (Google TTS, SMTP,...) qua proxy nội bộ, validate URL không nội bộ IP (RFC 1918 + 127.0.0.0/8 + 169.254.0.0/16). | docs 02 §1.2.E (SSML `<audio>` chặn) |
+| **Open Redirect Protection** | Email chứa link `https://pwbmini.com/shared/...` chỉ được form từ server-side template, KHÔNG lấy từ user input. | docs 03 |
+| **File Upload Validation** | Server-side: `ffprobe` validate codec/sample-rate/duration. MIME sniff check. File size qua `Content-Length` + `HeadObject`. | docs 01 §1.2 + §1.4 |
+
+### 5.5. Authentication & Authorization
+
+| Quy tắc | Chi tiết |
+| :--- | :--- |
+| **JWT** | Access token 15 phút (HS256 hoặc EdDSA). Refresh token 7 ngày (opaque, lưu DB + Redis blacklist khi revoke). |
+| **Password Storage** | Argon2id (`argon2id$v=19$m=65536,t=3,p=4`) hoặc BCrypt cost ≥ 12. Tái hash khi user đổi password. |
+| **MFA** | Bắt buộc cho Producer (ROLE_USER_PRO). TOTP qua Google Authenticator hoặc WebAuthn. |
+| **Session** | Sử dụng JWT stateless + Refresh rotation. Revoke qua Redis blacklist với TTL = remaining lifetime. |
+| **WS Authorization** | Mọi SUBSCRIBE topic phải verify STOMP Session Attribute chứa Temporary Access Token (TAT) — không cho phép subscribe anonymous. | docs 06 §1.2.E |
+| **IP Matching** | CIDR-based /24 (v4) hoặc /48 (v6) cho session IP. Strict hơn cho admin endpoints. |
+
+### 5.6. Observability cho Bảo mật
+
+| Loại | Sự kiện | Severity |
+| :--- | :--- | :--- |
+| **Auth Failure** | `AUTH_LOGIN_FAILED`, `AUTH_MFA_FAILED`, `AUTH_TOKEN_INVALID` | WARN |
+| **Brute-Force** | `BRUTE_FORCE_DETECTED`, `IP_BLOCKED` (sau khi vượt threshold) | WARN → ERROR |
+| **Suspicious Access** | `IDOR_ATTEMPT`, `WS_SUBSCRIBE_DENIED`, `IP_MISMATCH` | WARN |
+| **Encryption Events** | `AES_KEY_ROTATED`, `AES_KEY_COMPROMISED`, `OUTBOX_PAYLOAD_DECRYPT_FAILED` | INFO / ERROR |
+| **Quota Exceeded** | `DEMO_QUOTA_EXCEEDED`, `VOICE_TAG_QUOTA_EXCEEDED`, `DOWNLOAD_QUOTA_EXCEEDED`, `SHARE_QUOTA_EXCEEDED` | WARN |
+| **Compensation / Cleanup** | `S3_COMPENSATION_ORPHAN`, `VOICE_TAG_S3_CLEANUP_RETRY`, `S3_CLEANUP_FAILED` | WARN / ERROR |
+| **Idempotency** | `REVOKE_IDEMPOTENT_SKIP` | INFO |
+| **Audit Trail** | `REVOKE_AUDIT_RECORDED`, `DOWNLOAD_AUDIT_RECORDED` | INFO |
+
+> Tất cả event phải được ELK / Datadog / Loki ingest và cấu hình alert rule tương ứng (vd: > 10 `BRUTE_FORCE_DETECTED` / 5 phút / IP → page DevOps on-call).
+
+### 5.7. Incident Response Playbook (Outline)
+
+| Tình huống | Action đầu tiên | Quyết định escalation |
+| :--- | :--- | :--- |
+| **AES Key bị leak** | Trigger `AES_KEY_ROTATED` qua `POST /demos/{id}/rotate-key`. Invalidate `demo:key:{demoId}` cache. Tất cả jti trong `demo:distribution:active_sessions:{shareToken}` → `stream:cookie:revoked:{jti}`. Notify Producer để revoke. | Security Team |
+| **Outbox Payload không giải mã được** | Log `CRITICAL OUTBOX_PAYLOAD_DECRYPT_FAILED`. Worker skip event → DLQ. Admin console truy xuất DLQ manual replay. | Security Team |
+| **Brute-force attack** | IP bị block 1 giờ tự động. Nếu vẫn tiếp tục → extend block 24 giờ + add CIDR range vào Cloudflare WAF. | DevOps |
+| **S3 Bucket compromise** | Block IAM credentials ngay lập tức qua AWS IAM Console. Rotate access key. Audit S3 access logs để xác định scope. | Security Team + DevOps |
+| **JWT signing key leak** | Rotate JWT secret qua Vault. Set TTL cũ = 0 để force logout toàn bộ user. Tất cả refresh token hiện tại bị revoke. | Security Team |

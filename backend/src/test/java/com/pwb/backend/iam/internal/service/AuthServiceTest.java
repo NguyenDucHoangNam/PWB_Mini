@@ -27,6 +27,7 @@ import java.util.HashMap;
 import com.pwb.backend.iam.internal.config.IamProperties;
 import com.pwb.backend.iam.internal.enums.OAuthProvider;
 import com.pwb.backend.iam.internal.enums.UserStatus;
+import com.pwb.backend.iam.internal.helper.LoginLockoutHelper;
 import com.pwb.backend.iam.internal.mapper.UserMapper;
 import com.pwb.backend.iam.internal.model.OutboxEvent;
 import com.pwb.backend.iam.internal.model.Role;
@@ -136,6 +137,10 @@ class AuthServiceTest {
   private SessionService sessionService;
   @Mock
   private AccountLifecycleService accountLifecycleService;
+  @Mock
+  private com.pwb.backend.shared.security.ClientIpResolver clientIpResolver;
+  @Mock
+  private LoginLockoutHelper loginLockoutHelper;
 
   private IamProperties iamProperties;
 
@@ -165,6 +170,32 @@ class AuthServiceTest {
     }).when(transactionTemplate).executeWithoutResult(any());
 
     lenient().when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+
+    // Wire loginLockoutHelper to consult redisTemplate.hasKey on the lockout
+    // key, mirroring the production logic without re-implementing it here.
+    lenient().doAnswer(invocation -> {
+      String userId = invocation.getArgument(1);
+      if (Boolean.TRUE.equals(redisTemplate.hasKey("login_lockout:" + userId))) {
+        throw new BusinessException(ErrorCode.ACCOUNT_TEMPORARILY_LOCKED,
+            "Account is temporarily locked, please try again later");
+      }
+      return null;
+    }).when(loginLockoutHelper).ensureNotLocked(any(), anyString());
+
+    lenient().doAnswer(invocation -> {
+      String userId = invocation.getArgument(1);
+      Long attempts = valueOperations.increment("login_attempts:" + userId);
+      if (attempts != null && attempts == 1) {
+        redisTemplate.expire("login_attempts:" + userId, Duration.ofMinutes(15));
+      }
+      if (attempts != null && attempts >= 5) {
+        valueOperations.set("login_lockout:" + userId, "true", Duration.ofMinutes(15));
+        redisTemplate.delete("login_attempts:" + userId);
+        throw new BusinessException(ErrorCode.ACCOUNT_TEMPORARILY_LOCKED,
+            "Account is temporarily locked, please try again later");
+      }
+      return null;
+    }).when(loginLockoutHelper).recordFailure(any(), anyString());
 
     lenient().doReturn(Collections.emptyList())
         .when(redisTemplate)
@@ -197,8 +228,13 @@ class AuthServiceTest {
         transactionManager,
         sessionService,
         accountLifecycleService,
-        outboxEventFactory
+        outboxEventFactory,
+        loginLockoutHelper,
+        clientIpResolver
     );
+    lenient().when(clientIpResolver.current()).thenReturn("127.0.0.1");
+    lenient().when(clientIpResolver.resolve(any(jakarta.servlet.http.HttpServletRequest.class))).thenReturn("127.0.0.1");
+
     ReflectionTestUtils.setField(authService, "googleVerifier", googleVerifier);
   }
 
@@ -344,7 +380,6 @@ class AuthServiceTest {
     mockUser.setRole(role);
 
     when(userRepository.findByUsernameOrEmailAndDeletedFalse(anyString())).thenReturn(Optional.of(mockUser));
-    when(redisTemplate.hasKey("login_lockout:user-uuid")).thenReturn(false);
     when(passwordEncoder.matches("Password@123", "hashed-pwd")).thenReturn(true);
 
     lenient().when(jwtService.generateAccessToken(any(User.class))).thenReturn("access-token");
@@ -370,10 +405,8 @@ class AuthServiceTest {
     mockUser.setStatus(UserStatus.ACTIVE);
 
     when(userRepository.findByUsernameOrEmailAndDeletedFalse(anyString())).thenReturn(Optional.of(mockUser));
-    when(redisTemplate.hasKey("login_lockout:user-uuid")).thenReturn(false);
     when(passwordEncoder.matches("WrongPwd", "hashed-pwd")).thenReturn(false);
 
-    when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     when(valueOperations.increment("login_attempts:user-uuid")).thenReturn(3L);
 
     BusinessException ex = assertThrows(BusinessException.class, () -> authService.login(request, httpResponse));
@@ -390,10 +423,8 @@ class AuthServiceTest {
     mockUser.setStatus(UserStatus.ACTIVE);
 
     when(userRepository.findByUsernameOrEmailAndDeletedFalse(anyString())).thenReturn(Optional.of(mockUser));
-    when(redisTemplate.hasKey("login_lockout:user-uuid")).thenReturn(false);
     when(passwordEncoder.matches("WrongPwd", "hashed-pwd")).thenReturn(false);
 
-    when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     when(valueOperations.increment("login_attempts:user-uuid")).thenReturn(5L);
 
     BusinessException ex = assertThrows(BusinessException.class, () -> authService.login(request, httpResponse));
@@ -436,7 +467,6 @@ class AuthServiceTest {
     mockUser.setStatus(UserStatus.BANNED);
 
     when(userRepository.findByUsernameOrEmailAndDeletedFalse(anyString())).thenReturn(Optional.of(mockUser));
-    when(redisTemplate.hasKey("login_lockout:user-uuid")).thenReturn(false);
 
     BusinessException ex = assertThrows(BusinessException.class, () -> authService.login(request, httpResponse));
     assertEquals(ErrorCode.ACCOUNT_BANNED, ex.getErrorCode());
@@ -450,11 +480,13 @@ class AuthServiceTest {
     GoogleIdToken.Payload mockPayload = Mockito.mock(GoogleIdToken.Payload.class);
     when(googleVerifier.verify(anyString())).thenReturn(mockToken);
     when(mockToken.getPayload()).thenReturn(mockPayload);
+    when(mockPayload.getIssuer()).thenReturn("https://accounts.google.com");
     when(mockPayload.getEmailVerified()).thenReturn(true);
     when(mockPayload.getEmail()).thenReturn("test@gmail.com");
     when(mockPayload.getSubject()).thenReturn("google-sub");
     when(mockPayload.get("name")).thenReturn("Google User");
     when(mockPayload.get("picture")).thenReturn("http://avatar");
+    when(mockPayload.get("azp")).thenReturn(iamProperties.getGoogle() != null ? iamProperties.getGoogle().getClientId() : null);
 
     User mockUser = new User();
     mockUser.setId("user-uuid");
@@ -610,6 +642,7 @@ class AuthServiceTest {
     mockUser.setId("user-uuid");
     mockUser.setEmail("test@gmail.com");
     mockUser.setFullName("Old Name");
+    mockUser.setStatus(UserStatus.ACTIVE);
 
     when(jwtService.isTokenValid("access-token")).thenReturn(true);
     when(jwtService.extractEmail("access-token")).thenReturn("test@gmail.com");
@@ -636,13 +669,17 @@ class AuthServiceTest {
     mockUser.setPassword("hashed-password");
 
     when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
-    when(jwtService.generateRefreshToken(any(User.class))).thenReturn("reset-token-uuid");
     when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
     authService.forgotPassword(request);
 
     Mockito.verify(outboxEventFactory).passwordReset(any(User.class), anyString(), anyString());
-    Mockito.verify(valueOperations).set(Mockito.eq("password_reset_token:reset-token-uuid"), Mockito.eq("test@gmail.com"), any(Duration.class));
+    // Token is now an opaque high-entropy token generated by
+    // OpaqueTokenGenerator (43 chars base64url), not a JWT.
+    Mockito.verify(valueOperations).set(
+        Mockito.matches("password_reset_token:[A-Za-z0-9_-]{20,}"),
+        Mockito.eq("test@gmail.com"),
+        any(Duration.class));
   }
 
   @Test
@@ -680,6 +717,7 @@ class AuthServiceTest {
     mockUser.setId("user-uuid");
     mockUser.setEmail("test@gmail.com");
     mockUser.setPassword("hashed-old-password");
+    mockUser.setStatus(UserStatus.ACTIVE);
 
     when(jwtService.extractEmailFromExpiredToken("access-token")).thenReturn("test@gmail.com");
     when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));
@@ -700,6 +738,7 @@ class AuthServiceTest {
     mockUser.setId("user-uuid");
     mockUser.setEmail("test@gmail.com");
     mockUser.setPassword("hashed-old-password");
+    mockUser.setStatus(UserStatus.ACTIVE);
 
     when(jwtService.extractEmailFromExpiredToken("access-token")).thenReturn("test@gmail.com");
     when(userRepository.findByEmailAndDeletedFalse("test@gmail.com")).thenReturn(Optional.of(mockUser));

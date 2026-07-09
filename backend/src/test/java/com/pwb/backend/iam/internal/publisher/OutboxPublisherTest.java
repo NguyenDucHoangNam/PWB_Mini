@@ -36,7 +36,7 @@ class OutboxPublisherTest {
     kafkaTemplate = mock(KafkaTemplate.class);
     IamProperties props = new IamProperties();
     props.getOutbox().setDeadLetterAfterRetries(3);
-    publisher = new OutboxPublisher(outboxEventRepository, kafkaTemplate, props);
+    publisher = new OutboxPublisher(outboxEventRepository, kafkaTemplate, new OutboxPayloadCipher(""), props);
   }
 
   @Test

@@ -172,9 +172,9 @@ public class AccountLifecycleService {
       try {
         requiresNewTemplate.executeWithoutResult(status -> anonymizeUser(user));
         count++;
-        log.info("USER_ANONYMIZED_SUCCESS: userId={}", user.getId());
+        log.info("USER_ANONYMIZED_SUCCESS: userId={}", com.pwb.backend.iam.internal.helper.PiiScrubber.userRef(user.getId()));
       } catch (Exception e) {
-        log.error("USER_ANONYMIZATION_FAILED: userId={}", user.getId(), e);
+        log.error("USER_ANONYMIZATION_FAILED: userId={}", com.pwb.backend.iam.internal.helper.PiiScrubber.userRef(user.getId()), e);
       }
     }
 

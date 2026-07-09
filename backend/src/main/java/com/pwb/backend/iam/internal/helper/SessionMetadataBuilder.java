@@ -4,6 +4,7 @@ import com.pwb.backend.iam.internal.config.IamProperties;
 import com.pwb.backend.iam.internal.model.User;
 import com.pwb.backend.iam.internal.service.GeoIpService;
 import com.pwb.backend.iam.internal.service.JwtService;
+import com.pwb.backend.shared.security.ClientIpResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -21,8 +22,8 @@ public final class SessionMetadataBuilder {
     }
 
     public static Map<String, String> buildForNewSession(User user, JwtService jwtService, GeoIpService geoIpService,
-                                                          String accessToken) {
-        String ip = clientIp();
+                                                          String accessToken, ClientIpResolver clientIpResolver) {
+        String ip = clientIpResolver != null ? clientIpResolver.current() : clientIp();
         String ua = userAgent();
         String browser = ua != null ? ua : "Unknown";
         Map<String, String> metadata = new HashMap<>();

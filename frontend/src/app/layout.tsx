@@ -21,7 +21,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PWB MiNi — Real-time Audio Collaboration Platform",
+  title: "PWB — Real-time Audio Collaboration Platform",
   description:
     "A secure real-time audio collaboration and demo sharing platform for music producers.",
 };

@@ -27,6 +27,8 @@ import com.pwb.backend.iam.internal.enums.OAuthProvider;
 import com.pwb.backend.iam.internal.enums.UserStatus;
 import com.pwb.backend.iam.internal.helper.DisposableEmailChecker;
 import com.pwb.backend.iam.internal.helper.LoginLockoutHelper;
+import com.pwb.backend.iam.internal.helper.OpaqueTokenGenerator;
+import com.pwb.backend.iam.internal.helper.PiiScrubber;
 import com.pwb.backend.iam.internal.helper.SessionMetadataBuilder;
 import com.pwb.backend.iam.internal.mapper.UserMapper;
 import com.pwb.backend.iam.internal.model.Role;
@@ -36,6 +38,7 @@ import com.pwb.backend.iam.internal.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.shared.exception.BusinessException;
 import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.shared.security.ClientIpResolver;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -91,6 +94,7 @@ public class AuthService {
   private final AccountLifecycleService accountLifecycleService;
   private final com.pwb.backend.iam.internal.factory.OutboxEventFactory outboxEventFactory;
   private final LoginLockoutHelper loginLockoutHelper;
+  private final ClientIpResolver clientIpResolver;
 
   private GoogleIdTokenVerifier googleVerifier;
 
@@ -108,6 +112,7 @@ public class AuthService {
   @Transactional
   public RegisterResponse register(RegisterRequest request) {
     String normalizedEmail = request.email().trim().toLowerCase();
+    String normalizedUsername = request.username().trim().toLowerCase();
 
     if (DisposableEmailChecker.isDisposable(normalizedEmail)) {
       throw new BusinessException(ErrorCode.DISPOSABLE_EMAIL_NOT_ALLOWED,
@@ -115,7 +120,7 @@ public class AuthService {
     }
 
     Optional<User> existingPending = userRepository.findPendingUserForUpdate(
-        request.username(), normalizedEmail);
+        normalizedUsername, normalizedEmail);
 
     if (existingPending.isPresent()) {
       User pendingUser = existingPending.get();
@@ -138,7 +143,7 @@ public class AuthService {
     }
 
     if (userRepository.existsByUsernameAndStatusAndDeletedFalse(
-        request.username(), UserStatus.ACTIVE)) {
+        normalizedUsername, UserStatus.ACTIVE)) {
       throw new BusinessException(ErrorCode.USERNAME_EXISTED,
           "Username is already taken");
     }
@@ -164,9 +169,17 @@ public class AuthService {
   }
 
   public CheckUsernameResponse checkUsernameAvailability(String username) {
-    boolean exists = userRepository.existsByUsernameAndStatusAndDeletedFalse(
-        username, UserStatus.ACTIVE);
-    return new CheckUsernameResponse(username, !exists);
+    // SECURITY (CRIT-2): the public /check-username endpoint used to return
+    // a real `available: false` for existing usernames, enabling offline
+    // username enumeration. We now always return `available: true` and let
+    // the actual existence check happen atomically at /register. To avoid
+    // leaking timing differences the request still does a fixed-cost DB
+    // existence lookup (the query result is intentionally ignored).
+    if (username == null || username.isBlank() || username.length() < 3 || username.length() > 50) {
+      return new CheckUsernameResponse(username, false);
+    }
+    userRepository.existsByUsernameAndStatusAndDeletedFalse(username, UserStatus.ACTIVE);
+    return new CheckUsernameResponse(username, true);
   }
 
   public VerifyOtpResponse verifyOtp(VerifyOtpRequest request,
@@ -268,14 +281,33 @@ public class AuthService {
   }
 
   public LoginResponse login(LoginRequest request, HttpServletResponse httpResponse) {
-    User user = userRepository.findByUsernameOrEmailAndDeletedFalse(request.usernameOrEmail())
-        .orElseThrow(() -> new BusinessException(ErrorCode.BAD_CREDENTIALS,
-            "Incorrect username or password"));
+    long startNanos = System.nanoTime();
+    String usernameOrEmail = request.usernameOrEmail();
+
+    Optional<User> userOpt = userRepository.findByUsernameOrEmailAndDeletedFalse(usernameOrEmail);
+
+    // SECURITY (HIGH-3): equalize timing for unknown vs known accounts by
+    // always running a BCrypt comparison, even when the user does not exist.
+    User user = userOpt.orElseGet(() -> {
+      String dummyHash = "$2a$12$" + "C".repeat(53);
+      passwordEncoder.matches(request.password() == null ? "" : request.password(), dummyHash);
+      throw new BusinessException(ErrorCode.BAD_CREDENTIALS,
+          "Incorrect username or password");
+    });
 
     String userId = user.getId();
 
     if (user.getStatus() == UserStatus.BANNED) {
       throw new BusinessException(ErrorCode.ACCOUNT_BANNED, "Account has been banned");
+    }
+
+    if (user.getStatus() == UserStatus.FROZEN) {
+      throw new BusinessException(ErrorCode.ACCOUNT_BANNED, "Account is frozen");
+    }
+
+    if (user.getStatus() == UserStatus.PENDING_DELETION) {
+      throw new BusinessException(ErrorCode.ACCOUNT_BANNED,
+          "Account deletion has been requested");
     }
 
     if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
@@ -296,6 +328,19 @@ public class AuthService {
       throw new BusinessException(ErrorCode.BAD_CREDENTIALS, "Incorrect username or password");
     }
 
+    // Equalize timing: ensure the slow path is at least as long as the
+    // happy path so attackers cannot use latency as a side-channel to
+    // identify existing usernames.
+    long elapsedNanos = System.nanoTime() - startNanos;
+    long minNanos = 50_000_000L; // ~50ms floor
+    if (elapsedNanos < minNanos) {
+      try {
+        Thread.sleep((minNanos - elapsedNanos) / 1_000_000L);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
+
     redisTemplate.delete(loginLockoutHelper.attemptsKey(userId));
 
     return generateSessionAndResponse(user, httpResponse);
@@ -311,7 +356,7 @@ public class AuthService {
     try {
       idToken = googleVerifier.verify(request.idToken());
     } catch (Exception e) {
-      log.error("Google token verification failed", e);
+      log.error("Google token verification failed");
       throw new BusinessException(ErrorCode.INVALID_OAUTH_TOKEN,
           "Invalid OAuth token, please try again");
     }
@@ -334,37 +379,52 @@ public class AuthService {
           "Google email is not verified");
     }
 
+    // SECURITY (MED-9): enforce azp (authorized party) so a token minted for
+    // some other client of ours cannot be replayed at this endpoint. The
+    // configured Google client id is the only authorized party.
+    String azp = (String) payload.get("azp");
+    String configuredClientId = iamProperties.getGoogle() != null
+        ? iamProperties.getGoogle().getClientId()
+        : null;
+    if (configuredClientId != null && !configuredClientId.isBlank()
+        && azp != null && !azp.equals(configuredClientId)) {
+      log.warn("Google OAuth azp mismatch");
+      throw new BusinessException(ErrorCode.INVALID_OAUTH_TOKEN,
+          "OAuth token authorized party does not match this application");
+    }
+
     String email = payload.getEmail().trim().toLowerCase();
     String sub = payload.getSubject();
     String name = (String) payload.get("name");
     String picture = (String) payload.get("picture");
+
+    // SECURITY (CRIT-1): an account in PENDING_DELETION must NEVER be
+    // auto-recovered via OAuth. The account is in a 30-day grace period
+    // and the legitimate owner may want to cancel deletion. We refuse
+    // OAuth logins for these accounts outright.
+    Optional<User> existingOpt = userRepository.findByEmailAndDeletedFalse(email);
+    if (existingOpt.isPresent()) {
+      User existing = existingOpt.get();
+      if (existing.getStatus() == UserStatus.PENDING_DELETION) {
+        log.warn("Refused OAuth login for PENDING_DELETION account");
+        throw new BusinessException(ErrorCode.ACCOUNT_BANNED,
+            "Account deletion has been requested");
+      }
+      if (existing.getStatus() == UserStatus.FROZEN
+          || existing.getStatus() == UserStatus.BANNED) {
+        throw new BusinessException(ErrorCode.ACCOUNT_BANNED, "Account is not active");
+      }
+    }
 
     User user = handleOauthAccountLinker(email, sub, name, picture, request.linkingPassword());
 
     String userId = user.getId();
     loginLockoutHelper.ensureNotLocked(redisTemplate, userId);
 
-    if (user.getStatus() == UserStatus.BANNED) {
-      throw new BusinessException(ErrorCode.ACCOUNT_BANNED, "Account has been banned");
-    }
-
-    if (user.getStatus() == UserStatus.PENDING_DELETION) {
-      sessionService.createSession(user, httpResponse);
-      String accessToken = jwtService.generateAccessToken(user);
-      eventPublisher.publishEvent(new LoginSuccessEvent(
-          this, user.getId(), getClientIp(), getUserAgent()));
-      return new LoginResponse(
-          accessToken,
-          iamProperties.getJwt().getAccessTokenExpiration(),
-          new LoginResponse.UserInfo(
-              user.getUsername(),
-              user.getEmail(),
-              user.getFullName(),
-              user.getRole().getName(),
-              user.getStatus().name(),
-              user.getOauthProvider() == null ? "LOCAL" : user.getOauthProvider().name()
-          )
-      );
+    if (user.getStatus() == UserStatus.BANNED
+        || user.getStatus() == UserStatus.FROZEN
+        || user.getStatus() == UserStatus.PENDING_DELETION) {
+      throw new BusinessException(ErrorCode.ACCOUNT_BANNED, "Account is not active");
     }
 
     return generateSessionAndResponse(user, httpResponse);
@@ -373,29 +433,78 @@ public class AuthService {
   public void forgotPassword(ForgotPasswordRequest request) {
     long startTime = System.currentTimeMillis();
 
-    Optional<User> userOpt = userRepository.findByEmailAndDeletedFalse(request.email());
+    String normalizedEmail = request.email() == null ? "" : request.email().trim().toLowerCase();
 
-    if (userOpt.isEmpty() || userOpt.get().getStatus() != UserStatus.ACTIVE || userOpt.get().getPassword() == null) {
-      long duration = System.currentTimeMillis() - startTime;
-      long targetDuration = 500;
-      if (duration < targetDuration) {
-        try {
-          long delay = (targetDuration - duration) + (long) (Math.random() * 50);
-          Thread.sleep(delay);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-        }
-      }
+    // SECURITY: per-email and per-IP rate limit on /forgot-password. The
+    // bucketed response always mirrors the success path so attackers cannot
+    // distinguish "this email is registered" from "this email is not".
+    String ipBucket = clientIpResolver.current();
+    String perEmailAttemptsKey = "forgot_pw_attempts:email:" + sha256(normalizedEmail);
+    String perEmailLockoutKey = "forgot_pw_lockout:email:" + sha256(normalizedEmail);
+    String perIpAttemptsKey = "forgot_pw_attempts:ip:" + ipBucket;
+    String perIpLockoutKey = "forgot_pw_lockout:ip:" + ipBucket;
+
+    loginLockoutHelper.ensureNotLockedKey(redisTemplate, perEmailLockoutKey);
+    loginLockoutHelper.ensureNotLockedKey(redisTemplate, perIpLockoutKey);
+
+    Optional<User> userOpt = normalizedEmail.isBlank()
+        ? Optional.empty()
+        : userRepository.findByEmailAndDeletedFalse(normalizedEmail);
+
+    User realUser = userOpt.filter(u -> u.getStatus() == UserStatus.ACTIVE && u.getPassword() != null)
+        .orElse(null);
+
+    if (realUser == null) {
+      // Fixed-cost delay + record failure so timing/limit patterns are
+      // indistinguishable from the success path.
+      sleepUntil(startTime, 500);
+      loginLockoutHelper.recordFailure(redisTemplate, perEmailAttemptsKey, perEmailLockoutKey,
+          5, Duration.ofMinutes(15));
+      loginLockoutHelper.recordFailure(redisTemplate, perIpAttemptsKey, perIpLockoutKey,
+          20, Duration.ofMinutes(15));
       return;
     }
 
-    User user = userOpt.get();
-    String token = jwtService.generateRefreshToken(user);
+    // SECURITY (HIGH-5): use a high-entropy opaque token stored in Redis,
+    // NOT a JWT. The previous JWT-based token was re-usable within its TTL
+    // and inherited the access-token signing key's blast radius.
+    String token = OpaqueTokenGenerator.generate();
+    long ttlSeconds = iamProperties.getLogin().getPasswordResetTokenTtlSeconds();
+
+    redisTemplate.opsForValue().set("password_reset_token:" + token, realUser.getEmail(),
+        Duration.ofSeconds(ttlSeconds));
 
     transactionTemplate.executeWithoutResult(status ->
-        outboxEventFactory.passwordReset(user, token, LocaleContextHolder.getLocale().getLanguage()));
+        outboxEventFactory.passwordReset(realUser, token, LocaleContextHolder.getLocale().getLanguage()));
 
-    redisTemplate.opsForValue().set("password_reset_token:" + token, user.getEmail(), Duration.ofMinutes(10));
+    // Reset per-email counter on successful dispatch (the previous attempts
+    // were legitimate attempts by the real owner).
+    redisTemplate.delete(perEmailAttemptsKey);
+  }
+
+  private String sha256(String s) {
+    if (s == null || s.isEmpty()) return "";
+    try {
+      java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+      byte[] digest = md.digest(s.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      StringBuilder sb = new StringBuilder(digest.length * 2);
+      for (byte b : digest) sb.append(String.format("%02x", b));
+      return sb.toString();
+    } catch (java.security.NoSuchAlgorithmException e) {
+      return Integer.toHexString(s.hashCode());
+    }
+  }
+
+  private void sleepUntil(long startMillis, long targetMillis) {
+    long duration = System.currentTimeMillis() - startMillis;
+    if (duration < targetMillis) {
+      try {
+        long delay = (targetMillis - duration) + (long) (Math.random() * 50);
+        Thread.sleep(delay);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
   }
 
   @Transactional
@@ -413,8 +522,8 @@ public class AuthService {
     User user = userRepository.findByEmailAndDeletedFalse(email)
         .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
 
-    if (user.getStatus() == UserStatus.BANNED) {
-      throw new BusinessException(ErrorCode.ACCOUNT_BANNED, "Account has been banned");
+    if (user.getStatus() != UserStatus.ACTIVE) {
+      throw new BusinessException(ErrorCode.ACCOUNT_BANNED, "Account is not active");
     }
 
     transactionTemplate.executeWithoutResult(status -> {
@@ -435,6 +544,10 @@ public class AuthService {
 
     User user = userRepository.findByEmailAndDeletedFalse(email)
         .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
+
+    if (user.getStatus() != UserStatus.ACTIVE) {
+      throw new BusinessException(ErrorCode.ACCOUNT_BANNED, "Account is not active");
+    }
 
     if (user.getPassword() == null) {
       throw new BusinessException(ErrorCode.OAUTH_ONLY_ACCOUNT, "Cannot change password for OAuth-only account");
@@ -478,6 +591,15 @@ public class AuthService {
     User user = userRepository.findByEmailAndDeletedFalse(email)
         .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
 
+    // SECURITY (HIGH-4): an account in PENDING_DELETION must not be able to
+    // mutate its own profile during the grace period. Allowing this would
+    // confuse audit trails and could let an attacker overwrite identifying
+    // data right before anonymization.
+    if (user.getStatus() != UserStatus.ACTIVE) {
+      throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+          "Profile can only be updated while the account is active");
+    }
+
     user.setFullName(request.fullName());
     if (request.phone() != null) {
       user.setPhone(request.phone());
@@ -497,6 +619,11 @@ public class AuthService {
     User user = userRepository.findByEmailAndDeletedFalse(email)
         .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
 
+    if (user.getStatus() != UserStatus.ACTIVE) {
+      throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+          "Avatar can only be updated while the account is active");
+    }
+
     String avatarUrl = avatarUploadService.uploadAvatar(user.getId(), file);
     user.setAvatarUrl(avatarUrl);
     userRepository.save(user);
@@ -511,13 +638,22 @@ public class AuthService {
     if (existingUserOpt.isPresent()) {
       User user = existingUserOpt.get();
 
-      if (user.getStatus() == UserStatus.BANNED) {
-        throw new BusinessException(ErrorCode.ACCOUNT_BANNED, "Account has been banned");
+      if (user.getStatus() == UserStatus.BANNED || user.getStatus() == UserStatus.FROZEN) {
+        throw new BusinessException(ErrorCode.ACCOUNT_BANNED, "Account is not active");
+      }
+
+      // CRIT-1: a LOCAL account in PENDING_DELETION must not be silently
+      // re-linked. Either require linking password (if status is ACTIVE) or
+      // refuse outright.
+      if (user.getStatus() == UserStatus.PENDING_DELETION) {
+        log.warn("Refused silent OAuth link to PENDING_DELETION account");
+        throw new BusinessException(ErrorCode.ACCOUNT_BANNED,
+            "Account deletion has been requested");
       }
 
       if (user.getOauthProvider() == OAuthProvider.GOOGLE) {
         if (!sub.equals(user.getOauthId())) {
-          log.warn("OAuth sub mismatch for existing Google-linked account email={}", email);
+          log.warn("OAuth sub mismatch for existing Google-linked account email={}", PiiScrubber.maskEmail(email));
           throw new BusinessException(ErrorCode.INVALID_OAUTH_TOKEN,
               "OAuth identity does not match the account on file");
         }
@@ -525,9 +661,9 @@ public class AuthService {
         user.setAvatarUrl(picture);
         return userRepository.save(user);
       } else {
-        if (user.getStatus() == UserStatus.ACTIVE || user.getStatus() == UserStatus.PENDING_DELETION) {
+        if (user.getStatus() == UserStatus.ACTIVE) {
           if (linkingPassword == null || linkingPassword.isBlank()) {
-            log.warn("Refused silent OAuth link to existing LOCAL account email={}", email);
+            log.warn("Refused silent OAuth link to existing LOCAL account email={}", PiiScrubber.maskEmail(email));
             throw new BusinessException(
                 ErrorCode.OAUTH_LINK_PASSWORD_REQUIRED,
                 "This email is already registered. Provide the current account password to link Google sign-in.",
@@ -614,16 +750,7 @@ public class AuthService {
   }
 
   private String getClientIp() {
-    ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-    if (attributes != null) {
-      HttpServletRequest request = attributes.getRequest();
-      String ip = request.getHeader("X-Forwarded-For");
-      if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
-        return ip.split(",")[0].trim();
-      }
-      return request.getRemoteAddr();
-    }
-    return "Unknown";
+    return clientIpResolver.current();
   }
 
   private String getUserAgent() {
@@ -641,6 +768,7 @@ public class AuthService {
             "Default role USER not found"));
 
     User user = userMapper.toEntity(request);
+    user.setUsername(request.username().trim().toLowerCase());
     user.setEmail(normalizedEmail);
     user.setPassword(passwordEncoder.encode(request.password()));
     user.setStatus(UserStatus.PENDING_VERIFICATION);
@@ -650,7 +778,7 @@ public class AuthService {
   }
 
   private void updatePendingUser(User user, RegisterRequest request, String normalizedEmail) {
-    user.setUsername(request.username());
+    user.setUsername(request.username().trim().toLowerCase());
     user.setEmail(normalizedEmail);
     user.setPassword(passwordEncoder.encode(request.password()));
     user.setFullName(request.fullName());

@@ -85,7 +85,8 @@ class JwtPrincipalExtractorTest {
     props.getJwt().setSecret("test-secret-32-bytes-aaaaaaaaaaaaaaaaaaaaaaaa");
     props.getJwt().setAccessTokenExpiration(900L);
     props.getJwt().setRefreshTokenExpiration(2592000L);
-    JwtService svc = new JwtService(props);
+    JwtEpochService epoch = new JwtEpochService(null, props);
+    JwtService svc = new JwtService(props, epoch);
     svc.validateSecret();
     return svc;
   }

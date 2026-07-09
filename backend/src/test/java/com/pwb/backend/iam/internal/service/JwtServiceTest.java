@@ -20,6 +20,7 @@ class JwtServiceTest {
   private static final String VALID_SECRET = "test-secret-32-bytes-aaaaaaaaaaaaaaaaaaaaaaaa";
 
   private JwtService jwtService;
+  private JwtEpochService jwtEpochService;
   private User user;
 
   @BeforeEach
@@ -28,7 +29,8 @@ class JwtServiceTest {
     props.getJwt().setSecret(VALID_SECRET);
     props.getJwt().setAccessTokenExpiration(900L);
     props.getJwt().setRefreshTokenExpiration(2592000L);
-    jwtService = new JwtService(props);
+    jwtEpochService = new JwtEpochService(null, props);
+    jwtService = new JwtService(props, jwtEpochService);
     jwtService.validateSecret();
 
     user = new User();
@@ -45,7 +47,8 @@ class JwtServiceTest {
   void validateSecret_blankSecret_throws() {
     IamProperties props = new IamProperties();
     props.getJwt().setSecret(" ");
-    JwtService svc = new JwtService(props);
+    JwtEpochService epoch = new JwtEpochService(null, props);
+    JwtService svc = new JwtService(props, epoch);
     IllegalStateException ex = assertThrows(IllegalStateException.class, svc::validateSecret);
     assertTrue(ex.getMessage().contains("JWT_SECRET is required"));
   }
@@ -54,7 +57,8 @@ class JwtServiceTest {
   void validateSecret_shortSecret_throws() {
     IamProperties props = new IamProperties();
     props.getJwt().setSecret("short");
-    JwtService svc = new JwtService(props);
+    JwtEpochService epoch = new JwtEpochService(null, props);
+    JwtService svc = new JwtService(props, epoch);
     IllegalStateException ex = assertThrows(IllegalStateException.class, svc::validateSecret);
     assertTrue(ex.getMessage().contains("at least 32 bytes"));
   }

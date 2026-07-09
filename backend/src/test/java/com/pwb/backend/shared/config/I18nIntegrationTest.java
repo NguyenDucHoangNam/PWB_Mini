@@ -5,10 +5,13 @@ import com.pwb.backend.iam.internal.controller.AuthController;
 import com.pwb.backend.iam.internal.service.AccountLifecycleService;
 import com.pwb.backend.iam.internal.service.AuthService;
 import com.pwb.backend.iam.internal.service.AvatarUploadService;
+import com.pwb.backend.iam.internal.service.JwtEpochService;
 import com.pwb.backend.iam.internal.service.JwtService;
 import com.pwb.backend.iam.internal.service.SessionService;
 import com.pwb.backend.shared.exception.BusinessException;
 import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.shared.security.ClientIpResolver;
+import com.pwb.backend.shared.security.IpRateLimitFilter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -54,10 +57,19 @@ class I18nIntegrationTest {
   private JwtService jwtService;
 
   @MockitoBean
+  private JwtEpochService jwtEpochService;
+
+  @MockitoBean
   private StringRedisTemplate redisTemplate;
 
   @MockitoBean
+  private ClientIpResolver clientIpResolver;
+
+  @MockitoBean
   private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+  @MockitoBean
+  private IpRateLimitFilter ipRateLimitFilter;
 
   @Autowired
   private MessageSource messageSource;

@@ -7,6 +7,7 @@ import com.pwb.backend.iam.internal.enums.UserStatus;
 import com.pwb.backend.iam.internal.model.OutboxEvent;
 import com.pwb.backend.iam.internal.model.Role;
 import com.pwb.backend.iam.internal.model.User;
+import com.pwb.backend.iam.internal.publisher.OutboxPayloadCipher;
 import com.pwb.backend.iam.internal.repository.OutboxEventRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,8 @@ class OutboxEventFactoryTest {
   void setUp() {
     outboxEventRepository = mock(OutboxEventRepository.class);
     eventPublisher = mock(ApplicationEventPublisher.class);
-    factory = new OutboxEventFactory(outboxEventRepository, new ObjectMapper(), eventPublisher);
+    OutboxPayloadCipher cipher = new OutboxPayloadCipher("");
+    factory = new OutboxEventFactory(outboxEventRepository, new ObjectMapper(), eventPublisher, cipher);
     when(outboxEventRepository.save(any(OutboxEvent.class)))
         .thenAnswer(inv -> {
           OutboxEvent ev = inv.getArgument(0);
@@ -99,10 +101,17 @@ class OutboxEventFactoryTest {
   }
 
   @Test
-  void createAndPublish_setsUniqueIdempotencyKey() {
+  void businessKey_dedupesForSameAggregateAndEvent() {
     User user = newUser();
-    OutboxEvent first = factory.registrationOtp(user, "a@b.com", "1", "n", "en");
-    OutboxEvent second = factory.registrationOtp(user, "a@b.com", "1", "n", "en");
+    OutboxEvent first = factory.accountDeletionRequested(user, "2026-12-31", "en");
+    OutboxEvent second = factory.accountDeletionRequested(user, "2026-12-31", "en");
+    assertEquals(first.getIdempotencyKey(), second.getIdempotencyKey());
+  }
+
+  @Test
+  void createAndPublish_randomIdempotencyKeyForUnkeyedEvents() {
+    OutboxEvent first = factory.createAndPublish("CUSTOM_EVENT", "agg-1", Map.of("k", "v"));
+    OutboxEvent second = factory.createAndPublish("CUSTOM_EVENT", "agg-1", Map.of("k", "v"));
     assertNotNull(first.getIdempotencyKey());
     assertNotNull(second.getIdempotencyKey());
     org.junit.jupiter.api.Assertions.assertNotEquals(first.getIdempotencyKey(), second.getIdempotencyKey());

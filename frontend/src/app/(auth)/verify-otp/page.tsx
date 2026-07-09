@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { OtpForm } from "@/features/auth/components/otp-form";
 
 export const metadata = {
-  title: "Xác thực OTP | PWB MiNi",
+  title: "Xác thực OTP | PWB",
   description: "Xác thực tài khoản bằng mã OTP",
 };
 

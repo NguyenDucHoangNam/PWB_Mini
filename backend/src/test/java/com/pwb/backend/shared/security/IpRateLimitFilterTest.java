@@ -24,6 +24,7 @@ class IpRateLimitFilterTest {
 
   private StringRedisTemplate redisTemplate;
   private ValueOperations<String, String> valueOperations;
+  private ClientIpResolver clientIpResolver;
   private IpRateLimitFilter filter;
 
   @BeforeEach
@@ -31,7 +32,17 @@ class IpRateLimitFilterTest {
     redisTemplate = mock(StringRedisTemplate.class);
     valueOperations = mock(ValueOperations.class);
     when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-    filter = new IpRateLimitFilter(redisTemplate, 3, 60);
+    clientIpResolver = mock(ClientIpResolver.class);
+    when(clientIpResolver.resolve(any(HttpServletRequest.class))).thenAnswer(inv -> {
+      HttpServletRequest r = inv.getArgument(0);
+      String xff = r.getHeader("X-Forwarded-For");
+      if (xff != null && !xff.isBlank() && !"unknown".equalsIgnoreCase(xff)) {
+        int comma = xff.indexOf(',');
+        return (comma >= 0 ? xff.substring(0, comma) : xff).trim();
+      }
+      return r.getRemoteAddr();
+    });
+    filter = new IpRateLimitFilter(redisTemplate, clientIpResolver, 3, 60);
   }
 
   @Test

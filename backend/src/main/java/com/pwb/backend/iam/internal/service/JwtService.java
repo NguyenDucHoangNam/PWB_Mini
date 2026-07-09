@@ -19,8 +19,10 @@ import java.util.UUID;
 public class JwtService {
 
   private static final int MIN_SECRET_LENGTH_BYTES = 32;
+  public static final String CLAIM_EPOCH = "ep";
 
   private final IamProperties iamProperties;
+  private final JwtEpochService jwtEpochService;
 
   @jakarta.annotation.PostConstruct
   void validateSecret() {
@@ -46,6 +48,7 @@ public class JwtService {
         .subject(user.getEmail())
         .claim("username", user.getUsername())
         .claim("role", user.getRole().getName())
+        .claim(CLAIM_EPOCH, jwtEpochService.currentEpoch())
         .id(UUID.randomUUID().toString())
         .issuedAt(Date.from(now))
         .expiration(Date.from(expiry))
@@ -61,6 +64,7 @@ public class JwtService {
         .subject(user.getEmail())
         .id(UUID.randomUUID().toString())
         .claim("type", "refresh")
+        .claim(CLAIM_EPOCH, jwtEpochService.currentEpoch())
         .issuedAt(Date.from(now))
         .expiration(Date.from(expiry))
         .signWith(getSigningKey())
@@ -149,5 +153,14 @@ public class JwtService {
     byte[] keyBytes = iamProperties.getJwt().getSecret()
         .getBytes(StandardCharsets.UTF_8);
     return Keys.hmacShaKeyFor(keyBytes);
+  }
+
+  /**
+   * Exposed for {@link JwtAuthenticationFilter} so it can re-parse tokens
+   * with the signing key without going through the public {@link #extractClaims}
+   * path (which swallows exceptions).
+   */
+  public SecretKey getSigningKeyForFilter() {
+    return getSigningKey();
   }
 }

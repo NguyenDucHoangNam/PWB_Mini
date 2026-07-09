@@ -22,19 +22,27 @@ public interface UserRepository extends JpaRepository<User, String> {
   Optional<User> findByEmailAndDeletedFalse(String email);
 
   @EntityGraph(attributePaths = "role")
-  Optional<User> findByUsernameAndDeletedFalse(String username);
+  @Query("SELECT u FROM User u WHERE LOWER(u.username) = LOWER(:username) AND u.deleted = false")
+  Optional<User> findByUsernameAndDeletedFalse(@Param("username") String username);
 
   @EntityGraph(attributePaths = "role")
-  @Query("SELECT u FROM User u WHERE (u.username = :usernameOrEmail OR u.email = :usernameOrEmail) "
-      + "AND u.deleted = false")
+  @Query("SELECT u FROM User u WHERE (LOWER(u.username) = LOWER(:usernameOrEmail) "
+      + "OR LOWER(u.email) = LOWER(:usernameOrEmail)) AND u.deleted = false")
   Optional<User> findByUsernameOrEmailAndDeletedFalse(@Param("usernameOrEmail") String usernameOrEmail);
 
-  boolean existsByUsernameAndStatusAndDeletedFalse(String username, UserStatus status);
+  @Query("SELECT COUNT(u) > 0 FROM User u WHERE LOWER(u.username) = LOWER(:username) "
+      + "AND u.status = :status AND u.deleted = false")
+  boolean existsByUsernameAndStatusAndDeletedFalse(@Param("username") String username,
+                                                    @Param("status") UserStatus status);
 
-  boolean existsByEmailAndStatusAndDeletedFalse(String email, UserStatus status);
+  @Query("SELECT COUNT(u) > 0 FROM User u WHERE LOWER(u.email) = LOWER(:email) "
+      + "AND u.status = :status AND u.deleted = false")
+  boolean existsByEmailAndStatusAndDeletedFalse(@Param("email") String email,
+                                                @Param("status") UserStatus status);
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
-  @Query("SELECT u FROM User u WHERE (u.username = :username OR u.email = :email) "
+  @Query("SELECT u FROM User u WHERE (LOWER(u.username) = LOWER(:username) "
+      + "OR LOWER(u.email) = LOWER(:email)) "
       + "AND u.status = 'PENDING_VERIFICATION' AND u.deleted = false")
   Optional<User> findPendingUserForUpdate(
       @Param("username") String username,

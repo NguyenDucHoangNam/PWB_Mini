@@ -1,7 +1,7 @@
 import { SessionsTable } from "@/features/auth/components/sessions-table";
 
 export const metadata = {
-  title: "Quản lý phiên | PWB MiNi",
+  title: "Quản lý phiên | PWB",
   description: "Quản lý các thiết bị và trình duyệt đang đăng nhập vào tài khoản",
 };
 

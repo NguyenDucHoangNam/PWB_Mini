@@ -53,6 +53,39 @@ public class LoginLockoutHelper {
     }
   }
 
+  /**
+   * Records a failure against an arbitrary bucket key with the given limits.
+   * Used by per-email / per-IP rate limits where the bucketed key is not
+   * a userId.
+   *
+   * @return true if the bucket just reached the max attempts and was locked.
+   */
+  public boolean recordFailure(StringRedisTemplate redisTemplate, String attemptsKey,
+                                String lockoutKey, int maxAttempts, Duration window) {
+    Long attempts = redisTemplate.opsForValue().increment(attemptsKey);
+    if (attempts != null && attempts == 1) {
+      redisTemplate.expire(attemptsKey, window);
+    }
+    if (attempts != null && attempts >= maxAttempts) {
+      redisTemplate.opsForValue().set(lockoutKey, "true", window);
+      redisTemplate.delete(attemptsKey);
+      return true;
+    }
+    return false;
+  }
+
+  public boolean isLockedKey(StringRedisTemplate redisTemplate, String lockoutKey) {
+    return Boolean.TRUE.equals(redisTemplate.hasKey(lockoutKey));
+  }
+
+  public void ensureNotLockedKey(StringRedisTemplate redisTemplate, String lockoutKey) {
+    if (isLockedKey(redisTemplate, lockoutKey)) {
+      throw new BusinessException(
+          ErrorCode.RATE_LIMIT_EXCEEDED,
+          "Too many requests, please try again later");
+    }
+  }
+
   public void clear(StringRedisTemplate redisTemplate, String userId) {
     redisTemplate.delete("login_attempts:" + userId);
     redisTemplate.delete(lockoutKey(userId));

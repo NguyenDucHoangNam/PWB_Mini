@@ -9,6 +9,7 @@ import com.pwb.backend.iam.internal.model.User;
 import com.pwb.backend.iam.internal.repository.UserRepository;
 import com.pwb.backend.shared.exception.BusinessException;
 import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.shared.security.ClientIpResolver;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
@@ -43,6 +44,7 @@ public class SessionService {
   private final RedisScript<String> sessionRotationScript;
   private final RedisScript<List<String>> revokeOtherSessionsScript;
   private final LoginLockoutHelper loginLockoutHelper;
+  private final ClientIpResolver clientIpResolver;
 
   public RefreshResponse refreshAccessToken(String expiredAccessTokenHeader, String refreshToken, HttpServletResponse response) {
     String email;
@@ -118,7 +120,7 @@ public class SessionService {
         redisTemplate.opsForHash().put(newMetadataKey, "active_jwt_signature", jwtService.getSignature(newAccessToken));
         redisTemplate.expire(newMetadataKey, Duration.ofSeconds(refreshTokenExpiry));
       } else {
-        Map<String, String> metadata = SessionMetadataBuilder.buildForNewSession(user, jwtService, geoIpService, newAccessToken);
+        Map<String, String> metadata = SessionMetadataBuilder.buildForNewSession(user, jwtService, geoIpService, newAccessToken, clientIpResolver);
         SessionMetadataBuilder.store(redisTemplate, newRefreshToken, metadata, iamProperties);
       }
 
@@ -145,7 +147,7 @@ public class SessionService {
     String revokedUserId = redisTemplate.opsForValue().get(revokedKey);
     if (revokedUserId != null) {
       log.warn("Token Theft detected for user {} using revoked token jti={}",
-          revokedUserId, jwtService.extractJti(refreshToken));
+          com.pwb.backend.iam.internal.helper.PiiScrubber.userRef(revokedUserId), jwtService.extractJti(refreshToken));
 
       revokeAllUserSessions(revokedUserId);
       throw new BusinessException(ErrorCode.TOKEN_THEFT_DETECTED, "Token reuse detected, all sessions revoked");
@@ -322,7 +324,7 @@ public class SessionService {
     if (kickedTokens != null) {
       for (String kickedToken : kickedTokens) {
         redisTemplate.delete(SESSION_KEY_PREFIX + kickedToken);
-        log.warn("Session kicked out: userId={}, session={}", user.getId(), maskToken(kickedToken));
+        log.warn("Session kicked out: userId={}, session={}", com.pwb.backend.iam.internal.helper.PiiScrubber.userRef(user.getId()), maskToken(kickedToken));
       }
     }
 
@@ -331,7 +333,7 @@ public class SessionService {
         user.getId(),
         Duration.ofSeconds(refreshTokenExpiry));
 
-    Map<String, String> metadata = SessionMetadataBuilder.buildForNewSession(user, jwtService, geoIpService, accessToken);
+    Map<String, String> metadata = SessionMetadataBuilder.buildForNewSession(user, jwtService, geoIpService, accessToken, clientIpResolver);
     SessionMetadataBuilder.store(redisTemplate, refreshToken, metadata, iamProperties);
 
     setRefreshCookie(httpResponse, refreshToken, (int) refreshTokenExpiry);

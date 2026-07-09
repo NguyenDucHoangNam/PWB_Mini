@@ -1,6 +1,8 @@
 package com.pwb.backend.iam.internal.config;
 
+import com.pwb.backend.iam.internal.service.JwtEpochService;
 import com.pwb.backend.iam.internal.service.JwtService;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,13 +22,16 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
   private final JwtService jwtService;
+  private final JwtEpochService jwtEpochService;
   private final StringRedisTemplate redisTemplate;
   private final AuthenticationEntryPoint authenticationEntryPoint;
 
   public JwtAuthenticationFilter(JwtService jwtService,
+                                 JwtEpochService jwtEpochService,
                                  StringRedisTemplate redisTemplate,
                                  AuthenticationEntryPoint authenticationEntryPoint) {
     this.jwtService = jwtService;
+    this.jwtEpochService = jwtEpochService;
     this.redisTemplate = redisTemplate;
     this.authenticationEntryPoint = authenticationEntryPoint;
   }
@@ -58,6 +63,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       request.setAttribute("jwt.auth.error", "invalid");
       authenticationEntryPoint.commence(request, response,
           new BadCredentialsException("invalid token"));
+      return;
+    }
+
+    // HIGH-7: reject tokens issued before the current JWT epoch. This is
+    // what enables "nuke all tokens for a user / secret rotation" via
+    // JwtEpochService.rotateEpoch().
+    long currentEpoch = jwtEpochService.currentEpoch();
+    Claims claims;
+    try {
+      claims = io.jsonwebtoken.Jwts.parser()
+          .verifyWith(jwtService.getSigningKeyForFilter())
+          .build()
+          .parseSignedClaims(token)
+          .getPayload();
+    } catch (Exception ex) {
+      request.setAttribute("jwt.auth.error", "invalid");
+      authenticationEntryPoint.commence(request, response,
+          new BadCredentialsException("invalid token"));
+      return;
+    }
+    Object tokenEpochClaim = claims.get(JwtService.CLAIM_EPOCH);
+    long tokenEpoch = tokenEpochClaim instanceof Number ? ((Number) tokenEpochClaim).longValue() : 0L;
+    if (tokenEpoch < currentEpoch) {
+      request.setAttribute("jwt.auth.error", "rotated");
+      authenticationEntryPoint.commence(request, response,
+          new BadCredentialsException("token epoch is stale, please re-authenticate"));
       return;
     }
 

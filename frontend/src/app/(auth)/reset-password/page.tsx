@@ -2,8 +2,8 @@ import { Suspense } from "react";
 import { ResetPasswordForm } from "@/features/auth/components/reset-password-form";
 
 export const metadata = {
-  title: "Đặt lại mật khẩu | PWB MiNi",
-  description: "Đặt mật khẩu mới cho tài khoản Play With Beats MiNi",
+  title: "Đặt lại mật khẩu | PWB",
+  description: "Đặt mật khẩu mới cho tài khoản Play With Beats",
 };
 
 export default function ResetPasswordPage() {

@@ -47,7 +47,8 @@ class AuthControllerRateLimitFilterIntegrationTest {
     ValueOperations<String, String> ops = mock(ValueOperations.class);
     when(redisTemplate.opsForValue()).thenReturn(ops);
 
-    rateLimitFilter = new IpRateLimitFilter(redisTemplate, 2, 60);
+    rateLimitFilter = new IpRateLimitFilter(redisTemplate,
+        new com.pwb.backend.shared.security.ClientIpResolver("127.0.0.1,::1"), 2, 60);
 
     AuthController controller = new AuthController(authService, sessionService, accountLifecycleService, avatarUploadService, messageSource);
     mockMvc = MockMvcBuilders.standaloneSetup(controller)

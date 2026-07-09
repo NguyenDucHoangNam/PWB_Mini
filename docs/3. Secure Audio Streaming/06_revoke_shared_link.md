@@ -27,6 +27,12 @@ Tài liệu đặc tả A-Z tính năng Thu hồi quyền truy cập liên kết
     2.  Xóa ngay lập tức key `demo:distribution:{shareToken}` khỏi Redis Cache.
     3.  Đồng thời, ghi nhận một khóa tạm thời để đánh dấu đã thu hồi: `demo:distribution:revoked:{shareToken}` với giá trị `"true"` và TTL **10 phút** trên Redis.
 *   **Trám kẽ hở rò rỉ nhạc do bẫy Cookie sống dai (Secure Session Cookie Bypass)**: Mặc dù khách hàng đã có `SecureSessionCookie` hợp lệ với thời gian sống 1 giờ, tại endpoint trả khóa giải mã `/api/v1/stream/keys/{shareToken}`, trước khi phê duyệt cấp mảng byte nhị phân giải mã, Backend bắt buộc phải chạy lệnh `EXISTS demo:distribution:revoked:{shareToken}` xuống Redis. Nếu key này tồn tại (hoặc nếu key gốc `demo:distribution:{shareToken}` không còn tồn tại/DB check `is_revoked = true`), Backend lập tức từ chối và trả về lỗi `HTTP 403 Forbidden` để ngắt đứt luồng phát nhạc (Mid-stream Interruption) của Listener ngay lập tức.
+*   **Cascade Revoke khi Producer xóa Demo gốc (CRITICAL — chống Orphaned Links)**: Khi `DELETE /api/v1/demos/{demoId}` (Producer xóa demo hoàn toàn), hệ thống **BẮT BUỘC** cascade revoke tất cả `demo_distributions` của demo đó (set `is_revoked=true`, populate audit `reason='demo-deleted'`). Lý do: nếu chỉ `demos.status = 'DELETED'` mà distribution vẫn `is_revoked=false`, các share link cũ vẫn đang phát nhạc trên Listener browser — cạn kiệt tài nguyên + vi phạm quyền Producer. Yêu cầu:
+    1. Cascade chạy **trong CÙNG transaction** với update `demos.status = 'DELETED'`.
+    2. Sau cascade, gọi logic `revokeDistribution(...)` cho TỪNG distribution để ghi audit + WS broadcast `DISTRIBUTION_REVOKED` + DEL cache + set blacklist `demo:distribution:revoked:{shareToken}` + jti revocation.
+    3. Sau khi xóa, DEL `demo:key:{demoId}` AES key cache.
+    4. Không chấp nhận "best-effort async" — nếu 1 distribution revoke fail, **rollback toàn bộ** transaction DELETE demo. Log `ERROR DELETE_DEMO_ROLLBACK {demoId, failedDistributionId, error}` để operator investigate.
+    5. Sau 90 ngày xóa mới được áp dụng S3 Lifecycle xóa file `original/confirmed/...` (audit window).
 
 #### C. Tính độc lập của liên kết
 *   Việc thu hồi chỉ ảnh hưởng duy nhất đến mã Token (`shareToken`) của bản phân phối được chọn.
@@ -38,6 +44,58 @@ Tài liệu đặc tả A-Z tính năng Thu hồi quyền truy cập liên kết
     `{"event": "DISTRIBUTION_REVOKED", "data": {"shareToken": "{shareToken}"}}`
 *   Frontend của đối tác khi nhận được tin này sẽ tự động chuyển trạng thái bài hát trên UI sang dạng làm mờ có gạch chéo kèm dòng chữ *"Liên kết đã bị thu hồi"*, ngăn chặn việc click phát nhạc bị báo lỗi giật cục, mang lại trải nghiệm UX nhất quán và tinh tế.
 
+#### E. Xác thực quyền Subscribe WebSocket Topic (WS Authorization)
+*   Mục 1.2.D gửi WS broadcast tới `/topic/shared-threads/{threadId}/distributions`. Bất kỳ ai biết `threadId` đều có thể subscribe.
+*   **Rủi ro**: ThreadId có format UUID nhưng vẫn là identifier (không phải secret). Attacker có thể brute-force → nghe lỏm `DISTRIBUTION_REVOKED` events → biết Producer nào đang thu hồi share nào.
+*   **Giải pháp 2 lớp**:
+    1. **STOMP CONNECT auth**: Khi Listener mở kết nối WebSocket, phải xác thực bằng **Temporary Access Token** (TAT) ngắn hạn 5 phút lấy từ `GET /api/v1/demos/shared/{shareToken}/ws-token` sau khi đã verify cookie/IP ở docs 04. TAT chứa `{shareToken, demoId, recipientEmailHash, exp}`. Backend set trong STOMP Session Attribute qua `ChannelInterceptor`.
+    2. **SUBSCRIBE authorization**: Tại `SUBSCRIBE /topic/shared-threads/{threadId}/distributions`, Backend check Session Attribute:
+        - User có TAT với `shareToken` map tới `threadId` của shared_thread.
+        - `recipient_email` trong shared_thread (lowercased) phải match với `recipientEmailHash` (lookup qua `shared_threads.recipient_email_hash`).
+        - **Không match** → gửi `ERROR frame` STOMP `{"event":"SUBSCRIBE_DENIED","reason":"not-thread-participant"}` rồi disconnect.
+*   **WS Channel Interceptor cấu hình** (xem docs 09 mục 2.5): trước khi message tới controller, interceptor tự động reject nếu thiếu TAT.
+
+#### F. AES Key Rotation ngay khi Revoke (Active Defense)
+*   Mục 1.2.B set `is_revoked=true` + cache revocation. Tuy nhiên, **AES key đã được serve cho Cookie trước đó vẫn còn valid** trong TTL cookie (30 phút theo docs 04 mục 1.2.D). Listener tiếp tục decrypt `.ts` segments đã cached.
+*   **Giải pháp**: Ngay khi revoke thành công (cùng transaction hoặc async gần như tức thì):
+    1. **DEL** Redis `demo:key:{demoId}` cache.
+    2. **DEL** Tất cả jti trong Set `demo:distribution:active_sessions:{shareToken}` (xem docs 04 Redis catalog) — push vào `stream:cookie:revoked:{jti}` với TTL còn lại của cookie.
+    3. Nếu không có distribution nào khác đang share cùng demo → trigger **rotate AES key** (xem docs 04 mục 1.2.E). Worker re-encrypt tất cả `.ts` segments với key mới. Listener cố nghe tiếp → nhận key mới từ cache (đã miss) → nhưng `is_revoked=true` → Backend từ chối serve key → listener bị chặn vĩnh viễn.
+*   **Trade-off latency vs security**: Rotation async qua Kafka `audio-processing-events` topic (worker pool). Acceptable delay ~10-30 giây cho file dài.
+
+#### G. Audit Trail cho Revoke (Compliance)
+*   Mọi lệnh revoke (kể cả idempotent) đều phải ghi audit log để truy vết tranh chấp / compliance.
+*   Tạo bảng `demo_revoke_audit`:
+    ```sql
+    CREATE TABLE demo_revoke_audit (
+        id UUID PRIMARY KEY,
+        distribution_id UUID NOT NULL,
+        demo_id UUID NOT NULL,
+        revoked_by_user_id UUID NOT NULL,        -- Producer nào thao tác
+        revoked_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        reason VARCHAR(50),                      -- 'manual', 'auto-recovery', 'gdpr-request', 'compliance', 'demo-deleted'
+        ip_subnet_hash VARCHAR(64) NULL,         -- SHA-256(IP_HASH_SALT + IP/CIDR_SUBNET) — chỉ giữ subnet /24 hash, KHÔNG raw INET (GDPR Art. 4(5) pseudonymization)
+        user_agent VARCHAR(255),
+        CONSTRAINT fk_audit_dist FOREIGN KEY (distribution_id) REFERENCES demo_distributions(id),
+        CONSTRAINT fk_audit_user FOREIGN KEY (revoked_by_user_id) REFERENCES users(id)
+    );
+    CREATE INDEX idx_audit_dist ON demo_revoke_audit(distribution_id);
+    CREATE INDEX idx_audit_time ON demo_revoke_audit(revoked_at);
+    ```
+*   **Retention**: Giữ 2 năm (compliance), sau đó archive S3 với encryption AES-256 (xem docs 09 §5.4 Database Backup Encryption).
+*   **GDPR Policy**: Audit chỉ lưu `ip_subnet_hash` (CIDR /24 hash) chứ không phải full IP. Forensic có thể detect "Producer revoke từ subnet Hà Nội vs HCMC" mà không track thiết bị cá nhân. Subject Access Request xóa toàn bộ row khi user yêu cầu (mất forensic subnet nhưng audit trail revocation action vẫn còn ở bảng `demo_distributions.is_revoked`).
+
+#### H. Idempotency cho Revoke (Idempotent Endpoint)
+*   **Lịch sử thiết kế**: Bản đầu tiên của docs 04 §4.4 định nghĩa mã lỗi `409 DISTRIBUTION_ALREADY_REVOKED` cho trường hợp Producer gọi `/revoke` 2 lần. Sau R3 review, mã này đã được **loại bỏ** khỏi docs 04 §4.4 Error Codes table. Endpoint hiện hành xử sự idempotent như dưới đây.
+*   **Quy tắc hiện hành**: Endpoint **idempotent** — gọi nhiều lần với cùng `distributionId` đều trả `200 OK`. Lần đầu thực hiện action, lần sau chỉ verify state và trả về success message.
+*   **Tracking**: Redis `revoked:completed:{distributionId}` TTL **24 giờ** (tăng từ 10 phút vì Producer mobile thường retry trên slow network; tránh bị rate limit bởi proxy/CDN retry; tăng coverage cho luồng Cron reopen dashboard). Nếu có key này → skip DB update + WS broadcast (đã làm rồi), trả 200 OK.
+*   **Sweep cleanup**: Cron chạy hằng đêm 03:30 UTC, scan keys có prefix `revoked:completed:*` với TTL đã expire → không cần DEL (Redis tự expire), nhưng emit metric `revoked_completed_total_size` để monitor Redis memory.
+*   **Audit** vẫn ghi cho mỗi lần call (xem mục G) — truy vết được Producer spam click.
+
+#### I. Per-User Rate Limit cho Revoke
+*   Rate limit hiện tại chỉ IP-based (20/phút/IP). Producer dùng nhiều IP (VPN) có thể spam.
+*   **Bổ sung per-user**: Tối đa **30 lần revoke / phút / user** cho `POST /revoke`. Track qua Redis `revoke:user_count:{userId}` TTL 60 giây.
+
 ---
 
 ### 1.3. Quy tắc Xác thực Dữ liệu
@@ -45,11 +103,13 @@ Tài liệu đặc tả A-Z tính năng Thu hồi quyền truy cập liên kết
 
 ---
 
-### 1.4. Giới hạn Tần suất Truy cập API (IP Rate Limiting)
+### 1.4. Giới hạn Tần suất Truy cập API (Rate Limiting)
 
-| API Endpoint | Giới hạn | Mô tả |
-| :--- | :--- | :--- |
-| `POST /api/v1/demos/distributions/{id}/revoke` | **20 requests / phút / IP** | Tránh spam thu hồi liên tục |
+| API Endpoint | IP Limit | Per-User Limit | Mục đích |
+| :--- | :--- | :--- | :--- |
+| `POST /api/v1/demos/distributions/{id}/revoke` | **20 requests / phút / IP** | **30 requests / phút / user** | Tránh spam thu hồi liên tục (xem mục 1.2.I) |
+
+Ngoài rate limit, áp dụng **idempotency** (xem mục 1.2.H): gọi lặp nhiều lần với cùng distributionId chỉ thực hiện action 1 lần, các lần sau trả 200 OK không side-effect.
 
 ---
 
@@ -112,6 +172,8 @@ sequenceDiagram
 | Định dạng Khóa (Redis Key) | Kiểu dữ liệu | Giá trị (Value) | TTL | Mục đích sử dụng |
 | :--- | :--- | :--- | :--- | :--- |
 | `demo:distribution:revoked:{shareToken}` | `String` | `"true"` | **600 giây** (10 phút) | Lưu vết nhanh các token đã bị thu hồi để chặn spam gọi API lấy key liên tục xuống DB. |
+| `revoked:completed:{distributionId}` | `String` | `"1"` | **86400 giây** (24 giờ) | Đánh dấu distribution đã revoke xong để xử lý idempotency (xem mục 1.2.H) — TTL dài để cover retry window của mobile/CDN proxy. |
+| `revoke:user_count:{userId}` | `String` | Counter (INCR) | **60 giây** | Đếm số lần revoke của user. Vượt 30/phút → `RATE_LIMIT_EXCEEDED` (xem mục 1.2.I). |
 
 ---
 
@@ -163,7 +225,25 @@ sequenceDiagram
 | Http Status | Error Code (String) | Mô tả | Trường liên quan (`field`) |
 | :--- | :--- | :--- | :--- |
 | `403 Forbidden` | `FORBIDDEN_ACCESS` | Người gọi API không phải là người sở hữu bản nhạc | `null` |
-| `404 Not Found` | `DISTRIBUTION_NOT_FOUND` | Không tìm thấy bản ghi phân phối tương ứng | `distributionId` |
+| `429 Too Many Requests` | `RATE_LIMIT_EXCEEDED` | Vượt `20/phút/IP` hoặc `30/phút/user` cho `/revoke` | `null` |
+
+> **Lưu ý QUAN TRỌNG về 404 vs Idempotency** (refactor sau R4):
+> - `DISTRIBUTION_NOT_FOUND` (404) đã bị **LOẠI BỎ khỏi endpoint `/revoke`** để giữ idempotency promise (xem mục 1.2.H).
+> - **Quy tắc mới**: Khi `distributionId` không tồn tại (HOẶC đã từng tồn tại nhưng bị hard-delete), revoke endpoint trả `200 OK {success: true, message: "Thu hồi hoàn tất (idempotent)"}` với audit log ghi `reason='not-found-revoked'` (giả lập). Mục đích:
+>   1. Attacker không thể phân biệt "distribution tồn tại" vs "không tồn tại" qua status code → chống enumeration.
+>   2. Producer double-click / mobile retry không bị fail UX.
+> - Nếu cần 404 cho audit/admin endpoint READ-ONLY khác (vd `GET /demos/distributions/{id}`), đó là endpoint khác — không liên quan đến `/revoke`.
+> - Mã `DISTRIBUTION_ALREADY_REVOKED` (409) cũng đã được loại bỏ vì endpoint hiện **idempotent**.
+
+### 4.3. Cấu hình liên quan (tham chiếu)
+
+```yaml
+pwb:
+  audio:
+    revoke:
+      blacklist-ttl-seconds: 600       # 10 phút — TTL của demo:distribution:revoked:{shareToken}
+      notify-listener-websocket: true  # Bật broadcast DISTRIBUTION_REVOKED (xem 6. Logging)
+```
 
 ---
 
@@ -214,7 +294,17 @@ graph TD
 | :--- | :--- | :--- |
 | `INFO` | Revoke request received | `{"event": "REVOKE_REQUEST", "distId": "f7b84f32-...", "userId": "c8b74f51-..."}` |
 | `INFO` | Distribution revoked successfully | `{"event": "DISTRIBUTION_REVOKED", "distId": "f7b84f32-...", "token": "e5b84f32-..."}` |
+| `INFO` | Idempotent revoke — already done | `{"event": "REVOKE_IDEMPOTENT_SKIP", "distId": "...", "userId": "..."}` |
+| `INFO` | Revoke audit recorded | `{"event": "REVOKE_AUDIT_RECORDED", "auditId": "...", "distId": "...", "reason": "manual"}` |
+| `INFO` | Cache evicted | `{"event": "DISTRIBUTION_CACHE_EVICTED", "shareToken": "e5b84f32-..."}` |
+| `INFO` | AES key cache evicted (on revoke) | `{"event": "AES_KEY_CACHE_EVICTED", "demoId": "...", "trigger": "revoke"}` |
+| `INFO` | AES rotation triggered (on revoke) | `{"event": "AES_ROTATION_TRIGGERED", "demoId": "...", "oldVersion": 2, "newVersion": 3}` |
+| `INFO` | Cookie jti's blacklisted (on revoke) | `{"event": "JTI_BULK_BLACKLISTED", "shareToken": "...", "jtiCount": 5}` |
+| `INFO` | Revoke blacklist key set | `{"event": "DISTRIBUTION_BLACKLIST_SET", "shareToken": "...", "ttlSeconds": 600}` |
+| `INFO` | WebSocket broadcast sent | `{"event": "DISTRIBUTION_REVOKED_WS_SENT", "topic": "/topic/shared-threads/{threadId}/distributions", "shareToken": "..."}` |
+| `WARN` | WebSocket SUBSCRIBE denied (authz) | `{"event": "WS_SUBSCRIBE_DENIED", "userId": "...", "threadId": "...", "reason": "not-thread-participant|missing-tat"}` |
 | `WARN` | Unauthorized revoke attempt | `{"event": "UNAUTHORIZED_REVOKE_ATTEMPT", "distId": "f7b84f32-...", "userId": "e5b84f32-..."}` |
+| `ERROR` | WS broadcast failed (vẫn rollback lỗi) | `{"event": "WS_BROADCAST_FAILED", "topic": "...", "error": "..."}` |
 
 ### 6.2. Quy tắc Bảo mật Log
 *   Không ghi log email của khách hàng được liên kết với Token bị thu hồi trong log nghiệp vụ thô.

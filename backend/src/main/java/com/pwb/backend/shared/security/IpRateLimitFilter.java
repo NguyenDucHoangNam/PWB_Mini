@@ -23,14 +23,17 @@ public class IpRateLimitFilter extends OncePerRequestFilter {
   private static final String RATE_LIMIT_KEY_PREFIX = "rate_limit:ip:";
 
   private final StringRedisTemplate redisTemplate;
+  private final ClientIpResolver clientIpResolver;
   private final int maxRequestsPerWindow;
   private final Duration windowDuration;
 
   public IpRateLimitFilter(
       StringRedisTemplate redisTemplate,
+      ClientIpResolver clientIpResolver,
       @Value("${app.security.rate-limit.ip.max-requests:30}") int maxRequestsPerWindow,
       @Value("${app.security.rate-limit.ip.window-seconds:60}") long windowSeconds) {
     this.redisTemplate = redisTemplate;
+    this.clientIpResolver = clientIpResolver;
     this.maxRequestsPerWindow = maxRequestsPerWindow;
     this.windowDuration = Duration.ofSeconds(windowSeconds);
   }
@@ -53,7 +56,7 @@ public class IpRateLimitFilter extends OncePerRequestFilter {
                                   HttpServletResponse response,
                                   FilterChain chain)
       throws ServletException, IOException {
-    String ip = resolveClientIp(request);
+    String ip = clientIpResolver.resolve(request);
     String key = RATE_LIMIT_KEY_PREFIX + ip;
 
     Long currentCount = redisTemplate.opsForValue().increment(key);
@@ -73,13 +76,5 @@ public class IpRateLimitFilter extends OncePerRequestFilter {
     }
 
     chain.doFilter(request, response);
-  }
-
-  private String resolveClientIp(HttpServletRequest request) {
-    String forwarded = request.getHeader("X-Forwarded-For");
-    if (forwarded != null && !forwarded.isBlank() && !"unknown".equalsIgnoreCase(forwarded)) {
-      return forwarded.split(",")[0].trim();
-    }
-    return request.getRemoteAddr();
   }
 }

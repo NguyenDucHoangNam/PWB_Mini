@@ -9,10 +9,13 @@ import com.pwb.backend.iam.internal.config.JwtAuthenticationFilter;
 import com.pwb.backend.iam.internal.service.AccountLifecycleService;
 import com.pwb.backend.iam.internal.service.AuthService;
 import com.pwb.backend.iam.internal.service.AvatarUploadService;
+import com.pwb.backend.iam.internal.service.JwtEpochService;
+import com.pwb.backend.iam.internal.service.JwtService;
 import com.pwb.backend.iam.internal.service.SessionService;
 import com.pwb.backend.shared.config.I18nConfig;
 import com.pwb.backend.shared.exception.BusinessException;
 import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.shared.security.ClientIpResolver;
 import com.pwb.backend.shared.security.IpRateLimitFilter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,6 +61,15 @@ class AuthControllerSecurityIntegrationTest {
 
   @MockitoBean
   private AvatarUploadService avatarUploadService;
+
+  @MockitoBean
+  private JwtService jwtService;
+
+  @MockitoBean
+  private JwtEpochService jwtEpochService;
+
+  @MockitoBean
+  private ClientIpResolver clientIpResolver;
 
   @MockitoBean
   private JwtAuthenticationFilter jwtAuthenticationFilter;

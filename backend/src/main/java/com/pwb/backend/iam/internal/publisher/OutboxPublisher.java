@@ -22,12 +22,15 @@ public class OutboxPublisher {
 
   private final OutboxEventRepository outboxEventRepository;
   private final KafkaTemplate<String, String> kafkaTemplate;
+  private final OutboxPayloadCipher outboxPayloadCipher;
   private final int deadLetterAfterRetries;
 
   public OutboxPublisher(OutboxEventRepository outboxEventRepository,
-      KafkaTemplate<String, String> kafkaTemplate, IamProperties properties) {
+      KafkaTemplate<String, String> kafkaTemplate, OutboxPayloadCipher outboxPayloadCipher,
+      IamProperties properties) {
     this.outboxEventRepository = outboxEventRepository;
     this.kafkaTemplate = kafkaTemplate;
+    this.outboxPayloadCipher = outboxPayloadCipher;
     this.deadLetterAfterRetries = properties.getOutbox().getDeadLetterAfterRetries();
   }
 
@@ -39,8 +42,9 @@ public class OutboxPublisher {
   @Transactional
   public void processOutboxEvent(OutboxEvent outboxEvent) {
     String topic = resolveTopic(outboxEvent.getEventType());
+    String payload = outboxPayloadCipher.decrypt(outboxEvent.getPayload());
     try {
-      kafkaTemplate.send(topic, outboxEvent.getId(), outboxEvent.getPayload())
+      kafkaTemplate.send(topic, outboxEvent.getId(), payload)
           .whenComplete((result, ex) -> handlePublishResult(outboxEvent, ex));
     } catch (Exception ex) {
       handlePublishFailure(outboxEvent, ex);
