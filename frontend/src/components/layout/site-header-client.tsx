@@ -12,6 +12,7 @@ import { abortRefresh } from "@/lib/auth-refresh";
 import { useAuthChannelSync, broadcastAuthMessage } from "@/lib/use-auth-channel";
 import { isPublicPath } from "@/lib/config";
 import { LocaleSwitcher } from "./locale-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { toast } from "sonner";
 
 export function SiteHeaderClient() {
@@ -86,7 +87,6 @@ export function SiteHeaderClient() {
 
   const menuItems = [
     { label: t("home"), href: "/" },
-    { label: t("features"), href: "/#features" },
   ];
 
   const loggedInMenuItems = [
@@ -163,8 +163,10 @@ export function SiteHeaderClient() {
     <header className="sticky top-0 z-40 w-full border-b border-neutral-200 bg-white/80 backdrop-blur-md dark:border-neutral-800 dark:bg-black/80">
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-6 md:px-8">
         {/* Left: Logo */}
-        <Link href="/" className="text-xl font-bold tracking-tight text-black dark:text-white">
-          PWB MiNi
+        <Link href="/" className="px-3 py-1 border-2 border-black dark:border-white">
+          <span className="text-xl font-bold tracking-tight text-black dark:text-white">
+            PWB
+          </span>
         </Link>
 
         {/* Center: Navigation Links (Desktop) */}
@@ -172,6 +174,7 @@ export function SiteHeaderClient() {
 
         {/* Right: Actions (Desktop) */}
         <div className="hidden items-center gap-4 lg:flex">
+          <ThemeToggle />
           <LocaleSwitcher />
           {isMounted && (
             <>
@@ -283,11 +286,16 @@ export function SiteHeaderClient() {
             <Link
               href="/"
               onClick={() => setIsOpen(false)}
-              className="text-lg font-bold tracking-tight text-black dark:text-white"
+              className="px-3 py-1 border-2 border-black dark:border-white"
             >
-              PWB MiNi
+              <span className="text-lg font-bold tracking-tight text-black dark:text-white">
+                PWB
+              </span>
             </Link>
-            <LocaleSwitcher />
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <LocaleSwitcher />
+            </div>
           </div>
           <hr className="border-neutral-200 dark:border-neutral-800" />
           {isMounted &&
@@ -349,13 +357,6 @@ export function SiteHeaderClient() {
                   className="text-base text-neutral-700 hover:text-black dark:text-neutral-300 dark:hover:text-white"
                 >
                   {t("home")}
-                </Link>
-                <Link
-                  href="/#features"
-                  onClick={() => setIsOpen(false)}
-                  className="text-base text-neutral-700 hover:text-black dark:text-neutral-300 dark:hover:text-white"
-                >
-                  {t("features")}
                 </Link>
                 <hr className="border-neutral-200 dark:border-neutral-800" />
                 <Link href="/login" onClick={() => setIsOpen(false)}>

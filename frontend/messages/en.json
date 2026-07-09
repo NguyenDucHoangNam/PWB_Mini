@@ -27,7 +27,7 @@
     "sessionExpired": "Session expired on another tab"
   },
   "footer": {
-    "description": "Play With Beats MiNi — Real-time audio collaboration and secure demo sharing platform for music producers.",
+    "description": "Producer Workbench — Real-time audio collaboration and secure demo sharing platform for music producers.",
     "product": "Product",
     "support": "Support",
     "legal": "Legal",
@@ -40,29 +40,11 @@
     "privacy": "Privacy Policy",
     "rights": "All rights reserved."
   },
-  "landing": {
-    "phase": "Phase 1 — Launching Soon",
-    "title": "PWB MiNi",
-    "subtitle": "Real-time Audio Collaboration Platform for Professional Music Producers",
-    "description": "A secure real-time audio collaboration and demo sharing platform with absolute playback synchronization via WebSockets and ultra-low latency WebRTC voice chat.",
-    "ctaStart": "GET STARTED NOW →",
-    "ctaLearn": "Find out more ↓",
-    "whyTitle": "WHY CHOOSE PWB MINI?",
-    "whySubtitle": "Comprehensive solutions solving copyright and remote communications challenges.",
-    "feature1Title": "Copyright Protection",
-    "feature1Desc": "Automatic voice tags, AES-128 encrypted HLS streams, expiring shares",
-    "feature1LongDesc": "Automatic voice tags added before streaming. HLS (HTTP Live Streaming) encrypted using AES-128 to block downloads.",
-    "feature2Title": "Synchronized Listening",
-    "feature2Desc": "WebSocket Playback, WebRTC Voice Chat, up to 7 participants",
-    "feature2LongDesc": "Absolute playback sync (Play/Pause/Seek) via WebSockets. Native ultra-low latency WebRTC Mesh P2P voice chat.",
-    "feature3Title": "Secure Sessions",
-    "feature3Desc": "Token Rotation, GDPR Compliant, 30 days anonymization policy",
-    "feature3LongDesc": "Token Rotation (RTR) with Redis blacklisting. Automatic GDPR-compliant account anonymization after 30-day freeze."
-  },
+  "landing": {},
   "auth": {
     "layout": {
-      "description": "Play With Beats MiNi - Real-time music collaboration platform.",
-      "footer": "© 2026 PWB MiNi. Minimal version & optimized security."
+      "description": "Producer Workbench - Real-time music collaboration platform.",
+      "footer": "© 2026 Producer Workbench. Minimal version & optimized security."
     },
     "session": {
       "sessionExpiringTitle": "Session Expiring Soon",

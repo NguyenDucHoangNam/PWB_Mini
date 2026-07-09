@@ -27,7 +27,7 @@
     "sessionExpired": "Phiên đăng nhập đã hết hạn trên tab khác"
   },
   "footer": {
-    "description": "Play With Beats MiNi — Cộng tác âm thanh thời gian thực và nền tảng chia sẻ demo bảo mật cho nhà sản xuất âm nhạc.",
+    "description": "Producer Workbench — Cộng tác âm thanh thời gian thực và nền tảng chia sẻ demo bảo mật cho nhà sản xuất âm nhạc.",
     "product": "Sản phẩm",
     "support": "Hỗ trợ",
     "legal": "Pháp lý",
@@ -40,29 +40,11 @@
     "privacy": "Chính sách bảo mật",
     "rights": "All rights reserved."
   },
-  "landing": {
-    "phase": "Phase 1 — Sắp ra mắt",
-    "title": "PWB MiNi",
-    "subtitle": "Cộng tác Âm thanh Thời gian thực cho Nhà sản xuất Âm nhạc Chuyên nghiệp",
-    "description": "Nền tảng chia sẻ demo bảo mật và phòng nghe trực tuyến với đồng bộ playback tuyệt đối qua WebSocket và thoại đàm thoại WebRTC trễ cực thấp.",
-    "ctaStart": "BẮT ĐẦU NGAY →",
-    "ctaLearn": "Tìm hiểu thêm ↓",
-    "whyTitle": "TẠI SAO CHỌN PWB MINI?",
-    "whySubtitle": "Giải pháp toàn diện giải quyết triệt để các vấn đề bản quyền và giao tiếp từ xa.",
-    "feature1Title": "Bảo vệ bản quyền",
-    "feature1Desc": "Voice Tag tự động, HLS mã hóa AES-128, Link có thời hạn",
-    "feature1LongDesc": "Chèn Voice Tag tự động trước khi stream. Mã hóa HLS (HTTP Live Streaming) bằng AES-128 ngăn chặn tải lậu trực tiếp từ tab mạng.",
-    "feature2Title": "Nghe chung đồng bộ",
-    "feature2Desc": "WebSocket Playback, WebRTC Voice Chat, Tối đa 7 người",
-    "feature2LongDesc": "Đồng bộ hóa tuyệt đối trạng thái Play/Pause/Seek qua WebSocket. Tích hợp thoại đàm thoại WebRTC Mesh P2P trễ thoại dưới 150ms.",
-    "feature3Title": "Quản lý phiên an toàn",
-    "feature3Desc": "Token Rotation, GDPR Compliant, Ẩn danh hóa 30 ngày",
-    "feature3LongDesc": "Quay vòng mã Token (RTR) kết hợp Redis blacklist. Tự động ẩn danh hóa tài khoản đã xóa sau 30 ngày đóng băng theo tiêu chuẩn GDPR."
-  },
+  "landing": {},
   "auth": {
     "layout": {
-      "description": "Play With Beats MiNi Nền tảng cộng tác âm nhạc thời gian thực.",
-      "footer": "© 2026 PWB MiNi. Phiên bản tối giản & tối ưu hóa bảo mật."
+      "description": "Producer Workbench Nền tảng cộng tác âm nhạc thời gian thực.",
+      "footer": "© 2026 Producer Workbench. Phiên bản tối giản & tối ưu hóa bảo mật."
     },
     "session": {
       "sessionExpiringTitle": "Phiên sắp hết hạn",
