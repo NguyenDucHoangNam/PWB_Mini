@@ -1,4 +1,8 @@
--- "Sign out other devices" — revokes every session except the current one.
+
+
+if current_token == nil or current_token == '' then
+    return redis.error_reply('current_token is required to identify session to keep')
+end
 
 local current_token = ARGV[1]
 local blacklist_prefix = ARGV[2]

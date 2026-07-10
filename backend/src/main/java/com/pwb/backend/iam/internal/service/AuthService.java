@@ -748,19 +748,15 @@ public class AuthService {
                                                String sub,
                                                String name,
                                                String picture) {
-        User activatedUser = transactionTemplate.execute(status -> {
-            otpService.deleteAllOtpKeys(email);
-            user.setStatus(UserStatus.ACTIVE);
-            user.setPassword(null);
-            user.setOauthProvider(OAuthProvider.GOOGLE);
-            user.setOauthId(sub);
-            user.setFullName(name);
-            user.setAvatarUrl(picture);
-            return userRepository.save(user);
-        });
-        if (activatedUser != null) {
-            outboxEventFactory.welcomeEmail(activatedUser, LocaleContextHolder.getLocale().getLanguage());
-        }
+        otpService.deleteAllOtpKeys(email);
+        user.setStatus(UserStatus.ACTIVE);
+        user.setPassword(null);
+        user.setOauthProvider(OAuthProvider.GOOGLE);
+        user.setOauthId(sub);
+        user.setFullName(name);
+        user.setAvatarUrl(picture);
+        User activatedUser = userRepository.save(user);
+        outboxEventFactory.welcomeEmail(activatedUser, LocaleContextHolder.getLocale().getLanguage());
         return activatedUser;
     }
 

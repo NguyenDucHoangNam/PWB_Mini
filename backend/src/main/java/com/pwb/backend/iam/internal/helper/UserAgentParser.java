@@ -32,6 +32,7 @@ public class UserAgentParser {
         if (ua.contains("opr/") || ua.contains("opera")) return "Opera";
         if (ua.contains("firefox/") || ua.contains("fxios")) return "Firefox";
         if (ua.contains("samsungbrowser")) return "Samsung Browser";
+        if (ua.contains("headlesschrome") || ua.contains("phantomjs") || ua.contains("bot") || ua.contains("crawler") || ua.contains("spider")) return "Headless/Bot";
         if (ua.contains("chrome/") || ua.contains("crios/")) return "Chrome";
         if (ua.contains("safari/")) return "Safari";
         if (ua.contains("curl/") || ua.contains("wget/")) return "curl/wget";

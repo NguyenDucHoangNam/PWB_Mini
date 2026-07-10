@@ -299,13 +299,18 @@ public class SessionService {
     User user = userRepository.findByEmailAndDeletedFalse(email)
         .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
 
+    if (currentRefreshToken == null || currentRefreshToken.isBlank()) {
+      throw new BusinessException(ErrorCode.UNAUTHORIZED,
+          "Current refresh token is required to identify session to keep");
+    }
+
     String userId = user.getId();
     String zsetKey = "user:sessions:" + userId;
     long blacklistTtl = iamProperties.getJwt().getAccessTokenExpiration() + 30;
 
     List<String> keys = List.of(zsetKey);
     Object[] args = new Object[]{
-        currentRefreshToken != null ? currentRefreshToken : "",
+        currentRefreshToken,
         "session:blacklist_token:",
         String.valueOf(blacklistTtl)
     };

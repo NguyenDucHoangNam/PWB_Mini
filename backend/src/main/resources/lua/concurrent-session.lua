@@ -1,12 +1,4 @@
--- Enforces a maximum number of concurrent sessions per user.
---
--- KEYS[1] = user_sessions:{userId} (sorted set: token -> timestamp)
--- ARGV[1] = new token (member)
--- ARGV[2] = timestamp (score)
--- ARGV[3] = maxSessions (integer)
--- ARGV[4] = ttl seconds
---
--- Returns: list of evicted tokens (oldest first) so the caller can blacklist them.
+
 
 redis.call('ZADD', KEYS[1], ARGV[2], ARGV[1])
 local count = redis.call('ZCARD', KEYS[1])

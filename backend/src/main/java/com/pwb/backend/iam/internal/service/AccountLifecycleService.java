@@ -19,7 +19,6 @@ import com.pwb.backend.shared.exception.BusinessException;
 import com.pwb.backend.shared.exception.ErrorCode;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.data.domain.PageRequest;
@@ -40,7 +39,6 @@ import java.util.List;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AccountLifecycleService {
 
   private final UserRepository userRepository;
@@ -51,9 +49,36 @@ public class AccountLifecycleService {
   private final IamProperties iamProperties;
   private final OutboxEventFactory outboxEventFactory;
   private final UserMapper userMapper;
-  private final PlatformTransactionManager transactionManager;
+  private final TransactionTemplate transactionTemplate;
+  private final TransactionTemplate requiresNewTransactionTemplate;
   private final LoginLockoutHelper loginLockoutHelper;
   private GoogleIdTokenVerifier googleVerifier;
+
+  public AccountLifecycleService(
+      UserRepository userRepository,
+      PasswordEncoder passwordEncoder,
+      StringRedisTemplate redisTemplate,
+      SessionService sessionService,
+      JwtService jwtService,
+      IamProperties iamProperties,
+      OutboxEventFactory outboxEventFactory,
+      UserMapper userMapper,
+      PlatformTransactionManager transactionManager,
+      LoginLockoutHelper loginLockoutHelper) {
+    this.userRepository = userRepository;
+    this.passwordEncoder = passwordEncoder;
+    this.redisTemplate = redisTemplate;
+    this.sessionService = sessionService;
+    this.jwtService = jwtService;
+    this.iamProperties = iamProperties;
+    this.outboxEventFactory = outboxEventFactory;
+    this.userMapper = userMapper;
+    this.transactionTemplate = new TransactionTemplate(transactionManager);
+    TransactionTemplate requiresNew = new TransactionTemplate(transactionManager);
+    requiresNew.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    this.requiresNewTransactionTemplate = requiresNew;
+    this.loginLockoutHelper = loginLockoutHelper;
+  }
 
   @PostConstruct
   public void init() {
@@ -112,8 +137,7 @@ public class AccountLifecycleService {
     user.setStatus(UserStatus.PENDING_DELETION);
     user.setDeletionRequestedAt(Instant.now());
 
-    TransactionTemplate txTemplate = new TransactionTemplate(transactionManager);
-    txTemplate.executeWithoutResult(status -> {
+    transactionTemplate.executeWithoutResult(status -> {
       userRepository.save(user);
 
       int graceDays = iamProperties.getAccountDeletionGraceDays();
@@ -181,13 +205,10 @@ public class AccountLifecycleService {
     int batchSize = iamProperties.getAnonymization().getBatchSize();
     List<User> usersToAnonymize = userRepository.findUsersPendingDeletionBefore(cutoff, PageRequest.of(0, batchSize));
 
-    TransactionTemplate requiresNewTemplate = new TransactionTemplate(transactionManager);
-    requiresNewTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-
     int count = 0;
     for (User user : usersToAnonymize) {
       try {
-        requiresNewTemplate.executeWithoutResult(status -> anonymizeUser(user));
+        requiresNewTransactionTemplate.executeWithoutResult(status -> anonymizeUser(user));
         count++;
         log.info("USER_ANONYMIZED_SUCCESS: userId={}", com.pwb.backend.iam.internal.helper.PiiScrubber.userRef(user.getId()));
       } catch (Exception e) {

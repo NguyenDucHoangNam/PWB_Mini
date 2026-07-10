@@ -24,6 +24,13 @@ public class JwtVerifier {
     }
   }
 
+  public Claims parseClaims(String token) {
+    if (token == null || token.isBlank()) {
+      return null;
+    }
+    return JwtSigner.parseAndVerify(tokenKeyProvider.currentSigningKey(), token);
+  }
+
   public String extractEmail(String token) {
     Claims claims = parseClaimsOrNull(token);
     return claims == null ? null : claims.getSubject();

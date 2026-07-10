@@ -27,18 +27,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
   private final JwtVerifier jwtVerifier;
-  private final JwtService jwtService;
   private final JwtEpochService jwtEpochService;
   private final StringRedisTemplate redisTemplate;
   private final AuthenticationEntryPoint authenticationEntryPoint;
 
   public JwtAuthenticationFilter(JwtVerifier jwtVerifier,
-                                 JwtService jwtService,
                                  JwtEpochService jwtEpochService,
                                  StringRedisTemplate redisTemplate,
                                  AuthenticationEntryPoint authenticationEntryPoint) {
     this.jwtVerifier = jwtVerifier;
-    this.jwtService = jwtService;
     this.jwtEpochService = jwtEpochService;
     this.redisTemplate = redisTemplate;
     this.authenticationEntryPoint = authenticationEntryPoint;
@@ -56,13 +53,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     String token = authHeader.substring(7);
 
-    boolean tokenValid = jwtVerifier.isTokenValid(token);
-    if (!tokenValid) {
+    Claims claims;
+    try {
+      claims = jwtVerifier.parseClaims(token);
+    } catch (Exception ex) {
+      rejectWithBadCredentials(request, response, "invalid", "invalid token");
+      return;
+    }
+    if (claims == null) {
       rejectWithBadCredentials(request, response, "invalid", "invalid token");
       return;
     }
 
     String signature = jwtVerifier.getSignature(token);
+    if (signature == null || signature.isBlank()) {
+      rejectWithBadCredentials(request, response, "invalid", "invalid token format");
+      return;
+    }
     String blacklistKey = "session:blacklist_token:" + signature;
     boolean tokenBlacklisted = Boolean.TRUE.equals(redisTemplate.hasKey(blacklistKey));
 
@@ -73,10 +80,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     long currentEpoch = jwtEpochService.currentEpoch();
-    Claims claims = parseClaimsOrReject(token, request, response);
-    if (claims == null) {
-      return;
-    }
     long tokenEpoch = extractTokenEpoch(claims);
     if (tokenEpoch < currentEpoch) {
       rejectWithBadCredentials(request, response, "rotated",
@@ -101,21 +104,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                         String message) throws IOException, ServletException {
     request.setAttribute("jwt.auth.error", errorCode);
     authenticationEntryPoint.commence(request, response, new BadCredentialsException(message));
-  }
-
-  private Claims parseClaimsOrReject(String token,
-                                     HttpServletRequest request,
-                                     HttpServletResponse response) throws IOException, ServletException {
-    try {
-      return io.jsonwebtoken.Jwts.parser()
-          .verifyWith(jwtService.getSigningKeyForFilter())
-          .build()
-          .parseSignedClaims(token)
-          .getPayload();
-    } catch (Exception ex) {
-      rejectWithBadCredentials(request, response, "invalid", "invalid token");
-      return null;
-    }
   }
 
   private long extractTokenEpoch(Claims claims) {
