@@ -5,56 +5,58 @@ import com.pwb.backend.iam.internal.model.User;
 import com.pwb.backend.iam.internal.service.GeoIpService;
 import com.pwb.backend.iam.internal.service.JwtService;
 import com.pwb.backend.shared.security.ClientIpResolver;
-import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public final class SessionMetadataBuilder {
+@Component
+public class SessionMetadataBuilder {
 
-    private SessionMetadataBuilder() {
-    }
-
-    public static Map<String, String> buildForNewSession(User user, JwtService jwtService, GeoIpService geoIpService,
-                                                          String accessToken, ClientIpResolver clientIpResolver) {
-        String ip = clientIpResolver != null ? clientIpResolver.current() : clientIp();
+    public Map<String, String> buildForNewSession(User user, JwtService jwtService, GeoIpService geoIpService,
+                                                  String accessToken, ClientIpResolver clientIpResolver) {
+        if (clientIpResolver == null) {
+            throw new IllegalArgumentException(
+                "SessionMetadataBuilder.buildForNewSession requires a non-null ClientIpResolver");
+        }
+        String ip = clientIpResolver.current();
         String ua = userAgent();
         String browser = ua != null ? ua : "Unknown";
         Map<String, String> metadata = new HashMap<>();
         metadata.put("ip", ip);
         metadata.put("browser", browser);
-        metadata.put("os", UserAgentParser.detectOs(ua));
+        String os = UserAgentParser.detectOs(ua);
+        metadata.put("os", os);
+        metadata.put("device", formatDevice(browser, os));
         metadata.put("location", geoIpService.getLocation(ip));
         metadata.put("createdAt", Instant.now().toString());
         metadata.put("active_jwt_signature", jwtService.getSignature(accessToken));
         return metadata;
     }
 
-    public static void store(StringRedisTemplate redisTemplate, String refreshToken, Map<String, String> metadata,
-                             IamProperties iamProperties) {
+    public static String formatDevice(String browser, String os) {
+        if (browser == null || browser.isBlank() || "Unknown".equals(browser)) {
+            return os == null || "Unknown".equals(os) ? "Unknown" : os;
+        }
+        if (os == null || "Unknown".equals(os)) {
+            return browser;
+        }
+        return browser + " (" + os + ")";
+    }
+
+    public void store(StringRedisTemplate redisTemplate, String refreshToken, Map<String, String> metadata,
+                      IamProperties iamProperties) {
         String key = "session:metadata:" + refreshToken;
         redisTemplate.opsForHash().putAll(key, metadata);
         redisTemplate.expire(key, iamProperties.getJwt().getRefreshTokenExpiration(), TimeUnit.SECONDS);
     }
 
-    public static String clientIp() {
-        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        if (attributes == null) return "Unknown";
-        HttpServletRequest req = attributes.getRequest();
-        String ip = req.getHeader("X-Forwarded-For");
-        if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
-            return ip.split(",")[0].trim();
-        }
-        return req.getRemoteAddr();
-    }
-
-    public static String userAgent() {
+    public String userAgent() {
         ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
         if (attributes == null) return "Unknown";
         return attributes.getRequest().getHeader("User-Agent");

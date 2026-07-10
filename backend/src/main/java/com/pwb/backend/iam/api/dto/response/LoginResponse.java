@@ -1,16 +1,9 @@
 package com.pwb.backend.iam.api.dto.response;
 
+import com.pwb.backend.shared.dto.UserInfoResponse;
+
 public record LoginResponse(
     String accessToken,
     long expiresIn,
-    UserInfo user
-) {
-  public record UserInfo(
-      String username,
-      String email,
-      String fullName,
-      String role,
-      String status,
-      String oauthProvider
-  ) {}
-}
+    UserInfoResponse user
+) {}

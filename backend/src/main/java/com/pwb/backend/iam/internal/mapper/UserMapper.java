@@ -3,8 +3,8 @@ package com.pwb.backend.iam.internal.mapper;
 import com.pwb.backend.iam.api.dto.request.RegisterRequest;
 import com.pwb.backend.iam.api.dto.response.RegisterResponse;
 import com.pwb.backend.iam.api.dto.response.UserProfileResponse;
-import com.pwb.backend.iam.api.dto.response.VerifyOtpResponse;
 import com.pwb.backend.iam.internal.model.User;
+import com.pwb.backend.shared.dto.UserInfoResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -30,12 +30,13 @@ public interface UserMapper {
 
   RegisterResponse toRegisterResponse(User user);
 
-  default VerifyOtpResponse.UserInfo toUserInfo(User user) {
+  default UserInfoResponse toUserInfo(User user) {
     if (user == null) return null;
-    return new VerifyOtpResponse.UserInfo(
+    return new UserInfoResponse(
         user.getUsername(),
         user.getEmail(),
         user.getFullName(),
+        user.getRole() == null ? null : user.getRole().getName(),
         user.getStatus() == null ? null : user.getStatus().name(),
         user.getOauthProvider() == null ? "LOCAL" : user.getOauthProvider().name()
     );

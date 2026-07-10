@@ -120,6 +120,7 @@ public class AuthService {
     private final OutboxEventFactory outboxEventFactory;
     private final LoginLockoutHelper loginLockoutHelper;
     private final ClientIpResolver clientIpResolver;
+    private final AvatarUploadService avatarUploadService;
 
     private GoogleIdTokenVerifier googleVerifier;
 
@@ -236,10 +237,9 @@ public class AuthService {
         }
     }
 
-    @Transactional
-    protected VerifyOtpResponse executeVerifyOtp(String normalizedEmail,
-                                                 VerifyOtpRequest request,
-                                                 HttpServletResponse httpResponse) {
+    private VerifyOtpResponse executeVerifyOtp(String normalizedEmail,
+                                                VerifyOtpRequest request,
+                                                HttpServletResponse httpResponse) {
         long attempts = otpService.getAttempts(normalizedEmail);
         if (attempts >= iamProperties.getOtp().getMaxAttempts()) {
             otpService.deleteOtpAndAttempts(normalizedEmail);
@@ -289,8 +289,7 @@ public class AuthService {
         }
     }
 
-    @Transactional
-    protected void executeResendOtp(String normalizedEmail) {
+    private void executeResendOtp(String normalizedEmail) {
         User user = userRepository.findByEmailAndDeletedFalse(normalizedEmail)
             .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED,
                 "User does not exist"));
@@ -379,13 +378,19 @@ public class AuthService {
     }
 
     public LoginResponse loginWithGoogle(Oauth2LoginRequest request, HttpServletResponse httpResponse) {
+        String ip = clientIpResolver.current();
+        String ipKey = ip == null ? "unknown" : ip;
+        String oauthLockoutKey = "oauth_lockout:ip:" + ipKey;
+        loginLockoutHelper.ensureNotLockedKey(redisTemplate, oauthLockoutKey);
+
         GoogleIdToken.Payload payload = verifyGoogleIdToken(request.idToken());
-        User user = handleOauthAccountLinker(
-            payload.getEmail().trim().toLowerCase(),
-            payload.getSubject(),
-            (String) payload.get(OAUTH_NAME_CLAIM),
-            (String) payload.get(OAUTH_PICTURE_CLAIM),
-            request.linkingPassword());
+        User user = transactionTemplate.execute(status ->
+            handleOauthAccountLinker(
+                payload.getEmail().trim().toLowerCase(),
+                payload.getSubject(),
+                (String) payload.get(OAUTH_NAME_CLAIM),
+                (String) payload.get(OAUTH_PICTURE_CLAIM),
+                request.linkingPassword()));
 
         rejectLoginIfOAuthAccountNotAllowed(user, user.getStatus());
         loginLockoutHelper.ensureNotLocked(redisTemplate, user.getId());
@@ -403,11 +408,13 @@ public class AuthService {
             googleIdToken = googleVerifier.verify(idToken);
         } catch (Exception e) {
             log.error("Google token verification failed");
+            recordOAuthFailure(idToken);
             throw new BusinessException(ErrorCode.INVALID_OAUTH_TOKEN,
                 "Invalid OAuth token, please try again");
         }
 
         if (googleIdToken == null) {
+            recordOAuthFailure(idToken);
             throw new BusinessException(ErrorCode.INVALID_OAUTH_TOKEN,
                 "Invalid OAuth token, please try again");
         }
@@ -415,6 +422,16 @@ public class AuthService {
         GoogleIdToken.Payload payload = googleIdToken.getPayload();
         validateGoogleIdTokenPayload(payload);
         return payload;
+    }
+
+    private void recordOAuthFailure(String idToken) {
+        String ip = clientIpResolver.current();
+        String ipKey = ip == null ? "unknown" : ip;
+        String bucket = "oauth_failures:ip:" + ipKey;
+        String lockoutKey = "oauth_lockout:ip:" + ipKey;
+        loginLockoutHelper.recordFailure(redisTemplate, bucket, lockoutKey,
+            iamProperties.getLogin().getLockout().getMaxAttempts(),
+            loginLockoutHelper.getWindowDuration());
     }
 
     private void validateGoogleIdTokenPayload(GoogleIdToken.Payload payload) {
@@ -472,15 +489,20 @@ public class AuthService {
             ? Optional.empty()
             : userRepository.findByEmailAndDeletedFalse(normalizedEmail);
 
-        User realUser = userOpt.filter(u -> u.getStatus() == UserStatus.ACTIVE && u.getPassword() != null)
+        User realUser = userOpt
+            .filter(u -> u.getStatus() == UserStatus.ACTIVE && u.getPassword() != null)
             .orElse(null);
 
         if (realUser == null) {
             sleepUntil(startTime, FORGOT_PW_DELAY_MILLIS);
-            loginLockoutHelper.recordFailure(redisTemplate, perEmailAttemptsKey, perEmailLockoutKey,
-                FORGOT_PW_EMAIL_LIMIT, FORGOT_PW_WINDOW);
-            loginLockoutHelper.recordFailure(redisTemplate, perIpAttemptsKey, perIpLockoutKey,
-                FORGOT_PW_IP_LIMIT, FORGOT_PW_WINDOW);
+            boolean existsButNotAllowed = userOpt.isPresent()
+                && userOpt.get().getStatus() != UserStatus.ACTIVE;
+            if (!existsButNotAllowed) {
+                loginLockoutHelper.recordFailure(redisTemplate, perEmailAttemptsKey, perEmailLockoutKey,
+                    FORGOT_PW_EMAIL_LIMIT, FORGOT_PW_WINDOW);
+                loginLockoutHelper.recordFailure(redisTemplate, perIpAttemptsKey, perIpLockoutKey,
+                    FORGOT_PW_IP_LIMIT, FORGOT_PW_WINDOW);
+            }
             return;
         }
 
@@ -509,7 +531,7 @@ public class AuthService {
             for (byte b : digest) sb.append(String.format("%02x", b));
             return sb.toString();
         } catch (NoSuchAlgorithmException e) {
-            return Integer.toHexString(s.hashCode());
+            throw new IllegalStateException("SHA-256 not available in JDK runtime", e);
         }
     }
 
@@ -625,9 +647,7 @@ public class AuthService {
     }
 
     @Transactional
-    public AvatarUploadResponse uploadAvatar(String authHeader,
-                                             MultipartFile file,
-                                             AvatarUploadService avatarUploadService) {
+    public AvatarUploadResponse uploadAvatar(String authHeader, MultipartFile file) {
         String email = JwtPrincipalExtractor.requireEmailFromHeader(authHeader, jwtService);
         User user = userRepository.findByEmailAndDeletedFalse(email)
             .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
@@ -644,7 +664,6 @@ public class AuthService {
         return new AvatarUploadResponse(avatarUrl);
     }
 
-    @Transactional
     private User handleOauthAccountLinker(String email,
                                           String sub,
                                           String name,
@@ -745,35 +764,43 @@ public class AuthService {
         return activatedUser;
     }
 
-    private User createNewOauthUser(String email, String sub, String name, String picture) {
-        String baseUsername = email.substring(0, email.indexOf("@"));
+private User createNewOauthUser(String email, String sub, String name, String picture) {
+    String baseUsername = email.substring(0, email.indexOf("@"));
 
-        Role defaultRole = roleRepository.findByName(ROLE_USER)
-            .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR,
-                "Default role USER not found"));
+    Role defaultRole = roleRepository.findByName(ROLE_USER)
+        .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR,
+            "Default role USER not found"));
 
-        User newUser = new User();
-        newUser.setUsername(generateUniqueUsername(baseUsername));
-        newUser.setEmail(email);
-        newUser.setFullName(name);
-        newUser.setAvatarUrl(picture);
-        newUser.setStatus(UserStatus.ACTIVE);
-        newUser.setPassword(null);
-        newUser.setOauthProvider(OAuthProvider.GOOGLE);
-        newUser.setOauthId(sub);
-        newUser.setRole(defaultRole);
+    int maxAttempts = 5;
+    DataIntegrityViolationException lastError = null;
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      User newUser = new User();
+      newUser.setUsername(generateUniqueUsername(baseUsername, attempt));
+      newUser.setEmail(email);
+      newUser.setFullName(name);
+      newUser.setAvatarUrl(picture);
+      newUser.setStatus(UserStatus.ACTIVE);
+      newUser.setPassword(null);
+      newUser.setOauthProvider(OAuthProvider.GOOGLE);
+      newUser.setOauthId(sub);
+      newUser.setRole(defaultRole);
 
-        try {
-            return saveAndSendWelcomeEmail(newUser);
-        } catch (DataIntegrityViolationException ex) {
-            newUser.setUsername(generateUniqueUsername(baseUsername));
-            return saveAndSendWelcomeEmail(newUser);
-        }
+      try {
+        return saveAndSendWelcomeEmail(newUser);
+      } catch (DataIntegrityViolationException ex) {
+        log.warn("Username collision on OAuth registration attempt {}/{}", attempt, maxAttempts);
+        lastError = ex;
+      }
     }
+    throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR,
+        "Could not allocate a unique username after " + maxAttempts + " attempts",
+        lastError);
+  }
 
-    private String generateUniqueUsername(String baseUsername) {
-        return baseUsername + "_" + UUID.randomUUID().toString().substring(0, 8);
-    }
+  private String generateUniqueUsername(String baseUsername, int attempt) {
+    String hex12 = UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+    return baseUsername + "_" + attempt + "_" + hex12;
+  }
 
     private User saveAndSendWelcomeEmail(User user) {
         User savedNewUser = userRepository.save(user);
@@ -792,7 +819,7 @@ public class AuthService {
         return new LoginResponse(
             accessToken,
             iamProperties.getJwt().getAccessTokenExpiration(),
-            new LoginResponse.UserInfo(
+            new com.pwb.backend.shared.dto.UserInfoResponse(
                 user.getUsername(),
                 user.getEmail(),
                 user.getFullName(),

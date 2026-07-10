@@ -18,6 +18,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/admin/jobs")
 @RequiredArgsConstructor
+@PreAuthorize("hasAuthority('ADMIN')")
 public class AdminJobController {
 
   private final AccountLifecycleService accountLifecycleService;
@@ -25,7 +26,6 @@ public class AdminJobController {
   private final MessageSource messageSource;
 
   @PostMapping("/trigger-anonymization")
-  @PreAuthorize("hasAuthority('ADMIN')")
   public ResponseEntity<ApiResponse<TriggerAnonymizationResponse>> triggerAnonymization(
       HttpServletRequest request) {
     TriggerAnonymizationResponse response = accountLifecycleService.triggerAnonymization();
@@ -39,7 +39,6 @@ public class AdminJobController {
    * Use after rotating the JWT signing secret.
    */
   @PostMapping("/rotate-jwt-epoch")
-  @PreAuthorize("hasAuthority('ADMIN')")
   public ResponseEntity<ApiResponse<Map<String, Long>>> rotateJwtEpoch() {
     long epoch = jwtEpochService.rotateEpoch();
     return ResponseEntity.ok(ApiResponse.success(

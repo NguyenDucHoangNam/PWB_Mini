@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import javax.crypto.SecretKey;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -70,6 +71,19 @@ public class JwtService {
 
   public String extractEmail(String token) {
     return extractClaims(token).getSubject();
+  }
+
+  /**
+   * Returns the email claim if the token is parseable, otherwise {@link Optional#empty()}.
+   * Use this in callers that already verify validity separately (or want to silently
+   * skip malformed tokens instead of bubbling a 500).
+   */
+  public Optional<String> extractEmailSafe(String token) {
+    try {
+      return Optional.ofNullable(extractClaims(token).getSubject());
+    } catch (Exception e) {
+      return Optional.empty();
+    }
   }
 
   public Claims extractClaimsFromExpiredToken(String token) {

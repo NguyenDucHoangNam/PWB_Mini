@@ -4,12 +4,7 @@ import com.pwb.backend.iam.internal.service.JwtService;
 import com.pwb.backend.shared.exception.BusinessException;
 import com.pwb.backend.shared.exception.ErrorCode;
 
-/**
- * Centralises the "extract the bearer token from the Authorization header,
- * verify it, and pull the email out" routine. Replaces 5+ near-identical
- * snippets that were sprinkled across controllers and services.
- */
-public final class JwtPrincipalExtractor {
+public class JwtPrincipalExtractor {
 
   private JwtPrincipalExtractor() {}
 

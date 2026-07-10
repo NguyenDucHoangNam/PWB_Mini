@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -56,11 +57,25 @@ public class OutboxEventFactory extends AbstractOutboxEventFactory {
   @Transactional(propagation = Propagation.MANDATORY)
   public IamOutboxEvent createAndPublish(String eventType, String aggregateId,
                                           Map<String, Object> payload, String idempotencyKey) {
+    requireActiveTransaction();
     IamOutboxEvent event = new IamOutboxEvent();
     IamOutboxEvent saved = createEvent(event, eventType, aggregateId, payload, idempotencyKey);
     repository.save(saved);
     publishOutboxCreatedEvent(saved.getId());
     return saved;
+  }
+
+  private void requireActiveTransaction() {
+    if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "OutboxEventFactory.createAndPublish requires an active transaction. "
+              + "Wrap the caller in @Transactional or TransactionTemplate.execute(...).");
+    }
+    if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+      log.warn("OutboxEventFactory.createAndPublish called without transaction synchronization — "
+          + "afterCommit hooks may not fire. Use TransactionTemplate.execute(...) "
+          + "instead of plain PlatformTransactionManager.getTransaction(...).");
+    }
   }
 
   private String businessKey(String... parts) {
@@ -103,7 +118,7 @@ public class OutboxEventFactory extends AbstractOutboxEventFactory {
     payload.put("token", token);
     payload.put("locale", locale);
     return createAndPublish(EVENT_TYPE_PASSWORD_RESET, user.getId(), payload,
-        businessKey("PASSWORD_RESET", user.getId(), user.getEmail(), String.valueOf(System.currentTimeMillis())));
+        businessKey("PASSWORD_RESET", user.getId(), token));
   }
 
   public IamOutboxEvent accountDeletionRequested(User user, String deletionDate, String locale) {
@@ -140,17 +155,18 @@ public class OutboxEventFactory extends AbstractOutboxEventFactory {
         businessKey("ACCOUNT_DELETION_CANCELLED", user.getId(), user.getEmail()));
   }
 
-  public IamOutboxEvent anomalousLogin(User user, String ip, String location, String device) {
+  public IamOutboxEvent anomalousLogin(String userId, String email, String fullName,
+                                     String ip, String location, String device) {
     Map<String, Object> payload = new HashMap<>();
     payload.put("eventType", EVENT_TYPE_ANOMALOUS_LOGIN);
-    payload.put("email", user.getEmail());
-    payload.put("fullName", user.getFullName() == null ? "" : user.getFullName());
-    payload.put("userId", user.getId());
+    payload.put("email", email);
+    payload.put("fullName", fullName == null ? "" : fullName);
+    payload.put("userId", userId);
     payload.put("ip", ip);
     payload.put("location", location == null ? "" : location);
     payload.put("device", device == null ? "" : device);
     payload.put("timestamp", java.time.Instant.now().toString());
-    return createAndPublish(EVENT_TYPE_ANOMALOUS_LOGIN, user.getId(), payload,
-        businessKey("ANOMALOUS_LOGIN", user.getId(), ip, String.valueOf(System.currentTimeMillis())));
+    return createAndPublish(EVENT_TYPE_ANOMALOUS_LOGIN, userId, payload,
+        businessKey("ANOMALOUS_LOGIN", userId, ip));
   }
 }

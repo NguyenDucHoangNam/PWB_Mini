@@ -24,6 +24,8 @@ public class IamProperties {
   private Google google = new Google();
   private GeoIp geoIp = new GeoIp();
   private Session session = new Session();
+  private LoginAnomaly loginAnomaly = new LoginAnomaly();
+  private AccountDeletion accountDeletion = new AccountDeletion();
 
   @Getter
   public static class Session {
@@ -32,6 +34,14 @@ public class IamProperties {
     @Pattern(regexp = "Lax|Strict|None",
         message = "cookieSameSite must be one of: Lax, Strict, None")
     private String cookieSameSite = "Lax";
+    /**
+     * Optional override for the refresh cookie max-age. When null (default),
+     * the cookie lifetime matches the refresh token TTL (e.g. 7 days). Set
+     * to a shorter value (e.g. 86400 for 1 day) to force silent re-login
+     * via the refresh cookie even when the refresh token is still valid.
+     */
+    @Min(1)
+    private Long cookieMaxAgeSeconds;
   }
 
   @Getter
@@ -42,6 +52,8 @@ public class IamProperties {
     private long accessTokenExpiration;
     @Min(1)
     private long refreshTokenExpiration;
+    @Min(1)
+    private long refreshTokenGraceSeconds = 30;
   }
 
   @Getter
@@ -84,6 +96,8 @@ public class IamProperties {
   public static class Anonymization {
     @NotBlank
     private String cron;
+    @Min(1)
+    private int batchSize = 100;
   }
 
   @Getter
@@ -96,5 +110,22 @@ public class IamProperties {
   public static class GeoIp {
     @NotBlank
     private String databasePath;
+  }
+
+  @Getter
+  public static class LoginAnomaly {
+    @Min(1)
+    private int lastLoginCacheDays = 30;
+  }
+
+  @Getter
+  public static class AccountDeletion {
+    /**
+     * Timezone used to render the scheduled deletion date in the
+     * "Account deletion requested" email. Defaults to UTC so the
+     * value is consistent regardless of the JVM's default zone.
+     */
+    @NotBlank
+    private String timezone = "UTC";
   }
 }

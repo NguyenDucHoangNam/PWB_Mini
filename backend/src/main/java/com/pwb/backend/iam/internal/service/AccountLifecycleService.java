@@ -116,10 +116,19 @@ public class AccountLifecycleService {
     txTemplate.executeWithoutResult(status -> {
       userRepository.save(user);
 
+      int graceDays = iamProperties.getAccountDeletionGraceDays();
+      ZoneId deletionZone;
+      try {
+        deletionZone = ZoneId.of(iamProperties.getAccountDeletion().getTimezone());
+      } catch (Exception zoneEx) {
+        log.warn("Invalid account-deletion.timezone '{}', falling back to UTC",
+            iamProperties.getAccountDeletion().getTimezone(), zoneEx);
+        deletionZone = ZoneId.of("UTC");
+      }
       DateTimeFormatter formatter = DateTimeFormatter
           .ofPattern("yyyy-MM-dd HH:mm:ss")
-          .withZone(ZoneId.systemDefault());
-      String deletionDate = formatter.format(Instant.now().plus(30, ChronoUnit.DAYS));
+          .withZone(deletionZone);
+      String deletionDate = formatter.format(Instant.now().plus(graceDays, ChronoUnit.DAYS));
 
       outboxEventFactory.accountDeletionRequested(user, deletionDate,
           LocaleContextHolder.getLocale().getLanguage());
@@ -138,16 +147,22 @@ public class AccountLifecycleService {
     User user = userRepository.findByEmailAndDeletedFalse(email)
         .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
 
+    if (user.getStatus() == UserStatus.ANONYMIZED) {
+      throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+          "Account has been permanently deleted and cannot be restored");
+    }
+
     if (user.getStatus() != UserStatus.PENDING_DELETION) {
       throw new BusinessException(ErrorCode.VALIDATION_FAILED,
           "Account is not pending deletion");
     }
 
     Instant now = Instant.now();
+    int graceDays = iamProperties.getAccountDeletionGraceDays();
     if (user.getDeletionRequestedAt() != null
-        && now.isAfter(user.getDeletionRequestedAt().plus(30, ChronoUnit.DAYS))) {
+        && now.isAfter(user.getDeletionRequestedAt().plus(graceDays, ChronoUnit.DAYS))) {
       throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-          "The 30-day grace period has elapsed, account cannot be recovered");
+          "The " + graceDays + "-day grace period has elapsed, account cannot be recovered");
     }
 
     user.setStatus(UserStatus.ACTIVE);
@@ -161,8 +176,10 @@ public class AccountLifecycleService {
 
   public TriggerAnonymizationResponse triggerAnonymization() {
     long startTime = System.currentTimeMillis();
-    Instant cutoff = Instant.now().minus(30, ChronoUnit.DAYS);
-    List<User> usersToAnonymize = userRepository.findUsersPendingDeletionBefore(cutoff, PageRequest.of(0, 100));
+    int graceDays = iamProperties.getAccountDeletionGraceDays();
+    Instant cutoff = Instant.now().minus(graceDays, ChronoUnit.DAYS);
+    int batchSize = iamProperties.getAnonymization().getBatchSize();
+    List<User> usersToAnonymize = userRepository.findUsersPendingDeletionBefore(cutoff, PageRequest.of(0, batchSize));
 
     TransactionTemplate requiresNewTemplate = new TransactionTemplate(transactionManager);
     requiresNewTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);

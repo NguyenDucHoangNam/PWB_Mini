@@ -2,10 +2,7 @@ package com.pwb.backend.iam.internal.helper;
 
 import java.util.Set;
 
-public final class DisposableEmailChecker {
-
-  private DisposableEmailChecker() {
-  }
+public class DisposableEmailChecker {
 
   private static final Set<String> BLOCKED_DOMAINS = Set.of(
       "tempmail.com",
@@ -25,6 +22,9 @@ public final class DisposableEmailChecker {
       "tempail.com",
       "mohmal.com"
   );
+
+  private DisposableEmailChecker() {
+  }
 
   public static boolean isDisposable(String email) {
     if (email == null || email.isBlank()) {

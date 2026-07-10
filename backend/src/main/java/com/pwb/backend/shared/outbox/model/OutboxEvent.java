@@ -50,6 +50,9 @@ public abstract class OutboxEvent extends com.pwb.backend.shared.model.BaseEntit
   @Column(name = "processed_at")
   private Instant processedAt;
 
+  @Column(name = "payload_key_version")
+  private Integer payloadKeyVersion;
+
   @PrePersist
   @Override
   public void prePersist() {

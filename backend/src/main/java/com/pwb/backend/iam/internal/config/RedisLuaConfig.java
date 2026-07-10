@@ -29,6 +29,14 @@ public class RedisLuaConfig {
     return loadList("lua/revoke-other-sessions.lua");
   }
 
+  @Bean
+  public RedisScript<Long> otpVerifyScript() {
+    DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+    script.setLocation(new ClassPathResource("lua/otp-verify.lua"));
+    script.setResultType(Long.class);
+    return script;
+  }
+
   private RedisScript<List<String>> loadList(String classpathLocation) {
     DefaultRedisScript<List> script = new DefaultRedisScript<>();
     script.setLocation(new ClassPathResource(classpathLocation));

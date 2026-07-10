@@ -4,6 +4,7 @@ app:
       secret: ${JWT_SECRET}
       access-token-expiration: 900
       refresh-token-expiration: 604800
+      refresh-token-grace-seconds: 30
     otp:
       expiration: 300
       cooldown: 60
@@ -17,6 +18,7 @@ app:
       dead-letter-after-retries: 5
     anonymization:
       cron: "0 0 0 * * ?"
+      batch-size: 100
     google:
       client-id: ${GOOGLE_CLIENT_ID}
     geo-ip:
@@ -27,6 +29,17 @@ app:
       # break the silent refresh flow. Override to `true` in prod.
       cookie-secure: ${SESSION_COOKIE_SECURE:false}
       cookie-same-site: ${SESSION_COOKIE_SAME_SITE:Lax}
+      # Optional override for the refresh cookie max-age. When unset,
+      # the cookie lifetime matches the refresh token TTL (7 days).
+      # Set to a smaller value (e.g. 86400 for 1 day) to force silent
+      # re-login even while the refresh token itself is still valid.
+      cookie-max-age-seconds: ${SESSION_COOKIE_MAX_AGE_SECONDS:}
+    login-anomaly:
+      last-login-cache-days: 30
+    account-deletion:
+      # Timezone used to render the scheduled deletion date in the
+      # "Account deletion requested" email. Defaults to UTC.
+      timezone: ${ACCOUNT_DELETION_TIMEZONE:UTC}
 
 spring:
   mail:

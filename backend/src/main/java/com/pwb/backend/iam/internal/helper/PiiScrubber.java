@@ -1,6 +1,6 @@
 package com.pwb.backend.iam.internal.helper;
 
-public final class PiiScrubber {
+public class PiiScrubber {
 
     private PiiScrubber() {
     }

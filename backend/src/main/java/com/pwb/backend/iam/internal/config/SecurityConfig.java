@@ -7,7 +7,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,8 +18,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import com.pwb.backend.audio.internal.config.AudioRateLimitFilter;
+import com.pwb.backend.shared.security.CsrfSupport;
 import com.pwb.backend.shared.security.IpRateLimitFilter;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 
 import java.util.List;
 
@@ -34,21 +36,18 @@ public class SecurityConfig {
   private final IpRateLimitFilter ipRateLimitFilter;
   private final AuthenticationEntryPoint authenticationEntryPoint;
   private final AccessDeniedHandler accessDeniedHandler;
-  private final AudioRateLimitFilter audioRateLimitFilter;
 
   public SecurityConfig(
       @Value("${app.security.cors.allowed-origins}") String allowedOriginsCsv,
       JwtAuthenticationFilter jwtAuthenticationFilter,
       IpRateLimitFilter ipRateLimitFilter,
       AuthenticationEntryPoint authenticationEntryPoint,
-      AccessDeniedHandler accessDeniedHandler,
-      AudioRateLimitFilter audioRateLimitFilter) {
+      AccessDeniedHandler accessDeniedHandler) {
     this.allowedOrigins = parseAllowedOrigins(allowedOriginsCsv);
     this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     this.ipRateLimitFilter = ipRateLimitFilter;
     this.authenticationEntryPoint = authenticationEntryPoint;
     this.accessDeniedHandler = accessDeniedHandler;
-    this.audioRateLimitFilter = audioRateLimitFilter;
   }
 
   private static List<String> parseAllowedOrigins(String csv) {
@@ -76,9 +75,14 @@ public class SecurityConfig {
 
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    CookieCsrfTokenRepository csrfRepo = CsrfSupport.cookieTokenRepository();
+    CsrfTokenRequestAttributeHandler csrfHandler = CsrfSupport.requestAttributeHandler();
     http
         .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-        .csrf(AbstractHttpConfigurer::disable)
+        .csrf(csrf -> csrf
+            .csrfTokenRepository(csrfRepo)
+            .csrfTokenRequestHandler(csrfHandler)
+            .requireCsrfProtectionMatcher(new CookieAuthStateChangingMatcher()))
         .sessionManagement(session -> session
             .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(auth -> auth
@@ -91,12 +95,25 @@ public class SecurityConfig {
             .requestMatchers("/api/v1/internal/demos/**").permitAll()
             .anyRequest().authenticated())
         .addFilterBefore(ipRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
-        .addFilterBefore(audioRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
         .exceptionHandling(eh -> eh
             .authenticationEntryPoint(authenticationEntryPoint)
             .accessDeniedHandler(accessDeniedHandler));
     return http.build();
+  }
+
+  private static final class CookieAuthStateChangingMatcher
+      implements org.springframework.security.web.util.matcher.RequestMatcher {
+    private static final java.util.Set<String> STATE_CHANGING =
+        java.util.Set.of("POST", "PUT", "PATCH", "DELETE");
+
+    @Override
+    public boolean matches(HttpServletRequest request) {
+      if (!STATE_CHANGING.contains(request.getMethod())) {
+        return false;
+      }
+      return CsrfSupport.isCookieAuthenticated(request);
+    }
   }
 
   @Bean

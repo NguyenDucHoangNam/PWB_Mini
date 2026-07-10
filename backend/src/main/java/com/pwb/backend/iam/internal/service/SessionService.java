@@ -10,13 +10,12 @@ import com.pwb.backend.iam.internal.repository.UserRepository;
 import com.pwb.backend.shared.exception.BusinessException;
 import com.pwb.backend.shared.exception.ErrorCode;
 import com.pwb.backend.shared.security.ClientIpResolver;
+import com.pwb.backend.shared.security.JwtSigner;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
@@ -45,14 +44,25 @@ public class SessionService {
   private final RedisScript<List<String>> revokeOtherSessionsScript;
   private final LoginLockoutHelper loginLockoutHelper;
   private final ClientIpResolver clientIpResolver;
+  private final SessionMetadataBuilder sessionMetadataBuilder;
 
   public RefreshResponse refreshAccessToken(String expiredAccessTokenHeader, String refreshToken, HttpServletResponse response) {
     String email;
     if (expiredAccessTokenHeader != null && !expiredAccessTokenHeader.isBlank()) {
       email = com.pwb.backend.iam.internal.helper.JwtPrincipalExtractor
           .requireEmailFromExpiredTokenHeader(expiredAccessTokenHeader, jwtService);
-    } else if (refreshToken != null && !refreshToken.isBlank() && jwtService.isRefreshTokenValid(refreshToken)) {
-      email = jwtService.extractEmail(refreshToken);
+    } else if (refreshToken != null && !refreshToken.isBlank()) {
+      Claims claims;
+      try {
+        claims = JwtSigner.parseAndVerify(jwtService.getSigningKeyForFilter(), refreshToken);
+      } catch (Exception ex) {
+        throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN,
+            "Refresh token signature invalid, tampered, or expired");
+      }
+      if (!"refresh".equals(claims.get("type", String.class))) {
+        throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN, "Not a refresh token");
+      }
+      email = claims.getSubject();
     } else {
       throw new BusinessException(ErrorCode.UNAUTHORIZED,
           "Either an (expired) Authorization header or a valid refresh token cookie is required");
@@ -93,35 +103,43 @@ public class SessionService {
 
       String newAccessToken = jwtService.generateAccessToken(user);
       String newRefreshToken = jwtService.generateRefreshToken(user);
+      String newAccessSignature = jwtService.getSignature(newAccessToken);
 
       String newActiveKey = SESSION_KEY_PREFIX + newRefreshToken;
+      String newMetadataKey = "session:metadata:" + newRefreshToken;
       String zsetKey = "user:sessions:" + userId;
 
       long currentTimestamp = Instant.now().getEpochSecond();
       long refreshTokenExpiry = iamProperties.getJwt().getRefreshTokenExpiration();
+      long refreshTokenGraceSeconds = iamProperties.getJwt().getRefreshTokenGraceSeconds();
+      long accessTokenExpiration = iamProperties.getJwt().getAccessTokenExpiration();
 
-      List<String> keys = List.of(activeKey, shadowKey, revokedKey, newActiveKey, zsetKey);
+      List<String> keys = List.of(activeKey, newActiveKey, zsetKey);
       Object[] args = new Object[]{
-          userId,
+          newAccessSignature,
           newRefreshToken,
           refreshToken,
-          "10",
-          String.valueOf(refreshTokenExpiry),
+          String.valueOf(refreshTokenGraceSeconds),
+          String.valueOf(accessTokenExpiration),
           String.valueOf(refreshTokenExpiry),
           String.valueOf(currentTimestamp)
       };
 
-      redisTemplate.execute(sessionRotationScript, keys, args);
+      String result = redisTemplate.execute(sessionRotationScript, keys, args);
+      if (!"SUCCESS".equals(result)) {
+        log.error("Session rotation script returned unexpected value: {}", result);
+        throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR,
+            "Token rotation failed, please try again");
+      }
 
       String oldMetadataKey = "session:metadata:" + refreshToken;
-      String newMetadataKey = "session:metadata:" + newRefreshToken;
       if (Boolean.TRUE.equals(redisTemplate.hasKey(oldMetadataKey))) {
         redisTemplate.rename(oldMetadataKey, newMetadataKey);
-        redisTemplate.opsForHash().put(newMetadataKey, "active_jwt_signature", jwtService.getSignature(newAccessToken));
+        redisTemplate.opsForHash().put(newMetadataKey, "active_jwt_signature", newAccessSignature);
         redisTemplate.expire(newMetadataKey, Duration.ofSeconds(refreshTokenExpiry));
       } else {
-        Map<String, String> metadata = SessionMetadataBuilder.buildForNewSession(user, jwtService, geoIpService, newAccessToken, clientIpResolver);
-        SessionMetadataBuilder.store(redisTemplate, newRefreshToken, metadata, iamProperties);
+        Map<String, String> metadata = sessionMetadataBuilder.buildForNewSession(user, jwtService, geoIpService, newAccessToken, clientIpResolver);
+        sessionMetadataBuilder.store(redisTemplate, newRefreshToken, metadata, iamProperties);
       }
 
       setRefreshCookie(response, newRefreshToken, (int) refreshTokenExpiry);
@@ -201,7 +219,9 @@ public class SessionService {
       throw new BusinessException(ErrorCode.UNAUTHORIZED, "Missing or invalid Authorization header");
     }
     String token = authHeader.substring(7);
-    String email = jwtService.extractEmail(token);
+    String email = jwtService.extractEmailSafe(token)
+        .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED,
+            "Invalid access token signature or format"));
     User user = userRepository.findByEmailAndDeletedFalse(email)
         .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
 
@@ -222,10 +242,7 @@ public class SessionService {
         String createdAtStr = (String) metadata.get("createdAt");
         Instant createdAt = createdAtStr != null ? Instant.parse(createdAtStr) : Instant.now();
 
-        String deviceInfo = browser;
-        if (!"Unknown".equals(os)) {
-          deviceInfo = browser + " (" + os + ")";
-        }
+        String deviceInfo = SessionMetadataBuilder.formatDevice(browser, os);
 
         boolean isCurrent = t.equals(currentRefreshToken);
 
@@ -240,7 +257,9 @@ public class SessionService {
       throw new BusinessException(ErrorCode.UNAUTHORIZED, "Missing or invalid Authorization header");
     }
     String token = authHeader.substring(7);
-    String email = jwtService.extractEmail(token);
+    String email = jwtService.extractEmailSafe(token)
+        .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED,
+            "Invalid access token signature or format"));
     User user = userRepository.findByEmailAndDeletedFalse(email)
         .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
 
@@ -274,22 +293,23 @@ public class SessionService {
       throw new BusinessException(ErrorCode.UNAUTHORIZED, "Missing or invalid Authorization header");
     }
     String token = authHeader.substring(7);
-    String email = jwtService.extractEmail(token);
+    String email = jwtService.extractEmailSafe(token)
+        .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED,
+            "Invalid access token signature or format"));
     User user = userRepository.findByEmailAndDeletedFalse(email)
         .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
 
     String userId = user.getId();
     String zsetKey = "user:sessions:" + userId;
+    long blacklistTtl = iamProperties.getJwt().getAccessTokenExpiration() + 30;
 
     List<String> keys = List.of(zsetKey);
-    Object[] args = new Object[]{currentRefreshToken != null ? currentRefreshToken : ""};
-
-    List<String> blacklistedSignatures = redisTemplate.execute(revokeOtherSessionsScript, keys, args);
-
-    if (blacklistedSignatures != null && !blacklistedSignatures.isEmpty()) {
-      long blacklistTtl = iamProperties.getJwt().getAccessTokenExpiration() + 30;
-      redisTemplate.executePipelined(new BlacklistSessionCallbackService(blacklistedSignatures, blacklistTtl));
-    }
+    Object[] args = new Object[]{
+        currentRefreshToken != null ? currentRefreshToken : "",
+        "session:blacklist_token:",
+        String.valueOf(blacklistTtl)
+    };
+    redisTemplate.execute(revokeOtherSessionsScript, keys, args);
   }
 
   public void revokeAllUserSessions(String userId) {
@@ -333,8 +353,8 @@ public class SessionService {
         user.getId(),
         Duration.ofSeconds(refreshTokenExpiry));
 
-    Map<String, String> metadata = SessionMetadataBuilder.buildForNewSession(user, jwtService, geoIpService, accessToken, clientIpResolver);
-    SessionMetadataBuilder.store(redisTemplate, refreshToken, metadata, iamProperties);
+    Map<String, String> metadata = sessionMetadataBuilder.buildForNewSession(user, jwtService, geoIpService, accessToken, clientIpResolver);
+    sessionMetadataBuilder.store(redisTemplate, refreshToken, metadata, iamProperties);
 
     setRefreshCookie(httpResponse, refreshToken, (int) refreshTokenExpiry);
   }
@@ -348,7 +368,8 @@ public class SessionService {
     refreshCookie.setHttpOnly(true);
     refreshCookie.setSecure(iamProperties.getSession().isCookieSecure());
     refreshCookie.setPath("/");
-    refreshCookie.setMaxAge(maxAge);
+    Long overrideMaxAge = iamProperties.getSession().getCookieMaxAgeSeconds();
+    refreshCookie.setMaxAge(overrideMaxAge != null ? overrideMaxAge.intValue() : maxAge);
     String sameSite = iamProperties.getSession().getCookieSameSite();
     if (sameSite != null && !sameSite.isBlank()) {
       refreshCookie.setAttribute("SameSite", sameSite);
@@ -375,24 +396,5 @@ public class SessionService {
   private String maskToken(String token) {
     if (token == null || token.length() < 8) return "***";
     return token.substring(0, 4) + "..." + token.substring(token.length() - 4);
-  }
-
-  private static class BlacklistSessionCallbackService implements SessionCallback<Object> {
-    private final List<String> blacklistedSignatures;
-    private final long finalRemainingTtl;
-
-    public BlacklistSessionCallbackService(List<String> blacklistedSignatures, long finalRemainingTtl) {
-      this.blacklistedSignatures = blacklistedSignatures;
-      this.finalRemainingTtl = finalRemainingTtl;
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public <K, V> Object execute(org.springframework.data.redis.core.RedisOperations<K, V> operations) {
-      for (String signature : blacklistedSignatures) {
-        operations.opsForValue().set((K) ("session:blacklist_token:" + signature), (V) "true", Duration.ofSeconds(finalRemainingTtl));
-      }
-      return null;
-    }
   }
 }

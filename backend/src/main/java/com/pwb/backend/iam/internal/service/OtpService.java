@@ -4,9 +4,9 @@ import com.pwb.backend.iam.internal.config.IamProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 
-import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.List;
@@ -21,6 +21,7 @@ public class OtpService {
 
   private final StringRedisTemplate redisTemplate;
   private final IamProperties iamProperties;
+  private final RedisScript<Long> otpVerifyScript;
   private final SecureRandom secureRandom = new SecureRandom();
 
   public String generateOtp() {
@@ -64,13 +65,17 @@ public class OtpService {
   }
 
   public boolean verifyOtp(String email, String submittedOtp) {
-    String storedOtp = redisTemplate.opsForValue().get(OTP_KEY_PREFIX + email);
-    if (storedOtp == null) {
+    if (submittedOtp == null) {
       return false;
     }
-    return MessageDigest.isEqual(
-        storedOtp.getBytes(),
-        submittedOtp.getBytes());
+    Long result = redisTemplate.execute(
+        otpVerifyScript,
+        List.of(
+            OTP_KEY_PREFIX + email,
+            COOLDOWN_KEY_PREFIX + email,
+            ATTEMPTS_KEY_PREFIX + email),
+        submittedOtp);
+    return result != null && result == 1L;
   }
 
   public String getStoredOtpHash(String email) {

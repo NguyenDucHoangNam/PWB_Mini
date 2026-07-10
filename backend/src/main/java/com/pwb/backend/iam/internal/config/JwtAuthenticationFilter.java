@@ -16,11 +16,15 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
   private final JwtVerifier jwtVerifier;
   private final JwtService jwtService;
@@ -51,18 +55,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     String token = authHeader.substring(7);
-    String signature = jwtVerifier.getSignature(token);
-    String blacklistKey = "session:blacklist_token:" + signature;
 
-    boolean tokenBlacklisted = Boolean.TRUE.equals(redisTemplate.hasKey(blacklistKey));
     boolean tokenValid = jwtVerifier.isTokenValid(token);
-
-    if (tokenBlacklisted) {
-      rejectWithBadCredentials(request, response, "revoked", "token has been revoked");
-      return;
-    }
     if (!tokenValid) {
       rejectWithBadCredentials(request, response, "invalid", "invalid token");
+      return;
+    }
+
+    String signature = jwtVerifier.getSignature(token);
+    String blacklistKey = "session:blacklist_token:" + signature;
+    boolean tokenBlacklisted = Boolean.TRUE.equals(redisTemplate.hasKey(blacklistKey));
+
+    if (tokenBlacklisted) {
+      log.warn("JWT_BLACKLIST_HIT ip={}", clientIpLog(request));
+      rejectWithBadCredentials(request, response, "revoked", "token has been revoked");
       return;
     }
 
@@ -78,8 +84,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       return;
     }
 
-    String email = jwtVerifier.extractEmail(token);
-    String role = jwtVerifier.extractRole(token);
+    String email = claims.getSubject();
+    String role = claims.get("role", String.class);
     org.springframework.security.core.authority.SimpleGrantedAuthority authority =
         new org.springframework.security.core.authority.SimpleGrantedAuthority(role != null ? role : "");
     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
@@ -115,5 +121,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
   private long extractTokenEpoch(Claims claims) {
     Object tokenEpochClaim = claims.get(JwtService.CLAIM_EPOCH);
     return tokenEpochClaim instanceof Number ? ((Number) tokenEpochClaim).longValue() : 0L;
+  }
+
+  private static String clientIpLog(HttpServletRequest request) {
+    String xff = request.getHeader("X-Forwarded-For");
+    if (xff != null && !xff.isBlank()) {
+      return xff.split(",")[0].trim();
+    }
+    return request.getRemoteAddr();
   }
 }

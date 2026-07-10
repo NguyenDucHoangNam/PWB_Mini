@@ -21,12 +21,13 @@ import com.pwb.backend.iam.api.dto.response.RefreshResponse;
 import com.pwb.backend.iam.internal.service.AuthService;
 import com.pwb.backend.iam.internal.service.SessionService;
 import com.pwb.backend.iam.internal.service.AccountLifecycleService;
-import com.pwb.backend.iam.internal.service.AvatarUploadService;
 import com.pwb.backend.shared.response.ApiResponse;
 import java.util.List;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
@@ -55,7 +56,6 @@ public class AuthController {
   private final AuthService authService;
   private final SessionService sessionService;
   private final AccountLifecycleService accountLifecycleService;
-  private final AvatarUploadService avatarUploadService;
   private final MessageSource messageSource;
 
   @PostMapping("/register")
@@ -92,7 +92,7 @@ public class AuthController {
 
   @GetMapping("/check-username")
   public ResponseEntity<ApiResponse<CheckUsernameResponse>> checkUsername(
-      @RequestParam("q") String username,
+      @RequestParam("q") @NotBlank @Size(max = 50, message = "username must not exceed 50 characters") String username,
       HttpServletRequest httpRequest) {
     CheckUsernameResponse response = authService.checkUsernameAvailability(username);
     String message = messageSource.getMessage(
@@ -137,7 +137,7 @@ public class AuthController {
 
   @PostMapping("/logout")
   public ResponseEntity<ApiResponse<Void>> logout(
-      @RequestHeader("Authorization") String authorizationHeader,
+      @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
       @CookieValue(value = "refreshToken", required = false) String refreshToken,
       HttpServletRequest httpRequest,
       HttpServletResponse httpResponse) {
@@ -170,7 +170,7 @@ public class AuthController {
   @PostMapping("/change-password")
   public ResponseEntity<ApiResponse<Void>> changePassword(
       @Valid @RequestBody ChangePasswordRequest request,
-      @RequestHeader("Authorization") String authorizationHeader,
+      @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
       @CookieValue(value = "refreshToken", required = false) String refreshToken,
       HttpServletRequest httpRequest) {
     authService.changePassword(request, authorizationHeader, refreshToken);
@@ -205,7 +205,7 @@ public class AuthController {
       @RequestParam("file") MultipartFile file,
       @RequestHeader("Authorization") String authHeader,
       HttpServletRequest httpRequest) {
-    AvatarUploadResponse response = authService.uploadAvatar(authHeader, file, avatarUploadService);
+    AvatarUploadResponse response = authService.uploadAvatar(authHeader, file);
     String message = messageSource.getMessage(
         "auth.profile.avatar.uploaded", null, httpRequest.getLocale());
     return ResponseEntity.ok(ApiResponse.success(message, response));
@@ -214,7 +214,7 @@ public class AuthController {
   @DeleteMapping("/account")
   public ResponseEntity<ApiResponse<Void>> deleteAccount(
       @Valid @RequestBody DeleteAccountRequest request,
-      @RequestHeader("Authorization") String authorizationHeader,
+      @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
       @CookieValue(value = "refreshToken", required = false) String refreshToken,
       HttpServletRequest httpRequest,
       HttpServletResponse httpResponse) {
@@ -236,7 +236,7 @@ public class AuthController {
 
   @GetMapping("/sessions")
   public ResponseEntity<ApiResponse<List<ActiveSessionResponse>>> getActiveSessions(
-      @RequestHeader("Authorization") String authHeader,
+      @RequestHeader(value = "Authorization", required = false) String authHeader,
       @CookieValue(value = "refreshToken", required = false) String refreshToken,
       HttpServletRequest httpRequest) {
     List<ActiveSessionResponse> response = sessionService.getActiveSessions(authHeader, refreshToken);
@@ -247,8 +247,11 @@ public class AuthController {
 
   @DeleteMapping("/sessions/{tokenUuid}")
   public ResponseEntity<ApiResponse<Void>> revokeSession(
-      @PathVariable("tokenUuid") @Size(max = 4000, message = "tokenUuid must not exceed 4000 characters") String tokenUuid,
-      @RequestHeader("Authorization") String authHeader,
+      @PathVariable("tokenUuid")
+        @Size(max = 4000, message = "tokenUuid must not exceed 4000 characters")
+        @Pattern(regexp = "[A-Za-z0-9._-]+", message = "tokenUuid has invalid characters")
+        String tokenUuid,
+      @RequestHeader(value = "Authorization", required = false) String authHeader,
       @CookieValue(value = "refreshToken", required = false) String refreshToken,
       HttpServletRequest httpRequest) {
     sessionService.revokeSession(tokenUuid, authHeader, refreshToken);
@@ -259,7 +262,7 @@ public class AuthController {
 
   @DeleteMapping("/sessions")
   public ResponseEntity<ApiResponse<Void>> revokeOtherSessions(
-      @RequestHeader("Authorization") String authHeader,
+      @RequestHeader(value = "Authorization", required = false) String authHeader,
       @CookieValue(value = "refreshToken", required = false) String refreshToken,
       HttpServletRequest httpRequest) {
     sessionService.revokeOtherSessions(authHeader, refreshToken);
