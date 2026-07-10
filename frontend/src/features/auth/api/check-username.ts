@@ -4,12 +4,8 @@ import type { QueryConfig } from "@/lib/react-query";
 import type { ApiResponse } from "@/types/api";
 import type { CheckUsernameResponse } from "../types";
 
-export const checkUsername = (
-  username: string
-): Promise<ApiResponse<CheckUsernameResponse>> => {
-  return apiClient
-    .get("/auth/check-username", { params: { q: username } })
-    .then((res) => res.data);
+export const checkUsername = (username: string): Promise<ApiResponse<CheckUsernameResponse>> => {
+  return apiClient.get("/auth/check-username", { params: { q: username } }).then((res) => res.data);
 };
 
 type UseCheckUsernameOptions = {

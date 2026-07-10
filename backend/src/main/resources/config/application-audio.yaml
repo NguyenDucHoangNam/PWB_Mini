@@ -1,10 +1,186 @@
 app:
   audio:
-    s3:
-      bucket: ${S3_BUCKET_NAME}
-      presigned-expiration-sec: 60
-    watermark:
-      default-interval-sec: 25
-    ffmpeg:
-      concurrency-cap: 3
-    file-size-limit-bytes: 209715200
+    upload:
+      max-file-size: 209715200
+      presigned-url-ttl: 60
+      claim-redis-ttl: 7200
+      per-user-active-quota: 20
+      per-user-storage-quota: 5368709120
+    stream:
+      hls:
+        segment-duration-seconds: 6
+        aes-key-bytes: 16
+    worker:
+      ffmpeg-path: ${FFMPEG_PATH:ffmpeg}
+      ffprobe-path: ${FFPROBE_PATH:ffprobe}
+      concurrency-cap: 2
+      processing-timeout-seconds: 900
+      max-retry-attempts: 3
+      temp-dir: ${AUDIO_TEMP_DIR:/tmp/pwb-audio}
+    rate-limit:
+      presigned-upload:
+        ip-max: 5
+        ip-window-seconds: 60
+        user-max: 10
+        user-window-seconds: 3600
+      confirm-upload:
+        ip-max: 30
+        ip-window-seconds: 60
+        user-max: 30
+        user-window-seconds: 60
+      voice-tag-create:
+        ip-max: 2
+        ip-window-seconds: 60
+        user-max: 30
+        user-window-seconds: 86400
+      voice-tag-preview:
+        ip-max: 60
+        ip-window-seconds: 60
+        user-max: 10
+        user-window-seconds: 60
+      voice-tag-default:
+        ip-max: 10
+        ip-window-seconds: 60
+        user-max: 10
+        user-window-seconds: 60
+      voice-tag-list:
+        ip-max: 60
+        ip-window-seconds: 60
+        user-max: 60
+        user-window-seconds: 60
+      voice-tag-delete:
+        ip-max: 10
+        ip-window-seconds: 60
+        user-max: 5
+        user-window-seconds: 60
+      distribution-create:
+        ip-max: 10
+        ip-window-seconds: 60
+        user-max: 30
+        user-window-seconds: 60
+      recipient-suggest:
+        ip-max: 30
+        ip-window-seconds: 60
+        user-max: 60
+        user-window-seconds: 60
+      shared-get:
+        ip-max: 60
+        ip-window-seconds: 60
+        user-max: 120
+        user-window-seconds: 60
+      shared-keys:
+        ip-max: 60
+        ip-window-seconds: 60
+        user-max: 600
+        user-window-seconds: 60
+      shared-track-play:
+        ip-max: 5
+        ip-window-seconds: 60
+        user-max: 10
+        user-window-seconds: 60
+      shared-request-otp:
+        ip-max: 5
+        ip-window-seconds: 60
+        user-max: 5
+        user-window-seconds: 600
+      shared-verify-otp:
+        ip-max: 10
+        ip-window-seconds: 60
+        user-max: 10
+        user-window-seconds: 600
+      shared-download:
+        ip-max: 5
+        ip-window-seconds: 60
+        user-max: 10
+        user-window-seconds: 60
+      shared-ws-token:
+        ip-max: 10
+        ip-window-seconds: 60
+        user-max: 30
+        user-window-seconds: 60
+      revoke:
+        ip-max: 20
+        ip-window-seconds: 60
+        user-max: 30
+        user-window-seconds: 60
+    aes:
+      master-key: ${AUDIO_AES_MASTER_KEY:}
+      key-version: 1
+      outbox-encryption-key: ${AUDIO_OUTBOX_ENCRYPTION_KEY:}
+    webhook:
+      demo-status-queue: /user/queue/demos/status
+    voice-tag:
+      raw-text-max-length: 100
+      ssml-max-length: 250
+      ssml-max-depth: 3
+      max-active: 50
+      max-storage-bytes: 209715200
+      presigned-ttl-seconds: 30
+      daily-quota: 30
+      restore-window-days: 7
+    tts:
+      credentials-path: ${GCP_TTS_CREDENTIALS_PATH:}
+      project-id: ${GCP_PROJECT_ID:}
+      default-language-code: vi-VN
+      response-min-bytes: 1000
+      response-max-bytes: 5242880
+      voices-cache-ttl-seconds: 86400
+      http-timeout-seconds: 30
+    distribution:
+      daily-recipients-quota: 100
+      daily-count-quota: 500
+      autocomplete-max-results: 10
+      autocomplete-query-min-length: 2
+      autocomplete-query-max-length: 50
+      share-link-base-url-ttl-seconds: 86400
+      blacklist-domain-cache-ttl-seconds: 3600
+      idor-warn-threshold: 5
+      idor-warn-window-seconds: 600
+      idor-block-seconds: 3600
+      share-link-base-url: ${APP_PUBLIC_BASE_URL:https://pwbmini.com}
+    outbox:
+      dead-letter-after-retries: 5
+      initial-backoff-seconds: 1
+      max-backoff-seconds: 60
+    stream-secure-cookie:
+      secret: ${AUDIO_STREAM_COOKIE_SECRET:pwb-mini-stream-cookie-secret-do-not-use-in-prod-min32bytes}
+      ttl-seconds: 1800
+      cookie-name: __Host-pwb_stream_sess
+      cookie-secure: true
+      cookie-same-site: Strict
+      cidr-mask-bits-v4: 24
+      cidr-mask-bits-v6: 48
+      secret-rotation-days: 30
+    download:
+      presigned-url-ttl-seconds: 300
+      require-secure-cookie: true
+      filename-fallback-max-length: 100
+      filename-sanitize-regex: "[^a-zA-Z0-9._-]"
+      filename-blocklist-chars: "[\r\n\t;\"']"
+      x-content-type-options: nosniff
+      cache-control: "private, no-store, max-age=0"
+      per-session-daily-quota: 10
+      per-share-token-weekly-quota: 100
+      max-file-bytes: 209715200
+      audit-retention-days: 90
+    revoke:
+      blacklist-ttl-seconds: 600
+      idempotency-ttl-seconds: 86400
+      per-user-rate-limit: 30
+      per-ip-rate-limit: 20
+      notify-listener-websocket: true
+      distribution-revoked-queue: /user/queue/distributions/revoked
+    otp:
+      length: 6
+      cooldown-seconds: 60
+      max-attempts: 5
+      lock-seconds: 900
+      code-ttl-seconds: 300
+    play:
+      anti-fraud-window-seconds: 30
+      max-plays-per-session: 50
+      min-play-seconds-after-30pct: 15
+      keys-request-count-max: 600
+      fingerprint-algorithm: SHA-256
+    ip-hash:
+      salt: ${AUDIO_IP_HASH_SALT:pwb-mini-ip-hash-salt-do-not-use-in-prod}

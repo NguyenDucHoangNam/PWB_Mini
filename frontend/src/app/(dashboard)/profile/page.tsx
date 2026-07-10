@@ -16,9 +16,7 @@ export default function ProfilePage() {
         <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
           {t("title")}
         </h1>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">
-          {t("subtitle")}
-        </p>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("subtitle")}</p>
       </div>
 
       {/* Main Settings Panel */}

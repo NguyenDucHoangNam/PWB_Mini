@@ -2,6 +2,7 @@ package com.pwb.backend.shared.service;
 
 import java.io.InputStream;
 import java.util.List;
+import java.util.Map;
 
 public interface StorageService {
 
@@ -17,9 +18,21 @@ public interface StorageService {
 
   String generatePresignedDownloadUrl(String key, int expirationMinutes);
 
+  String generatePresignedDownloadUrl(String key, int expirationSeconds, Map<String, String> responseHeaders);
+
   String getPublicUrl(String key);
 
   boolean verifyFile(String key, long expectedSize);
 
   String getFileContentType(String key);
+
+  long getObjectSize(String key);
+
+  byte[] getObjectRange(String key, long start, long end);
+
+  InputStream getObjectStream(String key);
+
+  void copyObject(String sourceKey, String destinationKey);
+
+  void setObjectTags(String key, Map<String, String> tags);
 }

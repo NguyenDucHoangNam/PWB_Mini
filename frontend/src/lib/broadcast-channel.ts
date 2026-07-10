@@ -3,8 +3,7 @@ import type { AuthUser } from "@/features/auth/stores/use-auth-store";
 export const AUTH_CHANNEL = "pwb_auth_channel";
 
 export type AuthChannelMessage =
-  | { type: "LOGOUT" }
-  | { type: "TOKEN_UPDATED"; token: string; user: AuthUser };
+  { type: "LOGOUT" } | { type: "TOKEN_UPDATED"; token: string; user: AuthUser };
 
 export function broadcastAuthMessage(message: AuthChannelMessage): void {
   if (typeof window === "undefined" || typeof BroadcastChannel === "undefined") return;

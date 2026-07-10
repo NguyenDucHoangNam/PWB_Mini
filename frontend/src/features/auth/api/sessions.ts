@@ -8,11 +8,7 @@ export const getSessions = (): Promise<ApiResponse<ActiveSessionResponse[]>> => 
   return apiClient.get("/auth/sessions").then((res) => res.data);
 };
 
-export const revokeSession = ({
-  tokenUuid,
-}: {
-  tokenUuid: string;
-}): Promise<ApiResponse<void>> => {
+export const revokeSession = ({ tokenUuid }: { tokenUuid: string }): Promise<ApiResponse<void>> => {
   return apiClient.delete(`/auth/sessions/${tokenUuid}`).then((res) => res.data);
 };
 

@@ -82,7 +82,7 @@ export function OtpForm() {
           setError(apiError || err.message || t("verificationFailed"));
           toast.error(t("errorToast"));
         },
-      }
+      },
     );
   };
 
@@ -105,7 +105,7 @@ export function OtpForm() {
           setError(apiError || err.message || t("resendFailed"));
           toast.error(t("resendFailedToast"));
         },
-      }
+      },
     );
   };
 
@@ -117,9 +117,7 @@ export function OtpForm() {
         </h1>
         <p className="text-sm text-neutral-500 dark:text-neutral-400">
           {t("emailSentText")}{" "}
-          <strong className="text-neutral-800 dark:text-neutral-200">
-            {maskEmail(email)}
-          </strong>
+          <strong className="text-neutral-800 dark:text-neutral-200">{maskEmail(email)}</strong>
         </p>
       </div>
 

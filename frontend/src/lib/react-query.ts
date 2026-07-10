@@ -19,20 +19,14 @@ export const queryConfig = {
   },
 } satisfies DefaultOptions;
 
-export type ApiFnReturnType<FnType extends (...args: never[]) => Promise<unknown>> =
-  Awaited<ReturnType<FnType>>;
+export type ApiFnReturnType<FnType extends (...args: never[]) => Promise<unknown>> = Awaited<
+  ReturnType<FnType>
+>;
 
-export type QueryConfig<
-  QueryFnType extends (...args: never[]) => Promise<unknown>,
-> = Omit<
+export type QueryConfig<QueryFnType extends (...args: never[]) => Promise<unknown>> = Omit<
   UseQueryOptions<ApiFnReturnType<QueryFnType>, Error>,
   "queryKey" | "queryFn"
 >;
 
-export type MutationConfig<
-  MutationFnType extends (...args: never[]) => Promise<unknown>,
-> = UseMutationOptions<
-  ApiFnReturnType<MutationFnType>,
-  Error,
-  Parameters<MutationFnType>[0]
->;
+export type MutationConfig<MutationFnType extends (...args: never[]) => Promise<unknown>> =
+  UseMutationOptions<ApiFnReturnType<MutationFnType>, Error, Parameters<MutationFnType>[0]>;

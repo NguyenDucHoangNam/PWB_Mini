@@ -34,12 +34,7 @@ function applyEnvelope(
   gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
 }
 
-function playTone(
-  audioCtx: AudioContext,
-  frequency: number,
-  peak: number,
-  sustain: number,
-): void {
+function playTone(audioCtx: AudioContext, frequency: number, peak: number, sustain: number): void {
   const oscillator = audioCtx.createOscillator();
   const gainNode = audioCtx.createGain();
 

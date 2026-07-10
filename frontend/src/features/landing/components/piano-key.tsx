@@ -193,9 +193,7 @@ function RealChar({
       className={`relative z-10 inline-block cursor-pointer font-black tracking-tight select-none uppercase transition-colors duration-200 ${colorClass}`}
       style={{
         fontSize: KEY_GLYPH_SIZE,
-        textShadow: isHovered
-          ? "0px 4px 6px rgba(0,0,0,0.3)"
-          : "0px 4px 6px rgba(0,0,0,0.1)",
+        textShadow: isHovered ? "0px 4px 6px rgba(0,0,0,0.3)" : "0px 4px 6px rgba(0,0,0,0.1)",
       }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}

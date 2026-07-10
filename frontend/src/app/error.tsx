@@ -63,11 +63,7 @@ export default function ErrorBoundary({
             {t("btn")}
           </Button>
           <a href="mailto:support@pwbmini.com" className="w-full">
-            <Button
-              variant="outline"
-              size="lg"
-              className="w-full h-11 text-sm font-semibold"
-            >
+            <Button variant="outline" size="lg" className="w-full h-11 text-sm font-semibold">
               {t("contact")}
             </Button>
           </a>

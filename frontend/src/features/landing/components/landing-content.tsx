@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { Keyboard } from "./keyboard";
@@ -19,19 +20,109 @@ export function LandingContent() {
   );
 }
 
+function SandParticles() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  const particles = Array.from({ length: 20 });
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+      {particles.map((_, i) => {
+        const size = Math.random() * 3 + 1; // 1px to 4px
+        const duration = Math.random() * 20 + 20; // 20s to 40s
+        const delay = Math.random() * -20; // Start immediately
+        const left = `${Math.random() * 100}%`;
+        const startY = "110%";
+        const endY = "-10%";
+
+        return (
+          <motion.div
+            key={i}
+            className="absolute rounded-full bg-neutral-400/10 dark:bg-white/10 blur-[0.5px]"
+            style={{
+              width: size,
+              height: size,
+              left,
+            }}
+            initial={{ y: startY, opacity: 0 }}
+            animate={{
+              y: [startY, endY],
+              opacity: [0, 0.4, 0.4, 0],
+              x: [0, Math.random() * 40 - 20, 0], // Gentle sway
+            }}
+            transition={{
+              duration,
+              repeat: Infinity,
+              ease: "linear",
+              delay,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 function BackgroundGlow() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {/* SVG Filter for Wavy Sea Displacement */}
+      <svg className="absolute h-0 w-0" width="0" height="0">
+        <defs>
+          <filter id="sand-wave">
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.008 0.025"
+              numOctaves="1"
+              result="noise"
+              seed="2"
+            />
+            <motion.feDisplacementMap
+              in="SourceGraphic"
+              in2="noise"
+              xChannelSelector="R"
+              yChannelSelector="G"
+              animate={{
+                scale: [15, 35, 20, 38, 15],
+              }}
+              transition={{
+                duration: 16,
+                ease: "easeInOut",
+                repeat: Infinity,
+              }}
+            />
+          </filter>
+        </defs>
+      </svg>
+
       {/* Soft spotlight behind the keyboard */}
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[800px] rounded-full bg-neutral-200/30 blur-[120px] dark:bg-neutral-800/15" />
 
-      {/* Sand Image Background */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center opacity-[0.08] dark:opacity-[0.14] transition-opacity duration-300 mix-blend-luminosity"
+      {/* Moving Sand Image Background with Wave Filter */}
+      <motion.div
+        className="absolute inset-0 bg-cover bg-center opacity-[0.08] dark:opacity-[0.14] transition-opacity duration-300 mix-blend-luminosity scale-[1.15]"
         style={{
-          backgroundImage: "url('/sand-bg.png')"
+          backgroundImage: "url('/sand-bg.png')",
+          filter: "url(#sand-wave)",
+        }}
+        animate={{
+          x: [0, "1.5%", "-1.5%", "1%", 0],
+          y: [0, "-1%", "1.5%", "-0.5%", 0],
+        }}
+        transition={{
+          duration: 20,
+          ease: "easeInOut",
+          repeat: Infinity,
         }}
       />
+
+      {/* Floating Sand Particles */}
+      <SandParticles />
     </div>
   );
 }

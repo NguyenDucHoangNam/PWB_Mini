@@ -86,7 +86,7 @@ export function RegisterForm() {
           setError(apiError || err.message || t("errorToast"));
           toast.error(t("errorToast"));
         },
-      }
+      },
     );
   };
 
@@ -115,9 +115,7 @@ export function RegisterForm() {
         <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
           {t("registerTitle")}
         </h1>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">
-          {t("registerDesc")}
-        </p>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("registerDesc")}</p>
       </div>
 
       {error && (
@@ -176,9 +174,7 @@ export function RegisterForm() {
 
       {/* Password */}
       <div className="flex flex-col gap-1">
-        <Label htmlFor="password">
-          {t("passwordRequirementsLabel")}
-        </Label>
+        <Label htmlFor="password">{t("passwordRequirementsLabel")}</Label>
         <PasswordInput
           id="password"
           disabled={isPending}

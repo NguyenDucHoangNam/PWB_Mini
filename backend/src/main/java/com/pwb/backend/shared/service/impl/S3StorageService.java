@@ -32,9 +32,17 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequ
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
+import software.amazon.awssdk.services.s3.model.CopyObjectResponse;
+import software.amazon.awssdk.services.s3.model.Tag;
+import software.amazon.awssdk.services.s3.model.Tagging;
+import software.amazon.awssdk.services.s3.model.PutObjectTaggingRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectTaggingResponse;
+
 import java.io.InputStream;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -165,15 +173,33 @@ public class S3StorageService implements StorageService {
 
   @Override
   public String generatePresignedDownloadUrl(String key, int expirationMinutes) {
-    try {
-      GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-          .bucket(properties.getBucketName())
-          .key(key)
-          .build();
+    return generatePresignedDownloadUrl(key, expirationMinutes * 60, java.util.Collections.emptyMap());
+  }
 
+  @Override
+  public String generatePresignedDownloadUrl(String key, int expirationSeconds, Map<String, String> responseHeaders) {
+    try {
+      software.amazon.awssdk.services.s3.model.GetObjectRequest.Builder builder =
+          software.amazon.awssdk.services.s3.model.GetObjectRequest.builder()
+              .bucket(properties.getBucketName())
+              .key(key);
+      if (responseHeaders != null) {
+        String disposition = responseHeaders.get("response-content-disposition");
+        if (disposition != null) {
+          builder = builder.responseContentDisposition(disposition);
+        }
+        String contentType = responseHeaders.get("response-content-type");
+        if (contentType != null) {
+          builder = builder.responseContentType(contentType);
+        }
+        String cacheControl = responseHeaders.get("response-cache-control");
+        if (cacheControl != null) {
+          builder = builder.responseCacheControl(cacheControl);
+        }
+      }
       GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
-          .signatureDuration(Duration.ofMinutes(expirationMinutes))
-          .getObjectRequest(getObjectRequest)
+          .signatureDuration(Duration.ofSeconds(expirationSeconds))
+          .getObjectRequest(builder.build())
           .build();
 
       PresignedGetObjectRequest presigned = s3Presigner.presignGetObject(presignRequest);
@@ -181,6 +207,21 @@ public class S3StorageService implements StorageService {
     } catch (Exception ex) {
       log.error("Failed to generate presigned download URL: key={}", key, ex);
       throw new StorageException("Failed to generate presigned URL", ex);
+    }
+  }
+
+  @Override
+  public long getObjectSize(String key) {
+    try {
+      HeadObjectResponse response = s3Client.headObject(HeadObjectRequest.builder()
+          .bucket(properties.getBucketName())
+          .key(key)
+          .build());
+      return response.contentLength();
+    } catch (NoSuchKeyException ex) {
+      throw new StorageException("Object not found: " + key, ex);
+    } catch (Exception ex) {
+      throw new StorageException("Failed to read object size: " + key, ex);
     }
   }
 
@@ -230,6 +271,75 @@ public class S3StorageService implements StorageService {
     } catch (Exception ex) {
       log.error("Failed to get content type for file '{}' in S3/MinIO: {}", key, ex.getMessage(), ex);
       return null;
+    }
+  }
+
+  @Override
+  public byte[] getObjectRange(String key, long start, long end) {
+    try {
+      GetObjectRequest request = GetObjectRequest.builder()
+          .bucket(properties.getBucketName())
+          .key(key)
+          .range("bytes=" + start + "-" + end)
+          .build();
+      ResponseBytes<GetObjectResponse> objectBytes = s3Client.getObjectAsBytes(request);
+      return objectBytes.asByteArray();
+    } catch (Exception ex) {
+      log.error("Failed to read object range from S3/MinIO: key={}, range={}-{}", key, start, end, ex);
+      throw new StorageException("Storage range read error", ex);
+    }
+  }
+
+  @Override
+  public java.io.InputStream getObjectStream(String key) {
+    try {
+      GetObjectRequest request = GetObjectRequest.builder()
+          .bucket(properties.getBucketName())
+          .key(key)
+          .build();
+      return s3Client.getObject(request);
+    } catch (NoSuchKeyException ex) {
+      log.warn("File '{}' not found in S3/MinIO for stream read.", key);
+      throw new StorageException("Storage stream read error: object not found", ex);
+    } catch (Exception ex) {
+      log.error("Failed to read object stream from S3/MinIO: key={}", key, ex);
+      throw new StorageException("Storage stream read error", ex);
+    }
+  }
+
+  @Override
+  public void copyObject(String sourceKey, String destinationKey) {
+    try {
+      CopyObjectRequest request = CopyObjectRequest.builder()
+          .sourceBucket(properties.getBucketName())
+          .sourceKey(sourceKey)
+          .destinationBucket(properties.getBucketName())
+          .destinationKey(destinationKey)
+          .build();
+      CopyObjectResponse response = s3Client.copyObject(request);
+      log.info("Copied S3 object: source={} -> destination={}, etag={}", sourceKey, destinationKey, response.copyObjectResult().eTag());
+    } catch (Exception ex) {
+      log.error("Failed to copy S3 object: source={} -> destination={}", sourceKey, destinationKey, ex);
+      throw new StorageException("Storage copy error", ex);
+    }
+  }
+
+  @Override
+  public void setObjectTags(String key, Map<String, String> tags) {
+    try {
+      List<Tag> tagList = tags.entrySet().stream()
+          .map(e -> Tag.builder().key(e.getKey()).value(e.getValue()).build())
+          .toList();
+      PutObjectTaggingRequest request = PutObjectTaggingRequest.builder()
+          .bucket(properties.getBucketName())
+          .key(key)
+          .tagging(Tagging.builder().tagSet(tagList).build())
+          .build();
+      PutObjectTaggingResponse response = s3Client.putObjectTagging(request);
+      log.info("Set S3 object tags: key={}, versionId={}", key, response.versionId());
+    } catch (Exception ex) {
+      log.error("Failed to set S3 object tags: key={}", key, ex);
+      throw new StorageException("Storage tag error", ex);
     }
   }
 

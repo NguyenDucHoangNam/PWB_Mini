@@ -81,12 +81,14 @@ public class JwtEpochService {
     Long next = redisTemplate.opsForValue().increment(EPOCH_KEY);
     if (next != null) {
       log.warn("JWT secret rotation epoch bumped to {}", next);
-      // Best-effort: a long-lived marker so outbox/inflight tokens can be
-      // recognized as "issued before the last rotation".
-      redisTemplate.opsForValue().set(INVALIDATE_ALL_KEY, String.valueOf(next - 1),
-          java.time.Duration.ofDays(7));
+      markInvalidationBoundary(next - 1);
       return next;
     }
     return currentEpoch();
+  }
+
+  private void markInvalidationBoundary(long previousEpoch) {
+    redisTemplate.opsForValue().set(INVALIDATE_ALL_KEY, String.valueOf(previousEpoch),
+        java.time.Duration.ofDays(7));
   }
 }

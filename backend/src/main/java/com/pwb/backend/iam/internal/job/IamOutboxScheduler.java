@@ -1,15 +1,15 @@
 package com.pwb.backend.iam.internal.job;
 
-import com.pwb.backend.iam.internal.model.OutboxEvent;
-import com.pwb.backend.iam.internal.repository.OutboxEventRepository;
-import com.pwb.backend.iam.internal.publisher.OutboxPublisher;
+import com.pwb.backend.iam.internal.model.IamOutboxEvent;
+import com.pwb.backend.iam.internal.publisher.IamOutboxPublisher;
+import com.pwb.backend.iam.internal.repository.IamOutboxEventRepository;
+import com.pwb.backend.shared.outbox.cipher.OutboxPayloadCipher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
 import java.util.List;
 
 @Slf4j
@@ -18,29 +18,27 @@ import java.util.List;
 public class IamOutboxScheduler {
 
   private static final int BATCH_SIZE = 20;
-  private static final Duration LOCK_TIMEOUT = Duration.ofSeconds(5);
 
-  private final OutboxEventRepository outboxEventRepository;
-  private final OutboxPublisher outboxPublisher;
+  private final IamOutboxEventRepository repository;
+  private final IamOutboxPublisher publisher;
+  private final OutboxPayloadCipher cipher;
 
   @Scheduled(fixedDelay = 30000)
-  @Transactional(timeout = 30)
+  @Transactional
   public void pollPendingOutboxEvents() {
-    List<OutboxEvent> pendingEvents = outboxEventRepository
-        .findPendingEventsForUpdate(BATCH_SIZE);
+    List<IamOutboxEvent> pendingEvents = repository.findPendingEventsForUpdate(BATCH_SIZE);
 
     if (pendingEvents.isEmpty()) {
       return;
     }
 
-    log.info("Outbox scheduler found {} pending events (lock_timeout={}s)",
-        pendingEvents.size(), LOCK_TIMEOUT.toSeconds());
+    log.info("IAM Outbox scheduler found {} pending events", pendingEvents.size());
 
-    for (OutboxEvent event : pendingEvents) {
+    for (IamOutboxEvent event : pendingEvents) {
       try {
-        outboxPublisher.processOutboxEvent(event);
+        publisher.processOutboxEvent(event);
       } catch (Exception ex) {
-        log.error("Failed to process outbox event: eventId={}", event.getId(), ex);
+        log.error("Failed to process IAM outbox event: eventId={}", event.getId(), ex);
       }
     }
   }

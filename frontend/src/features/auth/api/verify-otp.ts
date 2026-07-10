@@ -12,11 +12,7 @@ export const verifyOtp = ({
   return apiClient.post("/auth/verify-otp", data).then((res) => res.data);
 };
 
-export const resendOtp = ({
-  data,
-}: {
-  data: ResendOtpRequest;
-}): Promise<ApiResponse<void>> => {
+export const resendOtp = ({ data }: { data: ResendOtpRequest }): Promise<ApiResponse<void>> => {
   return apiClient.post("/auth/resend-otp", data).then((res) => res.data);
 };
 

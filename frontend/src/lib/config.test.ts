@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  isPublicPath,
-  isSafeReturnPath,
-  PUBLIC_EXACT_PATHS,
-  PUBLIC_PREFIX_PATHS,
-} from "./config";
+import { isPublicPath, isSafeReturnPath, PUBLIC_EXACT_PATHS, PUBLIC_PREFIX_PATHS } from "./config";
 
 describe("isPublicPath", () => {
   it("matches '/' exactly", () => {

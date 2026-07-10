@@ -5,7 +5,5 @@ export const metadata: Metadata = {
 };
 
 export default function ContactPage() {
-  return (
-    <div className="flex-1 bg-white dark:bg-black" />
-  );
+  return <div className="flex-1 bg-white dark:bg-black" />;
 }

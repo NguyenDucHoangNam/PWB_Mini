@@ -68,13 +68,10 @@ export const refreshAccessToken = async (): Promise<string> => {
     // the profile so other tabs and the rest of the app have valid data.
     if (!user) {
       try {
-        const profileResponse = await axios.get<ApiResponse<AuthUser>>(
-          `${API_BASE_URL}/auth/me`,
-          {
-            headers: { Authorization: `Bearer ${accessToken}` },
-            withCredentials: true,
-          },
-        );
+        const profileResponse = await axios.get<ApiResponse<AuthUser>>(`${API_BASE_URL}/auth/me`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          withCredentials: true,
+        });
         if (profileResponse.data.success && profileResponse.data.data) {
           user = profileResponse.data.data;
         }
@@ -98,7 +95,10 @@ export const refreshAccessToken = async (): Promise<string> => {
     processQueue(null, accessToken);
     return accessToken;
   } catch (error: unknown) {
-    if (axios.isAxiosError(error) && (error.name === "CanceledError" || error.code === "ERR_CANCELED")) {
+    if (
+      axios.isAxiosError(error) &&
+      (error.name === "CanceledError" || error.code === "ERR_CANCELED")
+    ) {
       const abortError = new Error("Refresh aborted");
       abortError.name = "AbortError";
       processQueue(abortError, null);

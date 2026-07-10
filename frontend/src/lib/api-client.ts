@@ -67,9 +67,7 @@ apiClient.interceptors.response.use(
         // guest can see the landing page without being chased away.
         useAuthStore.getState().clearAuth();
         if (typeof window !== "undefined") {
-          const returnTo = encodeURIComponent(
-            window.location.pathname + window.location.search,
-          );
+          const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
           window.location.href = `/login?returnTo=${returnTo}`;
         }
         return Promise.reject(refreshError);
@@ -83,9 +81,7 @@ apiClient.interceptors.response.use(
     if (isUnauthorized) {
       useAuthStore.getState().clearAuth();
       if (typeof window !== "undefined" && !onPublicPage) {
-        const returnTo = encodeURIComponent(
-          window.location.pathname + window.location.search,
-        );
+        const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
         window.location.href = `/login?returnTo=${returnTo}`;
       }
     }

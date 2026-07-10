@@ -29,7 +29,10 @@ export function AccountRecoveryPage() {
   const [error, setError] = useState<string | null>(null);
 
   const daysLeft = useMemo(
-    () => computeDaysLeft((user as { deletionRequestedAt?: string | null } | null)?.deletionRequestedAt ?? null),
+    () =>
+      computeDaysLeft(
+        (user as { deletionRequestedAt?: string | null } | null)?.deletionRequestedAt ?? null,
+      ),
     [user],
   );
   const isUrgent = daysLeft <= 3;

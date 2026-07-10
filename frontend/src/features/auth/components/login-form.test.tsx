@@ -27,7 +27,14 @@ Object.defineProperty(window, "google", {
 // Mock the UI checkbox used inside LoginForm to avoid the broken base-ui
 // dependency breaking tests.
 vi.mock("@/components/ui/checkbox", () => ({
-  Checkbox: ({ checked, onCheckedChange, ...props }: { checked?: boolean; onCheckedChange?: (b: boolean) => void }) => (
+  Checkbox: ({
+    checked,
+    onCheckedChange,
+    ...props
+  }: {
+    checked?: boolean;
+    onCheckedChange?: (b: boolean) => void;
+  }) => (
     <input
       type="checkbox"
       checked={!!checked}
@@ -51,7 +58,7 @@ function renderForm() {
   return render(
     <NextIntlClientProvider locale="en" messages={enMessages as never}>
       <LoginForm />
-    </NextIntlClientProvider>
+    </NextIntlClientProvider>,
   );
 }
 
@@ -64,7 +71,9 @@ describe("LoginForm", () => {
   it("calls login mutation with username and password", async () => {
     renderForm();
     const username = screen.getByLabelText(/Username or Email/i) as HTMLInputElement;
-    const password = document.querySelector('input[name="password"], input[type="password"]') as HTMLInputElement;
+    const password = document.querySelector(
+      'input[name="password"], input[type="password"]',
+    ) as HTMLInputElement;
     fireEvent.change(username, { target: { value: "u@x.com" } });
     fireEvent.change(password, { target: { value: "secret123" } });
     const submit = screen.getByRole("button", { name: /LOG IN/i });

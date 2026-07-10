@@ -13,7 +13,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 const LOCKOUT_DURATION = 15 * 60; // 15 minutes in seconds
@@ -150,7 +157,11 @@ export function LoginForm() {
   );
 
   const handleLoginResponse = useCallback(
-    (response: { success: boolean; data?: { accessToken: string; user: AuthUser } | null; message?: string }) => {
+    (response: {
+      success: boolean;
+      data?: { accessToken: string; user: AuthUser } | null;
+      message?: string;
+    }) => {
       if (!response.success || !response.data) {
         return false;
       }
@@ -203,7 +214,7 @@ export function LoginForm() {
           }
           toast.error(t("errorToast"));
         },
-      }
+      },
     );
   };
 
@@ -232,7 +243,7 @@ export function LoginForm() {
             toast.error(err?.message || t("googleLoginError"));
           }
         },
-      }
+      },
     );
   };
 
@@ -278,7 +289,7 @@ export function LoginForm() {
             toast.error(err?.message || t("errorToast"));
           }
         },
-      }
+      },
     );
   };
 
@@ -288,9 +299,7 @@ export function LoginForm() {
         <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
           {t("title")}
         </h1>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">
-          {t("subtitle")}
-        </p>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("subtitle")}</p>
       </div>
 
       {error && (
@@ -440,10 +449,7 @@ export function LoginForm() {
 
       <div className="text-center text-sm text-neutral-500 dark:text-neutral-400">
         {t("noAccount")}{" "}
-        <Link
-          href="/register"
-          className="font-semibold text-black dark:text-white hover:underline"
-        >
+        <Link href="/register" className="font-semibold text-black dark:text-white hover:underline">
           {t("registerLink")}
         </Link>
       </div>

@@ -59,9 +59,7 @@ export function SessionTimeoutWarning({ onLogout }: SessionTimeoutWarningProps =
             {t("sessionExpiringDesc", { time: formatRemainingTime(remainingMs) })}
           </DialogDescription>
         </DialogHeader>
-        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          {t("sessionExpiringHint")}
-        </p>
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">{t("sessionExpiringHint")}</p>
         <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button variant="outline" onClick={logout}>
             {t("logoutNow")}

@@ -68,7 +68,7 @@ export function ResetPasswordForm() {
           setError(apiError || err.message || t("invalidTokenError"));
           toast.error(t("errorToast"));
         },
-      }
+      },
     );
   };
 
@@ -83,7 +83,11 @@ export function ResetPasswordForm() {
             stroke="currentColor"
             strokeWidth="2"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
           </svg>
         </div>
 
@@ -102,7 +106,10 @@ export function ResetPasswordForm() {
               {t("resendLinkBtn")}
             </Button>
           </Link>
-          <Link href="/login" className="text-center text-sm text-neutral-500 dark:text-neutral-400 font-semibold hover:underline">
+          <Link
+            href="/login"
+            className="text-center text-sm text-neutral-500 dark:text-neutral-400 font-semibold hover:underline"
+          >
             {t("backToLogin")}
           </Link>
         </div>
@@ -121,7 +128,11 @@ export function ResetPasswordForm() {
             stroke="currentColor"
             strokeWidth="2"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
         </div>
 
@@ -129,9 +140,7 @@ export function ResetPasswordForm() {
           <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
             {t("successTitle")}
           </h1>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">
-            {t("successDesc")}
-          </p>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("successDesc")}</p>
         </div>
       </div>
     );
@@ -143,9 +152,7 @@ export function ResetPasswordForm() {
         <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
           {t("title")}
         </h1>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">
-          {t("desc")}
-        </p>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("desc")}</p>
       </div>
 
       {error && (
@@ -159,9 +166,7 @@ export function ResetPasswordForm() {
 
       {/* New Password */}
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="newPassword">
-          {t("newPasswordLabel")}
-        </Label>
+        <Label htmlFor="newPassword">{t("newPasswordLabel")}</Label>
         <PasswordInput
           id="newPassword"
           disabled={isPending}

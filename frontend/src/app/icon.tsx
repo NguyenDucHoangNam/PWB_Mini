@@ -15,31 +15,29 @@ export default function Icon() {
   const dataUrl = `data:image/png;base64,${base64Image}`;
 
   return new ImageResponse(
-    (
-      <div
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: "50%",
+        overflow: "hidden",
+      }}
+    >
+      <img
+        src={dataUrl}
+        width="100%"
+        height="100%"
         style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          objectFit: "cover",
           borderRadius: "50%",
-          overflow: "hidden",
         }}
-      >
-        <img
-          src={dataUrl}
-          width="100%"
-          height="100%"
-          style={{
-            objectFit: "cover",
-            borderRadius: "50%",
-          }}
-        />
-      </div>
-    ),
+      />
+    </div>,
     {
       ...size,
-    }
+    },
   );
 }

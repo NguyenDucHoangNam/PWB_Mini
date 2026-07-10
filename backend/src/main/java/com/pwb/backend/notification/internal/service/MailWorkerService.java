@@ -50,6 +50,8 @@ public class MailWorkerService {
         case NotificationEventTypes.WELCOME_EMAIL -> sendWelcomeEmail(payload, locale);
         case NotificationEventTypes.PASSWORD_RESET -> sendPasswordReset(payload, locale);
         case NotificationEventTypes.ACCOUNT_DELETION_REQUESTED -> sendAccountDeletionRequested(payload, locale);
+        case NotificationEventTypes.SEND_SHARE_EMAIL -> sendShareDemoEmail(payload, locale);
+        case NotificationEventTypes.SEND_REVOKE_NOTICE -> sendRevokeNotice(payload, locale);
         default -> log.warn("Unknown event type received in MailWorker: {}", eventType);
       }
     } catch (Exception ex) {
@@ -128,6 +130,35 @@ public class MailWorkerService {
     String subject = messageSource.getMessage("email.account-deletion.subject", null, locale);
     dispatch(email, fullName, FROM_SECURITY, "iam/account-deletion-requested", subject, locale,
         Map.of("fullName", fullName, "deletionDate", deletionDate));
+  }
+
+  private void sendShareDemoEmail(JsonNode payload, Locale locale) {
+    String email = payload.path("email").asText();
+    String fullName = payload.path("fullName").asText("Producer");
+    String demoTitle = payload.path("demoTitle").asText("Untitled demo");
+    String shareLink = payload.path("shareLink").asText();
+    boolean allowDownload = payload.path("allowDownload").asBoolean(false);
+    String subject = messageSource.getMessage("email.share-demo.subject",
+        new Object[]{demoTitle}, locale);
+    dispatch(email, fullName, FROM_SYSTEM, "audio/share-demo", subject, locale,
+        Map.of(
+            "fullName", fullName,
+            "demoTitle", demoTitle,
+            "shareLink", shareLink,
+            "allowDownload", allowDownload));
+  }
+
+  private void sendRevokeNotice(JsonNode payload, Locale locale) {
+    String email = payload.path("email").asText();
+    String fullName = payload.path("fullName").asText("Listener");
+    String demoTitle = payload.path("demoTitle").asText("Untitled demo");
+    String subject = messageSource.getMessage("email.revoke-notice.subject",
+        new Object[]{demoTitle}, locale);
+    dispatch(email, fullName, FROM_SYSTEM, "audio/revoke-notice", subject, locale,
+        Map.of(
+            "fullName", fullName,
+            "demoTitle", demoTitle,
+            "reason", payload.path("reason").asText("manual")));
   }
 
   private void dispatch(String toEmail, String fullName, String from,

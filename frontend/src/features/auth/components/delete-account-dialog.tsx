@@ -126,7 +126,7 @@ export function DeleteAccountDialog({ isOpen, onClose }: DeleteAccountDialogProp
           }
           toast.error(t("toastToast") || t("toastError"));
         },
-      }
+      },
     );
   };
 

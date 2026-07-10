@@ -17,10 +17,6 @@ CREATE INDEX IF NOT EXISTS idx_users_pending_deletion
     ON users(status, deletion_requested_at)
     WHERE status = 'PENDING_DELETION';
 
--- Allow Debezium outbox CDC engine to stream INSERTs cheaply.
-CREATE INDEX IF NOT EXISTS idx_outbox_events_status_created
-    ON outbox_events(status, created_at);
-
 -- Allow operators to triage the dead-letter queue without a full scan.
 CREATE INDEX IF NOT EXISTS idx_outbox_events_dead_lettered_at
     ON outbox_events(dead_lettered_at)

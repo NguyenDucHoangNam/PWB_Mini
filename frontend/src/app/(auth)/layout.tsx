@@ -44,11 +44,7 @@ export default function AuthRouteLayout({
   if (isChecking) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-white dark:bg-black">
-        <svg
-          className="animate-spin size-8 text-neutral-500"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
+        <svg className="animate-spin size-8 text-neutral-500" fill="none" viewBox="0 0 24 24">
           <circle
             className="opacity-25"
             cx="12"

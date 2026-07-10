@@ -13,19 +13,17 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
           {t("title")}
         </h1>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">
-          {t("subtitle")}
-        </p>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("subtitle")}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 mt-4 sm:gap-6 md:grid-cols-2">
         {/* Profile Settings Card */}
         <div className="border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black rounded-xl p-5 sm:p-6 flex flex-col justify-between gap-4">
           <div>
-            <h2 className="text-lg font-bold text-black dark:text-white mb-2">{t("profileCardTitle")}</h2>
-            <p className="text-sm text-neutral-500 dark:text-neutral-400">
-              {t("profileCardDesc")}
-            </p>
+            <h2 className="text-lg font-bold text-black dark:text-white mb-2">
+              {t("profileCardTitle")}
+            </h2>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("profileCardDesc")}</p>
           </div>
           <Link href="/profile">
             <Button variant="outline" className="w-full justify-center">
@@ -37,7 +35,9 @@ export default function DashboardPage() {
         {/* Sessions Card */}
         <div className="border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black rounded-xl p-5 sm:p-6 flex flex-col justify-between gap-4">
           <div>
-            <h2 className="text-lg font-bold text-black dark:text-white mb-2">{t("sessionsCardTitle")}</h2>
+            <h2 className="text-lg font-bold text-black dark:text-white mb-2">
+              {t("sessionsCardTitle")}
+            </h2>
             <p className="text-sm text-neutral-500 dark:text-neutral-400">
               {t("sessionsCardDesc")}
             </p>

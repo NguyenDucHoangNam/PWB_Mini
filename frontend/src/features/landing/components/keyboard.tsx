@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  FALL_DELAY,
-  KEY_FALL_STAGGER,
-  getBlackKeyPositions,
-} from "../lib/piano-positions";
+import { FALL_DELAY, KEY_FALL_STAGGER, getBlackKeyPositions } from "../lib/piano-positions";
 import type { Side } from "../lib/piano-audio";
 import { BlackKey } from "./black-key";
 import { PianoKey } from "./piano-key";
@@ -23,11 +19,7 @@ export function Keyboard({ chars, side }: KeyboardProps) {
   return (
     <div className="relative w-full">
       <WhiteKeyRow chars={chars} side={side} />
-      <BlackKeyOverlay
-        blackKeys={blackKeys}
-        chars={chars}
-        side={side}
-      />
+      <BlackKeyOverlay blackKeys={blackKeys} chars={chars} side={side} />
     </div>
   );
 }

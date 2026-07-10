@@ -62,9 +62,7 @@ export function isPublicPath(pathname: string): boolean {
   //   - the prefix exactly (e.g. "/login"), or
   //   - the prefix followed by "/" (e.g. "/login/something"),
   // so "/account-recovery-real" doesn't accidentally match "/account-recovery".
-  return PUBLIC_PREFIX_PATHS.some(
-    (p) => pathname === p || pathname.startsWith(`${p}/`),
-  );
+  return PUBLIC_PREFIX_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
 /**

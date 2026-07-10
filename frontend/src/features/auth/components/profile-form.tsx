@@ -119,7 +119,7 @@ export function ProfileForm() {
             setValidationError(err?.message || t("saveError"));
             toast.error(t("saveError"));
           },
-        }
+        },
       );
     };
 
@@ -249,9 +249,7 @@ export function ProfileForm() {
             className="hidden"
           />
           <div className="text-center sm:text-left">
-            <h3 className="text-base font-bold text-black dark:text-white">
-              {t("avatarTitle")}
-            </h3>
+            <h3 className="text-base font-bold text-black dark:text-white">{t("avatarTitle")}</h3>
             <p className="text-xs text-neutral-400 mt-1">{t("avatarHelp")}</p>
           </div>
         </div>

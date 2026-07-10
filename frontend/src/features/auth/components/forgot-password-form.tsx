@@ -48,7 +48,7 @@ export function ForgotPasswordForm() {
             toast.error(t("errorToastTitle"));
           }
         },
-      }
+      },
     );
   };
 
@@ -63,7 +63,11 @@ export function ForgotPasswordForm() {
             stroke="currentColor"
             strokeWidth="2"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 19v-8.93a2 2 0 01.89-1.664l8-5.333a2 2 0 012.22 0l8 5.333A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-2.25-1.5a2 2 0 00-2.22 0l-2.25 1.5" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3 19v-8.93a2 2 0 01.89-1.664l8-5.333a2 2 0 012.22 0l8 5.333A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-2.25-1.5a2 2 0 00-2.22 0l-2.25 1.5"
+            />
           </svg>
         </div>
 
@@ -91,9 +95,7 @@ export function ForgotPasswordForm() {
         <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
           {t("title")}
         </h1>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">
-          {t("infoText")}
-        </p>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("infoText")}</p>
       </div>
 
       {error && (

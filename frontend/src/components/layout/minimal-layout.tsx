@@ -8,7 +8,10 @@ export function MinimalLayout({ children }: MinimalLayoutProps) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-white px-6 py-12 dark:bg-black font-sans">
       <header className="mb-8">
-        <Link href="/" className="text-2xl font-bold tracking-tight text-black dark:text-white hover:opacity-85">
+        <Link
+          href="/"
+          className="text-2xl font-bold tracking-tight text-black dark:text-white hover:opacity-85"
+        >
           PWB MiNi
         </Link>
       </header>

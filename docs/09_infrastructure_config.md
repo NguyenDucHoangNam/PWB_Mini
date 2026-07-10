@@ -197,7 +197,7 @@ graph TD
 | **Tuyến 3 (Fallback)** | `@Scheduled(fixedDelay = 30000)` + `SELECT ... FOR UPDATE SKIP LOCKED` | Tuyến phòng thủ cuối cùng — bảo vệ trước sự cố sập cả server lẫn Debezium | Quét định kỳ mỗi 30 giây |
 
 > [!IMPORTANT]
-> **Debezium CDC (Tuyến 2)** yêu cầu PostgreSQL được cấu hình `wal_level = logical` (đã thiết lập trong `docker-compose.yml`). Debezium Embedded Engine chạy trong cùng tiến trình Spring Boot, sử dụng `@Profile("!test")` để tắt trong môi trường test.
+> **Debezium CDC (Tuyến 2)** yêu cầu PostgreSQL được cấu hình `wal_level = logical` (đã thiết lập trong `docker-compose.yml`) và user kết nối có `REPLICATION` privilege (đã được grant trong `docker/postgres/init/01_grant_replication.sql`). Debezium Embedded Engine chạy trong cùng tiến trình Spring Boot, sử dụng `@Profile("!test")` để tắt trong môi trường test.
 
 **Cơ chế chống trùng lặp (Idempotency):**
 - Mỗi `OutboxEvent` được gắn một `idempotency_key` (UUID v4 duy nhất).

@@ -14,4 +14,6 @@ public final class NotificationEventTypes {
   public static final String PASSWORD_RESET = "PASSWORD_RESET";
   public static final String ACCOUNT_DELETION_REQUESTED = "ACCOUNT_DELETION_REQUESTED";
   public static final String ANOMALOUS_LOGIN = "ANOMALOUS_LOGIN";
+  public static final String SEND_SHARE_EMAIL = "SEND_SHARE_EMAIL";
+  public static final String SEND_REVOKE_NOTICE = "SEND_REVOKE_NOTICE";
 }

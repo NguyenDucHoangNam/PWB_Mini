@@ -18,6 +18,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import com.pwb.backend.audio.internal.config.AudioRateLimitFilter;
 import com.pwb.backend.shared.security.IpRateLimitFilter;
 
 import java.util.List;
@@ -31,16 +32,19 @@ public class SecurityConfig {
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
   private final IpRateLimitFilter ipRateLimitFilter;
   private final AuthenticationEntryPoint authenticationEntryPoint;
+  private final AudioRateLimitFilter audioRateLimitFilter;
 
   public SecurityConfig(
       @Value("${app.security.cors.allowed-origins}") String allowedOriginsCsv,
       JwtAuthenticationFilter jwtAuthenticationFilter,
       IpRateLimitFilter ipRateLimitFilter,
-      AuthenticationEntryPoint authenticationEntryPoint) {
+      AuthenticationEntryPoint authenticationEntryPoint,
+      AudioRateLimitFilter audioRateLimitFilter) {
     this.allowedOrigins = parseAllowedOrigins(allowedOriginsCsv);
     this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     this.ipRateLimitFilter = ipRateLimitFilter;
     this.authenticationEntryPoint = authenticationEntryPoint;
+    this.audioRateLimitFilter = audioRateLimitFilter;
   }
 
   private static List<String> parseAllowedOrigins(String csv) {
@@ -78,8 +82,12 @@ public class SecurityConfig {
             .requestMatchers("/ws/**").permitAll()
             .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
             .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+            .requestMatchers("/api/v1/demos/shared/**").permitAll()
+            .requestMatchers("/api/v1/stream/**").permitAll()
+            .requestMatchers("/api/v1/internal/demos/**").permitAll()
             .anyRequest().authenticated())
         .addFilterBefore(ipRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+        .addFilterBefore(audioRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
         .exceptionHandling(eh -> eh.authenticationEntryPoint(authenticationEntryPoint));
     return http.build();

@@ -35,7 +35,7 @@ export function SessionsTable() {
         onError: (err: any) => {
           toast.error(err?.message || t("revokeError"));
         },
-      }
+      },
     );
   };
 
@@ -143,7 +143,10 @@ export function SessionsTable() {
           </thead>
           <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
             {sessions.map((session) => (
-              <tr key={session.sessionUuid} className="hover:bg-neutral-50/50 dark:hover:bg-neutral-950/50">
+              <tr
+                key={session.sessionUuid}
+                className="hover:bg-neutral-50/50 dark:hover:bg-neutral-950/50"
+              >
                 <td className="px-6 py-4 font-medium text-black dark:text-white flex items-center gap-2">
                   <span>{session.deviceInfo || "—"}</span>
                   {session.isCurrent && (
@@ -154,7 +157,9 @@ export function SessionsTable() {
                 </td>
                 <td className="px-6 py-4 text-neutral-500">{session.ipAddress}</td>
                 <td className="px-6 py-4 text-neutral-500">{session.location || "—"}</td>
-                <td className="px-6 py-4 text-neutral-500">{formatRelativeTime(session.createdAt)}</td>
+                <td className="px-6 py-4 text-neutral-500">
+                  {formatRelativeTime(session.createdAt)}
+                </td>
                 <td className="px-6 py-4 text-right">
                   {!session.isCurrent && (
                     <button

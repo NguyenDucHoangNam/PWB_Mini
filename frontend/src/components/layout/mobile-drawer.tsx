@@ -71,6 +71,6 @@ export function MobileDrawer({ isOpen, onClose, children }: MobileDrawerProps) {
         <div className="mt-8 flex flex-col gap-5 sm:gap-6">{children}</div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

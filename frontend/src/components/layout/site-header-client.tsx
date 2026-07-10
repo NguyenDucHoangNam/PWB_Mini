@@ -325,9 +325,7 @@ export function SiteHeaderClient() {
                   <p className="text-sm font-bold text-black dark:text-white truncate">
                     {user?.fullName || t("account")}
                   </p>
-                  <p className="text-xs text-neutral-500 truncate mt-0.5">
-                    {user?.email || ""}
-                  </p>
+                  <p className="text-xs text-neutral-500 truncate mt-0.5">{user?.email || ""}</p>
                 </div>
                 <hr className="border-neutral-200 dark:border-neutral-800" />
                 <Link
