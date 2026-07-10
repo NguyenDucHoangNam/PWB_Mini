@@ -12,8 +12,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Optional;
 
 @Configuration
-// M1: @EnableJpaAuditing moved to BackendApplication so the shared module
-// does not opt the whole context into auditing on import.
+
 public class JpaAuditingConfig {
 
   private static final String SYSTEM_PRINCIPAL = "system";
@@ -38,21 +37,6 @@ public class JpaAuditingConfig {
     };
   }
 
-  /**
-   * H9: general-purpose principal sanitizer. We never write raw PII into
-   * audit columns. The result depends on the input shape:
-   *
-   * <ul>
-   *   <li>Emails become {@code user:&lt;first-8-chars-of-local&gt;***@&lt;domain&gt;}
-   *       so the value stays useful for grouping (by domain) without leaking
-   *       the full address.</li>
-   *   <li>Anything containing a colon (e.g. {@code phone:+84...},
-   *       {@code oauth:12345}) is replaced with a deterministic SHA-256
-   *       fingerprint so the same principal always produces the same audit
-   *       value.</li>
-   *   <li>Anything else (OAuth subject, UUID, etc.) is hashed.</li>
-   * </ul>
-   */
   static String sanitize(String name) {
     int atIndex = name.indexOf('@');
     if (atIndex > 0 && atIndex < name.length() - 1) {
@@ -62,7 +46,7 @@ public class JpaAuditingConfig {
       return "user:" + local.substring(0, keep) + "***@" + domain;
     }
     if (name.contains(":")) {
-      // phone:+84... / oauth:12345 / etc — never store verbatim.
+
       return "user:" + sha256Short(name);
     }
     return "user:" + sha256Short(name);

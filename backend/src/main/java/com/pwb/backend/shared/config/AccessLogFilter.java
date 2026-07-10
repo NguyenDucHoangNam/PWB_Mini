@@ -16,22 +16,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-/**
- * Single-line access logger.
- *
- * <p>C6:
- * <ul>
- *   <li>Logs at {@code INFO} so production (default level) actually records
- *       traffic. Two entries — one on request received, one on completion —
- *       so we still see slow requests even if the application crashes after
- *       dispatch.</li>
- *   <li>Uses {@link ClientIpResolver} for IP resolution so access logs agree
- *       with rate-limit, audit, and session-binding decisions.</li>
- *   <li>Never logs {@code auth.getPrincipal().toString()} — only the
- *       {@code Authentication#getName()} identifier, masked if it looks like
- *       an email address so PII is not written to disk.</li>
- * </ul>
- */
 @Slf4j
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -87,11 +71,6 @@ public class AccessLogFilter extends OncePerRequestFilter {
         return maskPrincipal(name);
     }
 
-    /**
-     * Mask PII before logging: emails become {@code user***@domain}, anything
-     * else is left as-is so OAuth subject IDs and short numeric accounts
-     * remain useful for debugging.
-     */
     private static String maskPrincipal(String name) {
         int atIndex = name.indexOf('@');
         if (atIndex > 0 && atIndex < name.length() - 1) {

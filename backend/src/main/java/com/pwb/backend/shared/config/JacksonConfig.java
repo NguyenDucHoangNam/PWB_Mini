@@ -16,8 +16,7 @@ public class JacksonConfig {
   public ObjectMapper objectMapper() {
     ObjectMapper mapper = new ObjectMapper();
     mapper.registerModule(new JavaTimeModule());
-    // M4: also disable Duration timestamps so e.g. PT5S stays ISO-8601 in
-    // outgoing payloads instead of being serialized as the number 5.
+
     mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     mapper.disable(SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS);
     mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);

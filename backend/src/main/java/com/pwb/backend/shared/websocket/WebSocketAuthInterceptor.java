@@ -17,28 +17,11 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.regex.Pattern;
 
-/**
- * STOMP inbound-channel interceptor.
- *
- * <p>H7 (defense-in-depth): previously we only required an authenticated
- * session on SUBSCRIBE / SEND, which let any authenticated user wire up a
- * subscription to {@code /user/{someoneElse}/queue/...}. The destination
- * is now checked here as a backstop, while controllers remain the source
- * of truth for business rules.
- *
- * <p>L8: the {@code MESSAGE} case is removed because the Spring client
- * inbound channel does not deliver MESSAGE frames from clients.
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
-    /**
-     * Allow a user to subscribe only to topics that mention their own
-     * principal email or a generic public destination. {@code [^,]+} keeps
-     * the match from spilling across STOMP destination segments.
-     */
     private static final Pattern SELF_USER_TOPIC = Pattern.compile("^/topic/user/([^,/]+)/.*$");
     private static final Pattern SELF_USER_QUEUE = Pattern.compile("^/queue/user/([^,/]+)/.*$");
 
@@ -59,7 +42,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             case CONNECT -> handleConnect(accessor);
             case SUBSCRIBE -> authorizeSubscribe(accessor);
             case SEND -> authorizeSend(accessor);
-            case DISCONNECT, UNSUBSCRIBE -> { /* no-op: session cleanup handled by Spring */ }
+            case DISCONNECT, UNSUBSCRIBE -> {  }
             default -> log.debug("WebSocket frame {} allowed for session", command);
         }
 
@@ -107,8 +90,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
         if (queueMatcher.matches()) {
             ensureSelfOrThrow(principal, queueMatcher.group(1), destination, "subscribe");
         }
-        // /topic/* and /queue/* without the /user prefix are broker broadcasts
-        // and intentionally remain accessible to every authenticated user.
+
     }
 
     private void authorizeSend(StompHeaderAccessor accessor) {
@@ -118,9 +100,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             return;
         }
         String principal = principalName(accessor);
-        // Sending to another user's destination is never legitimate from
-        // the client. The application destination prefix (/app/...) is the
-        // only path that application controllers route.
+
         java.util.regex.Matcher topicMatcher = SELF_USER_TOPIC.matcher(destination);
         if (topicMatcher.matches()) {
             ensureSelfOrThrow(principal, topicMatcher.group(1), destination, "send");

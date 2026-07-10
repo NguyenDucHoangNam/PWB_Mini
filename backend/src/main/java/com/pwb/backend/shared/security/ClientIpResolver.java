@@ -14,25 +14,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Resolves the originating client IP from a servlet request.
- *
- * <p>Strategy (C3):
- * <ol>
- *   <li>If the immediate {@code remoteAddr} is a trusted proxy (exact match,
- *       loopback, or CIDR range) we walk the {@code X-Forwarded-For} chain
- *       from RIGHT to LEFT, skipping every trusted hop, and return the first
- *       untrusted IP. This is the standard RFC 7239 / OWASP approach and
- *       prevents trivial spoofing by an attacker who simply rewrites the
- *       leftmost XFF segment.</li>
- *   <li>If no trusted proxy is detected, {@code remoteAddr} is taken at face
- *       value — we never read XFF in that case.</li>
- * </ol>
- *
- * <p>CIDR support: trusted proxies may be expressed with the
- * {@code prefix/length} notation (e.g. {@code 10.0.0.0/8}, {@code ::1/128}).
- * Exact matches without prefix are also accepted.
- */
 @Slf4j
 @Component
 public class ClientIpResolver {
@@ -70,7 +51,7 @@ public class ClientIpResolver {
         }
 
         if (!isTrusted(remoteAddr)) {
-            // No trusted proxy in front — trust the immediate remote address.
+
             return remoteAddr;
         }
 
@@ -79,9 +60,6 @@ public class ClientIpResolver {
             return remoteAddr;
         }
 
-        // Walk right-to-left, dropping trusted hops, until we find the first
-        // untrusted candidate. This is the recommended XFF parsing direction
-        // because the rightmost entry is the most recent trusted proxy.
         String[] chain = forwarded.split(",");
         for (int i = chain.length - 1; i >= 0; i--) {
             String candidate = chain[i].trim();
@@ -92,7 +70,7 @@ public class ClientIpResolver {
                 return candidate;
             }
         }
-        // All entries trusted — fall back to remoteAddr (we know it was trusted).
+
         return remoteAddr;
     }
 
@@ -119,9 +97,7 @@ public class ClientIpResolver {
     }
 
     private List<TrustedNetwork> defaultLoopbackNetworks() {
-        // Hard-coded literal addresses — should never throw, but if a
-        // future JVM refuses to parse "::1" we degrade to an empty list
-        // rather than blocking startup.
+
         List<TrustedNetwork> defaults = new ArrayList<>();
         for (String ip : List.of("127.0.0.1", "::1", LOOPBACK_IPV6_FULL)) {
             try {
@@ -151,11 +127,11 @@ public class ClientIpResolver {
                 return true;
             }
         }
-        // Backward-compatible shortcut: any IPv4 loopback (127.x.x.x).
+
         if (remoteAddr.startsWith(LOOPBACK_IPV4_PREFIX)) {
             return true;
         }
-        // Backward-compatible shortcut: IPv6 loopback literals.
+
         return LOOPBACK_IPV6_SHORT.equals(remoteAddr) || LOOPBACK_IPV6_FULL.equals(remoteAddr);
     }
 
@@ -163,13 +139,9 @@ public class ClientIpResolver {
         return value == null || value.isBlank();
     }
 
-    /**
-     * Either an exact-match IP string or a CIDR network. Parsed once at
-     * construction time so request-path matching stays cheap.
-     */
     private static final class TrustedNetwork {
         private final String address;
-        private final Integer prefixLength; // null => exact match
+        private final Integer prefixLength;
         private final byte[] addrBytes;
 
         private TrustedNetwork(String address, Integer prefixLength, byte[] addrBytes) {

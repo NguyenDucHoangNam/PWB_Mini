@@ -52,8 +52,7 @@ public long computeBackoffSeconds(int attempt) {
         int initial = properties.getInitialBackoffSeconds();
         int max = properties.getMaxBackoffSeconds();
         long base = Math.min(max, initial * (1L << Math.min(attempt - 1, 10)));
-        // H2: ThreadLocalRandom avoids Math.random()'s internal synchronisation
-        // and the associated contention when many retry paths fire at once.
+
         long jitter = (long) (base * 0.2
             * (java.util.concurrent.ThreadLocalRandom.current().nextDouble() - 0.5) * 2);
         return Math.max(1, base + jitter);

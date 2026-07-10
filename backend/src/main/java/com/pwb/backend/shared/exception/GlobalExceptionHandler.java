@@ -28,9 +28,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex) {
         ErrorCodeLike errorCode = ex.getErrorCode();
-        // H6: log the optional data server-side for diagnostics but never
-        // serialise it into the API response. Public responses use only the
-        // structured ErrorDetail (code, field, message).
+
         log.warn("Business exception occurred: code={}, message={}, data={}",
             errorCode.getCode(), ex.getMessage(), ex.getData());
 
@@ -46,9 +44,7 @@ public class GlobalExceptionHandler {
         }
 
         ErrorDetail detail = new ErrorDetail(errorCode.getCode(), null, translatedMessage);
-        // L6: explicit no-arg (no data) overload to avoid ambiguity with the
-        // (message, data, errors) overload. We deliberately drop ex.getData()
-        // here — see H6.
+
         ApiResponse<Void> response = ApiResponse.error(translatedMessage, List.of(detail));
         return new ResponseEntity<>(response, errorCode.getHttpStatus());
     }

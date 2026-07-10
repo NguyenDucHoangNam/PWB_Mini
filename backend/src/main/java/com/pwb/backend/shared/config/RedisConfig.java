@@ -14,30 +14,8 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
-/**
- * Redis wiring.
- *
- * <p>H10: the previous {@link RedisTemplate} re-used the application's
- * primary {@link ObjectMapper}, which had polymorphic typing OFF and
- * forced {@link GenericJackson2JsonRedisSerializer} to enable it
- * internally. This caused silent {@code @class} fields on every cached
- * value and broke serialization in test/slice contexts that loaded a
- * different classloader.
- *
- * <p>We now expose two serializers:
- * <ul>
- *   <li>A {@code RedisTemplate<String, String>} via the auto-configured
- *       {@link StringRedisTemplate} for the common string-value case
- *       (sessions, rate limits, claims).</li>
- *   <li>A {@code RedisTemplate<String, Object>} backed by a Redis-local
- *       {@link ObjectMapper} that explicitly opts in to a tightly-scoped
- *       polymorphic type validator, restricted to our own packages so a
- *       hostile payload cannot trigger gadget deserialization.</li>
- * </ul>
- */
 @Configuration
-// M1: @EnableSchedulerLock moved to BackendApplication so the shared
-// module does not opt the whole context into shedlock on import.
+
 public class RedisConfig {
 
     @Bean
@@ -58,12 +36,6 @@ public class RedisConfig {
         return template;
     }
 
-    /**
-     * Redis-specific {@link ObjectMapper} with a tightly scoped
-     * polymorphic-typing whitelist. We restrict accepted base types to
-     * {@code java.util} and our own packages to prevent deserialization
-     * gadgets sneaking in through cached payloads.
-     */
     private ObjectMapper redisObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);

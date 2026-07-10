@@ -12,16 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
-/**
- * Bridges Debezium change events into the outbox processing pipeline.
- *
- * <p>H3: previously ran without a {@code @Transactional} boundary, so a
- * crash between {@code findById} and {@code processOutboxEvent} could
- * replay the event. We now wrap {@link #handleEvent} in a single
- * {@code REQUIRES_NEW} transaction so the row lock and the processor's
- * status mutation commit atomically. The CDC consumer is single-threaded
- * per connector, but multiple connectors can still overlap.
- */
 @Slf4j
 public class CdcOutboxEventHandler<T extends OutboxEvent> {
 

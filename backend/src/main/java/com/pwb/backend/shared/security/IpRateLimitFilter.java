@@ -23,19 +23,6 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 
-/**
- * IP-level rate limiter applied to anonymous auth endpoints.
- *
- * <p>Atomicity (C2): INCR + EXPIRE must be issued as a single Redis
- * transaction. We use a small Lua script that increments the counter and
- * (only when the key is brand new) attaches the TTL. That way a network blip
- * between two commands can never leave a counter without expiry.
- *
- * <p>Error contract (C1): on rejection we emit the standard {@link ApiResponse}
- * envelope (same shape {@link RestAuthenticationEntryPoint} and
- * {@link RestAccessDeniedHandler} use), set {@code Retry-After}, and let the
- * JSON serializer stream the body to the response.
- */
 @Slf4j
 @Component
 public class IpRateLimitFilter extends OncePerRequestFilter {
@@ -121,7 +108,7 @@ public class IpRateLimitFilter extends OncePerRequestFilter {
         );
         ApiResponse<Void> body = ApiResponse.error(message, List.of(detail));
         objectMapper.writeValue(response.getWriter(), body);
-        // currentCount / ip kept for logging context if needed
+
         log.debug("Wrote rate-limit ApiResponse for ip={} count={}", ip, currentCount);
     }
 }

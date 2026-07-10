@@ -30,11 +30,6 @@ public class OutboxProperties {
     private String encryptionKey;
     @Min(1)
     private int keyVersion = 1;
-    /**
-     * Optional CSV of {@code version:secret} pairs so the cipher can still
-     * decrypt payloads encrypted by an older key while the active key has
-     * rotated forward. The active key is added implicitly via
-     * {@code encryption-key} + {@code key-version}.
-     */
+
     private String legacyKeys = "";
 }

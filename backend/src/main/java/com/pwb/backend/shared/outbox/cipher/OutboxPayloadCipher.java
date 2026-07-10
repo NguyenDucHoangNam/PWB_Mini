@@ -16,24 +16,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * AES-GCM payload cipher for outbox events.
- *
- * <p>Key versioning (C5): we keep an internal map of {@code keyVersion ->
- * SecretKey}. The freshly generated payload always carries the active
- * version's tag, while decryption picks the key matching the tag embedded in
- * the stored payload. That lets us rotate keys without losing the ability to
- * read payloads encrypted under older keys.
- *
- * <p>Payload format:
- * <ul>
- *   <li>{@code enc:vN:base64(nonce|ciphertext+tag)} — versioned payload</li>
- *   <li>{@code enc:base64(nonce|ciphertext+tag)} — legacy v1 payload, kept
- *       readable as long as the v1 key is still configured</li>
- *   <li>plaintext — stored when encryption is disabled, or legacy payload
- *       from before encryption was turned on</li>
- * </ul>
- */
 @Slf4j
 @Component
 public class OutboxPayloadCipher {
@@ -47,7 +29,7 @@ public class OutboxPayloadCipher {
     private final SecureRandom random = new SecureRandom();
     private final boolean enabled;
     private final int activeKeyVersion;
-    /** LinkedHashMap preserves insertion order so {@link #keyVersion()} is stable. */
+
     private final Map<Integer, SecretKey> keysByVersion;
 
     public OutboxPayloadCipher(
@@ -69,8 +51,7 @@ public class OutboxPayloadCipher {
                 throw new IllegalStateException("Cannot initialize outbox cipher", ex);
             }
         }
-        // Legacy keys are optional and only useful when migrating. They map to
-        // historical key versions so old payloads remain readable.
+
         if (enabled && legacyKeysCsv != null && !legacyKeysCsv.isBlank()) {
             for (String entry : legacyKeysCsv.split(",")) {
                 String trimmed = entry.trim();
@@ -151,9 +132,7 @@ public class OutboxPayloadCipher {
             return null;
         }
         if (!enabled || !stored.startsWith(PREFIX)) {
-            // M5: legacy plaintext/disabled payloads return as-is. Surface a
-            // debug log so operators can audit "encryption disabled" rows
-            // without confusing this with a decryption error.
+
             if (enabled && !stored.startsWith(PREFIX)) {
                 log.debug("Outbox decrypt: payload has no 'enc:' prefix, returning as plaintext");
             }
@@ -169,7 +148,7 @@ public class OutboxPayloadCipher {
                     version = Integer.parseInt(head.substring(1));
                     body = body.substring(colon + 1);
                 } catch (NumberFormatException nfe) {
-                    // Not a versioned payload — treat as legacy "enc:base64".
+
                     version = null;
                 }
             }
@@ -193,8 +172,7 @@ public class OutboxPayloadCipher {
     }
 
     private SecretKey pickKey(Integer payloadVersion) {
-        // M5: warn loudly when we cannot find the matching key so a forgotten
-        // migration does not silently fall back to the active key.
+
         if (payloadVersion == null) {
             SecretKey legacy = keysByVersion.get(1);
             if (legacy == null) {

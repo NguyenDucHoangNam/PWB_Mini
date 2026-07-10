@@ -20,21 +20,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
-/**
- * Embedded Debezium engine wrapper.
- *
- * <p>H5: each module wires its own {@link CdcEngine} bean with a unique
- * {@code connectorName} and {@code offsetStoragePath}. To avoid two
- * connectors accidentally sharing the same offset file we read any
- * pre-existing offset file's "name" attribute (Debezium writes it as the
- * first line) and bail out at startup if the file belongs to another
- * connector.
- *
- * <p>M3: {@code topic.prefix}, {@code plugin.name} and
- * {@code offset.flush.interval.ms} are now configurable through
- * {@code app.cdc.*} properties, defaulting to the previous hard-coded
- * values so existing deployments are unaffected.
- */
 @Slf4j
 @Component
 @Profile("!test")
@@ -82,7 +67,6 @@ public class CdcEngine {
             dbname = dbname.substring(0, dbname.indexOf('?'));
         }
 
-        // M3: configurable instead of hard-coded.
         String topicPrefix = environment.getProperty("app.cdc.topic-prefix", "pwb-cdc");
         String pluginName = environment.getProperty("app.cdc.plugin-name", "pgoutput");
         String flushIntervalMs = environment.getProperty("app.cdc.offset-flush-interval-ms", "60000");
@@ -106,11 +90,6 @@ public class CdcEngine {
             .build();
     }
 
-    /**
-     * H5: detect the case where two connectors accidentally share an offset
-     * file. Debezium writes the connector name as a header line in the
-     * offset file; if we ever see a name other than our own we fail fast.
-     */
     private void validateOffsetFileOwnership(File offsetFile) {
         if (!offsetFile.exists()) {
             return;
@@ -120,7 +99,7 @@ public class CdcEngine {
             if (firstLine == null) {
                 return;
             }
-            // Debezium format: "{\"name\":\"<connector>\"...}"
+
             int nameIdx = firstLine.indexOf("\"name\":\"");
             if (nameIdx < 0) {
                 return;
@@ -139,8 +118,7 @@ public class CdcEngine {
                         + "'. Refusing to start to avoid cross-connector progress loss.");
             }
         } catch (IOException ex) {
-            // Offset file exists but cannot be read — surface a warning but
-            // do not block startup, since Debezium will overwrite it cleanly.
+
             log.warn("Could not read CDC offset file {} for ownership check: {}",
                 offsetFile.getAbsolutePath(), ex.getMessage());
         }

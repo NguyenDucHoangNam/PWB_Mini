@@ -51,7 +51,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class S3StorageService implements StorageService {
 
-    /** Safe defaults when the operator does not override bucket-CORS settings. */
     private static final List<String> DEFAULT_CORS_HEADERS = List.of(
         "Authorization",
         "Content-Type",
@@ -90,8 +89,7 @@ public class S3StorageService implements StorageService {
                 s3Client.createBucket(CreateBucketRequest.builder().bucket(bucketName).build());
                 log.info("Bucket '{}' created successfully.", bucketName);
             } else {
-                // L3: don't swallow non-404 errors when autoCreateBucket is off —
-                // bad IAM credentials or wrong endpoint should fail loudly.
+
                 log.error("S3 storage bucket '{}' verification failed (Status {}): {}",
                     bucketName, e.statusCode(), e.getMessage());
                 if (!properties.isAutoCreateBucket()) {
@@ -116,10 +114,7 @@ public class S3StorageService implements StorageService {
 
     private void configureBucketCors(String bucketName) {
         try {
-            // C4: pull origins from the web CORS config so bucket + browser
-            // cannot drift. Refuse wildcards outright — a wildcard origin on a
-            // bucket that hosts presigned upload URLs lets any site overwrite
-            // objects by guessing the key.
+
             List<String> origins = properties.getCorsAllowedOrigins().isEmpty()
                 ? webCorsAllowedOrigins
                 : properties.getCorsAllowedOrigins();
@@ -245,9 +240,7 @@ public class S3StorageService implements StorageService {
 
     @Override
     public String generatePresignedDownloadUrl(String key, int expirationMinutes) {
-        // L4: name the conversion explicitly so callers know which unit we end
-        // up signing for. Old code did `expirationMinutes * 60` in line which
-        // made it easy to misread.
+
         return generatePresignedDownloadUrl(key, minutesToSeconds(expirationMinutes), Collections.emptyMap());
     }
 

@@ -12,15 +12,6 @@ import org.springframework.mail.javamail.JavaMailSenderImpl;
 
 import java.util.Properties;
 
-/**
- * Mail wiring.
- *
- * <p>M6: previously only validated credentials in {@link PostConstruct} and
- * relied on Spring Boot autoconfig for the {@link JavaMailSender} bean.
- * That meant {@code spring.mail.host} not being set would only fail at
- * runtime. We now declare the bean explicitly and fail fast if the host is
- * missing whenever mail is enabled.
- */
 @Slf4j
 @Configuration
 @ConditionalOnProperty(prefix = "app.mail", name = "enabled", havingValue = "true", matchIfMissing = true)

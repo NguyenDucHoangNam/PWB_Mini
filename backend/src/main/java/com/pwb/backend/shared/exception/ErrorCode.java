@@ -3,21 +3,6 @@ package com.pwb.backend.shared.exception;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
-/**
- * Platform-level error codes.
- *
- * <p>H11 refactor status: this enum previously contained codes from every
- * module (~75 entries) which made {@code shared} a leaky abstraction. The
- * long-term fix is to move module-specific codes into each module's
- * {@code internal/exception/*ErrorCode} enum (see {@link IamErrorCode} and
- * {@code AudioErrorCode}). Until that migration is finished file-by-file,
- * this enum still carries both the HTTP-level codes (the ones that should
- * remain here) and the legacy module codes (kept for backward compatibility
- * with the dozens of existing call-sites).
- *
- * <p>New module-specific errors must be added to the appropriate
- * module-local enum, not here.
- */
 @Getter
 public enum ErrorCode implements ErrorCodeLike {
     INTERNAL_SERVER_ERROR("INTERNAL_SERVER_ERROR", "An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR),
