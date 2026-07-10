@@ -3,9 +3,10 @@ package com.pwb.backend.iam.internal.job;
 import com.pwb.backend.iam.internal.model.IamOutboxEvent;
 import com.pwb.backend.iam.internal.publisher.IamOutboxPublisher;
 import com.pwb.backend.iam.internal.repository.IamOutboxEventRepository;
-import com.pwb.backend.shared.outbox.cipher.OutboxPayloadCipher;
+import com.pwb.backend.shared.outbox.config.OutboxProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,29 +18,45 @@ import java.util.List;
 @RequiredArgsConstructor
 public class IamOutboxScheduler {
 
-  private static final int BATCH_SIZE = 20;
+    private final IamOutboxEventRepository repository;
+    private final IamOutboxPublisher publisher;
+    private final OutboxProperties properties;
 
-  private final IamOutboxEventRepository repository;
-  private final IamOutboxPublisher publisher;
-  private final OutboxPayloadCipher cipher;
+    /**
+     * Polls and processes pending IAM outbox events.
+     *
+     * <p>H8: shedlock guards against the second instance racing us on the
+     * same batch. The query itself uses {@code FOR UPDATE SKIP LOCKED} so a
+     * second instance that grabs the lock between two polls still cannot
+     * double-process rows it did not fetch.
+     *
+     * <p>H3: marked {@link Transactional} so each batch runs in a single
+     * transaction; the row lock acquired by the native query is held until
+     * commit, and the publisher can safely update {@code status} +
+     * {@code processed_at} on the same entity instance.
+     */
+    @Scheduled(fixedDelayString = "${app.outbox.poll-interval-ms:30000}")
+    @SchedulerLock(name = "iamOutboxScheduler", lockAtLeastFor = "PT5S", lockAtMostFor = "PT50S")
+    @Transactional
+    public void pollPendingOutboxEvents() {
+        if (!properties.isEnabled()) {
+            return;
+        }
+        List<IamOutboxEvent> pendingEvents =
+            repository.findPendingEventsForUpdate(properties.getBatchSize());
 
-  @Scheduled(fixedDelay = 30000)
-  @Transactional
-  public void pollPendingOutboxEvents() {
-    List<IamOutboxEvent> pendingEvents = repository.findPendingEventsForUpdate(BATCH_SIZE);
+        if (pendingEvents.isEmpty()) {
+            return;
+        }
 
-    if (pendingEvents.isEmpty()) {
-      return;
+        log.info("IAM Outbox scheduler found {} pending events", pendingEvents.size());
+
+        for (IamOutboxEvent event : pendingEvents) {
+            try {
+                publisher.processOutboxEvent(event);
+            } catch (Exception ex) {
+                log.error("Failed to process IAM outbox event: eventId={}", event.getId(), ex);
+            }
+        }
     }
-
-    log.info("IAM Outbox scheduler found {} pending events", pendingEvents.size());
-
-    for (IamOutboxEvent event : pendingEvents) {
-      try {
-        publisher.processOutboxEvent(event);
-      } catch (Exception ex) {
-        log.error("Failed to process IAM outbox event: eventId={}", event.getId(), ex);
-      }
-    }
-  }
 }

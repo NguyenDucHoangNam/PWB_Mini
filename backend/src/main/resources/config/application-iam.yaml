@@ -12,15 +12,14 @@ app:
       max-failed-attempts: 5
       lockout-ttl-seconds: 900
       password-reset-token-ttl-seconds: 600
-    account:
-      deletion-grace-days: 30
+    account-deletion-grace-days: 30
     outbox:
       dead-letter-after-retries: 5
     anonymization:
       cron: "0 0 0 * * ?"
     google:
       client-id: ${GOOGLE_CLIENT_ID}
-    geoip:
+    geo-ip:
       database-path: ${GEOIP_DB_PATH:classpath:geoip/GeoLite2-City.mmdb}
     session:
       # Localhost runs over plain HTTP - marking the refresh cookie

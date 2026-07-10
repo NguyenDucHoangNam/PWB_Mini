@@ -2,6 +2,7 @@ package com.pwb.backend.iam.internal.config;
 
 import com.pwb.backend.iam.internal.service.JwtEpochService;
 import com.pwb.backend.iam.internal.service.JwtService;
+import com.pwb.backend.shared.security.JwtVerifier;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -21,15 +22,18 @@ import java.io.IOException;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+  private final JwtVerifier jwtVerifier;
   private final JwtService jwtService;
   private final JwtEpochService jwtEpochService;
   private final StringRedisTemplate redisTemplate;
   private final AuthenticationEntryPoint authenticationEntryPoint;
 
-  public JwtAuthenticationFilter(JwtService jwtService,
+  public JwtAuthenticationFilter(JwtVerifier jwtVerifier,
+                                 JwtService jwtService,
                                  JwtEpochService jwtEpochService,
                                  StringRedisTemplate redisTemplate,
                                  AuthenticationEntryPoint authenticationEntryPoint) {
+    this.jwtVerifier = jwtVerifier;
     this.jwtService = jwtService;
     this.jwtEpochService = jwtEpochService;
     this.redisTemplate = redisTemplate;
@@ -47,11 +51,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     String token = authHeader.substring(7);
-    String signature = jwtService.getSignature(token);
+    String signature = jwtVerifier.getSignature(token);
     String blacklistKey = "session:blacklist_token:" + signature;
 
     boolean tokenBlacklisted = Boolean.TRUE.equals(redisTemplate.hasKey(blacklistKey));
-    boolean tokenValid = jwtService.isTokenValid(token);
+    boolean tokenValid = jwtVerifier.isTokenValid(token);
 
     if (tokenBlacklisted) {
       rejectWithBadCredentials(request, response, "revoked", "token has been revoked");
@@ -74,8 +78,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       return;
     }
 
-    String email = jwtService.extractEmail(token);
-    String role = jwtService.extractRole(token);
+    String email = jwtVerifier.extractEmail(token);
+    String role = jwtVerifier.extractRole(token);
     org.springframework.security.core.authority.SimpleGrantedAuthority authority =
         new org.springframework.security.core.authority.SimpleGrantedAuthority(role != null ? role : "");
     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(

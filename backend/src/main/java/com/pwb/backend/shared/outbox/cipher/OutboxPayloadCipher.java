@@ -12,7 +12,28 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
+/**
+ * AES-GCM payload cipher for outbox events.
+ *
+ * <p>Key versioning (C5): we keep an internal map of {@code keyVersion ->
+ * SecretKey}. The freshly generated payload always carries the active
+ * version's tag, while decryption picks the key matching the tag embedded in
+ * the stored payload. That lets us rotate keys without losing the ability to
+ * read payloads encrypted under older keys.
+ *
+ * <p>Payload format:
+ * <ul>
+ *   <li>{@code enc:vN:base64(nonce|ciphertext+tag)} — versioned payload</li>
+ *   <li>{@code enc:base64(nonce|ciphertext+tag)} — legacy v1 payload, kept
+ *       readable as long as the v1 key is still configured</li>
+ *   <li>plaintext — stored when encryption is disabled, or legacy payload
+ *       from before encryption was turned on</li>
+ * </ul>
+ */
 @Slf4j
 @Component
 public class OutboxPayloadCipher {
@@ -20,36 +41,73 @@ public class OutboxPayloadCipher {
     private static final int NONCE_BYTES = 12;
     private static final int TAG_BITS = 128;
     private static final String ALGO = "AES/GCM/NoPadding";
+    private static final String PREFIX = "enc:";
+    private static final String VERSION_DELIMITER = ":";
 
-    private final SecretKey key;
     private final SecureRandom random = new SecureRandom();
     private final boolean enabled;
-    private final int keyVersion;
-
-    public OutboxPayloadCipher(String encryptionKey) {
-        this(encryptionKey, 1);
-    }
+    private final int activeKeyVersion;
+    /** LinkedHashMap preserves insertion order so {@link #keyVersion()} is stable. */
+    private final Map<Integer, SecretKey> keysByVersion;
 
     public OutboxPayloadCipher(
-        @Value("${app.outbox.encryption-key:}") String encryptionKey,
-        @Value("${app.outbox.key-version:1}") int keyVersion
+        @Value("${app.outbox.encryption-key:}") String primaryEncryptionKey,
+        @Value("${app.outbox.key-version:1}") int activeKeyVersion,
+        @Value("${app.outbox.legacy-keys:}") String legacyKeysCsv
     ) {
-        this.keyVersion = keyVersion;
-        if (encryptionKey == null || encryptionKey.isBlank()) {
-            this.key = null;
+        this.activeKeyVersion = activeKeyVersion;
+        Map<Integer, SecretKey> keys = new LinkedHashMap<>();
+        if (primaryEncryptionKey == null || primaryEncryptionKey.isBlank()) {
             this.enabled = false;
             log.warn("Outbox payload encryption is DISABLED (key not configured)");
         } else {
             try {
-                byte[] derived = MessageDigest.getInstance("SHA-256")
-                    .digest(encryptionKey.getBytes(StandardCharsets.UTF_8));
-                this.key = new SecretKeySpec(derived, "AES");
+                keys.put(activeKeyVersion, deriveKey(primaryEncryptionKey));
                 this.enabled = true;
-                log.info("Outbox payload encryption ENABLED (keyVersion={})", keyVersion);
+                log.info("Outbox payload encryption ENABLED (activeKeyVersion={})", activeKeyVersion);
             } catch (Exception ex) {
                 throw new IllegalStateException("Cannot initialize outbox cipher", ex);
             }
         }
+        // Legacy keys are optional and only useful when migrating. They map to
+        // historical key versions so old payloads remain readable.
+        if (enabled && legacyKeysCsv != null && !legacyKeysCsv.isBlank()) {
+            for (String entry : legacyKeysCsv.split(",")) {
+                String trimmed = entry.trim();
+                if (trimmed.isEmpty()) {
+                    continue;
+                }
+                int colon = trimmed.lastIndexOf(':');
+                if (colon <= 0 || colon == trimmed.length() - 1) {
+                    log.warn("Skipping malformed legacy-keys entry (expected 'version:secret'): {}",
+                        trimmed);
+                    continue;
+                }
+                int version;
+                try {
+                    version = Integer.parseInt(trimmed.substring(0, colon).trim());
+                } catch (NumberFormatException nfe) {
+                    log.warn("Skipping legacy-keys entry with non-numeric version: {}", trimmed);
+                    continue;
+                }
+                if (keys.containsKey(version)) {
+                    continue;
+                }
+                try {
+                    keys.put(version, deriveKey(trimmed.substring(colon + 1).trim()));
+                    log.info("Registered legacy outbox cipher key version={}", version);
+                } catch (Exception ex) {
+                    log.warn("Skipping legacy-keys entry (cannot derive): {}", trimmed);
+                }
+            }
+        }
+        this.keysByVersion = Collections.unmodifiableMap(keys);
+    }
+
+    private static SecretKey deriveKey(String secret) throws Exception {
+        byte[] derived = MessageDigest.getInstance("SHA-256")
+            .digest(secret.getBytes(StandardCharsets.UTF_8));
+        return new SecretKeySpec(derived, "AES");
     }
 
     public boolean isEnabled() {
@@ -57,12 +115,21 @@ public class OutboxPayloadCipher {
     }
 
     public int keyVersion() {
-        return keyVersion;
+        return activeKeyVersion;
     }
 
     public String encrypt(String plaintext) {
-        if (plaintext == null) return null;
-        if (!enabled) return plaintext;
+        if (plaintext == null) {
+            return null;
+        }
+        if (!enabled) {
+            return plaintext;
+        }
+        SecretKey key = keysByVersion.get(activeKeyVersion);
+        if (key == null) {
+            throw new IllegalStateException(
+                "Active outbox cipher key version " + activeKeyVersion + " is not registered");
+        }
         try {
             byte[] nonce = new byte[NONCE_BYTES];
             random.nextBytes(nonce);
@@ -72,17 +139,47 @@ public class OutboxPayloadCipher {
             byte[] out = new byte[nonce.length + ct.length];
             System.arraycopy(nonce, 0, out, 0, nonce.length);
             System.arraycopy(ct, 0, out, nonce.length, ct.length);
-            return "enc:" + Base64.getEncoder().encodeToString(out);
+            return PREFIX + "v" + activeKeyVersion + VERSION_DELIMITER
+                + Base64.getEncoder().encodeToString(out);
         } catch (Exception ex) {
             throw new IllegalStateException("Outbox payload encryption failed", ex);
         }
     }
 
     public String decrypt(String stored) {
-        if (stored == null) return null;
-        if (!enabled || !stored.startsWith("enc:")) return stored;
+        if (stored == null) {
+            return null;
+        }
+        if (!enabled || !stored.startsWith(PREFIX)) {
+            // M5: legacy plaintext/disabled payloads return as-is. Surface a
+            // debug log so operators can audit "encryption disabled" rows
+            // without confusing this with a decryption error.
+            if (enabled && !stored.startsWith(PREFIX)) {
+                log.debug("Outbox decrypt: payload has no 'enc:' prefix, returning as plaintext");
+            }
+            return stored;
+        }
+        String body = stored.substring(PREFIX.length());
+        Integer version = null;
+        int colon = body.indexOf(VERSION_DELIMITER);
+        if (colon > 0) {
+            String head = body.substring(0, colon);
+            if (head.startsWith("v")) {
+                try {
+                    version = Integer.parseInt(head.substring(1));
+                    body = body.substring(colon + 1);
+                } catch (NumberFormatException nfe) {
+                    // Not a versioned payload — treat as legacy "enc:base64".
+                    version = null;
+                }
+            }
+        }
+        SecretKey key = pickKey(version);
         try {
-            byte[] all = Base64.getDecoder().decode(stored.substring(4));
+            byte[] all = Base64.getDecoder().decode(body);
+            if (all.length <= NONCE_BYTES) {
+                throw new IllegalStateException("Ciphertext too short");
+            }
             byte[] nonce = new byte[NONCE_BYTES];
             byte[] ct = new byte[all.length - NONCE_BYTES];
             System.arraycopy(all, 0, nonce, 0, NONCE_BYTES);
@@ -93,5 +190,27 @@ public class OutboxPayloadCipher {
         } catch (Exception ex) {
             throw new IllegalStateException("Outbox payload decryption failed", ex);
         }
+    }
+
+    private SecretKey pickKey(Integer payloadVersion) {
+        // M5: warn loudly when we cannot find the matching key so a forgotten
+        // migration does not silently fall back to the active key.
+        if (payloadVersion == null) {
+            SecretKey legacy = keysByVersion.get(1);
+            if (legacy == null) {
+                log.warn("Outbox payload uses legacy unversioned format but no v1 key is configured; "
+                    + "falling back to active key version {}", activeKeyVersion);
+                return keysByVersion.get(activeKeyVersion);
+            }
+            log.debug("Outbox decrypt: legacy v1 payload, using v1 key");
+            return legacy;
+        }
+        SecretKey key = keysByVersion.get(payloadVersion);
+        if (key == null) {
+            log.warn("Outbox payload uses keyVersion={} which is not configured; "
+                + "falling back to active key version {}", payloadVersion, activeKeyVersion);
+            return keysByVersion.get(activeKeyVersion);
+        }
+        return key;
     }
 }

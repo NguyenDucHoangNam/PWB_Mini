@@ -14,6 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.config.core.GrantedAuthorityDefaults;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -32,6 +33,7 @@ public class SecurityConfig {
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
   private final IpRateLimitFilter ipRateLimitFilter;
   private final AuthenticationEntryPoint authenticationEntryPoint;
+  private final AccessDeniedHandler accessDeniedHandler;
   private final AudioRateLimitFilter audioRateLimitFilter;
 
   public SecurityConfig(
@@ -39,11 +41,13 @@ public class SecurityConfig {
       JwtAuthenticationFilter jwtAuthenticationFilter,
       IpRateLimitFilter ipRateLimitFilter,
       AuthenticationEntryPoint authenticationEntryPoint,
+      AccessDeniedHandler accessDeniedHandler,
       AudioRateLimitFilter audioRateLimitFilter) {
     this.allowedOrigins = parseAllowedOrigins(allowedOriginsCsv);
     this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     this.ipRateLimitFilter = ipRateLimitFilter;
     this.authenticationEntryPoint = authenticationEntryPoint;
+    this.accessDeniedHandler = accessDeniedHandler;
     this.audioRateLimitFilter = audioRateLimitFilter;
   }
 
@@ -89,7 +93,9 @@ public class SecurityConfig {
         .addFilterBefore(ipRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
         .addFilterBefore(audioRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-        .exceptionHandling(eh -> eh.authenticationEntryPoint(authenticationEntryPoint));
+        .exceptionHandling(eh -> eh
+            .authenticationEntryPoint(authenticationEntryPoint)
+            .accessDeniedHandler(accessDeniedHandler));
     return http.build();
   }
 

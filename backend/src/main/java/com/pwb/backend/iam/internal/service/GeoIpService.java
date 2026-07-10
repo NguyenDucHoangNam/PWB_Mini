@@ -29,7 +29,7 @@ public class GeoIpService {
   @PostConstruct
   public void init() {
     try {
-      String dbPath = iamProperties.getGeoip().getDatabasePath();
+      String dbPath = iamProperties.getGeoIp().getDatabasePath();
       Resource resource = resourceLoader.getResource(dbPath);
       if (!resource.exists()) {
         log.warn("GeoIP database file not found at: {}. Running in fallback mode.", dbPath);

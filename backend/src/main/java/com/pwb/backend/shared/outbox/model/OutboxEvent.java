@@ -44,8 +44,13 @@ public abstract class OutboxEvent extends com.pwb.backend.shared.model.BaseEntit
   @Column(name = "dead_lettered_at")
   private Instant deadLetteredAt;
 
+  // M8: removed the `private Instant availableAt = Instant.now();` field
+  // initializer so the @PrePersist hook below is the single source of
+  // truth. Default-initialising the field made it look like the column
+  // always had a value, which silently masked factories that forgot to set
+  // it themselves.
   @Column(name = "available_at", nullable = false)
-  private Instant availableAt = Instant.now();
+  private Instant availableAt;
 
   @Column(name = "processed_at")
   private Instant processedAt;

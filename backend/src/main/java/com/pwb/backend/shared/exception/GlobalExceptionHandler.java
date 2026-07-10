@@ -2,7 +2,11 @@ package com.pwb.backend.shared.exception;
 
 import com.pwb.backend.shared.response.ApiResponse;
 import com.pwb.backend.shared.response.ErrorDetail;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.MessageSource;
+import org.springframework.context.NoSuchMessageException;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -10,11 +14,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-import org.springframework.context.MessageSource;
-import org.springframework.context.i18n.LocaleContextHolder;
-import org.springframework.context.NoSuchMessageException;
 import jakarta.validation.ConstraintViolationException;
-import lombok.RequiredArgsConstructor;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,14 +26,18 @@ public class GlobalExceptionHandler {
     private final MessageSource messageSource;
 
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ApiResponse<Object>> handleBusinessException(BusinessException ex) {
-        log.warn("Business exception occurred: code={}, message={}", ex.getErrorCode().getCode(), ex.getMessage());
-        ErrorCode errorCode = ex.getErrorCode();
+    public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex) {
+        ErrorCodeLike errorCode = ex.getErrorCode();
+        // H6: log the optional data server-side for diagnostics but never
+        // serialise it into the API response. Public responses use only the
+        // structured ErrorDetail (code, field, message).
+        log.warn("Business exception occurred: code={}, message={}, data={}",
+            errorCode.getCode(), ex.getMessage(), ex.getData());
 
         String translatedMessage;
         try {
             translatedMessage = messageSource.getMessage(
-                errorCode.name(),
+                errorCode.getCode(),
                 ex.getArgs(),
                 LocaleContextHolder.getLocale()
             );
@@ -42,7 +46,10 @@ public class GlobalExceptionHandler {
         }
 
         ErrorDetail detail = new ErrorDetail(errorCode.getCode(), null, translatedMessage);
-        ApiResponse<Object> response = ApiResponse.error(translatedMessage, ex.getData(), List.of(detail));
+        // L6: explicit no-arg (no data) overload to avoid ambiguity with the
+        // (message, data, errors) overload. We deliberately drop ex.getData()
+        // here — see H6.
+        ApiResponse<Void> response = ApiResponse.error(translatedMessage, List.of(detail));
         return new ResponseEntity<>(response, errorCode.getHttpStatus());
     }
 

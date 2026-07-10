@@ -1,4 +1,4 @@
-package com.pwb.backend.iam.internal.config;
+package com.pwb.backend.shared.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.shared.exception.ErrorCode;
@@ -8,36 +8,33 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.List;
 
 @Component
-public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
+public class RestAccessDeniedHandler implements AccessDeniedHandler {
 
     private final ObjectMapper objectMapper;
 
-    public RestAuthenticationEntryPoint(ObjectMapper objectMapper) {
+    public RestAccessDeniedHandler(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
 
     @Override
-    public void commence(HttpServletRequest request, HttpServletResponse response,
-                         AuthenticationException authException) throws IOException {
-        String reason = (String) request.getAttribute("jwt.auth.error");
-        String message = "revoked".equals(reason)
-                ? "Authentication failed: token has been revoked"
-                : "Authentication failed: invalid or revoked token";
+    public void handle(HttpServletRequest request, HttpServletResponse response,
+                       AccessDeniedException accessDeniedException) throws IOException {
+        String message = "Access denied: insufficient privileges";
 
-        response.setStatus(HttpStatus.UNAUTHORIZED.value());
+        response.setStatus(HttpStatus.FORBIDDEN.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
 
         ErrorDetail detail = new ErrorDetail(
-                ErrorCode.UNAUTHORIZED.getCode(),
+                ErrorCode.FORBIDDEN.getCode(),
                 null,
                 message);
         ApiResponse<Void> body = ApiResponse.error(message, List.of(detail));

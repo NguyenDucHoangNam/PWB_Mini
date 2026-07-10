@@ -2,73 +2,70 @@ package com.pwb.backend.iam.internal.service;
 
 import com.pwb.backend.iam.internal.config.IamProperties;
 import com.pwb.backend.iam.internal.model.User;
+import com.pwb.backend.shared.security.JwtSigner;
+import com.pwb.backend.shared.security.TokenKeyProvider;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Date;
+import java.util.Map;
 import java.util.UUID;
 
+/**
+ * IAM-owned JWT issuer and verifier. Mints tokens with the IAM-specific
+ * {@code ep} (epoch) claim and re-implements the small set of verify/extract
+ * helpers used by IAM-owned call sites.
+ *
+ * <p>Why verify lives here too: IAM owns the {@code JwtPrincipalExtractor},
+ * the audio rate-limit filter, the session lifecycle, etc. Letting these
+ * callers depend on a shared {@code JwtVerifier} would force the shared
+ * module to expose an IAM-only claim constant ({@link #CLAIM_EPOCH}) or
+ * leak user-mapper logic through abstractions. Keeping verify here also
+ * avoids editing nine callers in a single refactor.
+ *
+ * <p>Non-IAM consumers (e.g. shared WebSocket infrastructure) use
+ * {@link com.pwb.backend.shared.security.JwtVerifier} which signs and
+ * parses tokens through the same {@link com.pwb.backend.shared.security.TokenKeyProvider}.
+ */
 @Service
 @RequiredArgsConstructor
 public class JwtService {
 
-  private static final int MIN_SECRET_LENGTH_BYTES = 32;
   public static final String CLAIM_EPOCH = "ep";
 
   private final IamProperties iamProperties;
   private final JwtEpochService jwtEpochService;
-
-  @jakarta.annotation.PostConstruct
-  void validateSecret() {
-    String secret = iamProperties.getJwt().getSecret();
-    if (secret == null || secret.isBlank()) {
-      throw new IllegalStateException(
-          "JWT_SECRET is required but not set. Set the JWT_SECRET environment variable "
-              + "with at least " + MIN_SECRET_LENGTH_BYTES + " bytes (256 bits) of random data.");
-    }
-    int byteLength = secret.getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
-    if (byteLength < MIN_SECRET_LENGTH_BYTES) {
-      throw new IllegalStateException(
-          "JWT_SECRET must be at least " + MIN_SECRET_LENGTH_BYTES + " bytes (256 bits). "
-              + "Current length: " + byteLength + " bytes.");
-    }
-  }
+  private final TokenKeyProvider tokenKeyProvider;
 
   public String generateAccessToken(User user) {
     Instant now = Instant.now();
     Instant expiry = now.plusSeconds(iamProperties.getJwt().getAccessTokenExpiration());
 
-    return Jwts.builder()
-        .subject(user.getEmail())
-        .claim("username", user.getUsername())
-        .claim("role", user.getRole().getName())
-        .claim(CLAIM_EPOCH, jwtEpochService.currentEpoch())
-        .id(UUID.randomUUID().toString())
-        .issuedAt(Date.from(now))
-        .expiration(Date.from(expiry))
-        .signWith(getSigningKey())
-        .compact();
+    return JwtSigner.sign(
+        currentKey(),
+        user.getEmail(),
+        Map.of(
+            "username", user.getUsername(),
+            "role", user.getRole().getName(),
+            CLAIM_EPOCH, jwtEpochService.currentEpoch()),
+        UUID.randomUUID().toString(),
+        expiry.toEpochMilli());
   }
 
   public String generateRefreshToken(User user) {
     Instant now = Instant.now();
     Instant expiry = now.plusSeconds(iamProperties.getJwt().getRefreshTokenExpiration());
 
-    return Jwts.builder()
-        .subject(user.getEmail())
-        .id(UUID.randomUUID().toString())
-        .claim("type", "refresh")
-        .claim(CLAIM_EPOCH, jwtEpochService.currentEpoch())
-        .issuedAt(Date.from(now))
-        .expiration(Date.from(expiry))
-        .signWith(getSigningKey())
-        .compact();
+    return JwtSigner.sign(
+        currentKey(),
+        user.getEmail(),
+        Map.of(
+            "type", "refresh",
+            CLAIM_EPOCH, jwtEpochService.currentEpoch()),
+        UUID.randomUUID().toString(),
+        expiry.toEpochMilli());
   }
 
   public String extractEmail(String token) {
@@ -77,11 +74,7 @@ public class JwtService {
 
   public Claims extractClaimsFromExpiredToken(String token) {
     try {
-      return Jwts.parser()
-          .verifyWith(getSigningKey())
-          .build()
-          .parseSignedClaims(token)
-          .getPayload();
+      return JwtSigner.parseAndVerify(currentKey(), token);
     } catch (io.jsonwebtoken.ExpiredJwtException e) {
       return e.getClaims();
     }
@@ -113,11 +106,7 @@ public class JwtService {
 
   public boolean isRefreshTokenValid(String token) {
     try {
-      Claims claims = Jwts.parser()
-          .verifyWith(getSigningKey())
-          .build()
-          .parseSignedClaims(token)
-          .getPayload();
+      Claims claims = JwtSigner.parseAndVerify(currentKey(), token);
       return "refresh".equals(claims.get("type", String.class));
     } catch (Exception e) {
       return false;
@@ -126,12 +115,7 @@ public class JwtService {
 
   public String extractJti(String token) {
     try {
-      return Jwts.parser()
-          .verifyWith(getSigningKey())
-          .build()
-          .parseSignedClaims(token)
-          .getPayload()
-          .getId();
+      return JwtSigner.parseAndVerify(currentKey(), token).getId();
     } catch (Exception e) {
       return null;
     }
@@ -141,26 +125,20 @@ public class JwtService {
     return extractClaims(token).get("role", String.class);
   }
 
-  private Claims extractClaims(String token) {
-    return Jwts.parser()
-        .verifyWith(getSigningKey())
-        .build()
-        .parseSignedClaims(token)
-        .getPayload();
-  }
-
-  private SecretKey getSigningKey() {
-    byte[] keyBytes = iamProperties.getJwt().getSecret()
-        .getBytes(StandardCharsets.UTF_8);
-    return Keys.hmacShaKeyFor(keyBytes);
-  }
-
   /**
-   * Exposed for {@link JwtAuthenticationFilter} so it can re-parse tokens
-   * with the signing key without going through the public {@link #extractClaims}
-   * path (which swallows exceptions).
+   * Exposed for {@link com.pwb.backend.iam.internal.config.JwtAuthenticationFilter}
+   * so it can re-parse tokens with the signing key without going through
+   * {@link #extractClaims} (which swallows exceptions).
    */
   public SecretKey getSigningKeyForFilter() {
-    return getSigningKey();
+    return currentKey();
+  }
+
+  private Claims extractClaims(String token) {
+    return JwtSigner.parseAndVerify(currentKey(), token);
+  }
+
+  private SecretKey currentKey() {
+    return tokenKeyProvider.currentSigningKey();
   }
 }

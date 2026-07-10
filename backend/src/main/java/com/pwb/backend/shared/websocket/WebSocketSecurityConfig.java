@@ -1,4 +1,4 @@
-package com.pwb.backend.iam.internal.config;
+package com.pwb.backend.shared.websocket;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
