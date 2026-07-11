@@ -2,6 +2,8 @@ package com.pwb.backend.modules.iam.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.maxmind.geoip2.DatabaseReader;
+import com.pwb.backend.common.config.GeoIpConfig;
 import com.pwb.backend.common.exception.BusinessException;
 import com.pwb.backend.common.kafka.constant.KafkaTopics;
 import com.pwb.backend.common.outbox.event.OutboxCreatedEvent;
@@ -78,6 +80,7 @@ public class AuthServiceImpl implements AuthService {
     private final SessionService sessionService;
     private final GoogleOAuthService googleOAuthService;
     private final StringRedisTemplate stringRedisTemplate;
+    private final DatabaseReader geoIpDatabaseReader;
 
     @Override
     @Transactional
@@ -315,10 +318,20 @@ public class AuthServiceImpl implements AuthService {
                 user.getId(),
                 user.getEmail(),
                 user.getRole().getCode());
+        String accessSignature;
+        try {
+            accessSignature = jwtSigner.extractSignature(accessToken);
+        } catch (JwtException | IllegalArgumentException ex) {
+            accessSignature = null;
+        }
         Instant accessExpiresAt = Instant.now().plusSeconds(jwtProperties.getAccessTokenTtlSeconds());
         long refreshMaxAge = result.cookieUpdateRequired()
                 ? jwtProperties.getRefreshTokenTtlSeconds()
                 : 0L;
+
+        if (result.cookieUpdateRequired() && result.newRefreshToken() != null) {
+            sessionService.updateSessionSignature(result.newRefreshToken(), accessSignature);
+        }
 
         return new RefreshResponse(
                 accessToken,
@@ -401,6 +414,25 @@ public class AuthServiceImpl implements AuthService {
         String accessToken = jwtSigner.generateAccessToken(user.getId(), user.getEmail(), roleCode);
         Instant expiresAt = Instant.now().plusSeconds(jwtProperties.getAccessTokenTtlSeconds());
 
+        String accessSignature;
+        try {
+            accessSignature = jwtSigner.extractSignature(accessToken);
+        } catch (JwtException | IllegalArgumentException ex) {
+            accessSignature = null;
+        }
+        String resolvedLocation = GeoIpConfig.resolve(geoIpDatabaseReader, ip).display();
+        try {
+            sessionService.writeSessionMetadata(
+                    user.getId(),
+                    issued.refreshToken(),
+                    accessSignature,
+                    ip,
+                    userAgent,
+                    resolvedLocation);
+        } catch (Exception ex) {
+            log.warn("WRITE_SESSION_METADATA_FAILED userId={} error={}", user.getId(), ex.getMessage());
+        }
+
         UserInfo info = userMapper.toUserInfo(user);
 
         eventPublisher.publishEvent(new LoginSuccessEvent(
@@ -430,6 +462,18 @@ public class AuthServiceImpl implements AuthService {
         userRepository.save(user);
         log.debug("Created OAuth user with auto-username={}", username);
         return user;
+    }
+
+    @Override
+    public String blacklistAccessTokenSignature(String accessToken) {
+        if (accessToken == null || accessToken.isBlank()) {
+            return null;
+        }
+        try {
+            return jwtSigner.extractSignature(accessToken);
+        } catch (JwtException | IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     private void clearOtpKeysForEmail(String email) {

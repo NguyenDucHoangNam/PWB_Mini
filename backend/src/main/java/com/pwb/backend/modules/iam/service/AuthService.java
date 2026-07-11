@@ -26,4 +26,6 @@ public interface AuthService {
     RefreshResponse refresh(String expiredAccessToken, String oldRefreshToken, String ip, String userAgent);
 
     void logout(String accessToken, String refreshToken, String ip);
+
+    String blacklistAccessTokenSignature(String accessToken);
 }

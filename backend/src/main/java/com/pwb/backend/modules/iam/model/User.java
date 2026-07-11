@@ -71,6 +71,12 @@ public class User {
     @Column(name = "avatar_url", length = 512)
     private String avatarUrl;
 
+    @Column(name = "phone", length = 20)
+    private String phone;
+
+    @Column(name = "deletion_requested_at")
+    private Instant deletionRequestedAt;
+
     @Column(name = "email_verified_at")
     private Instant emailVerifiedAt;
 
@@ -154,6 +160,16 @@ public class User {
     public void activateFromOtp() {
         this.status = UserStatus.ACTIVE;
         this.emailVerifiedAt = Instant.now();
+    }
+
+    public void markDeletionRequested(Instant when) {
+        this.status = UserStatus.PENDING_DELETION;
+        this.deletionRequestedAt = when;
+    }
+
+    public void cancelDeletion() {
+        this.status = UserStatus.ACTIVE;
+        this.deletionRequestedAt = null;
     }
 
     public void markLoggedIn(Instant when) {

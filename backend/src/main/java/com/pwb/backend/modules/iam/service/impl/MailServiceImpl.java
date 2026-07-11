@@ -24,8 +24,10 @@ public class MailServiceImpl implements MailService {
 
     private static final String OTP_TEMPLATE = "email/otp-registration";
     private static final String PASSWORD_RESET_TEMPLATE = "email/password-reset";
+    private static final String ACCOUNT_DELETION_TEMPLATE = "email/account-deletion-requested";
     private static final String SUBJECT_PREFIX = "[PWB Mini] ";
     private static final String PASSWORD_RESET_SUBJECT = SUBJECT_PREFIX + "Hướng dẫn khôi phục mật khẩu tài khoản";
+    private static final String ACCOUNT_DELETION_SUBJECT = SUBJECT_PREFIX + "Xác nhận yêu cầu xóa tài khoản của bạn";
 
     private final JavaMailSender mailSender;
     private final TemplateEngine emailTemplateEngine;
@@ -44,6 +46,12 @@ public class MailServiceImpl implements MailService {
 
     @Value("${app.iam.password-reset.support-email:security@pwb-mini.dev}")
     private String supportEmail;
+
+    @Value("${app.iam.account-deletion.support-email:support@pwb-mini.dev}")
+    private String accountDeletionSupportEmail;
+
+    @Value("${app.iam.account-deletion.login-url:https://pwbmini.com/login}")
+    private String accountDeletionLoginUrl;
 
     public MailServiceImpl(JavaMailSender mailSender,
                            @Qualifier("emailTemplateEngine") TemplateEngine emailTemplateEngine) {
@@ -99,6 +107,39 @@ public class MailServiceImpl implements MailService {
         } catch (MailException | MessagingException ex) {
             log.warn("Failed to send password reset email to {}: {}", toEmail, ex.getMessage());
             throw new IllegalStateException("Failed to send password reset email", ex);
+        }
+    }
+
+    @Override
+    public void sendAccountDeletionRequestedEmail(String toEmail,
+                                                  String fullName,
+                                                  java.time.Instant deletionRequestedAt,
+                                                  java.time.Instant scheduledPermanentDeletionAt,
+                                                  int graceDays,
+                                                  String loginUrl) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
+            helper.setFrom(securityFrom);
+            helper.setTo(toEmail);
+            helper.setSubject(ACCOUNT_DELETION_SUBJECT);
+
+            Context ctx = new Context(Locale.ENGLISH);
+            ctx.setVariable("appName", "PWB Mini");
+            ctx.setVariable("fullName", fullName == null ? "" : fullName);
+            ctx.setVariable("deletionRequestedAt", deletionRequestedAt);
+            ctx.setVariable("scheduledPermanentDeletionAt", scheduledPermanentDeletionAt);
+            ctx.setVariable("graceDays", graceDays);
+            ctx.setVariable("loginUrl", loginUrl == null || loginUrl.isBlank() ? accountDeletionLoginUrl : loginUrl);
+            ctx.setVariable("supportEmail", accountDeletionSupportEmail);
+            String html = emailTemplateEngine.process(ACCOUNT_DELETION_TEMPLATE, ctx);
+
+            helper.setText(html, true);
+            mailSender.send(message);
+            log.info("Account deletion requested email sent to {}", toEmail);
+        } catch (MailException | MessagingException ex) {
+            log.warn("Failed to send account deletion email to {}: {}", toEmail, ex.getMessage());
+            throw new IllegalStateException("Failed to send account deletion email", ex);
         }
     }
 }

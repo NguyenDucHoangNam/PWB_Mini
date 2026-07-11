@@ -2,6 +2,7 @@ package com.pwb.backend.modules.iam.worker;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.common.kafka.constant.KafkaTopics;
+import com.pwb.backend.common.outbox.event.AccountDeletionRequestedEvent;
 import com.pwb.backend.common.outbox.event.UserRegisteredEvent;
 import com.pwb.backend.modules.iam.service.MailService;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,23 @@ public class MailWorker {
     @KafkaListener(topics = KafkaTopics.IAM_OTP_RESENT, groupId = "${app.kafka.mail-worker.group-id:mail-worker}")
     public void onOtpResent(String payload) {
         handle(payload, KafkaTopics.IAM_OTP_RESENT);
+    }
+
+    @KafkaListener(topics = KafkaTopics.IAM_ACCOUNT_DELETION, groupId = "${app.kafka.mail-worker.group-id:mail-worker}")
+    public void onAccountDeletion(String payload) {
+        try {
+            AccountDeletionRequestedEvent event = objectMapper.readValue(payload, AccountDeletionRequestedEvent.class);
+            mailService.sendAccountDeletionRequestedEmail(
+                    event.email(),
+                    event.fullName(),
+                    event.deletionRequestedAt(),
+                    event.scheduledPermanentDeletionAt(),
+                    event.graceDays(),
+                    null);
+        } catch (Exception ex) {
+            log.warn("Failed to process account deletion event from {}: {}", KafkaTopics.IAM_ACCOUNT_DELETION, ex.getMessage());
+            throw new IllegalStateException("Account deletion mail event processing failed", ex);
+        }
     }
 
     private void handle(String payload, String topic) {

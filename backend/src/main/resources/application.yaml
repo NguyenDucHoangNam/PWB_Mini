@@ -50,6 +50,38 @@ app:
         method: POST
         permits-per-window: 5
         window: 1m
+      - path-pattern: /api/v1/auth/me
+        method: GET
+        permits-per-window: 60
+        window: 1m
+      - path-pattern: /api/v1/auth/profile
+        method: PUT
+        permits-per-window: 10
+        window: 1m
+      - path-pattern: /api/v1/auth/profile/avatar
+        method: POST
+        permits-per-window: 10
+        window: 1m
+      - path-pattern: /api/v1/auth/account
+        method: DELETE
+        permits-per-window: 2
+        window: 1m
+      - path-pattern: /api/v1/auth/account/cancel-deletion
+        method: POST
+        permits-per-window: 5
+        window: 1m
+      - path-pattern: /api/v1/auth/sessions
+        method: GET
+        permits-per-window: 30
+        window: 1m
+      - path-pattern: /api/v1/auth/sessions
+        method: DELETE
+        permits-per-window: 5
+        window: 1m
+      - path-pattern: /api/v1/auth/sessions/*
+        method: DELETE
+        permits-per-window: 10
+        window: 1m
   security:
     jwt:
       access-token-ttl-seconds: 900
@@ -89,10 +121,37 @@ app:
       token-ttl-seconds: 600
       support-email: security@pwb-mini.dev
       frontend-base-url: https://pwbmini.com
+    account-deletion:
+      grace-days: 30
+      support-email: support@pwb-mini.dev
+      login-url: https://pwbmini.com/login
+    avatar:
+      max-size-bytes: 2097152
+  storage:
+    enabled: true
+    provider: s3
+    endpoint: ${S3_ENDPOINT:}
+    region: ${S3_REGION:us-east-1}
+    access-key: ${S3_ACCESS_KEY:}
+    secret-key: ${S3_SECRET_KEY:}
+    path-style-access-enabled: true
+    public-base-url: ${S3_PUBLIC_BASE_URL:}
+    presigned-url-expiry-seconds: 900
+    buckets:
+      avatar: ${S3_BUCKET_AVATAR:pwb-avatars}
+      demo-audio: ${S3_BUCKET_DEMO_AUDIO:pwb-demo-audio}
+      cover-image: ${S3_BUCKET_COVER_IMAGE:pwb-covers}
+      generic: ${S3_BUCKET_GENERIC:pwb-misc}
 
 mail:
   from: PWB Mini <noreply@pwb-mini.dev>
   security-from: PWB Mini Security <security@pwb-mini.dev>
+
+spring.servlet.multipart:
+  enabled: true
+  max-file-size: 2MB
+  max-request-size: 4MB
+  file-size-threshold: 1MB
 
 springdoc:
   api-docs:

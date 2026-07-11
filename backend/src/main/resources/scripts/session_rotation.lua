@@ -35,4 +35,12 @@ redis.call('ZADD', KEYS[4], now, newToken)
 redis.call('EXPIRE', KEYS[4], zsetTtl)
 redis.call('DEL', KEYS[1])
 
+local metaOld = 'session:metadata:' .. oldToken
+local metaNew = 'session:metadata:' .. newToken
+local exists = redis.call('EXISTS', metaOld)
+if exists == 1 then
+    redis.call('RENAME', metaOld, metaNew)
+    redis.call('EXPIRE', metaNew, activeTtl)
+end
+
 return {userId, 'ROTATED'}

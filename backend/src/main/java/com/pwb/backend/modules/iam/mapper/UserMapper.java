@@ -3,6 +3,7 @@ package com.pwb.backend.modules.iam.mapper;
 import com.pwb.backend.modules.iam.dto.request.RegisterRequest;
 import com.pwb.backend.modules.iam.dto.response.RegisterResponse;
 import com.pwb.backend.modules.iam.dto.response.UserInfo;
+import com.pwb.backend.modules.iam.dto.response.UserProfileResponse;
 import com.pwb.backend.modules.iam.model.User;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -18,6 +19,8 @@ public interface UserMapper {
     @Mapping(target = "oauthProvider", ignore = true)
     @Mapping(target = "oauthId", ignore = true)
     @Mapping(target = "avatarUrl", ignore = true)
+    @Mapping(target = "phone", ignore = true)
+    @Mapping(target = "deletionRequestedAt", ignore = true)
     @Mapping(target = "emailVerifiedAt", ignore = true)
     @Mapping(target = "lastLoginAt", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
@@ -41,5 +44,21 @@ public interface UserMapper {
                 roleCode,
                 user.getStatus() == null ? null : user.getStatus().name(),
                 user.getAvatarUrl());
+    }
+
+    default UserProfileResponse toUserProfileResponse(User user) {
+        if (user == null) {
+            return null;
+        }
+        String roleCode = user.getRole() != null ? user.getRole().getCode() : "USER";
+        return new UserProfileResponse(
+                user.getId(),
+                user.getEmail(),
+                user.getFullName(),
+                roleCode,
+                user.getStatus() == null ? null : user.getStatus().name(),
+                user.getAvatarUrl(),
+                user.getPhone(),
+                user.getDeletionRequestedAt());
     }
 }

@@ -37,7 +37,20 @@ public enum IamErrorCode implements ErrorCode {
     INVALID_OLD_PASSWORD("INVALID_OLD_PASSWORD", "Current password is incorrect", HttpStatus.BAD_REQUEST),
     PASSWORD_REUSE_BLOCKED("PASSWORD_REUSE_BLOCKED", "New password must be different from current password", HttpStatus.BAD_REQUEST),
     OAUTH_ONLY_ACCOUNT("OAUTH_ONLY_ACCOUNT", "Account registered via Google does not support password change", HttpStatus.BAD_REQUEST),
-    PASSWORD_CONFIRMATION_MISMATCH("PASSWORD_CONFIRMATION_MISMATCH", "Password confirmation does not match", HttpStatus.BAD_REQUEST);
+    PASSWORD_CONFIRMATION_MISMATCH("PASSWORD_CONFIRMATION_MISMATCH", "Password confirmation does not match", HttpStatus.BAD_REQUEST),
+
+    INVALID_PASSWORD_REAUTH("INVALID_PASSWORD_REAUTH", "Re-authentication password is incorrect", HttpStatus.BAD_REQUEST),
+    REAUTH_REQUIRED("REAUTH_REQUIRED", "Re-authentication is required: provide password (LOCAL) or idToken (Google)", HttpStatus.BAD_REQUEST),
+    DELETION_ALREADY_REQUESTED("DELETION_ALREADY_REQUESTED", "Account deletion has already been requested", HttpStatus.BAD_REQUEST),
+    USER_NOT_PENDING_DELETION("USER_NOT_PENDING_DELETION", "Account is not in PENDING_DELETION state", HttpStatus.BAD_REQUEST),
+    AVATAR_UPLOAD_FAILED("AVATAR_UPLOAD_FAILED", "Failed to upload avatar", HttpStatus.INTERNAL_SERVER_ERROR),
+    AVATAR_FILE_TOO_LARGE("AVATAR_FILE_TOO_LARGE", "Avatar file exceeds the maximum allowed size", HttpStatus.PAYLOAD_TOO_LARGE),
+    AVATAR_INVALID_TYPE("AVATAR_INVALID_TYPE", "Avatar file must be an image (jpeg, jpg, png)", HttpStatus.BAD_REQUEST),
+    AVATAR_FILE_EMPTY("AVATAR_FILE_EMPTY", "Avatar file is empty", HttpStatus.BAD_REQUEST),
+    PROFILE_UPDATE_FORBIDDEN("PROFILE_UPDATE_FORBIDDEN", "One or more fields cannot be modified through this endpoint", HttpStatus.FORBIDDEN),
+
+    SESSION_NOT_FOUND("SESSION_NOT_FOUND", "Session not found or does not belong to current user", HttpStatus.NOT_FOUND),
+    CANNOT_REVOKE_CURRENT_SESSION("CANNOT_REVOKE_CURRENT_SESSION", "Cannot revoke the current session; use logout instead", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String defaultMessage;

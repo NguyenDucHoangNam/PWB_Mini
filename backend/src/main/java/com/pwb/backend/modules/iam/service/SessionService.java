@@ -2,7 +2,9 @@ package com.pwb.backend.modules.iam.service;
 
 import com.pwb.backend.modules.iam.session.IssuedSession;
 import com.pwb.backend.modules.iam.session.RotationResult;
+import com.pwb.backend.modules.iam.session.SessionMetadata;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface SessionService {
@@ -21,7 +23,19 @@ public interface SessionService {
 
     int revokeAllSessionsCompletely(UUID userId);
 
+    void purgeUserSessionData(UUID userId);
+
     void revokeSingleSession(String refreshToken);
+
+    void revokeSingleSessionForCurrent(UUID userId, String refreshToken, String currentRefreshToken, String currentAccessSignature);
+
+    int revokeAllOtherSessions(UUID userId, String currentRefreshToken);
+
+    List<SessionMetadata> listActiveSessions(UUID userId, String currentRefreshToken);
+
+    void writeSessionMetadata(UUID userId, String refreshToken, String accessSignature, String ip, String device, String location);
+
+    void updateSessionSignature(String refreshToken, String accessSignature);
 
     void blacklistAccessToken(String jwtSignature, long ttlSeconds);
 

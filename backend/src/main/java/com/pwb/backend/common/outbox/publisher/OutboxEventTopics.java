@@ -14,6 +14,10 @@ public class OutboxEventTopics {
         if (OutboxEventTypes.PASSWORD_RESET.equals(eventType)) {
             return KafkaTopics.IAM_PASSWORD_RESET;
         }
+        if (OutboxEventTypes.ACCOUNT_DELETION_REQUESTED.equals(eventType)
+                || OutboxEventTypes.ACCOUNT_DELETION_CANCELLED.equals(eventType)) {
+            return KafkaTopics.IAM_ACCOUNT_DELETION;
+        }
         throw new IllegalArgumentException("Unknown outbox eventType: " + eventType);
     }
 }
