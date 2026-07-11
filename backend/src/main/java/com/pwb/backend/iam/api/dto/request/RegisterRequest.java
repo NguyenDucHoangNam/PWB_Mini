@@ -1,6 +1,6 @@
 package com.pwb.backend.iam.api.dto.request;
 
-import com.pwb.backend.iam.internal.validation.PasswordMatch;
+import com.pwb.backend.iam.internal.application.validation.PasswordMatch;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;

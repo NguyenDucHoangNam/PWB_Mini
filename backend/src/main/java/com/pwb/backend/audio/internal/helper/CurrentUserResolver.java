@@ -1,7 +1,7 @@
 package com.pwb.backend.audio.internal.helper;
 
-import com.pwb.backend.iam.internal.helper.JwtPrincipalExtractor;
-import com.pwb.backend.iam.internal.repository.UserRepository;
+import com.pwb.backend.iam.internal.application.helper.JwtPrincipalExtractor;
+import com.pwb.backend.iam.internal.infrastructure.repository.UserRepository;
 import com.pwb.backend.shared.exception.BusinessException;
 import com.pwb.backend.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 public class CurrentUserResolver {
 
   private final UserRepository userRepository;
-  private final com.pwb.backend.iam.internal.service.JwtService jwtService;
+  private final com.pwb.backend.iam.internal.application.service.JwtService jwtService;
 
   public String requireUserId(String authHeader) {
     String email = JwtPrincipalExtractor.requireEmailFromHeader(authHeader, jwtService);

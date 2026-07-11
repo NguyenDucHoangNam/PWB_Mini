@@ -1,7 +1,7 @@
 package com.pwb.backend.audio.internal.config;
 
-import com.pwb.backend.iam.internal.helper.JwtPrincipalExtractor;
-import com.pwb.backend.iam.internal.service.JwtService;
+import com.pwb.backend.iam.internal.application.helper.JwtPrincipalExtractor;
+import com.pwb.backend.iam.internal.application.service.JwtService;
 import com.pwb.backend.shared.security.ClientIpResolver;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
