@@ -1,0 +1,148 @@
+package com.pwb.backend.modules.iam.service.impl;
+
+import com.pwb.backend.common.exception.BusinessException;
+import com.pwb.backend.modules.iam.exception.IamErrorCode;
+import com.pwb.backend.modules.iam.service.OtpService;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StreamUtils;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+@Service
+@Slf4j
+public class OtpServiceImpl implements OtpService {
+
+    private static final String KEY_OTP = "otp:";
+    private static final String KEY_ATTEMPT = "otp:attempt:";
+    private static final String KEY_LOCK = "otp:lock:";
+    private static final String KEY_LAST_SENT = "otp:last-sent:";
+
+    private static final long DEFAULT_OTP_TTL_SECONDS = 300L;        // 5 minutes
+    private static final long DEFAULT_ATTEMPT_TTL_SECONDS = 600L;     // 10 minutes
+    private static final long DEFAULT_LOCKOUT_TTL_SECONDS = 900L;    // 15 minutes
+    private static final long DEFAULT_RESEND_COOLDOWN_SECONDS = 60L; // 60 seconds
+    private static final int DEFAULT_MAX_ATTEMPTS = 5;
+
+    private final StringRedisTemplate redisTemplate;
+
+    @Value("${app.iam.otp.ttl-seconds:300}")
+    private long otpTtlSeconds;
+    @Value("${app.iam.otp.attempt-ttl-seconds:600}")
+    private long attemptTtlSeconds;
+    @Value("${app.iam.otp.lockout-ttl-seconds:900}")
+    private long lockoutTtlSeconds;
+    @Value("${app.iam.otp.resend-cooldown-seconds:60}")
+    private long resendCooldownSeconds;
+    @Value("${app.iam.otp.max-attempts:5}")
+    private int maxAttempts;
+
+    private final DefaultRedisScript<List> verifyScript;
+
+    public OtpServiceImpl(StringRedisTemplate redisTemplate) {
+        this.redisTemplate = redisTemplate;
+        this.verifyScript = new DefaultRedisScript<>();
+        this.verifyScript.setResultType(List.class);
+        try {
+            String body = StreamUtils.copyToString(
+                    new ClassPathResource("scripts/otp_verify.lua").getInputStream(),
+                    StandardCharsets.UTF_8);
+            this.verifyScript.setScriptText(body);
+        } catch (IOException ex) {
+            throw new IllegalStateException("Failed to load otp_verify.lua", ex);
+        }
+    }
+
+    @PostConstruct
+    void warmUp() {
+    }
+
+    @Override
+    public void issueOtp(String email, String otp) {
+        String key = KEY_OTP + email.toLowerCase();
+        redisTemplate.opsForValue().set(key, otp, otpTtlSeconds, TimeUnit.SECONDS);
+        redisTemplate.delete(KEY_ATTEMPT + email.toLowerCase());
+        redisTemplate.delete(KEY_LOCK + email.toLowerCase());
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public boolean verifyOtp(String email, String otp) {
+        String normalized = email.toLowerCase();
+        String otpKey = KEY_OTP + normalized;
+        String attemptKey = KEY_ATTEMPT + normalized;
+        String lockKey = KEY_LOCK + normalized;
+
+        List<Object> result;
+        try {
+            result = redisTemplate.execute(
+                    verifyScript,
+                    List.of(otpKey, attemptKey, lockKey),
+                    otp,
+                    Long.toString(lockoutTtlSeconds),
+                    Long.toString(attemptTtlSeconds),
+                    Integer.toString(maxAttempts));
+        } catch (Exception ex) {
+            log.warn("OTP verification Redis failure for {}: {}", normalized, ex.getMessage());
+            throw new BusinessException(IamErrorCode.INVALID_OTP);
+        }
+
+        if (result == null || result.size() < 2) {
+            throw new BusinessException(IamErrorCode.INVALID_OTP);
+        }
+
+        long status = ((Number) result.get(0)).longValue();
+        String code = String.valueOf(result.get(1));
+
+        if (status == 1L) {
+            return true;
+        }
+        if ("LOCKED".equals(code)) {
+            throw new BusinessException(
+                    IamErrorCode.OTP_LOCKED,
+                    "Too many invalid OTP attempts. Retry after " + lockoutTtlSeconds + " seconds",
+                    null,
+                    Map.of("retryAfterSeconds", lockoutTtlSeconds));
+        }
+        throw new BusinessException(IamErrorCode.INVALID_OTP);
+    }
+
+    @Override
+    public boolean isLocked(String email) {
+        Boolean exists = redisTemplate.hasKey(KEY_LOCK + email.toLowerCase());
+        return Boolean.TRUE.equals(exists);
+    }
+
+    @Override
+    public boolean canResend(String email) {
+        Boolean exists = redisTemplate.hasKey(KEY_LAST_SENT + email.toLowerCase());
+        return !Boolean.TRUE.equals(exists);
+    }
+
+    @Override
+    public void markResent(String email) {
+        redisTemplate.opsForValue()
+                .set(KEY_LAST_SENT + email.toLowerCase(), "1", resendCooldownSeconds, TimeUnit.SECONDS);
+    }
+
+    @Override
+    public long lockoutRetryAfterSeconds() {
+        return lockoutTtlSeconds;
+    }
+
+    // expose defaults for tests if needed later
+    long defaultOtpTtlSeconds() { return DEFAULT_OTP_TTL_SECONDS; }
+    long defaultAttemptTtlSeconds() { return DEFAULT_ATTEMPT_TTL_SECONDS; }
+    long defaultLockoutTtlSeconds() { return DEFAULT_LOCKOUT_TTL_SECONDS; }
+    long defaultResendCooldownSeconds() { return DEFAULT_RESEND_COOLDOWN_SECONDS; }
+    int defaultMaxAttempts() { return DEFAULT_MAX_ATTEMPTS; }
+}

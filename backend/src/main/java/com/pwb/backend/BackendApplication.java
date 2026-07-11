@@ -14,7 +14,7 @@ import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBr
 @EnableJpaAuditing
 @EnableAsync
 @EnableScheduling
-@EnableSchedulerLock
+@EnableSchedulerLock(defaultLockAtMostFor = "PT5M")
 @EnableWebSocketMessageBroker
 public class BackendApplication {
 
