@@ -4,10 +4,6 @@ import com.pwb.backend.shared.exception.ErrorCodeLike;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
-/**
- * Audio-module business error codes. H11: extracted from the shared
- * {@code ErrorCode} enum so the audio module owns its own vocabulary.
- */
 @Getter
 public enum AudioErrorCode implements ErrorCodeLike {
 

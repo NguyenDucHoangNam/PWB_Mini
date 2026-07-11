@@ -124,10 +124,6 @@ public class AudioProperties {
     private String masterKey = "";
     @Min(1)
     private int keyVersion = 1;
-    @NotBlank
-    @Pattern(regexp = ".{32,}",
-        message = "outboxEncryptionKey must be at least 32 chars")
-    private String outboxEncryptionKey = "";
   }
 
   @Getter

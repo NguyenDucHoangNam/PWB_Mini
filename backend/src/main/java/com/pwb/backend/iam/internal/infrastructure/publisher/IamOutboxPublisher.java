@@ -1,69 +1,43 @@
 package com.pwb.backend.iam.internal.infrastructure.publisher;
 
-import com.pwb.backend.iam.api.event.OutboxCreatedEvent;
-import com.pwb.backend.iam.internal.interfaces.config.IamProperties;
 import com.pwb.backend.iam.internal.domain.model.IamOutboxEvent;
 import com.pwb.backend.iam.internal.infrastructure.repository.IamOutboxEventRepository;
-import com.pwb.backend.shared.messaging.outbox.processor.OutboxEventProcessor;
 import com.pwb.backend.shared.messaging.outbox.cipher.OutboxPayloadCipher;
+import com.pwb.backend.shared.messaging.outbox.processor.AbstractOutboxPublisher;
 import com.pwb.backend.shared.messaging.outbox.service.OutboxService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.PlatformTransactionManager;
 
-@Slf4j
+import java.util.Map;
+
 @Component
-@RequiredArgsConstructor
-public class IamOutboxPublisher implements OutboxEventProcessor<IamOutboxEvent> {
+public class IamOutboxPublisher extends AbstractOutboxPublisher<IamOutboxEvent> {
 
-  private static final String NOTIFICATION_TOPIC = "notification-events";
-  private static final String IAM_ACCOUNT_EVENTS_TOPIC = "iam-account-events";
+  public static final String NOTIFICATION_TOPIC = "notification-events";
+  public static final String IAM_ACCOUNT_EVENTS_TOPIC = "iam-account-events";
+  public static final String EVENT_TYPE_ACCOUNT_ANONYMIZED = "ACCOUNT_ANONYMIZED";
 
-  private final IamOutboxEventRepository repository;
-  private final KafkaTemplate<String, String> kafkaTemplate;
-  private final OutboxPayloadCipher cipher;
-  private final OutboxService outboxService;
-  private final IamProperties properties;
+  private final Map<String, String> topicByEventType;
 
-  @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-  public void handleOutboxCreated(OutboxCreatedEvent event) {
-    repository.findById(event.outboxEventId()).ifPresent(this::processOutboxEvent);
+  public IamOutboxPublisher(IamOutboxEventRepository repository,
+                            KafkaTemplate<String, String> kafkaTemplate,
+                            OutboxPayloadCipher cipher,
+                            OutboxService outboxService,
+                            PlatformTransactionManager transactionManager) {
+    super(repository, kafkaTemplate, cipher, outboxService, transactionManager);
+    this.topicByEventType = Map.of(
+        EVENT_TYPE_ACCOUNT_ANONYMIZED, IAM_ACCOUNT_EVENTS_TOPIC
+    );
   }
 
   @Override
-  @Transactional
-  public void processOutboxEvent(IamOutboxEvent outboxEvent) {
-    String topic = resolveTopic(outboxEvent.getEventType());
-    String payload = cipher.decrypt(outboxEvent.getPayload());
-    try {
-      kafkaTemplate.send(topic, outboxEvent.getId(), payload)
-          .whenComplete((result, ex) -> handlePublishResult(outboxEvent, ex));
-    } catch (Exception ex) {
-      handlePublishFailure(outboxEvent, ex);
-    }
+  protected String defaultTopic() {
+    return NOTIFICATION_TOPIC;
   }
 
-  private void handlePublishResult(IamOutboxEvent outboxEvent, Throwable ex) {
-    if (ex == null) {
-      outboxService.markAsProcessed(outboxEvent);
-      repository.save(outboxEvent);
-      log.info("IAM outbox event {} published successfully", outboxEvent.getId());
-      return;
-    }
-    handlePublishFailure(outboxEvent, ex);
-  }
-
-  @Transactional
-  public void handlePublishFailure(IamOutboxEvent outboxEvent, Throwable ex) {
-    outboxService.markAsFailed(outboxEvent, ex);
-    repository.save(outboxEvent);
-  }
-
-  private String resolveTopic(String eventType) {
-    return "ACCOUNT_ANONYMIZED".equals(eventType) ? IAM_ACCOUNT_EVENTS_TOPIC : NOTIFICATION_TOPIC;
+  @Override
+  protected String resolveTopic(IamOutboxEvent event) {
+    return topicByEventType.getOrDefault(event.getEventType(), defaultTopic());
   }
 }

@@ -614,4 +614,67 @@ Gauge.builder("outbox.events.dead_lettered", () -> countDeadLettered).register(r
 
 ---
 
-**Báo cáo kết thúc.** Review chỉ mang tính chất đánh giá, không thay đổi mã nguồn. Vui lòng tham khảo khi lên kế hoạch refactor.
+## 8. Báo cáo xử lý sau review
+
+**Ngày xử lý:** 2026-07-11  
+**Trạng thái:** Đã sửa các bug runtime và các điểm lệch logic chính trong scope IAM/Audio outbox.
+
+### 8.1 Các finding đã xử lý
+
+| Finding | Trạng thái | Cách xử lý |
+|---|---|---|
+| F-01 / F-02 / F-03 | ✅ Đã xử lý | Thêm trạng thái `IN_FLIGHT`, cột `processing_started_at`, claim gate qua `OutboxService.tryClaim`, publisher xử lý theo event id trong transaction riêng, scheduler recover stale claim. |
+| F-05 | ✅ Đã xử lý | Thêm `shared.messaging.outbox.processor.AbstractOutboxPublisher`; `IamOutboxPublisher` và `AudioOutboxPublisher` chỉ override topic resolution. |
+| F-06 / F-13 | ✅ Đã xử lý | `IamOutboxScheduler` và `AudioOutboxScheduler` extend `AbstractOutboxScheduler`; base scheduler không còn dead code. |
+| F-07 | ✅ Đã xử lý | `AbstractOutboxEventFactory.createEvent` set `payloadKeyVersion` từ `OutboxPayloadCipher.keyVersion()` khi encryption enabled. |
+| F-08 / F-24 | ✅ Đã xử lý | `idempotencyKey` bắt buộc, không còn fallback UUID trong shared factory. |
+| F-09 | ✅ Đã xử lý | Thêm `findByIdempotencyKey` vào shared repository và IAM repository; factory dùng `createOrReuse`. |
+| F-10 | ✅ Đã xử lý | Query scheduler đổi sang `ORDER BY created_at ASC, id ASC`. |
+| F-11 | ✅ Đã xử lý | `OutboxService.markAsFailed` sanitize control characters và truncate `lastError`. |
+| F-12 | ✅ Đã xử lý | `AudioOutboxEventFactory` có guard transaction giống IAM. |
+| F-14 | ✅ Đã xử lý | IAM publisher dùng topic map; Audio dùng default topic qua abstract publisher. |
+| F-19 | ✅ Đã xử lý | Thêm migration `V9__add_processing_started_at_and_outbox_indexes.sql` với composite pending index và stale in-flight index. |
+| F-21 | ✅ Đã xử lý | Bỏ hook `onEventCreated` rỗng. |
+| F-22 | ✅ Đã xử lý | Rename constant thành `AGGREGATE_TYPE_AUDIO_DISTRIBUTION`; `AudioCdcConfig` dùng constant. |
+| F-23 | ✅ Đã xử lý | Xóa cấu hình trùng `app.audio.aes.outbox-encryption-key`; outbox dùng nguồn `app.outbox.encryption-key`. |
+
+### 8.2 Finding observation / không cần sửa code trực tiếp
+
+| Finding | Trạng thái | Ghi chú |
+|---|---|---|
+| F-04 | ✅ Không còn action | Review xác nhận giá trị filter CDC và aggregate type đang khớp. |
+| F-15 | ✅ Không còn action | Cipher đã có fallback plaintext/migration behavior; không thay đổi logic. |
+| F-16 | ⚠️ Deferred | Đổi key derivation sang PBKDF2/Argon2 là security hardening lớn, cần migration/secrets plan riêng. |
+| F-18 | ⚠️ Deferred | Metrics/Micrometer chưa thêm trong lần sửa này; nên làm task observability riêng. |
+| F-20 | ✅ Đã giảm rủi ro | Scheduler nay dùng claim gate + stale recovery, không chỉ dựa vào comment. |
+| F-25 | ⚠️ Deferred | Mở rộng CDC cho nhiều aggregate type audio tương lai cần requirement cụ thể. |
+
+### 8.3 File chính đã thay đổi
+
+- `backend/src/main/java/com/pwb/backend/shared/messaging/outbox/processor/AbstractOutboxPublisher.java`
+- `backend/src/main/java/com/pwb/backend/shared/messaging/outbox/scheduler/AbstractOutboxScheduler.java`
+- `backend/src/main/java/com/pwb/backend/shared/messaging/outbox/model/OutboxEvent.java`
+- `backend/src/main/java/com/pwb/backend/shared/messaging/outbox/enums/OutboxEventStatus.java`
+- `backend/src/main/java/com/pwb/backend/shared/messaging/outbox/repository/OutboxEventRepository.java`
+- `backend/src/main/java/com/pwb/backend/shared/messaging/outbox/service/OutboxService.java`
+- `backend/src/main/java/com/pwb/backend/shared/messaging/outbox/factory/AbstractOutboxEventFactory.java`
+- `backend/src/main/java/com/pwb/backend/iam/internal/infrastructure/publisher/IamOutboxPublisher.java`
+- `backend/src/main/java/com/pwb/backend/iam/internal/infrastructure/job/IamOutboxScheduler.java`
+- `backend/src/main/java/com/pwb/backend/iam/internal/infrastructure/repository/IamOutboxEventRepository.java`
+- `backend/src/main/java/com/pwb/backend/iam/internal/application/factory/OutboxEventFactory.java`
+- `backend/src/main/java/com/pwb/backend/audio/internal/infrastructure/publisher/AudioOutboxPublisher.java`
+- `backend/src/main/java/com/pwb/backend/audio/internal/infrastructure/job/AudioOutboxScheduler.java`
+- `backend/src/main/java/com/pwb/backend/audio/internal/application/factory/AudioOutboxEventFactory.java`
+- `backend/src/main/java/com/pwb/backend/audio/internal/interfaces/config/AudioCdcConfig.java`
+- `backend/src/main/java/com/pwb/backend/audio/internal/interfaces/config/AudioProperties.java`
+- `backend/src/main/resources/config/application-audio.yaml`
+- `backend/src/main/resources/db/migration/iam/V9__add_processing_started_at_and_outbox_indexes.sql`
+
+### 8.4 Validation
+
+- Đã kiểm tra thủ công các file đã sửa và loại bỏ import/comment thừa.
+- Chưa chạy được `mvn compile`/test vì môi trường hiện tại không có `mvn` trong PATH.
+
+---
+
+**Báo cáo cập nhật sau xử lý.**

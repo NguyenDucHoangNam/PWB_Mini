@@ -106,7 +106,6 @@ app:
     aes:
       master-key: ${AUDIO_AES_MASTER_KEY:}
       key-version: 1
-      outbox-encryption-key: ${AUDIO_OUTBOX_ENCRYPTION_KEY:}
     webhook:
       demo-status-queue: /user/queue/demos/status
     voice-tag:

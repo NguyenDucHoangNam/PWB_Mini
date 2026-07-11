@@ -50,6 +50,9 @@ public abstract class OutboxEvent extends com.pwb.backend.shared.kernel.model.Ba
   @Column(name = "processed_at")
   private Instant processedAt;
 
+  @Column(name = "processing_started_at")
+  private Instant processingStartedAt;
+
   @Column(name = "payload_key_version")
   private Integer payloadKeyVersion;
 

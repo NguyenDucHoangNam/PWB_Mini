@@ -1,12 +1,11 @@
 package com.pwb.backend.iam.internal.application.factory;
 
-import com.pwb.backend.iam.api.event.OutboxCreatedEvent;
 import com.pwb.backend.iam.internal.domain.model.IamOutboxEvent;
 import com.pwb.backend.iam.internal.domain.model.User;
 import com.pwb.backend.iam.internal.infrastructure.repository.IamOutboxEventRepository;
 import com.pwb.backend.shared.messaging.outbox.factory.AbstractOutboxEventFactory;
-import com.pwb.backend.shared.messaging.outbox.model.OutboxEvent;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +32,7 @@ public class OutboxEventFactory extends AbstractOutboxEventFactory {
   public OutboxEventFactory(
       IamOutboxEventRepository repository,
       com.fasterxml.jackson.databind.ObjectMapper objectMapper,
-      org.springframework.context.ApplicationEventPublisher eventPublisher,
+      ApplicationEventPublisher eventPublisher,
       com.pwb.backend.shared.messaging.outbox.cipher.OutboxPayloadCipher cipher
   ) {
     super(objectMapper, cipher, eventPublisher);
@@ -45,15 +44,6 @@ public class OutboxEventFactory extends AbstractOutboxEventFactory {
     return AGGREGATE_TYPE_IAM;
   }
 
-  @Override
-  protected void onEventCreated(OutboxEvent event) {
-  }
-
-  @Transactional(propagation = Propagation.MANDATORY)
-  public IamOutboxEvent createAndPublish(String eventType, String aggregateId, Map<String, Object> payload) {
-    return createAndPublish(eventType, aggregateId, payload, java.util.UUID.randomUUID().toString());
-  }
-
   @Transactional(propagation = Propagation.MANDATORY)
   public IamOutboxEvent createAndPublish(String eventType, String aggregateId,
                                           Map<String, Object> payload, String idempotencyKey) {
@@ -63,6 +53,15 @@ public class OutboxEventFactory extends AbstractOutboxEventFactory {
     repository.save(saved);
     publishOutboxCreatedEvent(saved.getId());
     return saved;
+  }
+
+  @Transactional(propagation = Propagation.MANDATORY)
+  public IamOutboxEvent createOrReuse(String eventType, String aggregateId,
+                                      Map<String, Object> payload, String idempotencyKey) {
+    requireActiveTransaction();
+    String validatedKey = requireIdempotencyKey(idempotencyKey);
+    return repository.findByIdempotencyKey(validatedKey)
+        .orElseGet(() -> createAndPublish(eventType, aggregateId, payload, validatedKey));
   }
 
   private void requireActiveTransaction() {
@@ -95,8 +94,8 @@ public class OutboxEventFactory extends AbstractOutboxEventFactory {
     payload.put("otpCode", otpCode);
     payload.put("fullName", fullName == null ? "" : fullName);
     payload.put("locale", locale);
-    return createAndPublish(EVENT_TYPE_REGISTRATION_OTP, user.getId(), payload,
-        businessKey("REGISTRATION_OTP", user.getId(), email));
+    return createOrReuse(EVENT_TYPE_REGISTRATION_OTP, user.getId(), payload,
+        businessKey("REGISTRATION_OTP", user.getId(), email, otpCode));
   }
 
   public IamOutboxEvent welcomeEmail(User user, String locale) {
@@ -106,7 +105,7 @@ public class OutboxEventFactory extends AbstractOutboxEventFactory {
     payload.put("fullName", user.getFullName() == null ? "" : user.getFullName());
     payload.put("userId", user.getId());
     payload.put("locale", locale);
-    return createAndPublish(EVENT_TYPE_WELCOME_EMAIL, user.getId(), payload,
+    return createOrReuse(EVENT_TYPE_WELCOME_EMAIL, user.getId(), payload,
         businessKey("WELCOME_EMAIL", user.getId(), user.getEmail()));
   }
 
@@ -117,7 +116,7 @@ public class OutboxEventFactory extends AbstractOutboxEventFactory {
     payload.put("fullName", user.getFullName() == null ? "" : user.getFullName());
     payload.put("token", token);
     payload.put("locale", locale);
-    return createAndPublish(EVENT_TYPE_PASSWORD_RESET, user.getId(), payload,
+    return createOrReuse(EVENT_TYPE_PASSWORD_RESET, user.getId(), payload,
         businessKey("PASSWORD_RESET", user.getId(), token));
   }
 
@@ -128,8 +127,8 @@ public class OutboxEventFactory extends AbstractOutboxEventFactory {
     payload.put("fullName", user.getFullName() == null ? "" : user.getFullName());
     payload.put("deletionDate", deletionDate);
     payload.put("locale", locale);
-    return createAndPublish(EVENT_TYPE_ACCOUNT_DELETION_REQUESTED, user.getId(), payload,
-        businessKey("ACCOUNT_DELETION_REQUESTED", user.getId()));
+    return createOrReuse(EVENT_TYPE_ACCOUNT_DELETION_REQUESTED, user.getId(), payload,
+        businessKey("ACCOUNT_DELETION_REQUESTED", user.getId(), deletionDate));
   }
 
   public IamOutboxEvent accountAnonymized(String userId, String anonymizedEmail, String locale) {
@@ -139,7 +138,7 @@ public class OutboxEventFactory extends AbstractOutboxEventFactory {
     payload.put("email", anonymizedEmail);
     payload.put("status", "ANONYMIZED");
     payload.put("locale", locale);
-    return createAndPublish(EVENT_TYPE_ACCOUNT_ANONYMIZED, userId, payload,
+    return createOrReuse(EVENT_TYPE_ACCOUNT_ANONYMIZED, userId, payload,
         businessKey("ACCOUNT_ANONYMIZED", userId, anonymizedEmail));
   }
 
@@ -151,7 +150,7 @@ public class OutboxEventFactory extends AbstractOutboxEventFactory {
     payload.put("userId", user.getId());
     payload.put("status", user.getStatus() == null ? "ACTIVE" : user.getStatus().name());
     payload.put("locale", locale);
-    return createAndPublish(EVENT_TYPE_ACCOUNT_DELETION_CANCELLED, user.getId(), payload,
+    return createOrReuse(EVENT_TYPE_ACCOUNT_DELETION_CANCELLED, user.getId(), payload,
         businessKey("ACCOUNT_DELETION_CANCELLED", user.getId(), user.getEmail()));
   }
 
@@ -166,7 +165,7 @@ public class OutboxEventFactory extends AbstractOutboxEventFactory {
     payload.put("location", location == null ? "" : location);
     payload.put("device", device == null ? "" : device);
     payload.put("timestamp", java.time.Instant.now().toString());
-    return createAndPublish(EVENT_TYPE_ANOMALOUS_LOGIN, userId, payload,
-        businessKey("ANOMALOUS_LOGIN", userId, ip));
+    return createOrReuse(EVENT_TYPE_ANOMALOUS_LOGIN, userId, payload,
+        businessKey("ANOMALOUS_LOGIN", userId, ip, java.time.Instant.now().toString()));
   }
 }

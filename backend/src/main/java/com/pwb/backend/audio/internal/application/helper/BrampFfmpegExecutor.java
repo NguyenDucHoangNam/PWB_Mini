@@ -21,7 +21,7 @@ import java.util.List;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class BrampFfmpegExecutor implements com.pwb.backend.audio.internal.application.helper.FfmpegExecutor {
+public class BrampFfmpegExecutor implements FfmpegExecutor {
 
   private final AudioProperties audioProperties;
 

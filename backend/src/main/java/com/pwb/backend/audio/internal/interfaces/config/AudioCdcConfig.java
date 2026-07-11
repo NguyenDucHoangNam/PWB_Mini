@@ -1,5 +1,6 @@
 package com.pwb.backend.audio.internal.interfaces.config;
 
+import com.pwb.backend.audio.internal.application.factory.AudioOutboxEventFactory;
 import com.pwb.backend.audio.internal.domain.model.AudioOutboxEvent;
 import com.pwb.backend.audio.internal.infrastructure.publisher.AudioOutboxPublisher;
 import com.pwb.backend.audio.internal.infrastructure.repository.AudioOutboxEventRepository;
@@ -18,7 +19,7 @@ public class AudioCdcConfig {
   public CdcOutboxEventHandler<AudioOutboxEvent> audioCdcOutboxEventHandler(
       AudioOutboxEventRepository repository,
       AudioOutboxPublisher processor) {
-    return new CdcOutboxEventHandler<>(repository, processor, "AUDIO_DISTRIBUTION");
+    return new CdcOutboxEventHandler<>(repository, processor, AudioOutboxEventFactory.AGGREGATE_TYPE_AUDIO_DISTRIBUTION);
   }
 
   @Bean
