@@ -1,7 +1,7 @@
 ---
 description: Frontend (TypeScript/JavaScript) - Không được thêm comment vào source code
 globs: frontend/**/*.{ts,tsx,js,jsx}
-alwaysApply: false
+alwaysApply: true
 ---
 
 # No Code Comments - Frontend (TypeScript/JavaScript)
@@ -9,6 +9,7 @@ alwaysApply: false
 **NEVER** thêm inline comments (`// ...`) hoặc block comments (`/* ... */`) vào TypeScript/JavaScript source code.
 
 Code phải tự document thông qua:
+
 - Tên component, function, variable rõ ràng
 - Cấu trúc code có chủ đích
 - Tách function/component nhỏ khi logic phức tạp
@@ -19,6 +20,7 @@ Code phải tự document thông qua:
 ## Allowed Exceptions
 
 ### 1. JSDoc cho Public APIs
+
 Chỉ được phép khi documentation cung cấp thông tin **KHÔNG THỂ** suy ra từ signature/type:
 
 ```typescript
@@ -34,57 +36,65 @@ Chỉ được phép khi documentation cung cấp thông tin **KHÔNG THỂ** su
 JSDoc phải **ngắn gọn** và **có giá trị thật** ngoài type signature.
 
 ### 2. `'use client'` / `'use server'` Directives
+
 Đây là **directives**, không phải comments. Chúng **BẮT BUỘC** trong Next.js và **ĐƯỢC PHÉP**:
 
 ```typescript
-'use client';
+"use client";
 
-import { useState } from 'react';
+import { useState } from "react";
 ```
 
 ### 3. License Headers
+
 Cấu hình qua build tool (eslint-plugin-header) thay vì viết tay trong từng file.
 
 ---
 
 ## Forbidden Comment Patterns
 
-| Pattern | Lý do |
-|---------|-------|
-| `// This function does X...` | Chỉ lặp lại function name |
-| `/* Render the list */` | Đặt tên component rõ ràng |
-| `// TODO:` hoặc `// FIXME:` | Dùng issue tracker, không để trong code |
-| `// HACK:` hoặc `// XXX:` | Refactor đúng cách |
-| `// ==== SECTION ====` | Tổ chức bằng folder/component |
-| `// <copyright>` headers | Cấu hình trong build tool |
-| `/* eslint-disable */` | Fix the warning đúng cách, không tắt rule |
-| `// @ts-ignore` | Fix type error thay vì ignore |
-| Comment giải thích JSX | Tách thành component có tên rõ ràng |
+| Pattern                      | Lý do                                     |
+| ---------------------------- | ----------------------------------------- |
+| `// This function does X...` | Chỉ lặp lại function name                 |
+| `/* Render the list */`      | Đặt tên component rõ ràng                 |
+| `// TODO:` hoặc `// FIXME:`  | Dùng issue tracker, không để trong code   |
+| `// HACK:` hoặc `// XXX:`    | Refactor đúng cách                        |
+| `// ==== SECTION ====`       | Tổ chức bằng folder/component             |
+| `// <copyright>` headers     | Cấu hình trong build tool                 |
+| `/* eslint-disable */`       | Fix the warning đúng cách, không tắt rule |
+| `// @ts-ignore`              | Fix type error thay vì ignore             |
+| Comment giải thích JSX       | Tách thành component có tên rõ ràng       |
 
 ---
 
 ## Ví dụ: Self-Documenting Code
 
 ### ❌ Bad (có comment)
+
 ```typescript
 // Calculate total price with tax
 export const calculate = (price: number, taxRate: number) => {
   // Apply tax to price
   const taxed = price * taxRate;
   // Add tax to original price
-  return price + taxed;  // Return total
+  return price + taxed; // Return total
 };
 ```
 
 ### ✅ Good (tự document)
+
 ```typescript
-export const calculateTotalWithTax = (price: number, taxRate: number): number => {
+export const calculateTotalWithTax = (
+  price: number,
+  taxRate: number,
+): number => {
   const taxAmount = price * taxRate;
   return price + taxAmount;
 };
 ```
 
 ### ❌ Bad (giải thích JSX)
+
 ```tsx
 return (
   <div>
@@ -99,6 +109,7 @@ return (
 ```
 
 ### ✅ Good (tách component)
+
 ```tsx
 return (
   <div>
@@ -110,12 +121,14 @@ return (
 ```
 
 ### ❌ Bad (magic number)
+
 ```typescript
 // 86400000 = milliseconds in a day
 const dayInMs = 86400000;
 ```
 
 ### ✅ Good (named constant)
+
 ```typescript
 const MILLIS_PER_DAY = 86_400_000;
 ```
@@ -125,6 +138,7 @@ const MILLIS_PER_DAY = 86_400_000;
 ## Enforcement Checklist
 
 Trước khi viết/submit code, kiểm tra:
+
 - [ ] Không có `//` hoặc `/* */` trong source files
 - [ ] Không có `TODO`, `FIXME`, `HACK`, `XXX` markers
 - [ ] Không có section divider comments
@@ -136,4 +150,5 @@ Trước khi viết/submit code, kiểm tra:
 ---
 
 ## Reference
+
 Quy tắc này enforce policy đã được document trong `AGENTS.md` § Language > Comments.
