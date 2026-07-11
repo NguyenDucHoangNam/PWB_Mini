@@ -7,7 +7,7 @@ import com.pwb.backend.audio.internal.model.AudioProcessingJob;
 import com.pwb.backend.audio.internal.model.Demo;
 import com.pwb.backend.audio.internal.repository.AudioProcessingJobRepository;
 import com.pwb.backend.audio.internal.repository.DemoRepository;
-import com.pwb.backend.shared.service.StorageService;
+import com.pwb.backend.shared.storage.StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;

@@ -8,7 +8,7 @@ import com.pwb.backend.audio.internal.api.PresignedUrlResponse;
 import com.pwb.backend.audio.internal.helper.CurrentUserResolver;
 import com.pwb.backend.audio.internal.service.DemoQueryService;
 import com.pwb.backend.audio.internal.service.DemoUploadService;
-import com.pwb.backend.shared.response.ApiResponse;
+import com.pwb.backend.shared.web.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

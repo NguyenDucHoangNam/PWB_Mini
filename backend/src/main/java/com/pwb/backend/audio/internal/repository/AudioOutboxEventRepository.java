@@ -1,7 +1,7 @@
 package com.pwb.backend.audio.internal.repository;
 
 import com.pwb.backend.audio.internal.model.AudioOutboxEvent;
-import com.pwb.backend.shared.outbox.repository.OutboxEventRepository;
+import com.pwb.backend.shared.messaging.outbox.repository.OutboxEventRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;

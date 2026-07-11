@@ -1,7 +1,7 @@
 package com.pwb.backend.audio.internal.model;
 
 import com.pwb.backend.audio.internal.enums.DemoStatus;
-import com.pwb.backend.shared.model.BaseEntity;
+import com.pwb.backend.shared.kernel.model.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

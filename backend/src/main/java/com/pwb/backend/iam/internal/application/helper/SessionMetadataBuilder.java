@@ -4,7 +4,7 @@ import com.pwb.backend.iam.internal.interfaces.config.IamProperties;
 import com.pwb.backend.iam.internal.domain.model.User;
 import com.pwb.backend.iam.internal.application.service.GeoIpService;
 import com.pwb.backend.iam.internal.application.service.JwtService;
-import com.pwb.backend.shared.security.ClientIpResolver;
+import com.pwb.backend.shared.web.security.ClientIpResolver;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;

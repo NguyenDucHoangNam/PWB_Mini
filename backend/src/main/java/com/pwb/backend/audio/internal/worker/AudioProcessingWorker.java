@@ -16,7 +16,7 @@ import com.pwb.backend.audio.internal.repository.AudioProcessingJobRepository;
 import com.pwb.backend.audio.internal.repository.DemoRepository;
 import com.pwb.backend.shared.exception.BusinessException;
 import com.pwb.backend.shared.exception.ErrorCode;
-import com.pwb.backend.shared.service.StorageService;
+import com.pwb.backend.shared.storage.StorageService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -18,8 +18,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import com.pwb.backend.shared.security.CsrfSupport;
-import com.pwb.backend.shared.security.IpRateLimitFilter;
+import com.pwb.backend.shared.web.filter.CsrfSupport;
+import com.pwb.backend.shared.web.filter.IpRateLimitFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;

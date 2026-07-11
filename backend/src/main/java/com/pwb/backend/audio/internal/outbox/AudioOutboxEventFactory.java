@@ -2,7 +2,7 @@ package com.pwb.backend.audio.internal.outbox;
 
 import com.pwb.backend.audio.internal.model.AudioOutboxEvent;
 import com.pwb.backend.audio.internal.repository.AudioOutboxEventRepository;
-import com.pwb.backend.shared.outbox.factory.AbstractOutboxEventFactory;
+import com.pwb.backend.shared.messaging.outbox.factory.AbstractOutboxEventFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -23,7 +23,7 @@ public class AudioOutboxEventFactory extends AbstractOutboxEventFactory {
       AudioOutboxEventRepository repository,
       com.fasterxml.jackson.databind.ObjectMapper objectMapper,
       org.springframework.context.ApplicationEventPublisher eventPublisher,
-      com.pwb.backend.shared.outbox.cipher.OutboxPayloadCipher cipher
+      com.pwb.backend.shared.messaging.outbox.cipher.OutboxPayloadCipher cipher
   ) {
     super(objectMapper, cipher, eventPublisher);
     this.repository = repository;

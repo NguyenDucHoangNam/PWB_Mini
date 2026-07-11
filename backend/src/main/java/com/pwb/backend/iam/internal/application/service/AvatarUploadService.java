@@ -2,7 +2,7 @@ package com.pwb.backend.iam.internal.application.service;
 
 import com.pwb.backend.shared.exception.BusinessException;
 import com.pwb.backend.shared.exception.ErrorCode;
-import com.pwb.backend.shared.service.StorageService;
+import com.pwb.backend.shared.storage.StorageService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;

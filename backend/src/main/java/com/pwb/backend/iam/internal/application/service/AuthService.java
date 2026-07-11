@@ -1,4 +1,5 @@
 package com.pwb.backend.iam.internal.application.service;
+import com.pwb.backend.iam.internal.domain.exception.IamErrorCode;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
@@ -39,7 +40,7 @@ import com.pwb.backend.iam.internal.infrastructure.repository.RoleRepository;
 import com.pwb.backend.iam.internal.infrastructure.repository.UserRepository;
 import com.pwb.backend.shared.exception.BusinessException;
 import com.pwb.backend.shared.exception.ErrorCode;
-import com.pwb.backend.shared.security.ClientIpResolver;
+import com.pwb.backend.shared.web.security.ClientIpResolver;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -141,7 +142,7 @@ public class AuthService {
         String normalizedUsername = request.username().trim().toLowerCase();
 
         if (DisposableEmailChecker.isDisposable(normalizedEmail)) {
-            throw new BusinessException(ErrorCode.DISPOSABLE_EMAIL_NOT_ALLOWED,
+            throw new BusinessException(IamErrorCode.DISPOSABLE_EMAIL_NOT_ALLOWED,
                 "Disposable email addresses are not allowed");
         }
 
@@ -154,12 +155,12 @@ public class AuthService {
 
         if (userRepository.existsByUsernameAndStatusAndDeletedFalse(
             normalizedUsername, UserStatus.ACTIVE)) {
-            throw new BusinessException(ErrorCode.USERNAME_EXISTED,
+            throw new BusinessException(IamErrorCode.USERNAME_EXISTED,
                 "Username is already taken");
         }
         if (userRepository.existsByEmailAndStatusAndDeletedFalse(
             normalizedEmail, UserStatus.ACTIVE)) {
-            throw new BusinessException(ErrorCode.EMAIL_EXISTED,
+            throw new BusinessException(IamErrorCode.EMAIL_EXISTED,
                 "Email is already in use");
         }
 
@@ -172,7 +173,7 @@ public class AuthService {
         Instant cutoff = Instant.now().minus(otpExpirationSeconds, ChronoUnit.SECONDS);
 
         if (pendingUser.getCreatedAt().isAfter(cutoff)) {
-            throw new BusinessException(ErrorCode.REGISTRATION_IN_PROGRESS,
+            throw new BusinessException(IamErrorCode.REGISTRATION_IN_PROGRESS,
                 "Registration is already in progress for this account");
         }
 
@@ -197,7 +198,7 @@ public class AuthService {
 
             return userMapper.toRegisterResponse(newUser);
         } catch (DataIntegrityViolationException ex) {
-            throw new BusinessException(ErrorCode.REGISTRATION_IN_PROGRESS,
+            throw new BusinessException(IamErrorCode.REGISTRATION_IN_PROGRESS,
                 "Registration is already in progress for this account");
         }
     }
@@ -243,19 +244,19 @@ public class AuthService {
         long attempts = otpService.getAttempts(normalizedEmail);
         if (attempts >= iamProperties.getOtp().getMaxAttempts()) {
             otpService.deleteOtpAndAttempts(normalizedEmail);
-            throw new BusinessException(ErrorCode.OTP_ATTEMPTS_EXCEEDED,
+            throw new BusinessException(IamErrorCode.OTP_ATTEMPTS_EXCEEDED,
                 "Too many failed OTP attempts, please request a new code");
         }
 
         if (!otpService.verifyOtp(normalizedEmail, request.otpCode())) {
             otpService.incrementAttempts(normalizedEmail);
-            throw new BusinessException(ErrorCode.INVALID_OTP, "Invalid OTP code");
+            throw new BusinessException(IamErrorCode.INVALID_OTP, "Invalid OTP code");
         }
 
         otpService.deleteAllOtpKeys(normalizedEmail);
 
         User user = userRepository.findByEmailAndDeletedFalse(normalizedEmail)
-            .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED,
+            .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_EXISTED,
                 "User does not exist"));
 
         user.setStatus(UserStatus.ACTIVE);
@@ -291,16 +292,16 @@ public class AuthService {
 
     private void executeResendOtp(String normalizedEmail) {
         User user = userRepository.findByEmailAndDeletedFalse(normalizedEmail)
-            .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED,
+            .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_EXISTED,
                 "User does not exist"));
 
         if (user.getStatus() == UserStatus.ACTIVE) {
-            throw new BusinessException(ErrorCode.ACCOUNT_ALREADY_ACTIVE,
+            throw new BusinessException(IamErrorCode.ACCOUNT_ALREADY_ACTIVE,
                 "Account has already been activated");
         }
 
         if (otpService.checkCooldown(normalizedEmail)) {
-            throw new BusinessException(ErrorCode.OTP_COOLDOWN,
+            throw new BusinessException(IamErrorCode.OTP_COOLDOWN,
                 "Please wait before requesting a new OTP");
         }
 
@@ -318,7 +319,7 @@ public class AuthService {
 
         User user = userOpt.orElseGet(() -> {
             runDummyPasswordComparison(request.password());
-            throw new BusinessException(ErrorCode.BAD_CREDENTIALS,
+            throw new BusinessException(IamErrorCode.BAD_CREDENTIALS,
                 "Incorrect username or password");
         });
 
@@ -327,7 +328,7 @@ public class AuthService {
 
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             loginLockoutHelper.recordFailure(redisTemplate, user.getId());
-            throw new BusinessException(ErrorCode.BAD_CREDENTIALS, "Incorrect username or password");
+            throw new BusinessException(IamErrorCode.BAD_CREDENTIALS, "Incorrect username or password");
         }
 
         enforceMinimumLoginLatency(startNanos);
@@ -356,18 +357,18 @@ public class AuthService {
     private void rejectLoginIfAccountNotAllowed(User user) {
         UserStatus status = user.getStatus();
         if (status == UserStatus.BANNED) {
-            throw new BusinessException(ErrorCode.ACCOUNT_BANNED, "Account has been banned");
+            throw new BusinessException(IamErrorCode.ACCOUNT_BANNED, "Account has been banned");
         }
         if (status == UserStatus.FROZEN) {
-            throw new BusinessException(ErrorCode.ACCOUNT_BANNED, "Account is frozen");
+            throw new BusinessException(IamErrorCode.ACCOUNT_BANNED, "Account is frozen");
         }
         if (status == UserStatus.PENDING_DELETION) {
-            throw new BusinessException(ErrorCode.ACCOUNT_BANNED,
+            throw new BusinessException(IamErrorCode.ACCOUNT_BANNED,
                 "Account deletion has been requested");
         }
         if (status == UserStatus.PENDING_VERIFICATION) {
             throw new BusinessException(
-                ErrorCode.REGISTRATION_IN_PROGRESS,
+                IamErrorCode.REGISTRATION_IN_PROGRESS,
                 "Please verify your account",
                 new RegistrationInProgressData(
                     "/verify-otp",
@@ -409,13 +410,13 @@ public class AuthService {
         } catch (Exception e) {
             log.error("Google token verification failed");
             recordOAuthFailure(idToken);
-            throw new BusinessException(ErrorCode.INVALID_OAUTH_TOKEN,
+            throw new BusinessException(IamErrorCode.INVALID_OAUTH_TOKEN,
                 "Invalid OAuth token, please try again");
         }
 
         if (googleIdToken == null) {
             recordOAuthFailure(idToken);
-            throw new BusinessException(ErrorCode.INVALID_OAUTH_TOKEN,
+            throw new BusinessException(IamErrorCode.INVALID_OAUTH_TOKEN,
                 "Invalid OAuth token, please try again");
         }
 
@@ -437,12 +438,12 @@ public class AuthService {
     private void validateGoogleIdTokenPayload(GoogleIdToken.Payload payload) {
         String issuer = payload.getIssuer();
         if (!issuer.equals(OAUTH_ISSUER_PRIMARY) && !issuer.equals(OAUTH_ISSUER_LEGACY)) {
-            throw new BusinessException(ErrorCode.INVALID_OAUTH_TOKEN,
+            throw new BusinessException(IamErrorCode.INVALID_OAUTH_TOKEN,
                 "Invalid OAuth token issuer");
         }
 
         if (!Boolean.TRUE.equals(payload.getEmailVerified())) {
-            throw new BusinessException(ErrorCode.INVALID_OAUTH_TOKEN,
+            throw new BusinessException(IamErrorCode.INVALID_OAUTH_TOKEN,
                 "Google email is not verified");
         }
 
@@ -459,7 +460,7 @@ public class AuthService {
         String azp = (String) payload.get(OAUTH_AZP_CLAIM);
         if (azp != null && !azp.equals(configuredClientId)) {
             log.warn("Google OAuth azp mismatch");
-            throw new BusinessException(ErrorCode.INVALID_OAUTH_TOKEN,
+            throw new BusinessException(IamErrorCode.INVALID_OAUTH_TOKEN,
                 "OAuth token authorized party does not match this application");
         }
     }
@@ -468,7 +469,7 @@ public class AuthService {
         if (status == UserStatus.BANNED
             || status == UserStatus.FROZEN
             || status == UserStatus.PENDING_DELETION) {
-            throw new BusinessException(ErrorCode.ACCOUNT_BANNED, "Account is not active");
+            throw new BusinessException(IamErrorCode.ACCOUNT_BANNED, "Account is not active");
         }
     }
 
@@ -556,14 +557,14 @@ public class AuthService {
         String tokenKey = RESET_TOKEN_REDIS_PREFIX + request.token();
         String email = redisTemplate.opsForValue().getAndDelete(tokenKey);
         if (email == null) {
-            throw new BusinessException(ErrorCode.INVALID_RESET_TOKEN, "Reset token is invalid or expired");
+            throw new BusinessException(IamErrorCode.INVALID_RESET_TOKEN, "Reset token is invalid or expired");
         }
 
         User user = userRepository.findByEmailAndDeletedFalse(email)
-            .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
+            .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_EXISTED, "User does not exist"));
 
         if (user.getStatus() != UserStatus.ACTIVE) {
-            throw new BusinessException(ErrorCode.ACCOUNT_BANNED, "Account is not active");
+            throw new BusinessException(IamErrorCode.ACCOUNT_BANNED, "Account is not active");
         }
 
         transactionTemplate.executeWithoutResult(status -> {
@@ -583,23 +584,23 @@ public class AuthService {
             expiredAccessTokenHeader, jwtService);
 
         User user = userRepository.findByEmailAndDeletedFalse(email)
-            .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
+            .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_EXISTED, "User does not exist"));
 
         if (user.getStatus() != UserStatus.ACTIVE) {
-            throw new BusinessException(ErrorCode.ACCOUNT_BANNED, "Account is not active");
+            throw new BusinessException(IamErrorCode.ACCOUNT_BANNED, "Account is not active");
         }
 
         if (user.getPassword() == null) {
-            throw new BusinessException(ErrorCode.OAUTH_ONLY_ACCOUNT,
+            throw new BusinessException(IamErrorCode.OAUTH_ONLY_ACCOUNT,
                 "Cannot change password for OAuth-only account");
         }
 
         if (!passwordEncoder.matches(request.oldPassword(), user.getPassword())) {
-            throw new BusinessException(ErrorCode.INVALID_OLD_PASSWORD, "Incorrect old password");
+            throw new BusinessException(IamErrorCode.INVALID_OLD_PASSWORD, "Incorrect old password");
         }
 
         if (passwordEncoder.matches(request.newPassword(), user.getPassword())) {
-            throw new BusinessException(ErrorCode.PASSWORD_REUSE_BLOCKED,
+            throw new BusinessException(IamErrorCode.PASSWORD_REUSE_BLOCKED,
                 "New password must be different from the old password");
         }
 
@@ -619,7 +620,7 @@ public class AuthService {
     public UserProfileResponse getMyProfile(String authHeader) {
         String email = JwtPrincipalExtractor.requireEmailFromHeader(authHeader, jwtService);
         User user = userRepository.findByEmailAndDeletedFalse(email)
-            .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
+            .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_EXISTED, "User does not exist"));
         return userMapper.toUserProfileResponse(user);
     }
 
@@ -627,7 +628,7 @@ public class AuthService {
     public UserProfileResponse updateProfile(UpdateProfileRequest request, String authHeader) {
         String email = JwtPrincipalExtractor.requireEmailFromHeader(authHeader, jwtService);
         User user = userRepository.findByEmailAndDeletedFalse(email)
-            .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
+            .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_EXISTED, "User does not exist"));
 
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED,
@@ -650,7 +651,7 @@ public class AuthService {
     public AvatarUploadResponse uploadAvatar(String authHeader, MultipartFile file) {
         String email = JwtPrincipalExtractor.requireEmailFromHeader(authHeader, jwtService);
         User user = userRepository.findByEmailAndDeletedFalse(email)
-            .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
+            .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_EXISTED, "User does not exist"));
 
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED,
@@ -686,11 +687,11 @@ public class AuthService {
                                 String linkingPassword) {
         UserStatus status = user.getStatus();
         if (status == UserStatus.BANNED || status == UserStatus.FROZEN) {
-            throw new BusinessException(ErrorCode.ACCOUNT_BANNED, "Account is not active");
+            throw new BusinessException(IamErrorCode.ACCOUNT_BANNED, "Account is not active");
         }
         if (status == UserStatus.PENDING_DELETION) {
             log.warn("Refused silent OAuth link to PENDING_DELETION account");
-            throw new BusinessException(ErrorCode.ACCOUNT_BANNED,
+            throw new BusinessException(IamErrorCode.ACCOUNT_BANNED,
                 "Account deletion has been requested");
         }
 
@@ -704,13 +705,13 @@ public class AuthService {
         if (status == UserStatus.PENDING_VERIFICATION) {
             return activatePendingUserWithGoogle(user, email, sub, name, picture);
         }
-        throw new BusinessException(ErrorCode.ACCOUNT_BANNED, "Account is not active");
+        throw new BusinessException(IamErrorCode.ACCOUNT_BANNED, "Account is not active");
     }
 
     private User relinkExistingGoogleAccount(User user, String sub, String name, String picture) {
         if (!sub.equals(user.getOauthId())) {
             log.warn("OAuth sub mismatch for existing Google-linked account email={}", PiiScrubber.maskEmail(user.getEmail()));
-            throw new BusinessException(ErrorCode.INVALID_OAUTH_TOKEN,
+            throw new BusinessException(IamErrorCode.INVALID_OAUTH_TOKEN,
                 "OAuth identity does not match the account on file");
         }
         user.setFullName(name);
@@ -727,14 +728,14 @@ public class AuthService {
         if (linkingPassword == null || linkingPassword.isBlank()) {
             log.warn("Refused silent OAuth link to existing LOCAL account email={}", PiiScrubber.maskEmail(email));
             throw new BusinessException(
-                ErrorCode.OAUTH_LINK_PASSWORD_REQUIRED,
+                IamErrorCode.OAUTH_LINK_PASSWORD_REQUIRED,
                 "This email is already registered. Provide the current account password to link Google sign-in.",
                 new OAuthLinkPasswordRequiredData(email)
             );
         }
         if (user.getPassword() == null
             || !passwordEncoder.matches(linkingPassword, user.getPassword())) {
-            throw new BusinessException(ErrorCode.INVALID_PASSWORD,
+            throw new BusinessException(IamErrorCode.INVALID_PASSWORD,
                 "Incorrect password for the existing LOCAL account");
         }
         user.setOauthProvider(OAuthProvider.GOOGLE);
@@ -815,7 +816,7 @@ private User createNewOauthUser(String email, String sub, String name, String pi
         return new LoginResponse(
             accessToken,
             iamProperties.getJwt().getAccessTokenExpiration(),
-            new com.pwb.backend.shared.dto.UserInfoResponse(
+            new com.pwb.backend.iam.api.dto.response.UserInfoResponse(
                 user.getUsername(),
                 user.getEmail(),
                 user.getFullName(),

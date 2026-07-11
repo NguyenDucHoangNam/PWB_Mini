@@ -1,6 +1,6 @@
 package com.pwb.backend.audio.internal.model;
 
-import com.pwb.backend.shared.outbox.model.OutboxEvent;
+import com.pwb.backend.shared.messaging.outbox.model.OutboxEvent;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import lombok.Getter;

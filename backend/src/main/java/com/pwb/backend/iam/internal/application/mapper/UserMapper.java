@@ -4,7 +4,7 @@ import com.pwb.backend.iam.api.dto.request.RegisterRequest;
 import com.pwb.backend.iam.api.dto.response.RegisterResponse;
 import com.pwb.backend.iam.api.dto.response.UserProfileResponse;
 import com.pwb.backend.iam.internal.domain.model.User;
-import com.pwb.backend.shared.dto.UserInfoResponse;
+import com.pwb.backend.iam.api.dto.response.UserInfoResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 

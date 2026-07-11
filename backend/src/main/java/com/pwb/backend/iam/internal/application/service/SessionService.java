@@ -1,4 +1,5 @@
 package com.pwb.backend.iam.internal.application.service;
+import com.pwb.backend.iam.internal.domain.exception.IamErrorCode;
 
 import com.pwb.backend.iam.api.dto.response.ActiveSessionResponse;
 import com.pwb.backend.iam.api.dto.response.RefreshResponse;
@@ -9,8 +10,8 @@ import com.pwb.backend.iam.internal.domain.model.User;
 import com.pwb.backend.iam.internal.infrastructure.repository.UserRepository;
 import com.pwb.backend.shared.exception.BusinessException;
 import com.pwb.backend.shared.exception.ErrorCode;
-import com.pwb.backend.shared.security.ClientIpResolver;
-import com.pwb.backend.shared.security.JwtSigner;
+import com.pwb.backend.shared.web.security.ClientIpResolver;
+import com.pwb.backend.shared.web.security.JwtSigner;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
@@ -56,11 +57,11 @@ public class SessionService {
       try {
         claims = JwtSigner.parseAndVerify(jwtService.getSigningKeyForFilter(), refreshToken);
       } catch (Exception ex) {
-        throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN,
+        throw new BusinessException(IamErrorCode.INVALID_REFRESH_TOKEN,
             "Refresh token signature invalid, tampered, or expired");
       }
       if (!"refresh".equals(claims.get("type", String.class))) {
-        throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN, "Not a refresh token");
+        throw new BusinessException(IamErrorCode.INVALID_REFRESH_TOKEN, "Not a refresh token");
       }
       email = claims.getSubject();
     } else {
@@ -69,25 +70,25 @@ public class SessionService {
     }
 
     User user = userRepository.findByEmailAndDeletedFalse(email)
-        .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
+        .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_EXISTED, "User does not exist"));
 
     if (user.getStatus() == com.pwb.backend.iam.internal.domain.enums.UserStatus.BANNED) {
-      throw new BusinessException(ErrorCode.ACCOUNT_BANNED, "Account has been banned");
+      throw new BusinessException(IamErrorCode.ACCOUNT_BANNED, "Account has been banned");
     }
 
     String userId = user.getId();
     loginLockoutHelper.ensureNotLocked(redisTemplate, userId);
 
     if (refreshToken == null || refreshToken.isBlank()) {
-      throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN, "Refresh token is required");
+      throw new BusinessException(IamErrorCode.INVALID_REFRESH_TOKEN, "Refresh token is required");
     }
     if (!jwtService.isRefreshTokenValid(refreshToken)) {
-      throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN,
+      throw new BusinessException(IamErrorCode.INVALID_REFRESH_TOKEN,
           "Refresh token signature invalid, tampered, or expired");
     }
     String refreshJti = jwtService.extractJti(refreshToken);
     if (refreshJti == null || refreshJti.isBlank()) {
-      throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN, "Refresh token missing identifier");
+      throw new BusinessException(IamErrorCode.INVALID_REFRESH_TOKEN, "Refresh token missing identifier");
     }
 
     String activeKey = SESSION_KEY_PREFIX + refreshToken;
@@ -98,7 +99,7 @@ public class SessionService {
 
     if (cachedUserId != null) {
       if (!cachedUserId.equals(userId)) {
-        throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN, "Refresh token does not match user");
+        throw new BusinessException(IamErrorCode.INVALID_REFRESH_TOKEN, "Refresh token does not match user");
       }
 
       String newAccessToken = jwtService.generateAccessToken(user);
@@ -151,7 +152,7 @@ public class SessionService {
     if (newToken != null) {
       String shadowUser = redisTemplate.opsForValue().get(SESSION_KEY_PREFIX + newToken);
       if (shadowUser == null || !shadowUser.equals(userId)) {
-        throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN, "Invalid session context");
+        throw new BusinessException(IamErrorCode.INVALID_REFRESH_TOKEN, "Invalid session context");
       }
 
       String newAccessToken = jwtService.generateAccessToken(user);
@@ -168,10 +169,10 @@ public class SessionService {
           com.pwb.backend.iam.internal.application.helper.PiiScrubber.userRef(revokedUserId), jwtService.extractJti(refreshToken));
 
       revokeAllUserSessions(revokedUserId);
-      throw new BusinessException(ErrorCode.TOKEN_THEFT_DETECTED, "Token reuse detected, all sessions revoked");
+      throw new BusinessException(IamErrorCode.TOKEN_THEFT_DETECTED, "Token reuse detected, all sessions revoked");
     }
 
-    throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN, "Refresh token is invalid or expired");
+    throw new BusinessException(IamErrorCode.INVALID_REFRESH_TOKEN, "Refresh token is invalid or expired");
   }
 
   public void logout(String expiredAccessTokenHeader, String refreshToken, HttpServletResponse response) {
@@ -190,7 +191,7 @@ public class SessionService {
     }
 
     User user = userRepository.findByEmailAndDeletedFalse(email)
-        .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
+        .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_EXISTED, "User does not exist"));
 
     String userId = user.getId();
     String jwtSignature = jwtService.getSignature(expiredToken);
@@ -223,7 +224,7 @@ public class SessionService {
         .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED,
             "Invalid access token signature or format"));
     User user = userRepository.findByEmailAndDeletedFalse(email)
-        .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
+        .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_EXISTED, "User does not exist"));
 
     String userId = user.getId();
     String zsetKey = "user:sessions:" + userId;
@@ -261,18 +262,18 @@ public class SessionService {
         .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED,
             "Invalid access token signature or format"));
     User user = userRepository.findByEmailAndDeletedFalse(email)
-        .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
+        .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_EXISTED, "User does not exist"));
 
     String userId = user.getId();
     String zsetKey = "user:sessions:" + userId;
 
     Double score = redisTemplate.opsForZSet().score(zsetKey, tokenUuid);
     if (score == null) {
-      throw new BusinessException(ErrorCode.SESSION_NOT_FOUND, "Session not found or does not belong to this user");
+      throw new BusinessException(IamErrorCode.SESSION_NOT_FOUND, "Session not found or does not belong to this user");
     }
 
     if (tokenUuid.equals(currentRefreshToken)) {
-      throw new BusinessException(ErrorCode.CANNOT_REVOKE_CURRENT_SESSION, "Cannot revoke current session");
+      throw new BusinessException(IamErrorCode.CANNOT_REVOKE_CURRENT_SESSION, "Cannot revoke current session");
     }
 
     String metadataKey = "session:metadata:" + tokenUuid;
@@ -297,7 +298,7 @@ public class SessionService {
         .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED,
             "Invalid access token signature or format"));
     User user = userRepository.findByEmailAndDeletedFalse(email)
-        .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
+        .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_EXISTED, "User does not exist"));
 
     if (currentRefreshToken == null || currentRefreshToken.isBlank()) {
       throw new BusinessException(ErrorCode.UNAUTHORIZED,

@@ -1,5 +1,6 @@
 package com.pwb.backend.iam.internal.application.helper;
 
+import com.pwb.backend.iam.internal.domain.exception.IamErrorCode;
 import com.pwb.backend.iam.internal.interfaces.config.IamProperties;
 import com.pwb.backend.shared.exception.BusinessException;
 import com.pwb.backend.shared.exception.ErrorCode;
@@ -30,7 +31,7 @@ public class LoginLockoutHelper {
   public void ensureNotLocked(StringRedisTemplate redisTemplate, String userId) {
     if (isLocked(redisTemplate, userId)) {
       throw new BusinessException(
-          ErrorCode.ACCOUNT_TEMPORARILY_LOCKED,
+          IamErrorCode.ACCOUNT_TEMPORARILY_LOCKED,
           "Account is temporarily locked, please try again later");
     }
   }
@@ -48,7 +49,7 @@ public class LoginLockoutHelper {
       redisTemplate.opsForValue().set(lockoutKey(userId), "true", windowDuration);
       redisTemplate.delete(attemptsKey);
       throw new BusinessException(
-          ErrorCode.ACCOUNT_TEMPORARILY_LOCKED,
+          IamErrorCode.ACCOUNT_TEMPORARILY_LOCKED,
           "Account is temporarily locked, please try again later");
     }
   }

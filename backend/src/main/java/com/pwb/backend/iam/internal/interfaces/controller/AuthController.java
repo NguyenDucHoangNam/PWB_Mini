@@ -21,7 +21,7 @@ import com.pwb.backend.iam.api.dto.response.RefreshResponse;
 import com.pwb.backend.iam.internal.application.service.AuthService;
 import com.pwb.backend.iam.internal.application.service.SessionService;
 import com.pwb.backend.iam.internal.application.service.AccountLifecycleService;
-import com.pwb.backend.shared.response.ApiResponse;
+import com.pwb.backend.shared.web.response.ApiResponse;
 import java.util.List;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

@@ -1,7 +1,7 @@
 package com.pwb.backend.shared.exception;
 
-import com.pwb.backend.shared.response.ApiResponse;
-import com.pwb.backend.shared.response.ErrorDetail;
+import com.pwb.backend.shared.web.response.ApiResponse;
+import com.pwb.backend.shared.web.response.ErrorDetail;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;

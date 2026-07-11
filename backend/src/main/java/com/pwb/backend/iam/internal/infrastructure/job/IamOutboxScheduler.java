@@ -3,7 +3,7 @@ package com.pwb.backend.iam.internal.infrastructure.job;
 import com.pwb.backend.iam.internal.domain.model.IamOutboxEvent;
 import com.pwb.backend.iam.internal.infrastructure.publisher.IamOutboxPublisher;
 import com.pwb.backend.iam.internal.infrastructure.repository.IamOutboxEventRepository;
-import com.pwb.backend.shared.outbox.config.OutboxProperties;
+import com.pwb.backend.shared.messaging.outbox.config.OutboxProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;

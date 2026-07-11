@@ -3,7 +3,7 @@ package com.pwb.backend.iam.internal.interfaces.controller;
 import com.pwb.backend.iam.api.dto.response.TriggerAnonymizationResponse;
 import com.pwb.backend.iam.internal.application.service.AccountLifecycleService;
 import com.pwb.backend.iam.internal.application.service.JwtEpochService;
-import com.pwb.backend.shared.response.ApiResponse;
+import com.pwb.backend.shared.web.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;

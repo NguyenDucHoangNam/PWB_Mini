@@ -1,7 +1,7 @@
 package com.pwb.backend.audio.internal.helper;
 
 import com.pwb.backend.audio.internal.config.AudioProperties;
-import com.pwb.backend.shared.security.ClientIpResolver;
+import com.pwb.backend.shared.web.security.ClientIpResolver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;

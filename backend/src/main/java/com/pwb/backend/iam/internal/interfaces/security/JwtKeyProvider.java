@@ -1,8 +1,8 @@
 package com.pwb.backend.iam.internal.interfaces.security;
 
 import com.pwb.backend.iam.internal.interfaces.config.IamProperties;
-import com.pwb.backend.shared.security.JwtSigner;
-import com.pwb.backend.shared.security.TokenKeyProvider;
+import com.pwb.backend.shared.web.security.JwtSigner;
+import com.pwb.backend.shared.web.security.TokenKeyProvider;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

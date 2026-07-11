@@ -4,8 +4,8 @@ import com.pwb.backend.iam.api.event.OutboxCreatedEvent;
 import com.pwb.backend.iam.internal.domain.model.IamOutboxEvent;
 import com.pwb.backend.iam.internal.domain.model.User;
 import com.pwb.backend.iam.internal.infrastructure.repository.IamOutboxEventRepository;
-import com.pwb.backend.shared.outbox.factory.AbstractOutboxEventFactory;
-import com.pwb.backend.shared.outbox.model.OutboxEvent;
+import com.pwb.backend.shared.messaging.outbox.factory.AbstractOutboxEventFactory;
+import com.pwb.backend.shared.messaging.outbox.model.OutboxEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -34,7 +34,7 @@ public class OutboxEventFactory extends AbstractOutboxEventFactory {
       IamOutboxEventRepository repository,
       com.fasterxml.jackson.databind.ObjectMapper objectMapper,
       org.springframework.context.ApplicationEventPublisher eventPublisher,
-      com.pwb.backend.shared.outbox.cipher.OutboxPayloadCipher cipher
+      com.pwb.backend.shared.messaging.outbox.cipher.OutboxPayloadCipher cipher
   ) {
     super(objectMapper, cipher, eventPublisher);
     this.repository = repository;

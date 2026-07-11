@@ -2,7 +2,7 @@ package com.pwb.backend.audio.internal.controller;
 
 import com.pwb.backend.audio.internal.helper.CurrentUserResolver;
 import com.pwb.backend.audio.internal.service.RevokeService;
-import com.pwb.backend.shared.response.ApiResponse;
+import com.pwb.backend.shared.web.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

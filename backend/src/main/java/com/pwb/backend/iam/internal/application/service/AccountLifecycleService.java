@@ -9,6 +9,7 @@ import com.pwb.backend.iam.api.dto.response.TriggerAnonymizationResponse;
 import com.pwb.backend.iam.api.dto.response.UserProfileResponse;
 import com.pwb.backend.iam.internal.interfaces.config.IamProperties;
 import com.pwb.backend.iam.internal.domain.enums.UserStatus;
+import com.pwb.backend.iam.internal.domain.exception.IamErrorCode;
 import com.pwb.backend.iam.internal.application.factory.OutboxEventFactory;
 import com.pwb.backend.iam.internal.application.helper.JwtPrincipalExtractor;
 import com.pwb.backend.iam.internal.application.helper.LoginLockoutHelper;
@@ -105,10 +106,10 @@ public class AccountLifecycleService {
     }
 
     User user = userRepository.findByEmailAndDeletedFalse(email)
-        .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
+        .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_EXISTED, "User does not exist"));
 
     if (user.getStatus() == UserStatus.PENDING_DELETION) {
-      throw new BusinessException(ErrorCode.DELETION_ALREADY_REQUESTED, "Account deletion has already been requested");
+      throw new BusinessException(IamErrorCode.DELETION_ALREADY_REQUESTED, "Account deletion has already been requested");
     }
 
     String userId = user.getId();
@@ -117,20 +118,20 @@ public class AccountLifecycleService {
     if (user.getPassword() != null) {
       if (request.password() == null || !passwordEncoder.matches(request.password(), user.getPassword())) {
         loginLockoutHelper.recordFailure(redisTemplate, userId);
-        throw new BusinessException(ErrorCode.INVALID_PASSWORD, "Incorrect password confirmation");
+        throw new BusinessException(IamErrorCode.INVALID_PASSWORD, "Incorrect password confirmation");
       }
       redisTemplate.delete(loginLockoutHelper.attemptsKey(userId));
     } else {
       if (request.idToken() == null) {
-        throw new BusinessException(ErrorCode.INVALID_OAUTH_TOKEN, "Google idToken is required");
+        throw new BusinessException(IamErrorCode.INVALID_OAUTH_TOKEN, "Google idToken is required");
       }
       try {
         GoogleIdToken googleIdToken = googleVerifier.verify(request.idToken());
         if (googleIdToken == null) {
-          throw new BusinessException(ErrorCode.INVALID_OAUTH_TOKEN, "Invalid Google idToken");
+          throw new BusinessException(IamErrorCode.INVALID_OAUTH_TOKEN, "Invalid Google idToken");
         }
       } catch (Exception e) {
-        throw new BusinessException(ErrorCode.INVALID_OAUTH_TOKEN, "Invalid Google idToken");
+        throw new BusinessException(IamErrorCode.INVALID_OAUTH_TOKEN, "Invalid Google idToken");
       }
     }
 
@@ -169,7 +170,7 @@ public class AccountLifecycleService {
     String email = JwtPrincipalExtractor.requireEmailFromHeader(authHeader, jwtService);
 
     User user = userRepository.findByEmailAndDeletedFalse(email)
-        .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_EXISTED, "User does not exist"));
+        .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_EXISTED, "User does not exist"));
 
     if (user.getStatus() == UserStatus.ANONYMIZED) {
       throw new BusinessException(ErrorCode.VALIDATION_FAILED,

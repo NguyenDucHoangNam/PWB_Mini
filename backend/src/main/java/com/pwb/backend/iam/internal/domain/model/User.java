@@ -2,8 +2,8 @@ package com.pwb.backend.iam.internal.domain.model;
 
 import com.pwb.backend.iam.internal.domain.enums.OAuthProvider;
 import com.pwb.backend.iam.internal.domain.enums.UserStatus;
-import com.pwb.backend.shared.model.BaseEntity;
-import com.pwb.backend.shared.model.SoftDelete;
+import com.pwb.backend.shared.kernel.model.BaseEntity;
+import com.pwb.backend.shared.kernel.model.SoftDelete;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

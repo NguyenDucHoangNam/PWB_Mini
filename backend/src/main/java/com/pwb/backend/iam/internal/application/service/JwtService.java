@@ -2,8 +2,8 @@ package com.pwb.backend.iam.internal.application.service;
 
 import com.pwb.backend.iam.internal.interfaces.config.IamProperties;
 import com.pwb.backend.iam.internal.domain.model.User;
-import com.pwb.backend.shared.security.JwtSigner;
-import com.pwb.backend.shared.security.TokenKeyProvider;
+import com.pwb.backend.shared.web.security.JwtSigner;
+import com.pwb.backend.shared.web.security.TokenKeyProvider;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,8 +27,8 @@ import java.util.UUID;
  * avoids editing nine callers in a single refactor.
  *
  * <p>Non-IAM consumers (e.g. shared WebSocket infrastructure) use
- * {@link com.pwb.backend.shared.security.JwtVerifier} which signs and
- * parses tokens through the same {@link com.pwb.backend.shared.security.TokenKeyProvider}.
+ * {@link com.pwb.backend.shared.web.security.JwtVerifier} which signs and
+ * parses tokens through the same {@link com.pwb.backend.shared.web.security.TokenKeyProvider}.
  */
 @Service
 @RequiredArgsConstructor

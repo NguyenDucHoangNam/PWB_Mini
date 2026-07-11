@@ -2,7 +2,7 @@ package com.pwb.backend.iam.internal.interfaces.config;
 
 import com.pwb.backend.iam.internal.application.service.JwtEpochService;
 import com.pwb.backend.iam.internal.application.service.JwtService;
-import com.pwb.backend.shared.security.JwtVerifier;
+import com.pwb.backend.shared.web.security.JwtVerifier;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

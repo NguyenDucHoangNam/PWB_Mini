@@ -24,7 +24,7 @@ import com.pwb.backend.iam.internal.domain.model.User;
 import com.pwb.backend.iam.internal.infrastructure.repository.UserRepository;
 import com.pwb.backend.shared.exception.BusinessException;
 import com.pwb.backend.shared.exception.ErrorCode;
-import com.pwb.backend.shared.response.ApiResponse;
+import com.pwb.backend.shared.web.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;

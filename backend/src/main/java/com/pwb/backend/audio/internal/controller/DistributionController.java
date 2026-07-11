@@ -6,7 +6,7 @@ import com.pwb.backend.audio.internal.api.DistributionListResponse;
 import com.pwb.backend.audio.internal.helper.CurrentUserResolver;
 import com.pwb.backend.audio.internal.service.DistributionService;
 import com.pwb.backend.audio.internal.service.RecipientAutocompleteService;
-import com.pwb.backend.shared.response.ApiResponse;
+import com.pwb.backend.shared.web.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
