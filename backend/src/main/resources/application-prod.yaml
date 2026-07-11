@@ -1,0 +1,10 @@
+app:
+  security:
+    jwt:
+      secret: ${APP_SECURITY_JWT_SECRET}
+
+logging:
+  level:
+    root: INFO
+    com.pwb.backend: INFO
+    org.springframework.security: WARN

@@ -1,5 +1,7 @@
 package com.pwb.backend.config;
 
+import com.pwb.backend.auth.JwtAuthenticationEntryPoint;
+import com.pwb.backend.auth.JwtAuthenticationFilter;
 import com.pwb.backend.filter.IpRateLimitFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,6 +17,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
@@ -48,6 +51,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    IpRateLimitFilter ipRateLimitFilter,
+                                                   JwtAuthenticationFilter jwtAuthenticationFilter,
+                                                   JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
                                                    CorsConfigurationSource corsConfigurationSource) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
@@ -57,11 +62,13 @@ public class SecurityConfig {
                         .httpStrictTransportSecurity(hsts -> hsts
                                 .includeSubDomains(true)
                                 .maxAgeInSeconds(HSTS_MAX_AGE_SECONDS)))
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET_PATHS).permitAll()
                         .requestMatchers(HttpMethod.POST, PUBLIC_POST_PATHS).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated())
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(ipRateLimitFilter, AuthorizationFilter.class)
                 .build();
     }

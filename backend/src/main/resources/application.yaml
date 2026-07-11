@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: pwb-backend
+
+app:
+  rate-limit:
+    enabled: true
+    default-permits-per-window: 100
+    default-window: 1m
+    rules: []
+  security:
+    jwt:
+      access-token-ttl-seconds: 900
+      issuer: pwb-mini
+      header-name: Authorization
+      header-prefix: "Bearer "
