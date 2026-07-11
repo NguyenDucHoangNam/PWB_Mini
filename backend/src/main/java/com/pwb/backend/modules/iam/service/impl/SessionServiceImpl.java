@@ -2,7 +2,7 @@ package com.pwb.backend.modules.iam.service.impl;
 
 import com.pwb.backend.common.config.GeoIpConfig;
 import com.pwb.backend.common.exception.BusinessException;
-import com.pwb.backend.common.security.JwtProperties;
+import com.pwb.backend.common.security.jwt.JwtProperties;
 import com.pwb.backend.modules.iam.config.LoginProperties;
 import com.pwb.backend.modules.iam.exception.IamErrorCode;
 import com.pwb.backend.modules.iam.session.IssuedSession;

@@ -1,8 +1,8 @@
 package com.pwb.backend.common.config;
 
-import com.pwb.backend.common.security.JwtAuthenticationEntryPoint;
-import com.pwb.backend.common.security.JwtAuthenticationFilter;
-import com.pwb.backend.common.security.IpRateLimitFilter;
+import com.pwb.backend.common.security.jwt.JwtAuthenticationEntryPoint;
+import com.pwb.backend.common.security.jwt.JwtAuthenticationFilter;
+import com.pwb.backend.common.security.ratelimit.IpRateLimitFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;

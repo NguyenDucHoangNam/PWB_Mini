@@ -1,6 +1,5 @@
-package com.pwb.backend.common.security;
+package com.pwb.backend.common.security.jwt;
 
-import com.pwb.backend.common.security.JwtProperties;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -56,7 +55,7 @@ public class JwtSigner {
                 .compact();
     }
 
-    public AuthenticatedUser verifyAndExtract(String token) {
+    public JwtTypes.AuthenticatedUser verifyAndExtract(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(signingKey)
                 .requireIssuer(properties.getIssuer())
@@ -66,7 +65,7 @@ public class JwtSigner {
         UUID userId = UUID.fromString(claims.getSubject());
         String email = claims.get("email", String.class);
         String role = claims.get("role", String.class);
-        return new AuthenticatedUser(userId, email, role);
+        return new JwtTypes.AuthenticatedUser(userId, email, role);
     }
 
     public UUID parseExpiredTokenUserId(String token) {

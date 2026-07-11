@@ -1,4 +1,4 @@
-package com.pwb.backend.common.security;
+package com.pwb.backend.common.security.ratelimit;
 
 import org.springframework.http.HttpMethod;
 

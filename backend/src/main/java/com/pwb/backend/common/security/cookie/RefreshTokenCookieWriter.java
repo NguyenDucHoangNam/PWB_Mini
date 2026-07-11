@@ -1,4 +1,4 @@
-package com.pwb.backend.common.security;
+package com.pwb.backend.common.security.cookie;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;

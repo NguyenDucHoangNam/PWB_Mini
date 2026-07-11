@@ -1,9 +1,8 @@
-package com.pwb.backend.common.security;
+package com.pwb.backend.common.security.jwt;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.common.dto.ApiResponse;
 import com.pwb.backend.common.dto.ErrorDetail;
-import com.pwb.backend.common.security.JwtProperties;
 import com.pwb.backend.modules.iam.service.SessionService;
 import com.pwb.backend.modules.iam.exception.IamErrorCode;
 import io.jsonwebtoken.JwtException;
@@ -12,9 +11,10 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -26,27 +26,19 @@ import java.util.List;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private static final String BEARER_PREFIX_LOWER = "bearer ";
-    private static final int BEARER_PREFIX_LENGTH = 7;
-    private static final String ERROR_CODE_TOKEN_BLACKLISTED = "TOKEN_BLACKLISTED";
-
     private final JwtSigner jwtSigner;
     private final JwtProperties properties;
     private final SessionService sessionService;
     private final ObjectMapper objectMapper;
+    private final BearerTokenExtractor bearerTokenExtractor;
+    private final MessageSource messageSource;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String header = request.getHeader(properties.getHeaderName());
-        if (header == null || !header.regionMatches(true, 0, BEARER_PREFIX_LOWER, 0, BEARER_PREFIX_LENGTH)) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-        String token = header.substring(BEARER_PREFIX_LENGTH).trim();
-        if (token.isEmpty()) {
-            SecurityContextHolder.clearContext();
+        String token = bearerTokenExtractor.extract(request.getHeader(properties.getHeaderName()));
+        if (token == null) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -57,8 +49,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 writeBlacklistedResponse(response);
                 return;
             }
-            AuthenticatedUser user = jwtSigner.verifyAndExtract(token);
-            JwtAuthenticationToken authentication = new JwtAuthenticationToken(user);
+            JwtTypes.AuthenticatedUser user = jwtSigner.verifyAndExtract(token);
+            JwtTypes.JwtAuthenticationToken authentication = new JwtTypes.JwtAuthenticationToken(user);
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (JwtException | IllegalArgumentException ex) {
             SecurityContextHolder.clearContext();
@@ -68,15 +60,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private void writeBlacklistedResponse(HttpServletResponse response) throws IOException {
         SecurityContextHolder.clearContext();
+        IamErrorCode code = IamErrorCode.TOKEN_BLACKLISTED;
+        String localized = messageSource.getMessage(
+                code.code(), null, code.defaultMessage(), LocaleContextHolder.getLocale());
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        ErrorDetail errorDetail = new ErrorDetail(
-                ERROR_CODE_TOKEN_BLACKLISTED,
-                null,
-                IamErrorCode.TOKEN_BLACKLISTED.defaultMessage());
-        ApiResponse<Void> body = ApiResponse.error(
-                IamErrorCode.TOKEN_BLACKLISTED.defaultMessage(),
-                List.of(errorDetail));
+        ErrorDetail errorDetail = new ErrorDetail(code.code(), null, localized);
+        ApiResponse<Void> body = ApiResponse.error(localized, List.of(errorDetail));
         response.getWriter().write(objectMapper.writeValueAsString(body));
     }
 }

@@ -31,10 +31,10 @@ spring:
       properties:
         enable.idempotence: true
   mail:
-    host: ${MAIL_HOST}
+    host: ${MAIL_HOST:}
     port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:

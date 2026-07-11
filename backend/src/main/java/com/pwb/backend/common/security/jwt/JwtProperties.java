@@ -1,4 +1,4 @@
-package com.pwb.backend.common.security;
+package com.pwb.backend.common.security.jwt;
 
 import lombok.Getter;
 import lombok.Setter;
