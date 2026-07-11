@@ -4,6 +4,7 @@ public final class OutboxEventTypes {
 
     public static final String USER_REGISTERED = "USER_REGISTERED";
     public static final String OTP_RESENT = "OTP_RESENT";
+    public static final String PASSWORD_RESET = "PASSWORD_RESET";
 
     public static final String AGGREGATE_USER = "User";
 

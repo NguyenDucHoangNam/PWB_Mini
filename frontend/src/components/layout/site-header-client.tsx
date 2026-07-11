@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useQueryClient } from "@tanstack/react-query";
 import { MobileDrawer } from "./mobile-drawer";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
@@ -31,6 +32,7 @@ export function SiteHeaderClient() {
   const isLoggedIn = !!accessToken;
 
   const { mutate: logoutMutate } = useLogout();
+  const queryClient = useQueryClient();
 
   // Cross-tab auth sync (singleton BroadcastChannel).
   useAuthChannelSync();
@@ -68,19 +70,21 @@ export function SiteHeaderClient() {
 
     logoutMutate(undefined, {
       onSuccess: () => {
+        queryClient.clear();
         broadcastAuthMessage({ type: "LOGOUT" });
         setShowDropdown(false);
         setIsOpen(false);
         router.push("/login");
+        toast.success(t("logoutSuccess"));
       },
       onError: () => {
-        // Force clear auth even if API fails.
+        queryClient.clear();
         useAuthStore.getState().clearAuth();
         broadcastAuthMessage({ type: "LOGOUT" });
-        toast.success(t("logout"));
         setShowDropdown(false);
         setIsOpen(false);
         router.push("/login");
+        toast.warning(t("logoutError"));
       },
     });
   };

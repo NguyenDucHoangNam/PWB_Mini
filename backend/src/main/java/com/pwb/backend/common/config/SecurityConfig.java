@@ -44,7 +44,9 @@ public class SecurityConfig {
             "/api/v1/auth/login",
             "/api/v1/auth/login/google",
             "/api/v1/auth/refresh",
-            "/api/v1/auth/logout"
+            "/api/v1/auth/logout",
+            "/api/v1/auth/forgot-password",
+            "/api/v1/auth/reset-password"
     };
 
     private static final long HSTS_MAX_AGE_SECONDS = 31536000L;

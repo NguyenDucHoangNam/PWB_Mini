@@ -17,5 +17,13 @@ public interface SessionService {
 
     void revokeAllSessions(UUID userId);
 
+    int revokeAllSessionsExcept(UUID userId, String currentRefreshToken);
+
+    int revokeAllSessionsCompletely(UUID userId);
+
     void revokeSingleSession(String refreshToken);
+
+    void blacklistAccessToken(String jwtSignature, long ttlSeconds);
+
+    boolean isAccessTokenBlacklisted(String jwtSignature);
 }

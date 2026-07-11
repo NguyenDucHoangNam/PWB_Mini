@@ -16,4 +16,5 @@ public class JwtProperties {
     private String issuer = "pwb-mini";
     private String headerName = "Authorization";
     private String headerPrefix = "Bearer ";
+    private long blacklistClockSkewBufferSeconds = 30;
 }

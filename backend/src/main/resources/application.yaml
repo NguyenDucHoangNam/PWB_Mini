@@ -34,6 +34,22 @@ app:
         method: POST
         permits-per-window: 20
         window: 1m
+      - path-pattern: /api/v1/auth/logout
+        method: POST
+        permits-per-window: 20
+        window: 1m
+      - path-pattern: /api/v1/auth/forgot-password
+        method: POST
+        permits-per-window: 3
+        window: 1m
+      - path-pattern: /api/v1/auth/reset-password
+        method: POST
+        permits-per-window: 5
+        window: 1m
+      - path-pattern: /api/v1/auth/change-password
+        method: POST
+        permits-per-window: 5
+        window: 1m
   security:
     jwt:
       access-token-ttl-seconds: 900
@@ -42,6 +58,7 @@ app:
       issuer: pwb-mini
       header-name: Authorization
       header-prefix: "Bearer "
+      blacklist-clock-skew-buffer-seconds: 30
     cookie:
       secure: false
       samesite: Strict
@@ -68,6 +85,14 @@ app:
       lockout-ttl-seconds: 900
       resend-cooldown-seconds: 60
       max-attempts: 5
+    password-reset:
+      token-ttl-seconds: 600
+      support-email: security@pwb-mini.dev
+      frontend-base-url: https://pwbmini.com
+
+mail:
+  from: PWB Mini <noreply@pwb-mini.dev>
+  security-from: PWB Mini Security <security@pwb-mini.dev>
 
 springdoc:
   api-docs:

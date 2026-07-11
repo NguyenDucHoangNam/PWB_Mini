@@ -25,7 +25,9 @@
     "account": "User",
     "login": "Log In",
     "register": "Register",
-    "sessionExpired": "Session expired on another tab"
+    "sessionExpired": "Session expired on another tab",
+    "logoutSuccess": "Logged out successfully",
+    "logoutError": "Logout failed but session was cleaned up"
   },
   "footer": {
     "description": "Real-time audio collaboration and secure demo sharing platform for music producers.",

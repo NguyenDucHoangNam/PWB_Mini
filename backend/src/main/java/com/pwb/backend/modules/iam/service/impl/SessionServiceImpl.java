@@ -9,6 +9,8 @@ import com.pwb.backend.modules.iam.service.SessionService;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.redis.core.RedisOperations;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
@@ -34,6 +36,7 @@ public class SessionServiceImpl implements SessionService {
     private static final String SHADOW_PREFIX = "session:refresh_token:shadow:";
     private static final String REVOKED_PREFIX = "session:refresh_token:revoked:";
     private static final String SESSIONS_ZSET_PREFIX = "user:sessions:";
+    private static final String BLACKLIST_PREFIX = "session:blacklist_token:";
 
     private static final String GRANT_SCRIPT = "scripts/grant_session.lua";
     private static final String ROTATE_SCRIPT = "scripts/session_rotation.lua";
@@ -210,6 +213,88 @@ public class SessionServiceImpl implements SessionService {
         }
     }
 
+    @Override
+    public int revokeAllSessionsExcept(UUID userId, String currentRefreshToken) {
+        if (userId == null) {
+            return 0;
+        }
+        String zsetKey = SESSIONS_ZSET_PREFIX + userId;
+        Set<ZSetOperations.TypedTuple<String>> tuples = redisTemplate.opsForZSet()
+                .rangeWithScores(zsetKey, 0, -1);
+        if (tuples == null || tuples.isEmpty()) {
+            return 0;
+        }
+        List<String> tokensToRevoke = new ArrayList<>();
+        for (ZSetOperations.TypedTuple<String> tuple : tuples) {
+            String token = tuple.getValue();
+            if (token == null || token.equals(currentRefreshToken)) {
+                continue;
+            }
+            tokensToRevoke.add(token);
+        }
+        if (tokensToRevoke.isEmpty()) {
+            return 0;
+        }
+        long revokedTtl = jwtProperties.getRefreshTokenTtlSeconds();
+        redisTemplate.executePipelined(new SessionCallback<Object>() {
+            @Override
+            @SuppressWarnings({"unchecked", "rawtypes"})
+            public Object execute(RedisOperations operations) throws org.springframework.dao.DataAccessException {
+                for (String token : tokensToRevoke) {
+                    operations.delete(ACTIVE_PREFIX + token);
+                    operations.opsForValue().set(
+                            REVOKED_PREFIX + token,
+                            userId.toString(),
+                            Duration.ofSeconds(revokedTtl));
+                    operations.opsForZSet().remove(zsetKey, token);
+                }
+                return null;
+            }
+        });
+        log.info("SESSIONS_REVOKED_EXCEPT_CURRENT userId={} revokedCount={}", userId, tokensToRevoke.size());
+        return tokensToRevoke.size();
+    }
+
+    @Override
+    public int revokeAllSessionsCompletely(UUID userId) {
+        if (userId == null) {
+            return 0;
+        }
+        String zsetKey = SESSIONS_ZSET_PREFIX + userId;
+        Set<ZSetOperations.TypedTuple<String>> tuples = redisTemplate.opsForZSet()
+                .rangeWithScores(zsetKey, 0, -1);
+        if (tuples == null || tuples.isEmpty()) {
+            return 0;
+        }
+        List<String> tokens = new ArrayList<>();
+        for (ZSetOperations.TypedTuple<String> tuple : tuples) {
+            if (tuple.getValue() != null) {
+                tokens.add(tuple.getValue());
+            }
+        }
+        if (tokens.isEmpty()) {
+            return 0;
+        }
+        long revokedTtl = jwtProperties.getRefreshTokenTtlSeconds();
+        redisTemplate.executePipelined(new SessionCallback<Object>() {
+            @Override
+            @SuppressWarnings({"unchecked", "rawtypes"})
+            public Object execute(RedisOperations operations) throws org.springframework.dao.DataAccessException {
+                for (String token : tokens) {
+                    operations.delete(ACTIVE_PREFIX + token);
+                    operations.opsForValue().set(
+                            REVOKED_PREFIX + token,
+                            userId.toString(),
+                            Duration.ofSeconds(revokedTtl));
+                }
+                operations.delete(zsetKey);
+                return null;
+            }
+        });
+        log.info("SESSIONS_REVOKED_ALL userId={} revokedCount={}", userId, tokens.size());
+        return tokens.size();
+    }
+
     private DefaultRedisScript<List> loadScript(String classpathResource) {
         DefaultRedisScript<List> script = new DefaultRedisScript<>();
         script.setResultType(List.class);
@@ -238,6 +323,39 @@ public class SessionServiceImpl implements SessionService {
     public void expireShadow(String refreshToken) {
         if (refreshToken != null && !refreshToken.isBlank()) {
             redisTemplate.delete(SHADOW_PREFIX + refreshToken);
+        }
+    }
+
+    @Override
+    public void blacklistAccessToken(String jwtSignature, long ttlSeconds) {
+        if (jwtSignature == null || jwtSignature.isBlank()) {
+            return;
+        }
+        if (ttlSeconds <= 0) {
+            return;
+        }
+        try {
+            redisTemplate.opsForValue().set(
+                    BLACKLIST_PREFIX + jwtSignature,
+                    Boolean.TRUE.toString(),
+                    Duration.ofSeconds(ttlSeconds));
+        } catch (Exception ex) {
+            log.warn("Failed to blacklist access token: {}", ex.getMessage());
+            throw new IllegalStateException("Blacklist access token failed", ex);
+        }
+    }
+
+    @Override
+    public boolean isAccessTokenBlacklisted(String jwtSignature) {
+        if (jwtSignature == null || jwtSignature.isBlank()) {
+            return false;
+        }
+        try {
+            Boolean exists = redisTemplate.hasKey(BLACKLIST_PREFIX + jwtSignature);
+            return Boolean.TRUE.equals(exists);
+        } catch (Exception ex) {
+            log.warn("Failed to check blacklist, fail-open: {}", ex.getMessage());
+            return false;
         }
     }
 

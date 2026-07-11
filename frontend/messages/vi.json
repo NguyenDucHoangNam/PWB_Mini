@@ -25,7 +25,9 @@
     "account": "Người dùng",
     "login": "Đăng nhập",
     "register": "Đăng ký",
-    "sessionExpired": "Phiên đăng nhập đã hết hạn trên tab khác"
+    "sessionExpired": "Phiên đăng nhập đã hết hạn trên tab khác",
+    "logoutSuccess": "Đăng xuất thành công",
+    "logoutError": "Đăng xuất thất bại nhưng phiên đã được dọn dẹp"
   },
   "footer": {
     "description": "Cộng tác âm thanh thời gian thực và nền tảng chia sẻ demo bảo mật cho nhà sản xuất âm nhạc.",

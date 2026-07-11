@@ -11,6 +11,9 @@ public class OutboxEventTopics {
                 || OutboxEventTypes.OTP_RESENT.equals(eventType)) {
             return KafkaTopics.IAM_USER_REGISTERED;
         }
+        if (OutboxEventTypes.PASSWORD_RESET.equals(eventType)) {
+            return KafkaTopics.IAM_PASSWORD_RESET;
+        }
         throw new IllegalArgumentException("Unknown outbox eventType: " + eventType);
     }
 }

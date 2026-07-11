@@ -59,11 +59,9 @@ export const useLogout = ({ mutationConfig }: UseLogoutOptions = {}) => {
   const clearAuth = useAuthStore((state) => state.clearAuth);
 
   return useMutation({
-    onSuccess: (response) => {
-      if (response.success) {
-        clearAuth();
-        broadcastAuthMessage({ type: "LOGOUT" });
-      }
+    onSettled: () => {
+      clearAuth();
+      broadcastAuthMessage({ type: "LOGOUT" });
     },
     ...mutationConfig,
     mutationFn: logout,

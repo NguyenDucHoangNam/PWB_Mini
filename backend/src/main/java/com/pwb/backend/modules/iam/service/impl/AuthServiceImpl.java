@@ -329,11 +329,62 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public void logout(String refreshToken) {
-        if (refreshToken == null || refreshToken.isBlank()) {
+    public void logout(String accessToken, String refreshToken, String ip) {
+        if ((accessToken == null || accessToken.isBlank()) && (refreshToken == null || refreshToken.isBlank())) {
+            log.warn("LOGOUT_MISSING_TOKENS ip={}", MaskingLogArg.ip(ip));
             return;
         }
-        sessionService.revokeSingleSession(refreshToken);
+
+        log.info("LOGOUT_REQUEST_RECEIVED ip={} hasAccessToken={} hasRefreshToken={}",
+                MaskingLogArg.ip(ip),
+                accessToken != null && !accessToken.isBlank(),
+                refreshToken != null && !refreshToken.isBlank());
+
+        blacklistAccessTokenIfPresent(accessToken, ip);
+
+        if (refreshToken != null && !refreshToken.isBlank()) {
+            try {
+                sessionService.revokeSingleSession(refreshToken);
+            } catch (Exception ex) {
+                log.warn("LOGOUT_REDIS_ERROR ip={} operation=revokeRefreshToken error={}",
+                        MaskingLogArg.ip(ip), ex.getMessage());
+            }
+        }
+    }
+
+    private void blacklistAccessTokenIfPresent(String accessToken, String ip) {
+        if (accessToken == null || accessToken.isBlank()) {
+            return;
+        }
+        String signature;
+        long expiryEpochSecond;
+        try {
+            signature = jwtSigner.extractSignature(accessToken);
+            expiryEpochSecond = jwtSigner.extractExpiryEpochSecond(accessToken);
+        } catch (JwtException | IllegalArgumentException ex) {
+            log.warn("LOGOUT_INVALID_ACCESS_TOKEN ip={} error={}", MaskingLogArg.ip(ip), ex.getMessage());
+            return;
+        }
+        if (signature == null || signature.isBlank()) {
+            return;
+        }
+
+        long now = Instant.now().getEpochSecond();
+        long ttl = (expiryEpochSecond - now) + jwtProperties.getBlacklistClockSkewBufferSeconds();
+        if (ttl <= 0) {
+            log.info("LOGOUT_BLACKLIST_SKIPPED reason=token_expired signaturePrefix={}",
+                    signature.substring(0, Math.min(8, signature.length())));
+            return;
+        }
+
+        try {
+            sessionService.blacklistAccessToken(signature, ttl);
+            log.info("TOKENS_INVALIDATED signaturePrefix={} blacklistTTLSeconds={}",
+                    signature.substring(0, Math.min(8, signature.length())), ttl);
+        } catch (Exception ex) {
+            log.warn("LOGOUT_REDIS_ERROR ip={} operation=blacklistAccessToken error={}",
+                    MaskingLogArg.ip(ip), ex.getMessage());
+        }
     }
 
     private LoginResponse completeSuccessfulLogin(User user, String ip, String userAgent) {

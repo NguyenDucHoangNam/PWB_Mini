@@ -23,7 +23,9 @@ import java.util.Locale;
 public class MailServiceImpl implements MailService {
 
     private static final String OTP_TEMPLATE = "email/otp-registration";
+    private static final String PASSWORD_RESET_TEMPLATE = "email/password-reset";
     private static final String SUBJECT_PREFIX = "[PWB Mini] ";
+    private static final String PASSWORD_RESET_SUBJECT = SUBJECT_PREFIX + "Hướng dẫn khôi phục mật khẩu tài khoản";
 
     private final JavaMailSender mailSender;
     private final TemplateEngine emailTemplateEngine;
@@ -31,8 +33,17 @@ public class MailServiceImpl implements MailService {
     @Value("${mail.from:PWB Mini <noreply@pwb-mini.dev>}")
     private String mailFrom;
 
+    @Value("${mail.security-from:PWB Mini Security <security@pwb-mini.dev>}")
+    private String securityFrom;
+
     @Value("${app.iam.otp.ttl-seconds:300}")
     private long otpTtlSeconds;
+
+    @Value("${app.iam.password-reset.token-ttl-seconds:600}")
+    private long passwordResetTtlSeconds;
+
+    @Value("${app.iam.password-reset.support-email:security@pwb-mini.dev}")
+    private String supportEmail;
 
     public MailServiceImpl(JavaMailSender mailSender,
                            @Qualifier("emailTemplateEngine") TemplateEngine emailTemplateEngine) {
@@ -62,6 +73,32 @@ public class MailServiceImpl implements MailService {
         } catch (MailException | MessagingException ex) {
             log.warn("Failed to send OTP email to {}: {}", toEmail, ex.getMessage());
             throw new IllegalStateException("Failed to send OTP email", ex);
+        }
+    }
+
+    @Override
+    public void sendPasswordResetEmail(String toEmail, String fullName, String resetUrl, long ttlMinutes) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
+            helper.setFrom(securityFrom);
+            helper.setTo(toEmail);
+            helper.setSubject(PASSWORD_RESET_SUBJECT);
+
+            Context ctx = new Context(Locale.ENGLISH);
+            ctx.setVariable("appName", "PWB Mini");
+            ctx.setVariable("fullName", fullName == null ? "" : fullName);
+            ctx.setVariable("resetUrl", resetUrl);
+            ctx.setVariable("expiresMinutes", ttlMinutes > 0 ? ttlMinutes : (passwordResetTtlSeconds / 60));
+            ctx.setVariable("supportEmail", supportEmail);
+            String html = emailTemplateEngine.process(PASSWORD_RESET_TEMPLATE, ctx);
+
+            helper.setText(html, true);
+            mailSender.send(message);
+            log.info("Password reset email sent to {}", toEmail);
+        } catch (MailException | MessagingException ex) {
+            log.warn("Failed to send password reset email to {}: {}", toEmail, ex.getMessage());
+            throw new IllegalStateException("Failed to send password reset email", ex);
         }
     }
 }

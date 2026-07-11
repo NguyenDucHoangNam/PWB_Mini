@@ -29,8 +29,15 @@ public enum IamErrorCode implements ErrorCode {
     JWT_EXPIRED("JWT_EXPIRED", "Access token has expired", HttpStatus.UNAUTHORIZED),
     INVALID_REFRESH_TOKEN("INVALID_REFRESH_TOKEN", "Refresh token is missing or expired", HttpStatus.UNAUTHORIZED),
     TOKEN_THEFT_DETECTED("TOKEN_THEFT_DETECTED", "Token reuse detected, all sessions have been revoked", HttpStatus.UNAUTHORIZED),
+    TOKEN_BLACKLISTED("TOKEN_BLACKLISTED", "Access token has been revoked", HttpStatus.UNAUTHORIZED),
 
-    RATE_LIMIT_EXCEEDED("RATE_LIMIT_EXCEEDED", "Too many requests", HttpStatus.TOO_MANY_REQUESTS);
+    RATE_LIMIT_EXCEEDED("RATE_LIMIT_EXCEEDED", "Too many requests", HttpStatus.TOO_MANY_REQUESTS),
+
+    INVALID_RESET_TOKEN("INVALID_RESET_TOKEN", "Password reset token is invalid or has expired", HttpStatus.BAD_REQUEST),
+    INVALID_OLD_PASSWORD("INVALID_OLD_PASSWORD", "Current password is incorrect", HttpStatus.BAD_REQUEST),
+    PASSWORD_REUSE_BLOCKED("PASSWORD_REUSE_BLOCKED", "New password must be different from current password", HttpStatus.BAD_REQUEST),
+    OAUTH_ONLY_ACCOUNT("OAUTH_ONLY_ACCOUNT", "Account registered via Google does not support password change", HttpStatus.BAD_REQUEST),
+    PASSWORD_CONFIRMATION_MISMATCH("PASSWORD_CONFIRMATION_MISMATCH", "Password confirmation does not match", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String defaultMessage;
