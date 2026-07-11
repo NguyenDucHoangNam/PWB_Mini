@@ -2,6 +2,7 @@
 # 1. Cấu hình AI Agent (Quan trọng)
 # ==========================================
 .agents/
+.cursor/
 .gemini/
 *.agent
 transcript*.jsonl
