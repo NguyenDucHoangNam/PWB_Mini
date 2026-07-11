@@ -45,11 +45,11 @@ Tài liệu đặc tả A-Z quy trình tải lên tệp tin nhạc gốc chất 
 
 #### C1. Quyết định triển khai Worker FFmpeg (Java trong cùng Monorepo)
 
-Để đồng bộ dependency (chia sẻ Entity `Demo`, `AudioProcessingJob`, dùng chung cấu hình Redis/S3) và giữ tính nhất quán của Spring Modulith, hệ thống triển khai Worker FFmpeg bằng **Java trong cùng codebase Monorepo Backend**, gọi tới CLI `ffmpeg` qua `ProcessBuilder`. Worker chạy trong cùng JVM với main application và lắng nghe Kafka topic `audio-processing-events` qua annotation `@KafkaListener`.
+Để đồng bộ dependency (chia sẻ Entity `Demo`, `AudioProcessingJob`, dùng chung cấu hình Redis/S3) và giữ tính nhất quán kiến trúc lớp (Layered Architecture) trong cùng module backend, hệ thống triển khai Worker FFmpeg bằng **Java trong cùng codebase Monorepo Backend**, gọi tới CLI `ffmpeg` qua `ProcessBuilder`. Worker chạy trong cùng JVM với main application và lắng nghe Kafka topic `audio-processing-events` qua annotation `@KafkaListener`.
 
 Lý do chốt Java:
 - Chia sẻ JPA Entity `Demo` + `AudioProcessingJob` cùng module Audio (không cần serialization phức tạp).
-- Cùng module trong Spring Modulith → được quản lý tập trung bởi `ArchitectureTest`.
+- Cùng dự án backend, không cần tách codebase → dễ bảo trì và tận dụng chung cấu hình.
 - Triển khai đơn giản vì `ffmpeg` binary đã có sẵn trong Docker image `pwb-backend`.
 - Không phải bảo trì 2 codebase (Java + Python/Go).
 

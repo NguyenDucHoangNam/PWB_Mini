@@ -47,7 +47,7 @@ Tài liệu đặc tả kiến trúc và quy trình kỹ thuật cho tiến trì
     *   `lockAtLeastFor`: **30 giây** (Thời gian giữ khóa tối thiểu. Ràng buộc này ngăn ngừa lỗi Clock Skew - lệch trục đồng hồ đồng bộ giữa các App Servers khi Job hoàn thành siêu tốc chỉ mất vài mili-giây, ngăn chặn Job bị kích hoạt thực thi lặp lại trên node khác).
 
 #### D. Sự kiện tích hợp hệ thống (System Integration Events)
-*   Để đảm bảo tính đóng gói của kiến trúc Modular Monolith và tuân thủ ranh giới module (Domain Boundary), tiến trình nền không tự ý viết trực tiếp xuống DB của module khác để dọn dẹp dữ liệu nghiệp vụ của User.
+*   Để đảm bảo tính tách biệt giữa các service trong Backend, tiến trình nền không tự ý truy cập trực tiếp các bảng dữ liệu thuộc service khác để dọn dẹp dữ liệu nghiệp vụ của User.
 *   Sau khi Database Transaction ẩn danh hóa User thành công và được Commit, Job **bắt buộc** phải phát một sự kiện kết thúc luồng mang tên `ACCOUNT_ANONYMIZED` sang Apache Kafka topic `iam-account-events`.
 *   Các module chuyên trách khác như Music (quản lý nhạc demo) và Live (quản lý live room) sẽ lắng nghe (Consume) sự kiện này để tiến hành dọn dẹp vĩnh viễn dữ liệu liên quan thuộc quyền sở hữu của user (ví dụ: Ra lệnh xóa tệp nhạc vật lý trên AWS S3, hard delete các bản ghi nháp, hoặc ẩn danh hóa/xóa thông tin tác giả trong các bảng lưu trữ nghiệp vụ tương ứng).
 
@@ -64,7 +64,7 @@ sequenceDiagram
     participant Redis as Redis Cache (ShedLock)
     participant DB as PostgreSQL
     participant Kafka as Apache Kafka
-    participant MusicLive as Music/Live Modules
+    participant MusicLive as Music/Live Services
     
     Job->>Redis: Thử lấy khóa 'anonymization_job_lock'
     alt Khóa đang bị giữ bởi instance khác

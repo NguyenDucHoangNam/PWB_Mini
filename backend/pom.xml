@@ -33,20 +33,7 @@
 		<lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
 		<aws.sdk.version>2.25.27</aws.sdk.version>
 		<shedlock.version>5.13.0</shedlock.version>
-		<spring-modulith.version>1.4.1</spring-modulith.version>
 	</properties>
-
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>org.springframework.modulith</groupId>
-				<artifactId>spring-modulith-bom</artifactId>
-				<version>${spring-modulith.version}</version>
-				<type>pom</type>
-				<scope>import</scope>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
 
 	<dependencies>
 		<dependency>
@@ -185,15 +172,6 @@
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>apache-client</artifactId>
 			<version>${aws.sdk.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.modulith</groupId>
-			<artifactId>spring-modulith-starter-core</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.modulith</groupId>
-			<artifactId>spring-modulith-starter-test</artifactId>
-			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>com.tngtech.archunit</groupId>

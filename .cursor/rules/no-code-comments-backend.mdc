@@ -1,0 +1,109 @@
+---
+description: Backend (Java) - Không được thêm comment vào source code
+globs: backend/**/*.java
+alwaysApply: true
+---
+
+# No Code Comments - Backend (Java)
+
+**NEVER** thêm inline comments (`// ...`) hoặc block comments (`/* ... */`) vào Java source code.
+
+Code phải tự document thông qua:
+
+- Tên class, method, variable rõ ràng
+- Cấu trúc code có chủ đích
+- Tách method nhỏ khi logic phức tạp
+
+---
+
+## Allowed Exceptions
+
+### 1. Javadoc cho Public APIs
+
+Chỉ được phép khi documentation cung cấp thông tin **KHÔNG THỂ** suy ra từ signature:
+
+```java
+// ✅ ALLOWED - thêm giá trị thực sự
+@return client IP address, or "Unknown" when invoked outside an HTTP request scope
+@throws IllegalArgumentException if input is null
+
+// ❌ FORBIDDEN - chỉ lặp lại tên
+@return the IP
+@param request the request
+```
+
+Javadoc phải **ngắn gọn** và **có giá trị thật**.
+
+### 2. License Headers
+
+Cấu hình qua build tool (Maven license plugin) thay vì viết tay trong từng file.
+
+---
+
+## Forbidden Comment Patterns
+
+| Pattern                          | Lý do                                           |
+| -------------------------------- | ----------------------------------------------- |
+| `// This method does X...`       | Chỉ lặp lại method name                         |
+| `/* Handle edge case */`         | Tách thành helper method có tên rõ ràng         |
+| `// TODO:` hoặc `// FIXME:`      | Dùng issue tracker, không để trong code         |
+| `// HACK:` hoặc `// XXX:`        | Refactor đúng cách, không để warning trong code |
+| `// ==== SECTION ====`           | Tổ chức bằng package/class thay vì comment      |
+| `// <copyright>` headers         | Cấu hình trong build tool                       |
+| Comment giải thích magic numbers | Dùng `private static final` constant            |
+
+---
+
+## Ví dụ: Self-Documenting Code
+
+### ❌ Bad (có comment)
+
+```java
+// Calculate total price with tax
+public double calculate(double price, double taxRate) {
+    // Apply tax to price
+    double taxed = price * taxRate;
+    // Add tax to original price
+    return price + taxed;  // Return total
+}
+```
+
+### ✅ Good (tự document)
+
+```java
+public double calculateTotalWithTax(double price, double taxRate) {
+    double taxAmount = price * taxRate;
+    return price + taxAmount;
+}
+```
+
+### ❌ Bad (magic number)
+
+```java
+// 86400000 = milliseconds in a day
+long dayInMs = 86400000L;
+```
+
+### ✅ Good (named constant)
+
+```java
+private static final long MILLIS_PER_DAY = 86_400_000L;
+```
+
+---
+
+## Enforcement Checklist
+
+Trước khi viết/submit code, kiểm tra:
+
+- [ ] Không có `//` hoặc `/* */` trong source files
+- [ ] Không có `TODO`, `FIXME`, `HACK`, `XXX` markers
+- [ ] Không có section divider comments
+- [ ] Javadoc chỉ dùng cho public APIs và có giá trị thật
+- [ ] Tất cả variable/method/class dùng tên tiếng Anh mô tả rõ ràng
+
+---
+
+## Reference
+
+Quy tắc này enforce policy đã được document trong `AGENTS.md` § Language > Comments.

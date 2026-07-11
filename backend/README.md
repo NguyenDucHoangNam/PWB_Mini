@@ -49,18 +49,30 @@ production deployments should inject secrets via the orchestrator
 
 ```
 com.pwb.backend
-├── iam/                  Identity & Access Management module
-│   ├── api/              DTOs and events (public API)
-│   └── internal/         controllers, services, repositories
-├── notification/         Email delivery module (Kafka consumer)
-├── liveroom/             Live-room module
-├── audio/                Audio/recording module
-├── shared/               Cross-cutting (security, storage, exceptions, response)
-└── BackendApplication.java
+├── BackendApplication.java
+├── controller/              REST controllers (one per business domain)
+├── service/                 Business services (interface in service/, impl in service/impl/)
+│   └── impl/                Service implementations
+├── repository/              Spring Data JPA & Mongo repositories
+├── model/                   JPA entities & Mongo documents (persistence models)
+├── mapper/                  MapStruct mappers between DTOs and entities
+├── dto/                     DTOs split by direction
+│   ├── request/             Inbound payloads
+│   └── response/            Outbound payloads (incl. ApiResponse<T> wrapper)
+├── exception/               Global exception handler + ErrorCode enums
+├── config/                  @Configuration beans (security, redis, kafka, swagger, etc.)
+├── kafka/                   Kafka producers, consumers, event payloads
+├── websocket/               WebSocket/STOMP configuration & event payloads
+├── cache/                   Cache abstractions and decorators around Redis
+├── elasticsearch/           Elasticsearch documents, repositories, services
+├── constant/                Cross-cutting constants
+└── util/                    Cross-cutting helpers (no business logic)
 ```
 
-Module boundaries are enforced by Spring Modulith and ArchUnit tests
-(`ModulithArchitectureTests`, `ArchitectureConventionsTests`).
+Architecture follows the classic Spring Boot layered pattern
+(Controller → Service → Repository). Logical separation between business
+domains (IAM, Live Room, Secure Audio Streaming) is maintained via package
+naming and convention; module boundaries are not enforced at build time.
 
 ## Build & Test
 

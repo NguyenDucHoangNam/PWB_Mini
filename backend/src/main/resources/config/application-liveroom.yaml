@@ -1,7 +1,0 @@
-app:
-  liveroom:
-    participants-limit: 7
-    websocket:
-      handshake-timeout-ms: 10000
-      ttl-phase-one-sec: 30
-      ttl-phase-two-sec: 14400
