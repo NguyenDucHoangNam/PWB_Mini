@@ -36,6 +36,11 @@ public class JwtVerifier {
     return claims == null ? null : claims.getSubject();
   }
 
+  public String extractUsername(String token) {
+    Claims claims = parseClaimsOrNull(token);
+    return claims == null ? null : claims.get("username", String.class);
+  }
+
   public String extractRole(String token) {
     Claims claims = parseClaimsOrNull(token);
     return claims == null ? null : claims.get("role", String.class);

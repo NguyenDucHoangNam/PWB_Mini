@@ -48,6 +48,7 @@ public class JwtService {
         currentKey(),
         user.getEmail(),
         Map.of(
+            "uid", user.getId(),
             "username", user.getUsername(),
             "role", user.getRole().getName(),
             CLAIM_EPOCH, jwtEpochService.currentEpoch()),
