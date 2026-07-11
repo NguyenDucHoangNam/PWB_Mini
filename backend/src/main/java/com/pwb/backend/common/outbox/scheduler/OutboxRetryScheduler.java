@@ -81,6 +81,10 @@ public class OutboxRetryScheduler {
         return switch (row.getEventType()) {
             case OutboxEventTypes.USER_REGISTERED -> KafkaTopics.IAM_USER_REGISTERED;
             case OutboxEventTypes.OTP_RESENT -> KafkaTopics.IAM_OTP_RESENT;
+            case OutboxEventTypes.PASSWORD_RESET -> KafkaTopics.IAM_PASSWORD_RESET;
+            case OutboxEventTypes.ACCOUNT_DELETION_REQUESTED,
+                 OutboxEventTypes.ACCOUNT_DELETION_CANCELLED -> KafkaTopics.IAM_ACCOUNT_DELETION;
+            case OutboxEventTypes.ACCOUNT_ANONYMIZED -> KafkaTopics.IAM_ACCOUNT_EVENTS;
             default -> {
                 log.warn("Unknown outbox event type {} for event {}", row.getEventType(), row.getId());
                 yield null;

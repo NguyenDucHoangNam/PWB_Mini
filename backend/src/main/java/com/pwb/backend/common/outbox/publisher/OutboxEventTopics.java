@@ -18,6 +18,9 @@ public class OutboxEventTopics {
                 || OutboxEventTypes.ACCOUNT_DELETION_CANCELLED.equals(eventType)) {
             return KafkaTopics.IAM_ACCOUNT_DELETION;
         }
+        if (OutboxEventTypes.ACCOUNT_ANONYMIZED.equals(eventType)) {
+            return KafkaTopics.IAM_ACCOUNT_EVENTS;
+        }
         throw new IllegalArgumentException("Unknown outbox eventType: " + eventType);
     }
 }

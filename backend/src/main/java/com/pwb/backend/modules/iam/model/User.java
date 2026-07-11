@@ -44,6 +44,9 @@ public class User {
     @EqualsAndHashCode.Include
     private UUID id;
 
+    @Column(name = "username", length = 100)
+    private String username;
+
     @Column(name = "email", nullable = false, unique = true, length = 255)
     private String email;
 
@@ -96,6 +99,9 @@ public class User {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
+    @Column(name = "deleted", nullable = false)
+    private boolean deleted;
+
     public User(UUID id,
                 String email,
                 String passwordHash,
@@ -125,6 +131,7 @@ public class User {
         user.status = UserStatus.PENDING_VERIFICATION;
         user.role = role;
         user.oauthProvider = OauthProvider.LOCAL;
+        user.username = generateUsernamePrefix(email) + generateUsernameSuffix();
         return user;
     }
 
@@ -143,6 +150,7 @@ public class User {
         user.oauthProvider = OauthProvider.GOOGLE;
         user.oauthId = oauthId;
         user.avatarUrl = avatarUrl;
+        user.username = generateUsernamePrefix(email) + generateUsernameSuffix();
         return user;
     }
 
@@ -170,6 +178,20 @@ public class User {
     public void cancelDeletion() {
         this.status = UserStatus.ACTIVE;
         this.deletionRequestedAt = null;
+    }
+
+    public void anonymize(UUID userId) {
+        this.username = "deleted_user_" + userId;
+        this.email = "deleted_" + userId + "@pwbmini.com";
+        this.passwordHash = null;
+        this.fullName = null;
+        this.phone = null;
+        this.avatarUrl = null;
+        this.oauthProvider = OauthProvider.LOCAL;
+        this.oauthId = null;
+        this.status = UserStatus.DELETED;
+        this.deleted = true;
+        this.deletedAt = Instant.now();
     }
 
     public void markLoggedIn(Instant when) {
