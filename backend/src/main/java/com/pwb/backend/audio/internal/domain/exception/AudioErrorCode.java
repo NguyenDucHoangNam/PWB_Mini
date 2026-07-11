@@ -1,10 +1,12 @@
 package com.pwb.backend.audio.internal.domain.exception;
 
 import com.pwb.backend.shared.exception.ErrorCodeLike;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
 @Getter
+@AllArgsConstructor
 public enum AudioErrorCode implements ErrorCodeLike {
 
     UNSUPPORTED_AUDIO_FORMAT("UNSUPPORTED_AUDIO_FORMAT", "Audio format is not supported. Accepted formats: wav, flac, mp3", HttpStatus.BAD_REQUEST),
@@ -49,15 +51,14 @@ public enum AudioErrorCode implements ErrorCodeLike {
     S3_PRESIGN_FAILED("S3_PRESIGN_FAILED", "Failed to generate S3 pre-signed URL", HttpStatus.SERVICE_UNAVAILABLE),
     FORBIDDEN_ACCESS("FORBIDDEN_ACCESS", "Caller is not the owner of the requested resource", HttpStatus.FORBIDDEN),
     WS_TOKEN_INVALID("WS_TOKEN_INVALID", "Temporary WebSocket access token is missing, invalid or expired", HttpStatus.FORBIDDEN),
-    WS_SUBSCRIBE_DENIED("WS_SUBSCRIBE_DENIED", "Caller is not a participant of the requested shared thread", HttpStatus.FORBIDDEN);
+    WS_SUBSCRIBE_DENIED("WS_SUBSCRIBE_DENIED", "Caller is not a participant of the requested shared thread", HttpStatus.FORBIDDEN),
+
+    SHARE_OTP_COOLDOWN("SHARE_OTP_COOLDOWN", "Please wait before requesting another OTP for this share token", HttpStatus.TOO_MANY_REQUESTS),
+    SHARE_OTP_ATTEMPTS_EXCEEDED("SHARE_OTP_ATTEMPTS_EXCEEDED", "Too many failed OTP attempts for this share token", HttpStatus.LOCKED),
+    SHARE_OTP_EXPIRED("SHARE_OTP_EXPIRED", "OTP has expired or was never issued for this share token", HttpStatus.BAD_REQUEST),
+    SHARE_INVALID_OTP("SHARE_INVALID_OTP", "Invalid OTP code", HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String defaultMessage;
     private final HttpStatus httpStatus;
-
-    AudioErrorCode(String code, String defaultMessage, HttpStatus httpStatus) {
-        this.code = code;
-        this.defaultMessage = defaultMessage;
-        this.httpStatus = httpStatus;
-    }
 }

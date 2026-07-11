@@ -1,8 +1,8 @@
-package com.pwb.backend.audio.internal.application.service;
+﻿package com.pwb.backend.audio.internal.application.service;
 
 import com.pwb.backend.audio.internal.interfaces.config.AudioProperties;
 import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -42,7 +42,7 @@ public class VoiceTagQuotaService {
     int max = audioProperties.getVoiceTag().getMaxActive();
     Long result = redisTemplate.execute(INCR_LUA, List.of(key), String.valueOf(max));
     if (result == null || result == -1L) {
-      throw new BusinessException(ErrorCode.VOICE_TAG_LIMIT_EXCEEDED,
+      throw new BusinessException(AudioErrorCode.VOICE_TAG_LIMIT_EXCEEDED,
           "Voice tag active cap reached");
     }
   }
@@ -61,7 +61,7 @@ public class VoiceTagQuotaService {
     int max = audioProperties.getVoiceTag().getMaxStorageBytes();
     if (total != null && total > max) {
       redisTemplate.opsForValue().decrement(key, deltaBytes);
-      throw new BusinessException(ErrorCode.VOICE_TAG_STORAGE_EXCEEDED,
+      throw new BusinessException(AudioErrorCode.VOICE_TAG_STORAGE_EXCEEDED,
           "Voice tag storage cap reached");
     }
   }

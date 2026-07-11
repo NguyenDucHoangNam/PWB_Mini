@@ -1,4 +1,4 @@
-package com.pwb.backend.audio.internal.interfaces.controller;
+﻿package com.pwb.backend.audio.internal.interfaces.controller;
 
 import com.pwb.backend.audio.internal.interfaces.config.AudioProperties;
 import com.pwb.backend.audio.internal.domain.model.Demo;
@@ -7,7 +7,7 @@ import com.pwb.backend.audio.internal.infrastructure.repository.DemoDistribution
 import com.pwb.backend.audio.internal.infrastructure.repository.DemoRepository;
 import com.pwb.backend.audio.internal.application.service.DownloadAuditService;
 import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 import com.pwb.backend.shared.storage.StorageService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -49,15 +49,15 @@ public class DownloadController {
       HttpServletRequest request) {
 
     Demo demo = demoRepository.findById(demoId)
-        .orElseThrow(() -> new BusinessException(ErrorCode.DEMO_NOT_FOUND, "Demo not found"));
+        .orElseThrow(() -> new BusinessException(AudioErrorCode.DEMO_NOT_FOUND, "Demo not found"));
 
     String s3Key = demo.getOriginalS3Key();
     if (s3Key == null || s3Key.isBlank()) {
-      throw new BusinessException(ErrorCode.ORIGINAL_FILE_MISSING, "Original S3 key missing");
+      throw new BusinessException(AudioErrorCode.ORIGINAL_FILE_MISSING, "Original S3 key missing");
     }
     String ext = extension(s3Key);
     if (!ALLOWED_EXT.contains(ext)) {
-      throw new BusinessException(ErrorCode.UNSUPPORTED_AUDIO_FORMAT,
+      throw new BusinessException(AudioErrorCode.UNSUPPORTED_AUDIO_FORMAT,
           "Extension '" + ext + "' is not in the allowlist");
     }
 
@@ -67,17 +67,17 @@ public class DownloadController {
     try {
       actualSize = storageService.getObjectSize(s3Key);
     } catch (Exception e) {
-      throw new BusinessException(ErrorCode.ORIGINAL_FILE_MISSING,
+      throw new BusinessException(AudioErrorCode.ORIGINAL_FILE_MISSING,
           "Cannot read object metadata: " + e.getMessage());
     }
     if (actualSize <= 0) {
-      throw new BusinessException(ErrorCode.ORIGINAL_FILE_MISSING, "Original file missing on storage");
+      throw new BusinessException(AudioErrorCode.ORIGINAL_FILE_MISSING, "Original file missing on storage");
     }
     if (actualSize > maxBytes) {
-      throw new BusinessException(ErrorCode.FILE_SIZE_MISMATCH, "File exceeds maximum allowed size");
+      throw new BusinessException(AudioErrorCode.FILE_SIZE_MISMATCH, "File exceeds maximum allowed size");
     }
     if (declaredSize > 0 && Math.abs(actualSize - declaredSize) > 0) {
-      throw new BusinessException(ErrorCode.FILE_SIZE_MISMATCH,
+      throw new BusinessException(AudioErrorCode.FILE_SIZE_MISMATCH,
           "Object size has diverged from declared size");
     }
 
@@ -95,7 +95,7 @@ public class DownloadController {
       presignedUrl = storageService.generatePresignedDownloadUrl(s3Key, ttl, headers);
     } catch (Exception e) {
       log.error("S3_PRESIGN_FAILED s3Key={} error={}", s3Key, e.getMessage());
-      throw new BusinessException(ErrorCode.S3_PRESIGN_FAILED, "Failed to generate presigned URL");
+      throw new BusinessException(AudioErrorCode.S3_PRESIGN_FAILED, "Failed to generate presigned URL");
     }
 
     String distributionId = null;

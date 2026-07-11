@@ -1,4 +1,4 @@
-package com.pwb.backend.audio.internal.application.helper;
+﻿package com.pwb.backend.audio.internal.application.helper;
 
 import com.google.cloud.texttospeech.v1.AudioConfig;
 import com.google.cloud.texttospeech.v1.AudioEncoding;
@@ -14,7 +14,7 @@ import com.google.cloud.texttospeech.v1.Voice;
 import com.google.cloud.texttospeech.v1.VoiceSelectionParams;
 import com.pwb.backend.audio.internal.interfaces.config.AudioProperties;
 import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
@@ -100,7 +100,7 @@ public class GcpTtsClient {
       return response.getAudioContent().toByteArray();
     } catch (Exception ex) {
       log.error("GCP TTS synthesize failed: voice={}, lang={}", voiceName, languageCode);
-      throw new BusinessException(ErrorCode.TTS_SERVICE_FAILED, "TTS synthesis failed");
+      throw new BusinessException(AudioErrorCode.TTS_SERVICE_FAILED, "TTS synthesis failed");
     }
   }
 

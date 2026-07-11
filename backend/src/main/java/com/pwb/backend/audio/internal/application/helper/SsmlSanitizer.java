@@ -1,8 +1,8 @@
-package com.pwb.backend.audio.internal.application.helper;
+﻿package com.pwb.backend.audio.internal.application.helper;
 
 import com.pwb.backend.audio.internal.interfaces.config.AudioProperties;
 import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -37,15 +37,15 @@ public class SsmlSanitizer {
 
   public SanitizedSsml sanitize(String input) {
     if (input == null || input.isBlank()) {
-      throw new BusinessException(ErrorCode.TTS_TEXT_TOO_LONG, "Voice tag text is required");
+      throw new BusinessException(AudioErrorCode.TTS_TEXT_TOO_LONG, "Voice tag text is required");
     }
     if (input.length() > audioProperties.getVoiceTag().getSsmlMaxLength()) {
-      throw new BusinessException(ErrorCode.INVALID_SSML_TAG, "Voice tag input exceeds SSML length limit");
+      throw new BusinessException(AudioErrorCode.INVALID_SSML_TAG, "Voice tag input exceeds SSML length limit");
     }
 
     String stripped = stripAllTags(input);
     if (stripped.length() > audioProperties.getVoiceTag().getRawTextMaxLength()) {
-      throw new BusinessException(ErrorCode.TTS_TEXT_TOO_LONG,
+      throw new BusinessException(AudioErrorCode.TTS_TEXT_TOO_LONG,
           "Raw voice tag text exceeds 100 characters");
     }
 
@@ -82,14 +82,14 @@ public class SsmlSanitizer {
       throw ex;
     } catch (Exception ex) {
       log.warn("SSML parse failed: {}", ex.getMessage());
-      throw new BusinessException(ErrorCode.INVALID_SSML_TAG, "SSML input is not well-formed");
+      throw new BusinessException(AudioErrorCode.INVALID_SSML_TAG, "SSML input is not well-formed");
     }
   }
 
   private void validateStructure(Document doc) {
     Element root = doc.getDocumentElement();
     if (root == null || !"speak".equals(root.getNodeName())) {
-      throw new BusinessException(ErrorCode.INVALID_SSML_TAG,
+      throw new BusinessException(AudioErrorCode.INVALID_SSML_TAG,
           "SSML root element must be <speak>");
     }
     int maxDepth = audioProperties.getVoiceTag().getSsmlMaxDepth();
@@ -98,7 +98,7 @@ public class SsmlSanitizer {
 
   private void walk(Element element, int depth, int maxDepth) {
     if (depth > maxDepth) {
-      throw new BusinessException(ErrorCode.INVALID_SSML_TAG,
+      throw new BusinessException(AudioErrorCode.INVALID_SSML_TAG,
           "SSML nested depth exceeds limit");
     }
     for (int i = 0; i < element.getAttributes().getLength(); i++) {
@@ -106,7 +106,7 @@ public class SsmlSanitizer {
       String name = attr.getNodeName();
       if (!ALLOWED_ATTRS.contains(name)) {
         log.warn("SSML tag attribute rejected: tag={}, attr={}", element.getNodeName(), name);
-        throw new BusinessException(ErrorCode.INVALID_SSML_TAG,
+        throw new BusinessException(AudioErrorCode.INVALID_SSML_TAG,
             "SSML attribute not allowed: " + name);
       }
     }
@@ -118,7 +118,7 @@ public class SsmlSanitizer {
         String childName = child.getNodeName();
         if (!ALLOWED_TAGS.contains(childName)) {
           log.warn("SSML tag rejected: tag={}", childName);
-          throw new BusinessException(ErrorCode.INVALID_SSML_TAG,
+          throw new BusinessException(AudioErrorCode.INVALID_SSML_TAG,
               "SSML tag not allowed: " + childName);
         }
         walk((Element) child, depth + 1, maxDepth);

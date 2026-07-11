@@ -1,8 +1,8 @@
-package com.pwb.backend.audio.internal.application.service;
+﻿package com.pwb.backend.audio.internal.application.service;
 
 import com.pwb.backend.audio.internal.interfaces.config.AudioProperties;
 import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;

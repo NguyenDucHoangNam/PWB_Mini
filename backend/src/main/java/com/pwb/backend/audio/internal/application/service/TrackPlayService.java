@@ -1,11 +1,11 @@
-package com.pwb.backend.audio.internal.application.service;
+﻿package com.pwb.backend.audio.internal.application.service;
 
 import com.pwb.backend.audio.internal.interfaces.config.AudioProperties;
 import com.pwb.backend.audio.internal.application.helper.IpHashService;
 import com.pwb.backend.audio.internal.domain.model.DemoDistribution;
 import com.pwb.backend.audio.internal.infrastructure.repository.DemoDistributionRepository;
 import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,7 +43,7 @@ public class TrackPlayService {
     redisTemplate.expire(sessionKey, Duration.ofHours(24));
 
     DemoDistribution distribution = distributionRepository.findByShareToken(UUID.fromString(shareToken))
-        .orElseThrow(() -> new BusinessException(ErrorCode.LINK_NOT_FOUND, "Distribution not found"));
+        .orElseThrow(() -> new BusinessException(AudioErrorCode.LINK_NOT_FOUND, "Distribution not found"));
 
     distribution.setPlayCount(distribution.getPlayCount() + 1);
     distribution.setLastPlayedAt(Instant.now());

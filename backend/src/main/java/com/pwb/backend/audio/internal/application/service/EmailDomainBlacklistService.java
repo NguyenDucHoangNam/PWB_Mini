@@ -1,10 +1,10 @@
-package com.pwb.backend.audio.internal.application.service;
+﻿package com.pwb.backend.audio.internal.application.service;
 
 import com.pwb.backend.audio.internal.interfaces.config.AudioProperties;
 import com.pwb.backend.audio.internal.domain.model.BlacklistedDomain;
 import com.pwb.backend.audio.internal.infrastructure.repository.BlacklistedDomainRepository;
 import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,17 +44,17 @@ public class EmailDomainBlacklistService {
 
   public void validate(String email) {
     if (email == null) {
-      throw new BusinessException(ErrorCode.INVALID_RECIPIENT_EMAIL, "Email is required");
+      throw new BusinessException(AudioErrorCode.INVALID_RECIPIENT_EMAIL, "Email is required");
     }
     int at = email.lastIndexOf('@');
     if (at < 0 || at == email.length() - 1) {
-      throw new BusinessException(ErrorCode.INVALID_RECIPIENT_EMAIL, "Invalid email format");
+      throw new BusinessException(AudioErrorCode.INVALID_RECIPIENT_EMAIL, "Invalid email format");
     }
     String domain = email.substring(at + 1).toLowerCase(Locale.ROOT);
     Set<String> blocked = loadCache();
     if (blocked.contains(domain)) {
       log.warn("BLACKLISTED_DOMAIN_REJECTED domain={} producerId={}", domain, "?");
-      throw new BusinessException(ErrorCode.INVALID_RECIPIENT_EMAIL,
+      throw new BusinessException(AudioErrorCode.INVALID_RECIPIENT_EMAIL,
           "Recipient email domain is blacklisted");
     }
   }

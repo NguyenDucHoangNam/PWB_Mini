@@ -1,8 +1,8 @@
-package com.pwb.backend.audio.internal.application.helper;
+﻿package com.pwb.backend.audio.internal.application.helper;
 
 import com.pwb.backend.audio.internal.interfaces.config.AudioProperties;
 import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.bramp.ffmpeg.FFmpeg;
@@ -33,13 +33,13 @@ public class BrampFfmpegExecutor implements FfmpegExecutor {
       FFmpegFormat format = result.format;
       List<FFmpegStream> streams = result.streams;
       if (streams == null || streams.isEmpty()) {
-        throw new BusinessException(ErrorCode.FFPROBE_VALIDATION_FAILED, "No streams found");
+        throw new BusinessException(AudioErrorCode.FFPROBE_VALIDATION_FAILED, "No streams found");
       }
       long audioCount = streams.stream()
           .filter(s -> s.codec_type == FFmpegStream.CodecType.AUDIO)
           .count();
       if (audioCount != 1) {
-        throw new BusinessException(ErrorCode.FFPROBE_VALIDATION_FAILED,
+        throw new BusinessException(AudioErrorCode.FFPROBE_VALIDATION_FAILED,
             "Expected exactly 1 audio stream, found " + audioCount);
       }
       boolean hasAttachment = streams.stream().anyMatch(s ->
@@ -63,13 +63,13 @@ public class BrampFfmpegExecutor implements FfmpegExecutor {
       return new FfmpegProbeResult(codec, sampleRate, bitDepth, channels, duration, hasAttachment);
     } catch (IOException ex) {
       log.error("ffprobe IO failure on {}", inputPath, ex);
-      throw new BusinessException(ErrorCode.FFPROBE_VALIDATION_FAILED,
+      throw new BusinessException(AudioErrorCode.FFPROBE_VALIDATION_FAILED,
           "ffprobe IO error");
     } catch (BusinessException ex) {
       throw ex;
     } catch (Exception ex) {
       log.error("ffprobe unexpected failure on {}", inputPath, ex);
-      throw new BusinessException(ErrorCode.FFPROBE_VALIDATION_FAILED,
+      throw new BusinessException(AudioErrorCode.FFPROBE_VALIDATION_FAILED,
           "ffprobe failed");
     }
   }
@@ -90,7 +90,7 @@ public class BrampFfmpegExecutor implements FfmpegExecutor {
       log.info("Watermark produced: input={}, tag={}, output={}", inputPath, voiceTagPath, outputPath);
     } catch (Exception ex) {
       log.error("FFmpeg watermark failed: input={}, tag={}", inputPath, voiceTagPath, ex);
-      throw new BusinessException(ErrorCode.FFMPEG_PROCESS_FAILED,
+      throw new BusinessException(AudioErrorCode.FFMPEG_PROCESS_FAILED,
           "Watermark failed");
     }
   }
@@ -120,7 +120,7 @@ public class BrampFfmpegExecutor implements FfmpegExecutor {
       log.info("HLS segmented: input={}, outputDir={}, playlist={}", inputPath, outputDir, playlistPath);
     } catch (Exception ex) {
       log.error("FFmpeg HLS segmentation failed: input={}, outputDir={}", inputPath, outputDir, ex);
-      throw new BusinessException(ErrorCode.HLS_SEGMENTATION_FAILED,
+      throw new BusinessException(AudioErrorCode.HLS_SEGMENTATION_FAILED,
           "HLS segmentation failed");
     }
   }

@@ -6,6 +6,8 @@ import com.pwb.backend.shared.web.response.ApiResponse;
 import com.pwb.backend.shared.web.response.ErrorDetail;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
@@ -16,13 +18,12 @@ import java.io.IOException;
 import java.util.List;
 
 @Component
+@RequiredArgsConstructor
 public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
-    private final ObjectMapper objectMapper;
+    private static final String MDC_TRACE_KEY = "traceId";
 
-    public RestAuthenticationEntryPoint(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
+    private final ObjectMapper objectMapper;
 
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
@@ -35,6 +36,8 @@ public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
+
+        response.setHeader("X-Trace-Id", MDC.get(MDC_TRACE_KEY));
 
         ErrorDetail detail = new ErrorDetail(
                 ErrorCode.UNAUTHORIZED.getCode(),

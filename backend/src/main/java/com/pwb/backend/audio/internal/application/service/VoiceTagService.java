@@ -1,4 +1,4 @@
-package com.pwb.backend.audio.internal.application.service;
+﻿package com.pwb.backend.audio.internal.application.service;
 
 import com.pwb.backend.audio.api.dto.request.CreateVoiceTagRequest;
 import com.pwb.backend.audio.api.dto.response.CreateVoiceTagResponse;
@@ -13,7 +13,7 @@ import com.pwb.backend.audio.internal.domain.model.VoiceTag;
 import com.pwb.backend.audio.internal.infrastructure.repository.DemoRepository;
 import com.pwb.backend.audio.internal.infrastructure.repository.VoiceTagRepository;
 import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 import com.pwb.backend.shared.web.security.ClientIpResolver;
 import com.pwb.backend.shared.storage.StorageService;
 import lombok.RequiredArgsConstructor;
@@ -56,7 +56,7 @@ public class VoiceTagService {
     SsmlSanitizer.SanitizedSsml sanitized = ssmlSanitizer.sanitize(request.textContent());
     if (!gcpTtsClient.isVoiceAllowed(request.voiceName())) {
       quotaService.releaseActiveSlot(userId);
-      throw new BusinessException(ErrorCode.INVALID_VOICE_NAME,
+      throw new BusinessException(AudioErrorCode.INVALID_VOICE_NAME,
           "Voice name is not allowed for this account");
     }
 
@@ -75,12 +75,12 @@ public class VoiceTagService {
       quotaService.releaseActiveSlot(userId);
       log.warn("GCP_TTS_INVALID_BYTES bytesReceived={} voiceName={}",
           audioBytes.length, request.voiceName());
-      throw new BusinessException(ErrorCode.TTS_SERVICE_FAILED_INVALID,
+      throw new BusinessException(AudioErrorCode.TTS_SERVICE_FAILED_INVALID,
           "TTS response bytes failed size validation");
     }
     if (!gcpTtsClient.looksLikeMp3(audioBytes)) {
       quotaService.releaseActiveSlot(userId);
-      throw new BusinessException(ErrorCode.TTS_SERVICE_FAILED_INVALID,
+      throw new BusinessException(AudioErrorCode.TTS_SERVICE_FAILED_INVALID,
           "TTS response magic number is not MP3");
     }
 
@@ -130,7 +130,7 @@ public class VoiceTagService {
   @Transactional
   public VoiceTagPreviewResponse previewVoiceTag(String userId, String tagId) {
     VoiceTag tag = voiceTagRepository.findActiveById(tagId)
-        .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_TAG_NOT_FOUND, "Voice tag not found"));
+        .orElseThrow(() -> new BusinessException(AudioErrorCode.VOICE_TAG_NOT_FOUND, "Voice tag not found"));
     if (!tag.getOwnerId().equals(userId)) {
       idorDetector.record(tagId, userId);
       throw new BusinessException(ErrorCode.FORBIDDEN, "You are not the owner of this voice tag");
@@ -144,7 +144,7 @@ public class VoiceTagService {
   @Transactional
   public void setDefaultVoiceTag(String userId, String tagId) {
     VoiceTag tag = voiceTagRepository.findActiveByIdAndOwner(tagId, userId)
-        .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_TAG_NOT_FOUND, "Voice tag not found"));
+        .orElseThrow(() -> new BusinessException(AudioErrorCode.VOICE_TAG_NOT_FOUND, "Voice tag not found"));
     if (tag.isDefault()) {
       return;
     }
@@ -172,11 +172,11 @@ public class VoiceTagService {
   @Transactional
   public void softDeleteVoiceTag(String userId, String tagId) {
     VoiceTag tag = voiceTagRepository.findActiveByIdAndOwner(tagId, userId)
-        .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_TAG_NOT_FOUND, "Voice tag not found"));
+        .orElseThrow(() -> new BusinessException(AudioErrorCode.VOICE_TAG_NOT_FOUND, "Voice tag not found"));
     long activeDemoCount = demoRepository.countByVoiceTagIdAndStatusAndDeletedFalse(
         tagId, DemoStatus.ACTIVE);
     if (activeDemoCount > 0) {
-      throw new BusinessException(ErrorCode.VOICE_TAG_IN_USE,
+      throw new BusinessException(AudioErrorCode.VOICE_TAG_IN_USE,
           "Voice tag is referenced by " + activeDemoCount + " active demos");
     }
 

@@ -1,7 +1,7 @@
-package com.pwb.backend.audio.internal.application.helper;
+﻿package com.pwb.backend.audio.internal.application.helper;
 
 import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.bramp.ffmpeg.builder.FFmpegBuilder;
@@ -45,7 +45,7 @@ public class WaveformExtractor {
       int exit = process.waitFor();
       stderrDrain.join(5000);
       if (exit != 0) {
-        throw new BusinessException(ErrorCode.FFMPEG_PROCESS_FAILED,
+        throw new BusinessException(AudioErrorCode.FFMPEG_PROCESS_FAILED,
             "Waveform extraction failed with code " + exit);
       }
       return bucketRms(rawAudio, points);
@@ -54,7 +54,7 @@ public class WaveformExtractor {
         Thread.currentThread().interrupt();
       }
       log.error("Waveform extraction failed", ex);
-      throw new BusinessException(ErrorCode.FFMPEG_PROCESS_FAILED,
+      throw new BusinessException(AudioErrorCode.FFMPEG_PROCESS_FAILED,
           "Waveform extraction failed");
     } finally {
       destroyQuietly(process);

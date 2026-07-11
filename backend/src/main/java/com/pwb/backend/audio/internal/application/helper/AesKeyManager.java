@@ -1,8 +1,8 @@
-package com.pwb.backend.audio.internal.application.helper;
+﻿package com.pwb.backend.audio.internal.application.helper;
 
 import com.pwb.backend.audio.internal.interfaces.config.AudioProperties;
 import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -46,12 +46,12 @@ public class AesKeyManager {
   public byte[] encryptMaster(byte[] demoKey) {
     String masterRaw = audioProperties.getAes().getMasterKey();
     if (masterRaw == null || masterRaw.isBlank()) {
-      throw new BusinessException(ErrorCode.AES_KEY_GENERATION_FAILED,
+      throw new BusinessException(AudioErrorCode.AES_KEY_GENERATION_FAILED,
           "AUDIO_AES_MASTER_KEY is not configured");
     }
     byte[] masterBytes = masterRaw.getBytes(StandardCharsets.UTF_8);
     if (masterBytes.length < MIN_MASTER_KEY_BYTES) {
-      throw new BusinessException(ErrorCode.AES_KEY_GENERATION_FAILED,
+      throw new BusinessException(AudioErrorCode.AES_KEY_GENERATION_FAILED,
           "AUDIO_AES_MASTER_KEY must be at least " + MIN_MASTER_KEY_BYTES + " bytes");
     }
     try {
@@ -69,7 +69,7 @@ public class AesKeyManager {
       return bb.array();
     } catch (Exception ex) {
       log.error("AES master encryption failed", ex);
-      throw new BusinessException(ErrorCode.AES_KEY_GENERATION_FAILED,
+      throw new BusinessException(AudioErrorCode.AES_KEY_GENERATION_FAILED,
           "AES encryption failed");
     }
   }
@@ -77,16 +77,16 @@ public class AesKeyManager {
   public byte[] decryptMaster(byte[] encryptedCombined) {
     String masterRaw = audioProperties.getAes().getMasterKey();
     if (masterRaw == null || masterRaw.isBlank()) {
-      throw new BusinessException(ErrorCode.AES_KEY_GENERATION_FAILED,
+      throw new BusinessException(AudioErrorCode.AES_KEY_GENERATION_FAILED,
           "AUDIO_AES_MASTER_KEY is not configured");
     }
     byte[] masterBytes = masterRaw.getBytes(StandardCharsets.UTF_8);
     if (masterBytes.length < MIN_MASTER_KEY_BYTES) {
-      throw new BusinessException(ErrorCode.AES_KEY_GENERATION_FAILED,
+      throw new BusinessException(AudioErrorCode.AES_KEY_GENERATION_FAILED,
           "AUDIO_AES_MASTER_KEY must be at least " + MIN_MASTER_KEY_BYTES + " bytes");
     }
     if (encryptedCombined == null || encryptedCombined.length < NONCE_BYTES + 16) {
-      throw new BusinessException(ErrorCode.AES_KEY_GENERATION_FAILED,
+      throw new BusinessException(AudioErrorCode.AES_KEY_GENERATION_FAILED,
           "Encrypted key payload too short");
     }
     try {
@@ -102,7 +102,7 @@ public class AesKeyManager {
       return cipher.doFinal(ct);
     } catch (Exception ex) {
       log.error("AES master decryption failed", ex);
-      throw new BusinessException(ErrorCode.AES_KEY_GENERATION_FAILED,
+      throw new BusinessException(AudioErrorCode.AES_KEY_GENERATION_FAILED,
           "AES decryption failed");
     }
   }

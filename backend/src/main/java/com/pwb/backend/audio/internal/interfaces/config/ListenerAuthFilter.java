@@ -1,8 +1,8 @@
-package com.pwb.backend.audio.internal.interfaces.config;
+﻿package com.pwb.backend.audio.internal.interfaces.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.audio.internal.application.service.BruteForceGuardService;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 import com.pwb.backend.shared.web.response.ApiResponse;
 import com.pwb.backend.shared.web.response.ErrorDetail;
 import com.pwb.backend.shared.web.security.ClientIpResolver;

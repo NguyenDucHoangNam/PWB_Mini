@@ -1,8 +1,8 @@
-package com.pwb.backend.audio.internal.application.service;
+﻿package com.pwb.backend.audio.internal.application.service;
 
 import com.pwb.backend.audio.internal.interfaces.config.AudioProperties;
 import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -34,13 +34,13 @@ public class OtpService {
     String cooldownKey = COOLDOWN_KEY_PREFIX + shareToken;
     Boolean inCooldown = redisTemplate.hasKey(cooldownKey);
     if (Boolean.TRUE.equals(inCooldown)) {
-      throw new BusinessException(ErrorCode.OTP_COOLDOWN,
+      throw new BusinessException(AudioErrorCode.SHARE_OTP_COOLDOWN,
           "Wait before requesting another OTP for this share token");
     }
 
     String lockedKey = LOCKED_KEY_PREFIX + shareToken;
     if (Boolean.TRUE.equals(redisTemplate.hasKey(lockedKey))) {
-      throw new BusinessException(ErrorCode.OTP_ATTEMPTS_EXCEEDED,
+      throw new BusinessException(AudioErrorCode.SHARE_OTP_ATTEMPTS_EXCEEDED,
           "OTP verification locked for this share token");
     }
 
@@ -63,12 +63,12 @@ public class OtpService {
   public boolean verify(String shareToken, String submitted) {
     String lockedKey = LOCKED_KEY_PREFIX + shareToken;
     if (Boolean.TRUE.equals(redisTemplate.hasKey(lockedKey))) {
-      throw new BusinessException(ErrorCode.OTP_ATTEMPTS_EXCEEDED, "OTP locked");
+      throw new BusinessException(AudioErrorCode.SHARE_OTP_ATTEMPTS_EXCEEDED, "OTP locked");
     }
 
     String expectedHash = redisTemplate.opsForValue().get(CODE_HASH_KEY_PREFIX + shareToken);
     if (expectedHash == null) {
-      throw new BusinessException(ErrorCode.OTP_EXPIRED, "OTP expired or not issued");
+      throw new BusinessException(AudioErrorCode.SHARE_OTP_EXPIRED, "OTP expired or not issued");
     }
 
     String submittedHash = hashCode(shareToken, submitted);
@@ -88,7 +88,7 @@ public class OtpService {
       }
       redisTemplate.opsForValue().set(DENIED_KEY_PREFIX + shareToken, "1",
           Duration.ofSeconds(audioProperties.getOtp().getCodeTtlSeconds()));
-      throw new BusinessException(ErrorCode.INVALID_OTP, "Invalid OTP code");
+      throw new BusinessException(AudioErrorCode.SHARE_INVALID_OTP, "Invalid OTP code");
     }
 
     redisTemplate.delete(CODE_HASH_KEY_PREFIX + shareToken);

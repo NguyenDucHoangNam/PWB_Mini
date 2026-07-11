@@ -1,4 +1,4 @@
-package com.pwb.backend.audio.internal.application.service;
+﻿package com.pwb.backend.audio.internal.application.service;
 
 import com.pwb.backend.audio.api.dto.request.DistributeDemoRequest;
 import com.pwb.backend.audio.api.dto.response.DistributeDemoResponse;
@@ -14,7 +14,7 @@ import com.pwb.backend.audio.internal.infrastructure.repository.DemoDistribution
 import com.pwb.backend.audio.internal.infrastructure.repository.DemoRepository;
 import com.pwb.backend.audio.internal.infrastructure.repository.SharedThreadRepository;
 import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -47,9 +47,9 @@ public class DistributionService {
   @Transactional
   public DistributeDemoResponse distribute(String producerId, String demoId, DistributeDemoRequest request) {
     Demo demo = demoRepository.findByIdAndOwnerIdAndDeletedFalse(demoId, producerId)
-        .orElseThrow(() -> new BusinessException(ErrorCode.DEMO_NOT_FOUND, "Demo not found"));
+        .orElseThrow(() -> new BusinessException(AudioErrorCode.DEMO_NOT_FOUND, "Demo not found"));
     if (demo.getStatus() != DemoStatus.ACTIVE) {
-      throw new BusinessException(ErrorCode.DEMO_NOT_ACTIVE,
+      throw new BusinessException(AudioErrorCode.DEMO_NOT_ACTIVE,
           "Demo must be ACTIVE before distribution");
     }
 
@@ -110,7 +110,7 @@ public class DistributionService {
   public DistributionListResponse listDistributions(String producerId, String demoId,
                                                      int page, int size, boolean includeRevoked) {
     Demo demo = demoRepository.findByIdAndOwnerIdAndDeletedFalse(demoId, producerId)
-        .orElseThrow(() -> new BusinessException(ErrorCode.DEMO_NOT_FOUND, "Demo not found"));
+        .orElseThrow(() -> new BusinessException(AudioErrorCode.DEMO_NOT_FOUND, "Demo not found"));
     if (size < 1) size = 20;
     if (size > 100) size = 100;
     if (page < 0) page = 0;

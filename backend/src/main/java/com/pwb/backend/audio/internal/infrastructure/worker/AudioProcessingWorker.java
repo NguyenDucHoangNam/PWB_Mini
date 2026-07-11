@@ -1,4 +1,4 @@
-package com.pwb.backend.audio.internal.infrastructure.worker;
+﻿package com.pwb.backend.audio.internal.infrastructure.worker;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.audio.internal.interfaces.config.AudioProperties;
@@ -15,7 +15,7 @@ import com.pwb.backend.audio.internal.domain.model.Demo;
 import com.pwb.backend.audio.internal.infrastructure.repository.AudioProcessingJobRepository;
 import com.pwb.backend.audio.internal.infrastructure.repository.DemoRepository;
 import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 import com.pwb.backend.shared.storage.StorageService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -179,7 +179,7 @@ public class AudioProcessingWorker {
   private void downloadInput(String s3Key, Path target) throws IOException {
     try (InputStream is = storageService.getObjectStream(s3Key)) {
       if (is == null) {
-        throw new BusinessException(ErrorCode.FILE_NOT_FOUND_ON_S3, "Uploaded file not found");
+        throw new BusinessException(AudioErrorCode.FILE_NOT_FOUND_ON_S3, "Uploaded file not found");
       }
       Files.copy(is, target, StandardCopyOption.REPLACE_EXISTING);
     }
@@ -200,7 +200,7 @@ public class AudioProcessingWorker {
       log.info("Uploaded {} HLS artifacts for demo={}", files.size(), demoId);
     } catch (IOException ex) {
       log.error("Failed to upload HLS artifacts for demo={}", demoId, ex);
-      throw new BusinessException(ErrorCode.HLS_SEGMENTATION_FAILED,
+      throw new BusinessException(AudioErrorCode.HLS_SEGMENTATION_FAILED,
           "HLS upload failed: " + ex.getMessage());
     }
   }
@@ -280,7 +280,7 @@ public class AudioProcessingWorker {
       return base;
     } catch (IOException ex) {
       log.error("Failed to create work dir", ex);
-      throw new BusinessException(ErrorCode.FFMPEG_PROCESS_FAILED,
+      throw new BusinessException(AudioErrorCode.FFMPEG_PROCESS_FAILED,
           "Failed to create work dir");
     }
   }

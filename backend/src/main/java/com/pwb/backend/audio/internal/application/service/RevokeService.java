@@ -1,4 +1,4 @@
-package com.pwb.backend.audio.internal.application.service;
+﻿package com.pwb.backend.audio.internal.application.service;
 
 import com.pwb.backend.audio.internal.interfaces.config.AudioProperties;
 import com.pwb.backend.audio.internal.application.helper.IpHashService;
@@ -9,7 +9,7 @@ import com.pwb.backend.audio.internal.infrastructure.repository.DemoDistribution
 import com.pwb.backend.audio.internal.infrastructure.repository.DemoRepository;
 import com.pwb.backend.audio.internal.infrastructure.repository.DemoRevokeAuditRepository;
 import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -70,10 +70,10 @@ public class RevokeService {
 
     DemoDistribution distribution = opt.get();
     Demo demo = demoRepository.findById(distribution.getDemoId())
-        .orElseThrow(() -> new BusinessException(ErrorCode.DEMO_NOT_FOUND, "Demo not found"));
+        .orElseThrow(() -> new BusinessException(AudioErrorCode.DEMO_NOT_FOUND, "Demo not found"));
     if (!producerId.equals(demo.getOwnerId())) {
       writeAudit(distributionId, distribution.getDemoId(), producerId, "unauthorized", request);
-      throw new BusinessException(ErrorCode.FORBIDDEN_ACCESS, "Caller is not the owner of this demo");
+      throw new BusinessException(AudioErrorCode.FORBIDDEN_ACCESS, "Caller is not the owner of this demo");
     }
 
     if (distribution.isRevoked()) {

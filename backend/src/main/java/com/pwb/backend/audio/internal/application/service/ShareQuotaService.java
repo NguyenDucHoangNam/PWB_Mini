@@ -1,8 +1,8 @@
-package com.pwb.backend.audio.internal.application.service;
+﻿package com.pwb.backend.audio.internal.application.service;
 
 import com.pwb.backend.audio.internal.interfaces.config.AudioProperties;
 import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -35,7 +35,7 @@ public class ShareQuotaService {
     if (count != null && count > countQuota) {
       redisTemplate.opsForValue().decrement(countKey);
       log.warn("SHARE_QUOTA_EXCEEDED producerId={} type=count quota={}", producerId, countQuota);
-      throw new BusinessException(ErrorCode.SHARE_QUOTA_EXCEEDED,
+      throw new BusinessException(AudioErrorCode.SHARE_QUOTA_EXCEEDED,
           "Daily distribution count quota exceeded");
     }
 
@@ -48,7 +48,7 @@ public class ShareQuotaService {
     if (recipientsSize != null && recipientsSize > recipientsQuota) {
       redisTemplate.opsForSet().remove(dailyRecipientsKey, recipientEmail);
       log.warn("SHARE_QUOTA_EXCEEDED producerId={} type=recipients quota={}", producerId, recipientsQuota);
-      throw new BusinessException(ErrorCode.SHARE_QUOTA_EXCEEDED,
+      throw new BusinessException(AudioErrorCode.SHARE_QUOTA_EXCEEDED,
           "Daily unique recipients quota exceeded");
     }
   }

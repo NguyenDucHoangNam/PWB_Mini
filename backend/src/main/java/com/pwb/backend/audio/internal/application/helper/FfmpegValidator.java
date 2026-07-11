@@ -1,7 +1,7 @@
-package com.pwb.backend.audio.internal.application.helper;
+﻿package com.pwb.backend.audio.internal.application.helper;
 
 import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 
 import java.util.Set;
 
@@ -22,32 +22,32 @@ public final class FfmpegValidator {
 
   public static void validate(FfmpegProbeResult probe) {
     if (probe == null) {
-      throw new BusinessException(ErrorCode.FFPROBE_VALIDATION_FAILED,
+      throw new BusinessException(AudioErrorCode.FFPROBE_VALIDATION_FAILED,
           "ffprobe returned no information");
     }
     String codec = probe.codecName();
     if (codec == null || !ALLOWED_CODECS.contains(codec.toLowerCase())) {
-      throw new BusinessException(ErrorCode.FFPROBE_VALIDATION_FAILED,
+      throw new BusinessException(AudioErrorCode.FFPROBE_VALIDATION_FAILED,
           "Unsupported codec: " + codec + ". Allowed: " + ALLOWED_CODECS);
     }
     if (!ALLOWED_SAMPLE_RATES.contains(probe.sampleRate())) {
-      throw new BusinessException(ErrorCode.FFPROBE_VALIDATION_FAILED,
+      throw new BusinessException(AudioErrorCode.FFPROBE_VALIDATION_FAILED,
           "Invalid sample rate: " + probe.sampleRate() + ". Allowed: " + ALLOWED_SAMPLE_RATES);
     }
     if (codec.startsWith("pcm_") && probe.bitDepth() < 16) {
-      throw new BusinessException(ErrorCode.FFPROBE_VALIDATION_FAILED,
+      throw new BusinessException(AudioErrorCode.FFPROBE_VALIDATION_FAILED,
           "PCM bit depth must be >= 16, got: " + probe.bitDepth());
     }
     if (probe.channels() != 1) {
-      throw new BusinessException(ErrorCode.FFPROBE_VALIDATION_FAILED,
+      throw new BusinessException(AudioErrorCode.FFPROBE_VALIDATION_FAILED,
           "Audio must be 1 channel (mono), got: " + probe.channels());
     }
     if (probe.durationSeconds() < MIN_DURATION_SECONDS || probe.durationSeconds() > MAX_DURATION_SECONDS) {
-      throw new BusinessException(ErrorCode.FFPROBE_VALIDATION_FAILED,
+      throw new BusinessException(AudioErrorCode.FFPROBE_VALIDATION_FAILED,
           "Duration must be between 1s and 1800s, got: " + probe.durationSeconds());
     }
     if (probe.hasCoverArt()) {
-      throw new BusinessException(ErrorCode.FFPROBE_VALIDATION_FAILED,
+      throw new BusinessException(AudioErrorCode.FFPROBE_VALIDATION_FAILED,
           "Cover art/attached image is not allowed");
     }
   }

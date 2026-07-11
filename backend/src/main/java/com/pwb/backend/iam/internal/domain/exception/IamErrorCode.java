@@ -1,6 +1,7 @@
 package com.pwb.backend.iam.internal.domain.exception;
 
 import com.pwb.backend.shared.exception.ErrorCodeLike;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
@@ -13,6 +14,7 @@ import org.springframework.http.HttpStatus;
  * {@link com.pwb.backend.shared.exception.ErrorCode}.
  */
 @Getter
+@AllArgsConstructor
 public enum IamErrorCode implements ErrorCodeLike {
 
     USER_NOT_EXISTED("USER_NOT_EXISTED", "User does not exist", HttpStatus.NOT_FOUND),
@@ -45,10 +47,4 @@ public enum IamErrorCode implements ErrorCodeLike {
     private final String code;
     private final String defaultMessage;
     private final HttpStatus httpStatus;
-
-    IamErrorCode(String code, String defaultMessage, HttpStatus httpStatus) {
-        this.code = code;
-        this.defaultMessage = defaultMessage;
-        this.httpStatus = httpStatus;
-    }
 }

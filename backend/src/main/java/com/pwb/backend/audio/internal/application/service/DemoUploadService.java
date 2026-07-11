@@ -1,4 +1,4 @@
-package com.pwb.backend.audio.internal.application.service;
+﻿package com.pwb.backend.audio.internal.application.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,7 +19,7 @@ import com.pwb.backend.audio.internal.domain.model.Demo;
 import com.pwb.backend.audio.internal.infrastructure.repository.AudioProcessingJobRepository;
 import com.pwb.backend.audio.internal.infrastructure.repository.DemoRepository;
 import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 import com.pwb.backend.shared.storage.StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -72,10 +72,10 @@ public class DemoUploadService {
     String s3Key = req.s3Key();
 
     UploadClaim claim = uploadClaimService.get(s3Key)
-        .orElseThrow(() -> new BusinessException(ErrorCode.UPLOAD_CLAIM_EXPIRED,
+        .orElseThrow(() -> new BusinessException(AudioErrorCode.UPLOAD_CLAIM_EXPIRED,
             "Upload claim is missing. Re-request presigned upload URL first."));
     if (!claim.userId().equals(userId)) {
-      throw new BusinessException(ErrorCode.INVALID_S3_KEY_OWNER,
+      throw new BusinessException(AudioErrorCode.INVALID_S3_KEY_OWNER,
           "You do not own this S3 key");
     }
 
@@ -87,7 +87,7 @@ public class DemoUploadService {
       } catch (Exception ex) {
         log.warn("Failed to delete rogue upload", ex);
       }
-      throw new BusinessException(ErrorCode.FILE_SIZE_MISMATCH,
+      throw new BusinessException(AudioErrorCode.FILE_SIZE_MISMATCH,
           "Uploaded file size does not match expected size");
     }
     long actualSize = claim.expectedSizeBytes();
@@ -129,7 +129,7 @@ public class DemoUploadService {
       log.error("S3 copy/delete failed for demo={}", saved.getId(), ex);
       demoRepository.delete(saved);
       jobRepository.delete(job);
-      throw new BusinessException(ErrorCode.FILE_NOT_FOUND_ON_S3,
+      throw new BusinessException(AudioErrorCode.FILE_NOT_FOUND_ON_S3,
           "Failed to relocate uploaded file");
     }
 

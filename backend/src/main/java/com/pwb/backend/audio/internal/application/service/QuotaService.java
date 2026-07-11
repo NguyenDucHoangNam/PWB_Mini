@@ -1,10 +1,10 @@
-package com.pwb.backend.audio.internal.application.service;
+﻿package com.pwb.backend.audio.internal.application.service;
 
 import com.pwb.backend.audio.internal.interfaces.config.AudioProperties;
 import com.pwb.backend.audio.internal.domain.enums.DemoStatus;
 import com.pwb.backend.audio.internal.infrastructure.repository.DemoRepository;
 import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,7 +28,7 @@ public class QuotaService {
     if (activeCount >= activeQuota) {
       log.warn("Active demo quota exceeded for owner={}: count={}, limit={}",
           ownerId, activeCount, activeQuota);
-      throw new BusinessException(ErrorCode.DEMO_QUOTA_EXCEEDED,
+      throw new BusinessException(AudioErrorCode.DEMO_QUOTA_EXCEEDED,
           "Active demo quota exceeded: " + activeCount + "/" + activeQuota);
     }
 
@@ -36,7 +36,7 @@ public class QuotaService {
     if (currentStorage + newFileSize > storageQuota) {
       log.warn("Storage quota exceeded for owner={}: current={}, new={}, limit={}",
           ownerId, currentStorage, newFileSize, storageQuota);
-      throw new BusinessException(ErrorCode.AUDIO_QUOTA_EXCEEDED,
+      throw new BusinessException(AudioErrorCode.AUDIO_QUOTA_EXCEEDED,
           "Storage quota exceeded: " + (currentStorage + newFileSize) + " > " + storageQuota);
     }
   }

@@ -1,7 +1,7 @@
-package com.pwb.backend.audio.internal.application.helper;
+﻿package com.pwb.backend.audio.internal.application.helper;
 
 import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -24,13 +24,13 @@ public class MimeToExtensionMapper {
 
   public String toExtension(String mimeType) {
     if (mimeType == null) {
-      throw new BusinessException(ErrorCode.UNSUPPORTED_AUDIO_FORMAT,
+      throw new BusinessException(AudioErrorCode.UNSUPPORTED_AUDIO_FORMAT,
           "Content-Type is required");
     }
     String normalized = mimeType.trim().toLowerCase();
     String ext = MIME_TO_EXT.get(normalized);
     if (ext == null || !ALLOWED_EXTS.contains(ext)) {
-      throw new BusinessException(ErrorCode.UNSUPPORTED_AUDIO_FORMAT,
+      throw new BusinessException(AudioErrorCode.UNSUPPORTED_AUDIO_FORMAT,
           "Unsupported audio MIME type: " + mimeType + ". Accepted: wav, flac, mp3");
     }
     return ext;

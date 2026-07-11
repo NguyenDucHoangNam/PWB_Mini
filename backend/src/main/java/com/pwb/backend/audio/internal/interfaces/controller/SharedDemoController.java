@@ -1,4 +1,4 @@
-package com.pwb.backend.audio.internal.interfaces.controller;
+﻿package com.pwb.backend.audio.internal.interfaces.controller;
 
 import com.pwb.backend.audio.api.dto.response.DownloadResponse;
 import com.pwb.backend.audio.api.dto.response.RequestOtpResponse;
@@ -21,7 +21,7 @@ import com.pwb.backend.audio.internal.application.service.StreamSecureCookieServ
 import com.pwb.backend.audio.internal.application.service.StreamSessionService;
 import com.pwb.backend.audio.internal.application.service.TrackPlayService;
 import com.pwb.backend.shared.exception.BusinessException;
-import com.pwb.backend.shared.exception.ErrorCode;
+import com.pwb.backend.audio.internal.domain.exception.AudioErrorCode;
 import com.pwb.backend.shared.web.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -115,28 +115,28 @@ public class SharedDemoController {
 
     StreamSecureCookieService.ParsedCookie parsed = streamSecureCookieService.parse(cookieToken);
     if (parsed == null) {
-      throw new BusinessException(ErrorCode.STREAM_SESSION_INVALID, "Missing or invalid stream session cookie");
+      throw new BusinessException(AudioErrorCode.STREAM_SESSION_INVALID, "Missing or invalid stream session cookie");
     }
     if (!shareToken.toString().equals(parsed.shareToken())) {
-      throw new BusinessException(ErrorCode.STREAM_SESSION_INVALID, "Cookie share token mismatch");
+      throw new BusinessException(AudioErrorCode.STREAM_SESSION_INVALID, "Cookie share token mismatch");
     }
     if (streamSessionService.isJtiRevoked(parsed.jti())) {
-      throw new BusinessException(ErrorCode.IP_MISMATCH, "Session jti has been revoked");
+      throw new BusinessException(AudioErrorCode.IP_MISMATCH, "Session jti has been revoked");
     }
 
     String ip = ip(request);
     String subnet = clientIpSubnetMasker.mask(ip);
     if (!clientIpSubnetMasker.matches(subnet, parsed.clientIpSubnet())) {
-      throw new BusinessException(ErrorCode.IP_MISMATCH, "Client IP does not match session subnet");
+      throw new BusinessException(AudioErrorCode.IP_MISMATCH, "Client IP does not match session subnet");
     }
 
     if (distributionCacheService.isRevoked(shareToken.toString())) {
-      throw new BusinessException(ErrorCode.LINK_REVOKED, "Shared link has been revoked");
+      throw new BusinessException(AudioErrorCode.LINK_REVOKED, "Shared link has been revoked");
     }
 
     DemoDistribution distribution = loadDistribution(shareToken);
     if (distribution.isRevoked()) {
-      throw new BusinessException(ErrorCode.LINK_REVOKED, "Shared link has been revoked");
+      throw new BusinessException(AudioErrorCode.LINK_REVOKED, "Shared link has been revoked");
     }
     Demo demo = loadActiveDemo(distribution.getDemoId());
 
@@ -193,18 +193,18 @@ public class SharedDemoController {
 
     StreamSecureCookieService.ParsedCookie parsed = streamSecureCookieService.parse(cookieToken);
     if (parsed == null) {
-      throw new BusinessException(ErrorCode.STREAM_SESSION_INVALID, "Missing or invalid stream session cookie");
+      throw new BusinessException(AudioErrorCode.STREAM_SESSION_INVALID, "Missing or invalid stream session cookie");
     }
     if (!shareToken.toString().equals(parsed.shareToken())) {
-      throw new BusinessException(ErrorCode.STREAM_SESSION_INVALID, "Cookie share token mismatch");
+      throw new BusinessException(AudioErrorCode.STREAM_SESSION_INVALID, "Cookie share token mismatch");
     }
     if (streamSessionService.isJtiRevoked(parsed.jti())) {
-      throw new BusinessException(ErrorCode.WS_TOKEN_INVALID, "Session has been revoked");
+      throw new BusinessException(AudioErrorCode.WS_TOKEN_INVALID, "Session has been revoked");
     }
     String ip = ip(request);
     String subnet = clientIpSubnetMasker.mask(ip);
     if (!clientIpSubnetMasker.matches(subnet, parsed.clientIpSubnet())) {
-      throw new BusinessException(ErrorCode.WS_TOKEN_INVALID, "IP subnet mismatch");
+      throw new BusinessException(AudioErrorCode.WS_TOKEN_INVALID, "IP subnet mismatch");
     }
     loadDistribution(shareToken);
 
@@ -224,27 +224,27 @@ public class SharedDemoController {
     if (audioProperties.getDownload().isRequireSecureCookie()) {
       StreamSecureCookieService.ParsedCookie parsed = streamSecureCookieService.parse(cookieToken);
       if (parsed == null) {
-        throw new BusinessException(ErrorCode.STREAM_SESSION_INVALID, "Stream session cookie required for download");
+        throw new BusinessException(AudioErrorCode.STREAM_SESSION_INVALID, "Stream session cookie required for download");
       }
       if (!shareToken.toString().equals(parsed.shareToken())) {
-        throw new BusinessException(ErrorCode.STREAM_SESSION_INVALID, "Cookie share token mismatch");
+        throw new BusinessException(AudioErrorCode.STREAM_SESSION_INVALID, "Cookie share token mismatch");
       }
       if (streamSessionService.isJtiRevoked(parsed.jti())) {
-        throw new BusinessException(ErrorCode.IP_MISMATCH, "Session jti revoked");
+        throw new BusinessException(AudioErrorCode.IP_MISMATCH, "Session jti revoked");
       }
       String ip = ip(request);
       String subnet = clientIpSubnetMasker.mask(ip);
       if (!clientIpSubnetMasker.matches(subnet, parsed.clientIpSubnet())) {
-        throw new BusinessException(ErrorCode.IP_MISMATCH, "IP subnet mismatch");
+        throw new BusinessException(AudioErrorCode.IP_MISMATCH, "IP subnet mismatch");
       }
     }
 
     DemoDistribution distribution = loadDistribution(shareToken);
     if (distribution.isRevoked() || distributionCacheService.isRevoked(shareToken.toString())) {
-      throw new BusinessException(ErrorCode.LINK_REVOKED, "Shared link has been revoked");
+      throw new BusinessException(AudioErrorCode.LINK_REVOKED, "Shared link has been revoked");
     }
     if (!distribution.isAllowDownload()) {
-      throw new BusinessException(ErrorCode.DOWNLOAD_PROHIBITED, "Producer disabled downloads");
+      throw new BusinessException(AudioErrorCode.DOWNLOAD_PROHIBITED, "Producer disabled downloads");
     }
     Demo demo = loadActiveDemo(distribution.getDemoId());
 
@@ -257,15 +257,15 @@ public class SharedDemoController {
     return distributionRepository.findByShareToken(shareToken)
         .orElseThrow(() -> {
           bruteForceGuardService.recordFailure("anonymous");
-          return new BusinessException(ErrorCode.LINK_NOT_FOUND, "Shared link does not exist");
+          return new BusinessException(AudioErrorCode.LINK_NOT_FOUND, "Shared link does not exist");
         });
   }
 
   private Demo loadActiveDemo(String demoId) {
     Demo demo = demoRepository.findById(demoId)
-        .orElseThrow(() -> new BusinessException(ErrorCode.DEMO_NOT_FOUND, "Demo not found"));
+        .orElseThrow(() -> new BusinessException(AudioErrorCode.DEMO_NOT_FOUND, "Demo not found"));
     if (demo.getStatus() != DemoStatus.ACTIVE) {
-      throw new BusinessException(ErrorCode.DEMO_NOT_ACTIVE, "Demo is not ACTIVE");
+      throw new BusinessException(AudioErrorCode.DEMO_NOT_ACTIVE, "Demo is not ACTIVE");
     }
     return demo;
   }
