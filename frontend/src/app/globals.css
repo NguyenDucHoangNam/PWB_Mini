@@ -161,6 +161,45 @@
     border-left-color: var(--cn-toast-neutral) !important;
   }
 
+  .cn-toast__progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    overflow: hidden;
+    pointer-events: none;
+    border-bottom-left-radius: var(--radius);
+    border-bottom-right-radius: var(--radius);
+    z-index: 4;
+  }
+
+  .cn-toast__progress-fill {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background-color: var(--cn-toast-neutral);
+    transform-origin: left center;
+    transform: scaleX(1);
+    animation: cn-progress-shrink var(--cn-toast-duration) linear forwards;
+    will-change: transform;
+  }
+
+  .cn-toast[data-type="success"] .cn-toast__progress-fill {
+    background-color: var(--cn-toast-success);
+  }
+  .cn-toast[data-type="warning"] .cn-toast__progress-fill {
+    background-color: var(--cn-toast-warning);
+  }
+  .cn-toast[data-type="error"] .cn-toast__progress-fill {
+    background-color: var(--cn-toast-error);
+  }
+  .cn-toast[data-type="info"] .cn-toast__progress-fill,
+  .cn-toast[data-type="default"] .cn-toast__progress-fill,
+  .cn-toast[data-type="loading"] .cn-toast__progress-fill {
+    background-color: var(--cn-toast-neutral);
+  }
+
   .cn-toast__title {
     @apply text-sm font-semibold tracking-tight;
   }
