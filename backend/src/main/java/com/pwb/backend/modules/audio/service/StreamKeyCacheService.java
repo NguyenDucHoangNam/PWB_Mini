@@ -22,11 +22,12 @@ public class StreamKeyCacheService {
 
     private static final String FIELD_KEY_BYTES = "keyBytes";
     private static final String FIELD_VERSION = "version";
+    private static final String FIELD_PREVIOUS_KEY_BYTES = "previousKeyBytes";
     private static final Duration CACHE_TTL = Duration.ofMinutes(5);
 
     private final StringRedisTemplate stringRedisTemplate;
 
-    public Optional<byte[]> getKeyBytes(UUID demoId) {
+    public Optional<CachedKey> get(UUID demoId) {
         if (demoId == null) {
             return Optional.empty();
         }
@@ -38,24 +39,41 @@ public class StreamKeyCacheService {
             if (base64 == null || version == null) {
                 return Optional.empty();
             }
-            byte[] decoded = Base64.getDecoder().decode(base64);
-            return Optional.of(decoded);
+            byte[] current = Base64.getDecoder().decode(base64);
+            byte[] previous = null;
+            String previousBase64 = ops.get(key, FIELD_PREVIOUS_KEY_BYTES);
+            if (previousBase64 != null && !previousBase64.isBlank()) {
+                previous = Base64.getDecoder().decode(previousBase64);
+            }
+            int parsedVersion = parseVersion(version);
+            return Optional.of(new CachedKey(current, previous, parsedVersion));
         } catch (Exception ex) {
             log.warn("STREAM_KEY_CACHE_GET_FAILED demoId={} reason={}", demoId, ex.getMessage());
             return Optional.empty();
         }
     }
 
+    public Optional<byte[]> getKeyBytes(UUID demoId) {
+        return get(demoId).map(CachedKey::keyBytes);
+    }
+
     public void put(UUID demoId, byte[] keyBytes) {
+        put(demoId, keyBytes, null, CURRENT_VERSION);
+    }
+
+    public void put(UUID demoId, byte[] keyBytes, byte[] previousKeyBytes, int version) {
         if (demoId == null || keyBytes == null) {
             return;
         }
         try {
             String key = AudioRedisKeys.demoKeyCacheKey(demoId);
             String base64 = Base64.getEncoder().encodeToString(keyBytes);
-            Map<String, String> values = Map.of(
-                    FIELD_KEY_BYTES, base64,
-                    FIELD_VERSION, String.valueOf(CURRENT_VERSION));
+            Map<String, String> values = new java.util.HashMap<>();
+            values.put(FIELD_KEY_BYTES, base64);
+            values.put(FIELD_VERSION, String.valueOf(version));
+            if (previousKeyBytes != null && previousKeyBytes.length > 0) {
+                values.put(FIELD_PREVIOUS_KEY_BYTES, Base64.getEncoder().encodeToString(previousKeyBytes));
+            }
             stringRedisTemplate.opsForHash().putAll(key, values);
             stringRedisTemplate.expire(key, CACHE_TTL);
         } catch (Exception ex) {
@@ -73,4 +91,14 @@ public class StreamKeyCacheService {
             log.warn("STREAM_KEY_CACHE_EVICT_FAILED demoId={} reason={}", demoId, ex.getMessage());
         }
     }
+
+    private static int parseVersion(String raw) {
+        try {
+            return Integer.parseInt(raw);
+        } catch (NumberFormatException ex) {
+            return CURRENT_VERSION;
+        }
+    }
+
+    public record CachedKey(byte[] keyBytes, byte[] previousKeyBytes, int version) {}
 }

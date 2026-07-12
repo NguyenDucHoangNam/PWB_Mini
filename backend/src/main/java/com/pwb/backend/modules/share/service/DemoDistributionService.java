@@ -17,4 +17,8 @@ public interface DemoDistributionService {
                                                         boolean includeRevoked, Pageable pageable);
 
     List<String> suggestRecipients(String keyword, UUID producerId);
+
+    DistributionListItemResponse revokeDistribution(UUID demoId, UUID distributionId, UUID producerId);
+
+    int revokeAllDistributions(UUID demoId, UUID producerId);
 }

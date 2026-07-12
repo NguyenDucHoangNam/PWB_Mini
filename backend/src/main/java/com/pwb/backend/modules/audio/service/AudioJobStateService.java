@@ -53,6 +53,10 @@ public class AudioJobStateService {
         demo.setAesKeyEncrypted(aesEncrypted);
         demo.setWaveformData(waveformJson);
         demo.setErrorMessage(null);
+        if (demo.getAesKeyVersion() < 1) {
+            demo.setAesKeyVersion(1);
+        }
+        demo.clearPreviousKey();
         demoRepository.save(demo);
 
         AudioProcessingJob job = jobRepository.findByDemoId(demoId)

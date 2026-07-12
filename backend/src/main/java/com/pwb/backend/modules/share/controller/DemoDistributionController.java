@@ -4,6 +4,7 @@ import com.pwb.backend.common.dto.ApiResponse;
 import com.pwb.backend.common.security.CurrentUserResolver;
 import com.pwb.backend.modules.share.dto.request.DistributeDemoRequest;
 import com.pwb.backend.modules.share.dto.response.DistributeDemoResponse;
+import com.pwb.backend.modules.share.dto.response.DistributionListItemResponse;
 import com.pwb.backend.modules.share.service.DemoDistributionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,7 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,6 +28,8 @@ import java.util.UUID;
 public class DemoDistributionController {
 
     private static final String MSG_SHARE_DEMO_SENT = "SHARE_DEMO_SENT";
+    private static final String MSG_DISTRIBUTION_REVOKED = "DISTRIBUTION_REVOKED";
+    private static final String MSG_DISTRIBUTIONS_REVOKED = "DISTRIBUTIONS_REVOKED";
 
     private final DemoDistributionService demoDistributionService;
     private final CurrentUserResolver currentUserResolver;
@@ -40,6 +44,25 @@ public class DemoDistributionController {
         DistributeDemoResponse data = demoDistributionService.distribute(demoId, request, producerId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(message(MSG_SHARE_DEMO_SENT), data));
+    }
+
+    @DeleteMapping("/{demoId}/distributions/{distributionId}")
+    @PreAuthorize("hasRole('USER_PRO')")
+    public ResponseEntity<ApiResponse<DistributionListItemResponse>> revokeDistribution(
+            @PathVariable UUID demoId,
+            @PathVariable UUID distributionId) {
+        UUID producerId = currentUserResolver.resolveUserId();
+        DistributionListItemResponse data = demoDistributionService.revokeDistribution(
+                demoId, distributionId, producerId);
+        return ResponseEntity.ok(ApiResponse.success(message(MSG_DISTRIBUTION_REVOKED), data));
+    }
+
+    @DeleteMapping("/{demoId}/distributions")
+    @PreAuthorize("hasRole('USER_PRO')")
+    public ResponseEntity<ApiResponse<Integer>> revokeAllDistributions(@PathVariable UUID demoId) {
+        UUID producerId = currentUserResolver.resolveUserId();
+        int count = demoDistributionService.revokeAllDistributions(demoId, producerId);
+        return ResponseEntity.ok(ApiResponse.success(message(MSG_DISTRIBUTIONS_REVOKED), count));
     }
 
     private String message(String key, Object... args) {

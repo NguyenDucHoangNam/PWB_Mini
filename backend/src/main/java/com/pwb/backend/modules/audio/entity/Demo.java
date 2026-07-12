@@ -17,6 +17,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -70,6 +71,15 @@ public class Demo extends BaseEntity {
     @Column(name = "aes_key_encrypted")
     private byte[] aesKeyEncrypted;
 
+    @Column(name = "aes_key_version", nullable = false)
+    private int aesKeyVersion = 1;
+
+    @Column(name = "previous_aes_key_encrypted")
+    private byte[] previousAesKeyEncrypted;
+
+    @Column(name = "last_rotated_at")
+    private Instant lastRotatedAt;
+
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
 
@@ -81,5 +91,19 @@ public class Demo extends BaseEntity {
         this.fileSize = fileSize;
         this.voiceTagId = voiceTagId;
         this.status = DemoStatus.PROCESSING;
+        this.aesKeyVersion = 1;
+    }
+
+    public void rotateKey(byte[] newEncryptedKey, Instant rotatedAt) {
+        if (this.aesKeyEncrypted != null && this.aesKeyEncrypted.length > 0) {
+            this.previousAesKeyEncrypted = this.aesKeyEncrypted;
+        }
+        this.aesKeyEncrypted = newEncryptedKey;
+        this.aesKeyVersion = this.aesKeyVersion + 1;
+        this.lastRotatedAt = rotatedAt;
+    }
+
+    public void clearPreviousKey() {
+        this.previousAesKeyEncrypted = null;
     }
 }

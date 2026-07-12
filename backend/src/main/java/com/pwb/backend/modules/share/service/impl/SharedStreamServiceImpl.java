@@ -4,10 +4,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.common.exception.BusinessException;
+import com.pwb.backend.common.security.HttpClientContextResolver;
 import com.pwb.backend.modules.audio.cache.DemoStatusCache;
 import com.pwb.backend.modules.audio.entity.Demo;
 import com.pwb.backend.modules.audio.enums.DemoStatus;
 import com.pwb.backend.modules.audio.repository.DemoRepository;
+import com.pwb.backend.modules.audio.security.IpHashUtil;
 import com.pwb.backend.modules.audio.security.StreamCookieSigner;
 import com.pwb.backend.modules.iam.model.User;
 import com.pwb.backend.modules.iam.repository.UserRepository;
@@ -43,6 +45,8 @@ public class SharedStreamServiceImpl implements SharedStreamService {
     private final StreamCookieSigner cookieSigner;
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
+    private final IpHashUtil ipHashUtil;
+    private final HttpClientContextResolver clientContextResolver;
 
     @Override
     @Transactional(readOnly = true)
@@ -54,15 +58,17 @@ public class SharedStreamServiceImpl implements SharedStreamService {
                 });
 
         if (distribution.isRevoked()) {
-            log.warn("REVOKED_LINK_ACCESS_ATTEMPT token={} demoId={}",
-                    shareToken, distribution.getDemoId());
+            String ipHash = ipHashUtil.hash(clientContextResolver.resolveIp(request));
+            log.warn("REVOKED_LINK_ACCESS_ATTEMPT token={} demoId={} ipHash={}",
+                    shareToken, distribution.getDemoId(), ipHash);
             throw new BusinessException(ShareErrorCode.LINK_REVOKED);
         }
 
         if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(
                 ShareRedisKeys.distributionRevokedKey(shareToken)))) {
-            log.warn("REVOKED_LINK_ACCESS_ATTEMPT token={} reason=redis_blacklist",
-                    shareToken);
+            String ipHash = ipHashUtil.hash(clientContextResolver.resolveIp(request));
+            log.warn("REVOKED_LINK_ACCESS_ATTEMPT token={} reason=redis_blacklist ipHash={}",
+                    shareToken, ipHash);
             throw new BusinessException(ShareErrorCode.LINK_REVOKED);
         }
 
@@ -114,7 +120,15 @@ public class SharedStreamServiceImpl implements SharedStreamService {
     @Override
     public String issueSessionCookie(UUID shareToken, UUID demoId, HttpServletRequest request) {
         String clientIpSubnet = cookieSigner.resolveClientIpSubnet(request);
-        return cookieSigner.issue(shareToken, clientIpSubnet, demoId);
+        StreamCookieSigner.IssuedCookie issued = cookieSigner.issue(shareToken, clientIpSubnet, demoId);
+        log.info("SECURE_COOKIE_ISSUED token={} demoId={} jti={} ipSubnet={}",
+                shareToken, demoId, issued.jti(), clientIpSubnet);
+        return issued.token();
+    }
+
+    @Override
+    public String cookieSubnetFor(HttpServletRequest request) {
+        return cookieSigner.resolveClientIpSubnet(request);
     }
 
     private DemoStatus resolveDemoStatus(UUID demoId) {

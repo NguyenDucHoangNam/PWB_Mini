@@ -146,6 +146,18 @@ app:
         method: GET
         permits-per-window: 60
         window: 1m
+      - path-pattern: /api/v1/stream/*/playlist.m3u8
+        method: GET
+        permits-per-window: 30
+        window: 1m
+      - path-pattern: /api/v1/demos/shared/*/track-play
+        method: POST
+        permits-per-window: 5
+        window: 1m
+      - path-pattern: /api/v1/internal/cdn-events
+        method: POST
+        permits-per-window: 60
+        window: 1m
       - path-pattern: /api/v1/demos/recipients/suggest
         method: GET
         permits-per-window: 30
@@ -243,15 +255,25 @@ app:
     hls-segment-seconds: 6
     stream:
       cookie-secret: ${AUDIO_STREAM_COOKIE_SECRET:}
+      cookie-secret-previous: ${AUDIO_STREAM_COOKIE_SECRET_PREVIOUS:}
       cookie-ttl-seconds: 1800
-      cookie-name: pwb_stream_sess
+      cookie-name: __Host-pwb_stream_sess
       cookie-secure: false
       cookie-same-site: Strict
       cidr-mask-bits-ipv4: 24
       cidr-mask-bits-ipv6: 48
+      playlist-signing-key: ${AUDIO_PLAYLIST_SIGNING_KEY:}
+      playlist-signature-ttl-seconds: 600
+      playlist-cache-ttl-seconds: 30
+      ip-hash-salt: ${AUDIO_IP_HASH_SALT:}
+      cdn-origin-verify-enabled: false
+      cdn-origin-verify-secret: ${AUDIO_CDN_ORIGIN_VERIFY_SECRET:}
     hls:
       aes-key-bytes: 16
       segment-duration-seconds: 6
+      key-rotation-enabled: true
+      key-rotation-on-revoke: true
+      previous-key-retention-days: 30
     presigned:
       expiry-seconds: 60
       upload-claim-ttl-seconds: 7200

@@ -1,6 +1,7 @@
 package com.pwb.backend.common.config;
 
 import com.pwb.backend.common.security.TrustedProxyProperties;
+import com.pwb.backend.common.security.cdn.OriginVerifyFilter;
 import com.pwb.backend.common.security.jwt.JwtAuthenticationEntryPoint;
 import com.pwb.backend.common.security.jwt.JwtAuthenticationFilter;
 import com.pwb.backend.common.security.ratelimit.IpRateLimitFilter;
@@ -36,6 +37,8 @@ public class SecurityConfig {
             "/api/v1/demos/shared/{token}/download",
             "/api/v1/demos/shared/**",
             "/api/v1/stream/keys/**",
+            "/api/v1/stream/*/playlist.m3u8",
+            "/api/v1/stream/*/playlist-signature",
             "/api/v1/health",
             "/swagger-ui/**",
             "/swagger-ui.html"
@@ -50,7 +53,9 @@ public class SecurityConfig {
             "/api/v1/auth/refresh",
             "/api/v1/auth/logout",
             "/api/v1/auth/forgot-password",
-            "/api/v1/auth/reset-password"
+            "/api/v1/auth/reset-password",
+            "/api/v1/demos/shared/*/track-play",
+            "/api/v1/internal/cdn-events"
     };
 
     private static final long HSTS_MAX_AGE_SECONDS = 31536000L;
@@ -67,7 +72,8 @@ public class SecurityConfig {
                                                    IpRateLimitFilter ipRateLimitFilter,
                                                    JwtAuthenticationFilter jwtAuthenticationFilter,
                                                    JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
-                                                   CorsConfigurationSource corsConfigurationSource) throws Exception {
+                                                   CorsConfigurationSource corsConfigurationSource,
+                                                   OriginVerifyFilter originVerifyFilter) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
@@ -91,7 +97,8 @@ public class SecurityConfig {
             auth.anyRequest().authenticated();
         });
 
-        http.addFilterBefore(ipRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+        http.addFilterBefore(originVerifyFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(ipRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

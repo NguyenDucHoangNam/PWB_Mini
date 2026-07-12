@@ -7,7 +7,10 @@ import com.pwb.backend.modules.audio.config.StreamProperties;
 import com.pwb.backend.modules.audio.entity.Demo;
 import com.pwb.backend.modules.audio.enums.DemoStatus;
 import com.pwb.backend.modules.audio.repository.DemoRepository;
+import com.pwb.backend.modules.audio.security.IpHashUtil;
+import com.pwb.backend.modules.audio.security.PlaySessionFingerprint;
 import com.pwb.backend.modules.audio.security.StreamCookieSigner;
+import com.pwb.backend.modules.audio.security.StreamCookieSigner.VerifiedCookie;
 import com.pwb.backend.modules.audio.service.StreamKeyCacheService;
 import com.pwb.backend.modules.audio.service.StreamKeyService;
 import com.pwb.backend.modules.audio.service.crypto.AesKeyEncryptor;
@@ -15,7 +18,6 @@ import com.pwb.backend.modules.share.constant.ShareRedisKeys;
 import com.pwb.backend.modules.share.entity.DemoDistribution;
 import com.pwb.backend.modules.share.exception.ShareErrorCode;
 import com.pwb.backend.modules.share.repository.DemoDistributionRepository;
-import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -25,12 +27,15 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.UUID;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class StreamKeyServiceImpl implements StreamKeyService {
+
+    private static final Duration ACTIVITY_TTL = Duration.ofSeconds(30);
 
     private final DemoDistributionRepository demoDistributionRepository;
     private final DemoRepository demoRepository;
@@ -41,20 +46,35 @@ public class StreamKeyServiceImpl implements StreamKeyService {
     private final StreamProperties streamProperties;
     private final HttpClientContextResolver clientContextResolver;
     private final StringRedisTemplate stringRedisTemplate;
+    private final PlaySessionFingerprint playSessionFingerprint;
+    private final IpHashUtil ipHashUtil;
 
     @Override
     @Transactional(readOnly = true)
     public byte[] loadKey(UUID shareToken, HttpServletRequest request, HttpServletResponse response) {
-        Claims claims = verifyCookie(request);
-        String cookieToken = claims.get("shareToken", String.class);
+        VerifiedCookie verified = verifyCookie(request);
+        String cookieToken = verified.claims().get("shareToken", String.class);
         if (cookieToken == null || !cookieToken.equals(shareToken.toString())) {
             log.warn("KEY_COOKIE_TOKEN_MISMATCH urlToken={} cookieToken={}",
                     shareToken, cookieToken);
             throw new BusinessException(ShareErrorCode.IP_MISMATCH,
                     "Secure session cookie does not match requested share token");
         }
+        String jti = verified.jti();
+        if (jti == null || jti.isBlank()) {
+            log.warn("KEY_COOKIE_JTI_MISSING token={}", shareToken);
+            throw new BusinessException(ShareErrorCode.IP_MISMATCH,
+                    "Secure session cookie missing jti claim");
+        }
+        if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(
+                ShareRedisKeys.cookieRevokedKey(jti)))) {
+            String ipHash = ipHashUtil.hash(clientContextResolver.resolveIp(request));
+            log.warn("KEY_JTI_REVOKED token={} jti={} ipHash={}", shareToken, jti, ipHash);
+            throw new BusinessException(ShareErrorCode.IP_MISMATCH,
+                    "Secure session cookie has been revoked");
+        }
 
-        String cookieSubnet = claims.get("clientIpSubnet", String.class);
+        String cookieSubnet = verified.claims().get("clientIpSubnet", String.class);
         if (cookieSubnet == null || cookieSubnet.isBlank()) {
             log.warn("KEY_COOKIE_SUBNET_MISSING token={}", shareToken);
             throw new BusinessException(ShareErrorCode.IP_MISMATCH,
@@ -62,8 +82,9 @@ public class StreamKeyServiceImpl implements StreamKeyService {
         }
         String requestIp = clientContextResolver.resolveIp(request);
         if (!cookieSigner.ipMatchesSubnet(requestIp, cookieSubnet)) {
-            log.warn("KEY_IP_MISMATCH token={} cookieSubnet={} requestIp={}",
-                    shareToken, cookieSubnet, requestIp);
+            String ipHash = ipHashUtil.hash(requestIp);
+            log.warn("KEY_IP_MISMATCH token={} cookieSubnet={} ipHash={}",
+                    shareToken, cookieSubnet, ipHash);
             throw new BusinessException(ShareErrorCode.IP_MISMATCH,
                     "Client IP does not match the secure session cookie subnet");
         }
@@ -82,7 +103,8 @@ public class StreamKeyServiceImpl implements StreamKeyService {
                 });
 
         if (distribution.isRevoked()) {
-            log.warn("KEY_LINK_REVOKED token={}", shareToken);
+            String ipHash = ipHashUtil.hash(requestIp);
+            log.warn("KEY_LINK_REVOKED token={} ipHash={}", shareToken, ipHash);
             throw new BusinessException(ShareErrorCode.LINK_REVOKED);
         }
 
@@ -92,16 +114,24 @@ public class StreamKeyServiceImpl implements StreamKeyService {
             throw new BusinessException(ShareErrorCode.DEMO_NOT_ACTIVE);
         }
 
-        byte[] keyBytes = keyCacheService.getKeyBytes(distribution.getDemoId())
+        trackKeysActivity(shareToken, request);
+
+        byte[] keyBytes = keyCacheService.get(distribution.getDemoId())
+                .map(StreamKeyCacheService.CachedKey::keyBytes)
                 .orElseGet(() -> loadAndCacheKey(distribution.getDemoId()));
 
-        log.info("KEY_SERVED token={} demoId={} keyVersion={}",
-                shareToken, distribution.getDemoId(), StreamKeyCacheService.CURRENT_VERSION);
-        response.setHeader("X-Stream-Key-Version", String.valueOf(StreamKeyCacheService.CURRENT_VERSION));
+        int currentVersion = keyCacheService.get(distribution.getDemoId())
+                .map(StreamKeyCacheService.CachedKey::version)
+                .orElse(StreamKeyCacheService.CURRENT_VERSION);
+
+        log.info("KEY_SERVED token={} demoId={} keyVersion={} jti={} signingSource={}",
+                shareToken, distribution.getDemoId(),
+                currentVersion, jti, verified.signingSource());
+        response.setHeader("X-Stream-Key-Version", String.valueOf(currentVersion));
         return keyBytes;
     }
 
-    private Claims verifyCookie(HttpServletRequest request) {
+    private VerifiedCookie verifyCookie(HttpServletRequest request) {
         String token = extractCookie(request, streamProperties.getCookieName());
         if (token == null || token.isBlank()) {
             log.warn("KEY_COOKIE_MISSING");
@@ -109,6 +139,20 @@ public class StreamKeyServiceImpl implements StreamKeyService {
                     "Secure session cookie is required");
         }
         return cookieSigner.verify(token);
+    }
+
+    private void trackKeysActivity(UUID shareToken, HttpServletRequest request) {
+        try {
+            String sessionId = playSessionFingerprint.compute(request);
+            String key = ShareRedisKeys.keysRequestCountKey(sessionId);
+            Long count = stringRedisTemplate.opsForValue().increment(key);
+            if (count != null && count == 1L) {
+                stringRedisTemplate.expire(key, ACTIVITY_TTL);
+            }
+        } catch (Exception ex) {
+            log.warn("KEYS_ACTIVITY_TRACK_FAILED token={} reason={}",
+                    shareToken, ex.getMessage());
+        }
     }
 
     private String extractCookie(HttpServletRequest request, String name) {
@@ -159,7 +203,11 @@ public class StreamKeyServiceImpl implements StreamKeyService {
                     "AES key not yet available for this demo");
         }
         byte[] keyBytes = aesKeyEncryptor.decrypt(demo.getAesKeyEncrypted());
-        keyCacheService.put(demoId, keyBytes);
+        byte[] previousBytes = null;
+        if (demo.getPreviousAesKeyEncrypted() != null && demo.getPreviousAesKeyEncrypted().length > 0) {
+            previousBytes = aesKeyEncryptor.decrypt(demo.getPreviousAesKeyEncrypted());
+        }
+        keyCacheService.put(demoId, keyBytes, previousBytes, demo.getAesKeyVersion());
         return keyBytes;
     }
 }

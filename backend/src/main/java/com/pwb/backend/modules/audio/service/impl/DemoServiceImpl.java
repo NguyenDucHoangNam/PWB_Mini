@@ -9,6 +9,7 @@ import com.pwb.backend.modules.audio.dto.request.PresignedUrlRequest;
 import com.pwb.backend.modules.audio.dto.response.ConfirmUploadResponse;
 import com.pwb.backend.modules.audio.dto.response.DemoStatusResponse;
 import com.pwb.backend.modules.audio.dto.response.PresignedUrlResponse;
+import com.pwb.backend.modules.audio.dto.response.RotateKeyResponse;
 import com.pwb.backend.modules.audio.entity.AudioProcessingJob;
 import com.pwb.backend.modules.audio.entity.Demo;
 import com.pwb.backend.modules.audio.enums.AudioFormat;
@@ -18,6 +19,7 @@ import com.pwb.backend.modules.audio.exception.AudioErrorCode;
 import com.pwb.backend.modules.audio.mapper.DemoMapper;
 import com.pwb.backend.modules.audio.repository.AudioProcessingJobRepository;
 import com.pwb.backend.modules.audio.repository.DemoRepository;
+import com.pwb.backend.modules.audio.service.AesKeyRotationService;
 import com.pwb.backend.modules.audio.service.DemoQuotaService;
 import com.pwb.backend.modules.audio.service.DemoService;
 import com.pwb.backend.modules.audio.service.UploadClaimService;
@@ -49,6 +51,7 @@ public class DemoServiceImpl implements DemoService {
     private final DemoQuotaService demoQuotaService;
     private final AudioProcessingEventPublisher audioProcessingEventPublisher;
     private final AudioProperties audioProperties;
+    private final AesKeyRotationService aesKeyRotationService;
 
     @Override
     @Transactional
@@ -167,6 +170,18 @@ public class DemoServiceImpl implements DemoService {
                         S3_KEY_STREAM_PREFIX + demo.getHlsPlaylistS3Key());
 
         return demoMapper.toStatusResponse(demo, playlistUrl);
+    }
+
+    @Override
+    @Transactional
+    public RotateKeyResponse rotateKey(UUID ownerId, UUID demoId) {
+        Demo demo = demoRepository.findByIdAndOwnerId(demoId, ownerId)
+                .orElseThrow(() -> new BusinessException(AudioErrorCode.DEMO_NOT_FOUND,
+                        "Demo " + demoId + " not found for userId=" + ownerId));
+        AesKeyRotationService.RotationResult result = aesKeyRotationService.rotateOnDemand(
+                demo.getId(), ownerId);
+        return new RotateKeyResponse(result.demoId(), result.newVersion(), result.rotated(),
+                "AES_KEY_ROTATED");
     }
 
     private void validateRequest(PresignedUrlRequest request) {

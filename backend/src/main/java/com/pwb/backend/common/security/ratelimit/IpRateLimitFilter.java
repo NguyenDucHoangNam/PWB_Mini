@@ -4,12 +4,15 @@ import com.pwb.backend.common.dto.ApiResponse;
 import com.pwb.backend.common.dto.ErrorDetail;
 import com.pwb.backend.common.security.HttpClientContextResolver;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pwb.backend.modules.audio.security.IpHashUtil;
 import com.pwb.backend.modules.share.security.BruteForceLockout;
+import com.pwb.backend.modules.share.security.IpBruteForceCounter;
 import com.pwb.backend.modules.share.security.ShareTokenRateLimiter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponseWrapper;
 import org.redisson.api.RRateLimiter;
 import org.redisson.api.RateIntervalUnit;
 import org.redisson.api.RateType;
@@ -48,7 +51,9 @@ public class IpRateLimitFilter extends OncePerRequestFilter {
     private final HttpClientContextResolver clientContextResolver;
     private final ShareTokenRateLimiter shareTokenRateLimiter;
     private final BruteForceLockout bruteForceLockout;
+    private final IpBruteForceCounter ipBruteForceCounter;
     private final ObjectMapper objectMapper;
+    private final IpHashUtil ipHashUtil;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     public IpRateLimitFilter(RedissonClient redissonClient,
@@ -56,13 +61,17 @@ public class IpRateLimitFilter extends OncePerRequestFilter {
                              HttpClientContextResolver clientContextResolver,
                              ShareTokenRateLimiter shareTokenRateLimiter,
                              BruteForceLockout bruteForceLockout,
-                             ObjectMapper objectMapper) {
+                             IpBruteForceCounter ipBruteForceCounter,
+                             ObjectMapper objectMapper,
+                             IpHashUtil ipHashUtil) {
         this.redissonClient = redissonClient;
         this.properties = properties;
         this.clientContextResolver = clientContextResolver;
         this.shareTokenRateLimiter = shareTokenRateLimiter;
         this.bruteForceLockout = bruteForceLockout;
+        this.ipBruteForceCounter = ipBruteForceCounter;
         this.objectMapper = objectMapper;
+        this.ipHashUtil = ipHashUtil;
     }
 
     @Override
@@ -74,9 +83,15 @@ public class IpRateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
+        if (ipBruteForceCounter.isIpBlocked(request)) {
+            log.warn("IP_BRUTE_FORCE_BLOCKED ipHash={}", ipHashUtil.hash(clientContextResolver.resolveIp(request)));
+            writeRateLimitedResponse(response, null);
+            return;
+        }
+
         RateLimitRule matchedRule = findMatchedRule(request);
         if (matchedRule == null) {
-            filterChain.doFilter(request, response);
+            chainAndMaybeRecordFail(request, response, filterChain, false);
             return;
         }
 
@@ -114,11 +129,23 @@ public class IpRateLimitFilter extends OncePerRequestFilter {
                 RateIntervalUnit.MILLISECONDS);
 
         if (limiter.tryAcquire(1)) {
-            filterChain.doFilter(request, response);
+            chainAndMaybeRecordFail(request, response, filterChain, true);
             return;
         }
 
         writeRateLimitedResponse(response, matchedRule);
+    }
+
+    private void chainAndMaybeRecordFail(HttpServletRequest request,
+                                          HttpServletResponse response,
+                                          FilterChain filterChain,
+                                          boolean trackFail) throws ServletException, IOException {
+        StatusCaptureWrapper wrapper = new StatusCaptureWrapper(response);
+        filterChain.doFilter(request, wrapper);
+        if (trackFail && wrapper.getStatus() == HttpStatus.NOT_FOUND.value()
+                && request.getRequestURI().startsWith("/api/v1/demos/shared/")) {
+            ipBruteForceCounter.recordFail(request);
+        }
     }
 
     private RateLimitRule findMatchedRule(HttpServletRequest request) {
@@ -181,5 +208,37 @@ public class IpRateLimitFilter extends OncePerRequestFilter {
         ErrorDetail detail = new ErrorDetail(CODE_RATE_LIMITED, null, MESSAGE_RATE_LIMITED);
         ApiResponse<Void> body = ApiResponse.error(MESSAGE_RATE_LIMITED, List.of(detail));
         response.getWriter().write(objectMapper.writeValueAsString(body));
+    }
+
+    private static final class StatusCaptureWrapper extends HttpServletResponseWrapper {
+
+        private int status = HttpServletResponse.SC_OK;
+
+        StatusCaptureWrapper(HttpServletResponse response) {
+            super(response);
+        }
+
+        @Override
+        public void setStatus(int sc) {
+            this.status = sc;
+            super.setStatus(sc);
+        }
+
+        @Override
+        public void sendError(int sc) throws IOException {
+            this.status = sc;
+            super.sendError(sc);
+        }
+
+        @Override
+        public void sendError(int sc, String msg) throws IOException {
+            this.status = sc;
+            super.sendError(sc, msg);
+        }
+
+        @Override
+        public int getStatus() {
+            return status;
+        }
     }
 }

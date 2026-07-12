@@ -5,6 +5,7 @@ import com.pwb.backend.modules.audio.dto.request.PresignedUrlRequest;
 import com.pwb.backend.modules.audio.dto.response.ConfirmUploadResponse;
 import com.pwb.backend.modules.audio.dto.response.DemoStatusResponse;
 import com.pwb.backend.modules.audio.dto.response.PresignedUrlResponse;
+import com.pwb.backend.modules.audio.dto.response.RotateKeyResponse;
 
 import java.util.UUID;
 
@@ -15,4 +16,6 @@ public interface DemoService {
     ConfirmUploadResponse confirmUpload(UUID ownerId, ConfirmUploadRequest request);
 
     DemoStatusResponse getStatus(UUID ownerId, UUID demoId);
+
+    RotateKeyResponse rotateKey(UUID ownerId, UUID demoId);
 }

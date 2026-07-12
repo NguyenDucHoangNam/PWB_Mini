@@ -8,6 +8,11 @@ public final class ShareRedisKeys {
     public static final String DISTRIBUTION_CACHE_KEY_PREFIX = "demo:distribution:";
     public static final String DISTRIBUTION_REVOKED_KEY_PREFIX = "demo:distribution:revoked:";
     public static final String DISTRIBUTION_LOCKED_KEY_PREFIX = "demo:distribution:locked:";
+    public static final String COOKIE_ACTIVE_SESSIONS_KEY_PREFIX = "demo:distribution:active_sessions:";
+    public static final String COOKIE_REVOKED_KEY_PREFIX = "stream:cookie:revoked:";
+    public static final String PLAY_SESSION_KEY_PREFIX = "play_session:";
+    public static final String WS_HEARTBEAT_KEY_PREFIX = "ws_heartbeat:";
+    public static final String KEYS_REQUEST_COUNT_KEY_PREFIX = "keys_request_count:";
 
     public static String distributionCacheKey(java.util.UUID shareToken) {
         return DISTRIBUTION_CACHE_KEY_PREFIX + shareToken;
@@ -19,6 +24,26 @@ public final class ShareRedisKeys {
 
     public static String distributionLockedKey(java.util.UUID shareToken) {
         return DISTRIBUTION_LOCKED_KEY_PREFIX + shareToken;
+    }
+
+    public static String activeCookieSessionSetKey(java.util.UUID shareToken) {
+        return COOKIE_ACTIVE_SESSIONS_KEY_PREFIX + shareToken;
+    }
+
+    public static String cookieRevokedKey(String jti) {
+        return COOKIE_REVOKED_KEY_PREFIX + jti;
+    }
+
+    public static String playSessionKey(java.util.UUID shareToken, String sessionId) {
+        return PLAY_SESSION_KEY_PREFIX + shareToken + ":" + sessionId;
+    }
+
+    public static String wsHeartbeatKey(String sessionId) {
+        return WS_HEARTBEAT_KEY_PREFIX + sessionId;
+    }
+
+    public static String keysRequestCountKey(String sessionId) {
+        return KEYS_REQUEST_COUNT_KEY_PREFIX + sessionId;
     }
 
     private ShareRedisKeys() {

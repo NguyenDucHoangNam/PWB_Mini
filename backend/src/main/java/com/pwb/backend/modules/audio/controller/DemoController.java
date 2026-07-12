@@ -7,6 +7,7 @@ import com.pwb.backend.modules.audio.dto.request.PresignedUrlRequest;
 import com.pwb.backend.modules.audio.dto.response.ConfirmUploadResponse;
 import com.pwb.backend.modules.audio.dto.response.DemoStatusResponse;
 import com.pwb.backend.modules.audio.dto.response.PresignedUrlResponse;
+import com.pwb.backend.modules.audio.dto.response.RotateKeyResponse;
 import com.pwb.backend.modules.audio.service.DemoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class DemoController {
     private static final String MSG_PRESIGNED_URL_GENERATED = "DEMO_PRESIGNED_URL_GENERATED";
     private static final String MSG_UPLOAD_CONFIRMED = "DEMO_UPLOAD_CONFIRMED";
     private static final String MSG_STATUS_FETCHED = "DEMO_STATUS_FETCHED";
+    private static final String MSG_KEY_ROTATED = "AES_KEY_ROTATED";
 
     private final DemoService demoService;
     private final CurrentUserResolver currentUserResolver;
@@ -62,6 +64,14 @@ public class DemoController {
         UUID ownerId = currentUserResolver.resolveUserId();
         DemoStatusResponse data = demoService.getStatus(ownerId, demoId);
         return ResponseEntity.ok(ApiResponse.success(message(MSG_STATUS_FETCHED), data));
+    }
+
+    @PostMapping("/{demoId}/rotate-key")
+    @PreAuthorize("hasRole('USER_PRO')")
+    public ResponseEntity<ApiResponse<RotateKeyResponse>> rotateKey(@PathVariable("demoId") UUID demoId) {
+        UUID ownerId = currentUserResolver.resolveUserId();
+        RotateKeyResponse data = demoService.rotateKey(ownerId, demoId);
+        return ResponseEntity.ok(ApiResponse.success(message(MSG_KEY_ROTATED), data));
     }
 
     private String message(String key) {

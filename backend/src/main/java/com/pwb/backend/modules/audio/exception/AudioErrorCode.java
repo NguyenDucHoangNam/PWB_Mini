@@ -22,7 +22,13 @@ public enum AudioErrorCode implements ErrorCode {
     INVALID_AUDIO_CONTENT("INVALID_AUDIO_CONTENT", "Uploaded file is not a valid audio stream", HttpStatus.INTERNAL_SERVER_ERROR),
 
     DEMO_NOT_FOUND("DEMO_NOT_FOUND", "Demo not found", HttpStatus.NOT_FOUND),
-    DEMO_AUDIO_PROCESSING_FAILED("DEMO_AUDIO_PROCESSING_FAILED", "Audio processing failed", HttpStatus.INTERNAL_SERVER_ERROR);
+    DEMO_AUDIO_PROCESSING_FAILED("DEMO_AUDIO_PROCESSING_FAILED", "Audio processing failed", HttpStatus.INTERNAL_SERVER_ERROR),
+    DEMO_NOT_ACTIVE("DEMO_NOT_ACTIVE", "Demo is not in ACTIVE state and cannot be streamed", HttpStatus.CONFLICT),
+
+    PLAYLIST_SIGNATURE_INVALID("PLAYLIST_SIGNATURE_INVALID",
+            "Playlist signature is invalid or missing", HttpStatus.FORBIDDEN),
+    PLAYLIST_SIGNATURE_EXPIRED("PLAYLIST_SIGNATURE_EXPIRED",
+            "Playlist signature has expired", HttpStatus.FORBIDDEN);
 
     private final String code;
     private final String defaultMessage;

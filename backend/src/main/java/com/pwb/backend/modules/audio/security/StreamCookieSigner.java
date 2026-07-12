@@ -4,75 +4,125 @@ import com.pwb.backend.common.exception.BusinessException;
 import com.pwb.backend.common.exception.CommonErrorCode;
 import com.pwb.backend.common.security.HttpClientContextResolver;
 import com.pwb.backend.modules.audio.config.StreamProperties;
+import com.pwb.backend.modules.share.constant.ShareRedisKeys;
 import com.pwb.backend.modules.share.exception.ShareErrorCode;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import javax.crypto.SecretKey;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class StreamCookieSigner {
 
     private static final String CLAIM_SHARE_TOKEN = "shareToken";
     private static final String CLAIM_CLIENT_IP_SUBNET = "clientIpSubnet";
     private static final String CLAIM_DEMO_ID = "demoId";
+    private static final String CLAIM_JTI = "jti";
 
     private final StreamProperties properties;
     private final HttpClientContextResolver clientContextResolver;
+    private final StringRedisTemplate stringRedisTemplate;
 
-    private SecretKey signingKey;
+    private SecretKey currentKey;
+    private SecretKey previousKey;
 
-    @PostConstruct
-    void init() {
-        byte[] secretBytes = properties.getCookieSecret().getBytes(StandardCharsets.UTF_8);
-        this.signingKey = Keys.hmacShaKeyFor(secretBytes);
+    public StreamCookieSigner(StreamProperties properties,
+                              HttpClientContextResolver clientContextResolver,
+                              StringRedisTemplate stringRedisTemplate) {
+        this.properties = properties;
+        this.clientContextResolver = clientContextResolver;
+        this.stringRedisTemplate = stringRedisTemplate;
+        init();
     }
 
-    public String issue(UUID shareToken, String clientIpSubnet, UUID demoId) {
+    private void init() {
+        byte[] currentBytes = properties.getCookieSecret().getBytes(StandardCharsets.UTF_8);
+        this.currentKey = Keys.hmacShaKeyFor(currentBytes);
+        if (StringUtils.hasText(properties.getCookieSecretPrevious())) {
+            byte[] previousBytes = properties.getCookieSecretPrevious().getBytes(StandardCharsets.UTF_8);
+            this.previousKey = Keys.hmacShaKeyFor(previousBytes);
+        }
+    }
+
+    public IssuedCookie issue(UUID shareToken, String clientIpSubnet, UUID demoId) {
+        String jti = UUID.randomUUID().toString();
         Instant now = Instant.now();
         Instant expiry = now.plusSeconds(properties.getCookieTtlSeconds());
-        return Jwts.builder()
+        String token = Jwts.builder()
                 .issuer("pwb-stream")
+                .id(jti)
                 .claim(CLAIM_SHARE_TOKEN, shareToken.toString())
                 .claim(CLAIM_CLIENT_IP_SUBNET, clientIpSubnet)
                 .claim(CLAIM_DEMO_ID, demoId.toString())
+                .claim(CLAIM_JTI, jti)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiry))
-                .signWith(signingKey, Jwts.SIG.HS256)
+                .signWith(currentKey, Jwts.SIG.HS256)
                 .compact();
+        trackActiveJti(shareToken, jti);
+        return new IssuedCookie(token, jti);
     }
 
-    public Claims verify(String token) {
+    public VerifiedCookie verify(String token) {
+        return parseWithKey(token, currentKey, "current")
+                .or(() -> previousKey == null
+                        ? Optional.empty()
+                        : parseWithKey(token, previousKey, "previous"))
+                .orElseThrow(() -> new BusinessException(ShareErrorCode.IP_MISMATCH,
+                        "Invalid secure session cookie"));
+    }
+
+    private Optional<VerifiedCookie> parseWithKey(String token, SecretKey key, String source) {
         try {
-            return Jwts.parser()
-                    .verifyWith(signingKey)
+            Claims claims = Jwts.parser()
+                    .verifyWith(key)
                     .requireIssuer("pwb-stream")
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
+            return Optional.of(new VerifiedCookie(claims, source));
         } catch (ExpiredJwtException ex) {
             throw new BusinessException(ShareErrorCode.IP_MISMATCH,
                     "Secure session cookie expired");
         } catch (JwtException | IllegalArgumentException ex) {
-            throw new BusinessException(ShareErrorCode.IP_MISMATCH,
-                    "Invalid secure session cookie: " + ex.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    private void trackActiveJti(UUID shareToken, String jti) {
+        try {
+            String key = ShareRedisKeys.activeCookieSessionSetKey(shareToken);
+            stringRedisTemplate.opsForSet().add(key, jti);
+            stringRedisTemplate.expire(key, Duration.ofSeconds(properties.getCookieTtlSeconds()));
+        } catch (Exception ex) {
+            log.warn("ACTIVE_JTI_TRACK_FAILED shareToken={} reason={}", shareToken, ex.getMessage());
+        }
+    }
+
+    public record IssuedCookie(String token, String jti) {}
+
+    public record VerifiedCookie(Claims claims, String signingSource) {
+
+        public String jti() {
+            return claims.get(CLAIM_JTI, String.class);
         }
     }
 

@@ -1,7 +1,9 @@
 package com.pwb.backend.modules.share.controller;
 
 import com.pwb.backend.common.dto.ApiResponse;
+import com.pwb.backend.common.security.HttpClientContextResolver;
 import com.pwb.backend.modules.audio.config.StreamProperties;
+import com.pwb.backend.modules.audio.security.IpHashUtil;
 import com.pwb.backend.modules.share.dto.response.SharedThreadResponse;
 import com.pwb.backend.modules.share.entity.DemoDistribution;
 import com.pwb.backend.modules.share.repository.DemoDistributionRepository;
@@ -32,6 +34,8 @@ public class SharedThreadStreamController {
     private final DemoDistributionRepository demoDistributionRepository;
     private final StreamProperties streamProperties;
     private final MessageSource messageSource;
+    private final HttpClientContextResolver clientContextResolver;
+    private final IpHashUtil ipHashUtil;
 
     @GetMapping("/{shareToken}")
     public ResponseEntity<ApiResponse<SharedThreadResponse>> getSharedThread(
@@ -44,8 +48,19 @@ public class SharedThreadStreamController {
         String cookieValue = sharedStreamService.issueSessionCookie(
                 shareToken, distribution.getDemoId(), request);
         response.addHeader("Set-Cookie", buildCookieHeader(cookieValue));
-        log.info("SECURE_COOKIE_ISSUED token={} demoId={}", shareToken, distribution.getDemoId());
+        String ipHash = ipHashUtil.hash(clientContextResolver.resolveIp(request));
+        log.info("SECURE_COOKIE_ISSUED token={} demoId={} ipHash={} ipSubnet={}",
+                shareToken, distribution.getDemoId(), ipHash,
+                cookieSignerIpSubnet(request));
         return ResponseEntity.ok(ApiResponse.success(message(MSG_STREAM_CONFIG_FETCHED), data));
+    }
+
+    private String cookieSignerIpSubnet(HttpServletRequest request) {
+        try {
+            return sharedStreamService.cookieSubnetFor(request);
+        } catch (Exception ex) {
+            return "unresolved";
+        }
     }
 
     private String buildCookieHeader(String cookieValue) {

@@ -12,7 +12,9 @@ import com.pwb.backend.common.outbox.publisher.OutboxEventTypes;
 import com.pwb.backend.common.outbox.publisher.OutboxPayloadCipher;
 import com.pwb.backend.common.repository.OutboxEventRepository;
 import com.pwb.backend.modules.audio.entity.Demo;
+import com.pwb.backend.modules.audio.service.AesKeyRotationService;
 import com.pwb.backend.modules.share.config.ShareProperties;
+import com.pwb.backend.modules.share.constant.ShareRedisKeys;
 import com.pwb.backend.modules.share.dto.request.DistributeDemoRequest;
 import com.pwb.backend.modules.share.dto.response.DistributeDemoResponse;
 import com.pwb.backend.modules.share.dto.response.DistributionListItemResponse;
@@ -29,6 +31,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,6 +68,8 @@ public class DemoDistributionServiceImpl implements DemoDistributionService {
     private final ShareProperties shareProperties;
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final AesKeyRotationService aesKeyRotationService;
+    private final org.springframework.data.redis.core.StringRedisTemplate stringRedisTemplate;
 
     @Override
     @Transactional
@@ -162,6 +167,66 @@ public class DemoDistributionServiceImpl implements DemoDistributionService {
                     producerId, keyword, sanitized);
         }
         return suggestions;
+    }
+
+    @Override
+    @Transactional
+    public DistributionListItemResponse revokeDistribution(UUID demoId, UUID distributionId, UUID producerId) {
+        ownershipService.assertOwned(demoId, producerId);
+        DemoDistribution distribution = demoDistributionRepository.findById(distributionId)
+                .orElseThrow(() -> new BusinessException(ShareErrorCode.DEMO_NOT_FOUND,
+                        "Distribution " + distributionId + " not found"));
+        if (!distribution.getDemoId().equals(demoId)) {
+            log.warn("DISTRIBUTION_REVOKE_WRONG_DEMO distId={} expectedDemo={} actualDemo={}",
+                    distributionId, demoId, distribution.getDemoId());
+            throw new BusinessException(ShareErrorCode.FORBIDDEN_ACCESS,
+                    "Distribution does not belong to demo " + demoId);
+        }
+        if (!distribution.isRevoked()) {
+            Instant now = Instant.now();
+            distribution.revoke(now);
+            demoDistributionRepository.save(distribution);
+            markRedisRevoked(distribution.getShareToken(), now);
+            aesKeyRotationService.revokeJtisForDistribution(distribution.getShareToken());
+            log.warn("DISTRIBUTION_REVOKED distId={} shareToken={} demoId={} producerId={}",
+                    distributionId, distribution.getShareToken(), demoId, producerId);
+        }
+        return DistributionListItemResponse.from(distribution);
+    }
+
+    @Override
+    @Transactional
+    public int revokeAllDistributions(UUID demoId, UUID producerId) {
+        ownershipService.assertOwned(demoId, producerId);
+        java.util.List<DemoDistribution> active = demoDistributionRepository
+                .findByDemoIdAndRevokedFalse(demoId, PageRequest.of(0, 1000))
+                .getContent();
+        if (active.isEmpty()) {
+            log.info("DISTRIBUTION_BULK_REVOKE_EMPTY demoId={} producerId={}", demoId, producerId);
+            return 0;
+        }
+        Instant now = Instant.now();
+        for (DemoDistribution distribution : active) {
+            distribution.revoke(now);
+            demoDistributionRepository.save(distribution);
+            markRedisRevoked(distribution.getShareToken(), now);
+            aesKeyRotationService.revokeJtisForDistribution(distribution.getShareToken());
+        }
+        log.warn("DISTRIBUTION_BULK_REVOKED demoId={} producerId={} count={}",
+                demoId, producerId, active.size());
+        return active.size();
+    }
+
+    private void markRedisRevoked(java.util.UUID shareToken, Instant now) {
+        try {
+            String revokedKey = ShareRedisKeys.distributionRevokedKey(shareToken);
+            stringRedisTemplate.opsForValue().set(revokedKey, "1",
+                    java.time.Duration.ofSeconds(shareProperties.getDistributionCacheTtlSeconds()));
+            cacheService.evict(shareToken);
+        } catch (Exception ex) {
+            log.warn("DISTRIBUTION_REDIS_REVOKE_FAILED shareToken={} reason={}",
+                    shareToken, ex.getMessage());
+        }
     }
 
     private void persistOutboxEvent(UUID distributionId, UUID shareToken, ShareEmailEvent eventPayload) {

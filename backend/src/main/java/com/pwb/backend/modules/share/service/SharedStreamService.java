@@ -10,4 +10,6 @@ public interface SharedStreamService {
     SharedThreadResponse loadSharedThread(UUID shareToken, HttpServletRequest request);
 
     String issueSessionCookie(UUID shareToken, UUID demoId, HttpServletRequest request);
+
+    String cookieSubnetFor(HttpServletRequest request);
 }
