@@ -8,6 +8,9 @@ public final class KafkaTopics {
     public static final String IAM_ACCOUNT_DELETION = "iam.account.deletion.v1";
     public static final String IAM_ACCOUNT_EVENTS = "iam-account-events";
 
+    public static final String AUDIO_PROCESSING_EVENTS = "audio.processing.events.v1";
+    public static final String AUDIO_PROCESSING_EVENTS_DLQ = "audio.processing.events.dlq.v1";
+
     private KafkaTopics() {
     }
 }

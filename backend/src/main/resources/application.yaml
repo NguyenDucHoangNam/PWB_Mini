@@ -98,6 +98,18 @@ app:
         method: DELETE
         permits-per-window: 10
         window: 1m
+      - path-pattern: /api/v1/demos/presigned-upload-url
+        method: POST
+        permits-per-window: 5
+        window: 1m
+      - path-pattern: /api/v1/demos/confirm-upload
+        method: POST
+        permits-per-window: 30
+        window: 1m
+      - path-pattern: /api/v1/demos/*/status
+        method: GET
+        permits-per-window: 120
+        window: 1m
   security:
     jwt:
       access-token-ttl-seconds: 900
@@ -180,6 +192,20 @@ app:
       demo-audio: ${STORAGE_BUCKET_DEMO_AUDIO:pwb-demo-audio}
       cover-image: ${STORAGE_BUCKET_COVER_IMAGE:pwb-covers}
       generic: ${STORAGE_BUCKET_GENERIC:pwb-misc}
+  audio:
+    temp-dir: ${AUDIO_TEMP_DIR:/tmp/pwb-audio}
+    ffmpeg-path: ${FFMPEG_PATH:ffmpeg}
+    ffprobe-path: ${FFPROBE_PATH:ffprobe}
+    max-file-size-bytes: 209715200
+    worker-concurrency: ${AUDIO_CONCURRENCY:2}
+    waveform-peaks: 200
+    hls-segment-seconds: 6
+    presigned:
+      expiry-seconds: 60
+      upload-claim-ttl-seconds: 7200
+    quota:
+      max-active-demos-per-user: 50
+      max-active-audio-bytes-per-user: 10737418240
 
 mail:
   from: PWB Mini <noreply@pwb-mini.dev>
@@ -187,9 +213,9 @@ mail:
 
 spring.servlet.multipart:
   enabled: true
-  max-file-size: 2MB
-  max-request-size: 4MB
-  file-size-threshold: 1MB
+  max-file-size: 220MB
+  max-request-size: 220MB
+  file-size-threshold: 2MB
 
 springdoc:
   api-docs:

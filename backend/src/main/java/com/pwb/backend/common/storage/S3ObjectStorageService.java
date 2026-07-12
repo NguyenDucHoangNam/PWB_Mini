@@ -17,6 +17,8 @@ import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.net.URI;
 import java.time.Duration;
@@ -154,6 +156,31 @@ public class S3ObjectStorageService implements ObjectStorageService {
                         .build())
                 .build();
         return s3Presigner.presignGetObject(request).url().toString();
+    }
+
+    @Override
+    public PresignedUpload generatePresignedUpload(StorageBucket bucket, String key, String contentType,
+                                                   long contentLength, Duration expiry) {
+        ensureReady();
+        String bucketName = properties.bucketFor(bucket);
+        Duration effective = expiry == null || expiry.isNegative() || expiry.isZero()
+                ? Duration.ofSeconds(properties.getPresignedUrlExpirySeconds())
+                : expiry;
+        PutObjectRequest.Builder putBuilder = PutObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .contentType(contentType);
+        if (contentLength > 0L) {
+            putBuilder.contentLength(contentLength);
+        }
+        PutObjectPresignRequest request = PutObjectPresignRequest.builder()
+                .signatureDuration(effective)
+                .putObjectRequest(putBuilder.build())
+                .build();
+        PresignedPutObjectRequest presigned = s3Presigner.presignPutObject(request);
+        log.info("PRESIGNED_UPLOAD_GENERATED bucket={} key={} contentType={} contentLength={} expiresSeconds={}",
+                bucketName, key, contentType, contentLength, effective.toSeconds());
+        return new PresignedUpload(presigned.url().toString(), bucketName, key, effective.toSeconds());
     }
 
     @Override

@@ -17,6 +17,12 @@ public interface ObjectStorageService {
 
     StoredObjectMetadata getMetadata(StorageBucket bucket, String key);
 
+    PresignedUpload generatePresignedUpload(StorageBucket bucket, String key, String contentType,
+                                            long contentLength, Duration expiry);
+
+    record PresignedUpload(String url, String bucket, String key, long expiresInSeconds) {
+    }
+
     record StoredObject(
             String bucket,
             String key,

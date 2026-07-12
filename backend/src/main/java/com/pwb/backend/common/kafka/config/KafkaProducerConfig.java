@@ -59,4 +59,20 @@ public class KafkaProducerConfig {
                 .replicas(replicas)
                 .build();
     }
+
+    @Bean
+    public NewTopic audioProcessingEventsTopic() {
+        return TopicBuilder.name(KafkaTopics.AUDIO_PROCESSING_EVENTS)
+                .partitions(partitions)
+                .replicas(replicas)
+                .build();
+    }
+
+    @Bean
+    public NewTopic audioProcessingEventsDlqTopic() {
+        return TopicBuilder.name(KafkaTopics.AUDIO_PROCESSING_EVENTS_DLQ)
+                .partitions(partitions)
+                .replicas(replicas)
+                .build();
+    }
 }
