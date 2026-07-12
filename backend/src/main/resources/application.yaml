@@ -166,6 +166,14 @@ app:
         method: POST
         permits-per-window: 3
         window: 1m
+      - path-pattern: /api/v1/rooms/*/join
+        method: POST
+        permits-per-window: 5
+        window: 1m
+      - path-pattern: /api/v1/rooms/*/waiting/approve
+        method: POST
+        permits-per-window: 20
+        window: 1m
   security:
     jwt:
       access-token-ttl-seconds: 900
@@ -327,6 +335,11 @@ app:
     handshake-timeout-seconds: 10
     heartbeat-incoming-ms: 10000
     heartbeat-outgoing-ms: 10000
+    waiting-entry-ttl-seconds: 14400
+    members-ttl-seconds: 14400
+    waiting-entry-max-age-seconds: 300
+    temporary-token-ttl-seconds: 14400
+    listener-role: LISTENER
 
 mail:
   from: PWB Mini <noreply@pwb-mini.dev>

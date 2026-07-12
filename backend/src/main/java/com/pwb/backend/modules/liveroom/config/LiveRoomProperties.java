@@ -50,4 +50,19 @@ public class LiveRoomProperties {
     private int heartbeatIncomingMs = 10000;
 
     private int heartbeatOutgoingMs = 10000;
+
+    @Min(60)
+    private int waitingEntryTtlSeconds = 14400;
+
+    @Min(60)
+    private int membersTtlSeconds = 14400;
+
+    @Min(1)
+    private int waitingEntryMaxAgeSeconds = 300;
+
+    @Min(60)
+    private int temporaryTokenTtlSeconds = 14400;
+
+    @NotBlank
+    private String listenerRole = "LISTENER";
 }

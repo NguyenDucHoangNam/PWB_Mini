@@ -6,9 +6,15 @@ import com.pwb.backend.common.security.CurrentUserResolver;
 import com.pwb.backend.modules.iam.exception.IamErrorCode;
 import com.pwb.backend.modules.iam.model.User;
 import com.pwb.backend.modules.iam.repository.UserRepository;
+import com.pwb.backend.modules.liveroom.dto.request.ApproveRejectRequest;
 import com.pwb.backend.modules.liveroom.dto.request.CreateRoomRequest;
+import com.pwb.backend.modules.liveroom.dto.request.JoinRoomRequest;
 import com.pwb.backend.modules.liveroom.dto.response.CreateRoomResponse;
+import com.pwb.backend.modules.liveroom.dto.response.JoinRoomResponse;
+import com.pwb.backend.modules.liveroom.dto.response.WaitingListResponse;
+import com.pwb.backend.modules.liveroom.service.ListenerJoinService;
 import com.pwb.backend.modules.liveroom.service.RoomLifecycleService;
+import com.pwb.backend.modules.liveroom.service.WaitingListService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
@@ -16,6 +22,8 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,8 +37,16 @@ import java.util.UUID;
 public class LiveRoomController {
 
     private static final String MSG_ROOM_CREATED = "LIVE_ROOM_CREATED";
+    private static final String MSG_JOIN_APPROVED = "JOIN_APPROVED";
+    private static final String MSG_JOIN_WAITING = "JOIN_WAITING";
+    private static final String MSG_WAITING_LIST_FETCHED = "WAITING_LIST_FETCHED";
+    private static final String MSG_LISTENER_APPROVED = "LISTENER_APPROVED";
+    private static final String MSG_LISTENER_REJECTED = "LISTENER_REJECTED";
+    private static final String MSG_LISTENER_KICKED = "LISTENER_KICKED";
 
     private final RoomLifecycleService roomLifecycleService;
+    private final ListenerJoinService listenerJoinService;
+    private final WaitingListService waitingListService;
     private final CurrentUserResolver currentUserResolver;
     private final UserRepository userRepository;
     private final MessageSource messageSource;
@@ -50,6 +66,53 @@ public class LiveRoomController {
         CreateRoomResponse data = roomLifecycleService.createRoom(request.mode(), hostId, hostDisplayName);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(message(MSG_ROOM_CREATED), data));
+    }
+
+    @PostMapping("/{roomCode}/join")
+    public ResponseEntity<ApiResponse<JoinRoomResponse>> joinRoom(
+            @PathVariable String roomCode,
+            @Valid @RequestBody JoinRoomRequest request) {
+        JoinRoomResponse data = listenerJoinService.joinRoom(roomCode, request.displayName());
+        String msg = data.accessGranted() ? MSG_JOIN_APPROVED : MSG_JOIN_WAITING;
+        return ResponseEntity.ok(ApiResponse.success(message(msg), data));
+    }
+
+    @GetMapping("/{roomCode}/waiting")
+    @PreAuthorize("hasRole('USER_PRO')")
+    public ResponseEntity<ApiResponse<WaitingListResponse>> listWaiting(@PathVariable String roomCode) {
+        UUID hostId = currentUserResolver.resolveUserId();
+        WaitingListResponse data = waitingListService.listWaiting(roomCode, hostId);
+        return ResponseEntity.ok(ApiResponse.success(message(MSG_WAITING_LIST_FETCHED), data));
+    }
+
+    @PostMapping("/{roomCode}/waiting/approve")
+    @PreAuthorize("hasRole('USER_PRO')")
+    public ResponseEntity<ApiResponse<Void>> approve(
+            @PathVariable String roomCode,
+            @Valid @RequestBody ApproveRejectRequest request) {
+        UUID hostId = currentUserResolver.resolveUserId();
+        waitingListService.approve(roomCode, hostId, request.listenerId());
+        return ResponseEntity.ok(ApiResponse.success(message(MSG_LISTENER_APPROVED)));
+    }
+
+    @PostMapping("/{roomCode}/waiting/reject")
+    @PreAuthorize("hasRole('USER_PRO')")
+    public ResponseEntity<ApiResponse<Void>> reject(
+            @PathVariable String roomCode,
+            @Valid @RequestBody ApproveRejectRequest request) {
+        UUID hostId = currentUserResolver.resolveUserId();
+        waitingListService.reject(roomCode, hostId, request.listenerId());
+        return ResponseEntity.ok(ApiResponse.success(message(MSG_LISTENER_REJECTED)));
+    }
+
+    @PostMapping("/{roomCode}/waiting/kick")
+    @PreAuthorize("hasRole('USER_PRO')")
+    public ResponseEntity<ApiResponse<Void>> kick(
+            @PathVariable String roomCode,
+            @Valid @RequestBody ApproveRejectRequest request) {
+        UUID hostId = currentUserResolver.resolveUserId();
+        waitingListService.kick(roomCode, hostId, request.listenerId());
+        return ResponseEntity.ok(ApiResponse.success(message(MSG_LISTENER_KICKED)));
     }
 
     private String message(String key, Object... args) {

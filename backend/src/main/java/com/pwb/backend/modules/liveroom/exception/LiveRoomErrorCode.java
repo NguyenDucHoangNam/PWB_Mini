@@ -29,7 +29,31 @@ public enum LiveRoomErrorCode implements ErrorCode {
 
     HOST_DISCONNECT_GRACE_FAILED("HOST_DISCONNECT_GRACE_FAILED",
             "Failed to mark host disconnect grace window",
-            HttpStatus.INTERNAL_SERVER_ERROR);
+            HttpStatus.INTERNAL_SERVER_ERROR),
+
+    ROOM_FULL("ROOM_FULL",
+            "Room has reached the maximum number of participants",
+            HttpStatus.BAD_REQUEST),
+
+    SESSION_NOT_FOUND("SESSION_NOT_FOUND",
+            "Waiting request not found for the given listener",
+            HttpStatus.NOT_FOUND),
+
+    LISTENER_NOT_IN_WAITING("LISTENER_NOT_IN_WAITING",
+            "Listener is not in the waiting list",
+            HttpStatus.NOT_FOUND),
+
+    LISTENER_NOT_A_MEMBER("LISTENER_NOT_A_MEMBER",
+            "Listener is not a member of the room",
+            HttpStatus.NOT_FOUND),
+
+    FORBIDDEN_NOT_HOST("FORBIDDEN_NOT_HOST",
+            "Only the room host can perform this action",
+            HttpStatus.FORBIDDEN),
+
+    FORBIDDEN_LISTENER_SANDBOX("FORBIDDEN_LISTENER_SANDBOX",
+            "Listener token is not allowed to access this endpoint",
+            HttpStatus.FORBIDDEN);
 
     private final String code;
     private final String defaultMessage;

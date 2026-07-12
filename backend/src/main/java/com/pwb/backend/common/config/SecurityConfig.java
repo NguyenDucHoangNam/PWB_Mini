@@ -1,5 +1,6 @@
 package com.pwb.backend.common.config;
 
+import com.pwb.backend.common.security.RoleSandboxFilter;
 import com.pwb.backend.common.security.TrustedProxyProperties;
 import com.pwb.backend.common.security.cdn.OriginVerifyFilter;
 import com.pwb.backend.common.security.jwt.JwtAuthenticationEntryPoint;
@@ -55,7 +56,8 @@ public class SecurityConfig {
             "/api/v1/auth/forgot-password",
             "/api/v1/auth/reset-password",
             "/api/v1/demos/shared/*/track-play",
-            "/api/v1/internal/cdn-events"
+            "/api/v1/internal/cdn-events",
+            "/api/v1/rooms/*/join"
     };
 
     private static final long HSTS_MAX_AGE_SECONDS = 31536000L;
@@ -71,6 +73,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    IpRateLimitFilter ipRateLimitFilter,
                                                    JwtAuthenticationFilter jwtAuthenticationFilter,
+                                                   RoleSandboxFilter roleSandboxFilter,
                                                    JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
                                                    CorsConfigurationSource corsConfigurationSource,
                                                    OriginVerifyFilter originVerifyFilter) throws Exception {
@@ -99,7 +102,8 @@ public class SecurityConfig {
 
         http.addFilterBefore(originVerifyFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(ipRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(roleSandboxFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }
