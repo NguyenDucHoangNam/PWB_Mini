@@ -1,5 +1,9 @@
 package com.pwb.backend.common.security.ratelimit;
 
+import com.pwb.backend.common.dto.ApiResponse;
+import com.pwb.backend.common.dto.ErrorDetail;
+import com.pwb.backend.common.security.HttpClientContextResolver;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,22 +20,31 @@ import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Locale;
 
 @Component
 public class IpRateLimitFilter extends OncePerRequestFilter {
 
     private static final String REDISSON_RATE_LIMITER_PREFIX = "ratelimit:ip:";
-    private static final String X_FORWARDED_FOR_HEADER = "X-Forwarded-For";
-    private static final String X_FORWARDED_FOR_DELIMITER = ",";
     private static final String UNKNOWN_IP = "unknown";
+    private static final String CODE_RATE_LIMITED = "RATE_LIMITED";
+    private static final String MESSAGE_RATE_LIMITED = "Too many requests";
 
     private final RedissonClient redissonClient;
     private final RateLimitProperties properties;
+    private final HttpClientContextResolver clientContextResolver;
+    private final ObjectMapper objectMapper;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
-    public IpRateLimitFilter(RedissonClient redissonClient, RateLimitProperties properties) {
+    public IpRateLimitFilter(RedissonClient redissonClient,
+                             RateLimitProperties properties,
+                             HttpClientContextResolver clientContextResolver,
+                             ObjectMapper objectMapper) {
         this.redissonClient = redissonClient;
         this.properties = properties;
+        this.clientContextResolver = clientContextResolver;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -49,7 +62,7 @@ public class IpRateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        String clientIp = resolveClientIp(request);
+        String clientIp = normalizeIp(clientContextResolver.resolveIp(request));
         String bucketKey = buildBucketKey(request, matchedRule, clientIp);
         RRateLimiter limiter = redissonClient.getRateLimiter(bucketKey);
         limiter.trySetRate(RateType.OVERALL,
@@ -67,10 +80,10 @@ public class IpRateLimitFilter extends OncePerRequestFilter {
 
     private RateLimitRule findMatchedRule(HttpServletRequest request) {
         String path = request.getRequestURI();
-        String method = request.getMethod().toLowerCase();
+        String method = request.getMethod().toLowerCase(Locale.ROOT);
         for (RateLimitRule rule : properties.getRules()) {
             if (rule.method() != null) {
-                String ruleMethod = rule.method().name().toLowerCase();
+                String ruleMethod = rule.method().name().toLowerCase(Locale.ROOT);
                 if (!ruleMethod.equals(method)) {
                     continue;
                 }
@@ -82,19 +95,12 @@ public class IpRateLimitFilter extends OncePerRequestFilter {
         return null;
     }
 
-    private String resolveClientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader(X_FORWARDED_FOR_HEADER);
-        if (forwarded != null && !forwarded.isBlank()) {
-            int commaIndex = forwarded.indexOf(X_FORWARDED_FOR_DELIMITER);
-            String first = commaIndex >= 0 ? forwarded.substring(0, commaIndex) : forwarded;
-            return first.trim();
-        }
-        String remote = request.getRemoteAddr();
-        return remote != null ? remote : UNKNOWN_IP;
+    private String normalizeIp(String ip) {
+        return ip == null || ip.isBlank() ? UNKNOWN_IP : ip;
     }
 
     private String buildBucketKey(HttpServletRequest request, RateLimitRule rule, String clientIp) {
-        String method = request.getMethod().toLowerCase();
+        String method = request.getMethod().toLowerCase(Locale.ROOT);
         return REDISSON_RATE_LIMITER_PREFIX + clientIp + ":" + method + ":" + rule.pathPattern();
     }
 
@@ -108,7 +114,8 @@ public class IpRateLimitFilter extends OncePerRequestFilter {
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
         response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(retryAfter));
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.getWriter().write(
-                "{\"success\":false,\"message\":\"Too many requests\",\"data\":null,\"errors\":[{\"code\":\"RATE_LIMITED\",\"field\":null,\"message\":\"Too many requests\"}],\"timestamp\":null}");
+        ErrorDetail detail = new ErrorDetail(CODE_RATE_LIMITED, null, MESSAGE_RATE_LIMITED);
+        ApiResponse<Void> body = ApiResponse.error(MESSAGE_RATE_LIMITED, List.of(detail));
+        response.getWriter().write(objectMapper.writeValueAsString(body));
     }
 }

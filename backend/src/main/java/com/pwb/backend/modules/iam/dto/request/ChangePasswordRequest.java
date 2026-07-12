@@ -5,19 +5,18 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-@PasswordMatches(first = "newPassword", second = "confirmPassword", message = "password confirmation must match new password")
+@PasswordMatches(first = "newPassword", second = "confirmPassword", message = "{password.mismatch}")
 public record ChangePasswordRequest(
-        @NotBlank(message = "oldPassword is required")
+        @NotBlank(message = "{validation.password.required}")
         String oldPassword,
 
-        @NotBlank(message = "newPassword is required")
-        @Size(min = 8, max = 128, message = "newPassword must be between 8 and 128 characters")
+        @NotBlank(message = "{validation.password.required}")
+        @Size(min = 8, max = 128, message = "{validation.password.length}")
         @Pattern(
                 regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]+$",
-                message = "newPassword must contain at least one lowercase letter, one uppercase letter, one digit, and one special character"
-        )
+                message = "{validation.password.complexity}")
         String newPassword,
 
-        @NotBlank(message = "confirmPassword is required")
+        @NotBlank(message = "{validation.password.required}")
         String confirmPassword) {
 }

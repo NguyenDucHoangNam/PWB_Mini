@@ -1,10 +1,10 @@
 package com.pwb.backend.modules.iam.model;
 
+import com.pwb.backend.common.model.BaseEntity;
 import com.pwb.backend.modules.iam.enums.OauthProvider;
 import com.pwb.backend.modules.iam.enums.UserStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
@@ -18,23 +18,19 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.SQLRestriction;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.time.Instant;
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
 @Table(name = "users")
-@EntityListeners(AuditingEntityListener.class)
 @SQLRestriction("deleted_at IS NULL")
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class User {
+@EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
+public class User extends BaseEntity {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final int USERNAME_LOCAL_SUFFIX_BOUND = 1_000_000;
@@ -85,22 +81,6 @@ public class User {
 
     @Column(name = "last_login_at")
     private Instant lastLoginAt;
-
-    @CreatedDate
-    @Column(name = "created_at", nullable = false, updatable = false)
-    @Setter(AccessLevel.NONE)
-    private Instant createdAt;
-
-    @LastModifiedDate
-    @Column(name = "updated_at", nullable = false)
-    @Setter(AccessLevel.NONE)
-    private Instant updatedAt;
-
-    @Column(name = "deleted_at")
-    private Instant deletedAt;
-
-    @Column(name = "deleted", nullable = false)
-    private boolean deleted;
 
     public User(UUID id,
                 String email,
@@ -157,7 +137,7 @@ public class User {
     public void linkOAuth(String oauthId, String fullName, String avatarUrl) {
         this.oauthProvider = OauthProvider.GOOGLE;
         this.oauthId = oauthId;
-        if (fullName != null && !fullName.isBlank()) {
+        if ((this.fullName == null || this.fullName.isBlank()) && fullName != null && !fullName.isBlank()) {
             this.fullName = fullName;
         }
         if (avatarUrl != null && !avatarUrl.isBlank()) {
@@ -190,8 +170,6 @@ public class User {
         this.oauthProvider = OauthProvider.LOCAL;
         this.oauthId = null;
         this.status = UserStatus.DELETED;
-        this.deleted = true;
-        this.deletedAt = Instant.now();
     }
 
     public void markLoggedIn(Instant when) {

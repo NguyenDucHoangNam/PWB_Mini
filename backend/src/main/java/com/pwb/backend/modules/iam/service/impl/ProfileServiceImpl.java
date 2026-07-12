@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -57,16 +58,14 @@ public class ProfileServiceImpl implements ProfileService {
         }
 
         String newPhone = request.phone() == null || request.phone().isBlank() ? null : request.phone().trim();
-        if (newPhone != null && !newPhone.equals(user.getPhone())
-                || (newPhone == null && user.getPhone() != null)) {
+        if (!Objects.equals(newPhone, user.getPhone())) {
             user.setPhone(newPhone);
             updatedFields.add("phone");
             changed = true;
         }
 
         String newAvatar = request.avatarUrl() == null || request.avatarUrl().isBlank() ? null : request.avatarUrl().trim();
-        if (newAvatar != null && !newAvatar.equals(user.getAvatarUrl())
-                || (newAvatar == null && user.getAvatarUrl() != null)) {
+        if (!Objects.equals(newAvatar, user.getAvatarUrl())) {
             user.setAvatarUrl(newAvatar);
             updatedFields.add("avatarUrl");
             changed = true;

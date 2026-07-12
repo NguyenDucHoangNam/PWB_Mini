@@ -5,9 +5,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
 public record VerifyOtpRequest(
-        @Email @NotBlank String email,
+        @Email(message = "{validation.email.format}")
+        @NotBlank(message = "{validation.email.required}")
+        String email,
 
-        @NotBlank
-        @Pattern(regexp = "^\\d{6}$", message = "otp must be a 6-digit code")
+        @NotBlank(message = "{validation.otp.format}")
+        @Pattern(regexp = "^\\d{6}$", message = "{validation.otp.format}")
         String otp
 ) {}

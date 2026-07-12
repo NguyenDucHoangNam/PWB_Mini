@@ -11,4 +11,10 @@ public interface LoginAttemptService {
     void clearFailures(UUID userId);
 
     long lockoutRetryAfterSeconds();
+
+    void validateIpNotBlocked(String clientIp);
+
+    void recordIpFailure(String clientIp);
+
+    void clearIpFailures(String clientIp);
 }

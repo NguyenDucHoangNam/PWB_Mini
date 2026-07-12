@@ -9,6 +9,7 @@ import com.pwb.backend.common.kafka.constant.KafkaTopics;
 import com.pwb.backend.common.outbox.event.OutboxCreatedEvent;
 import com.pwb.backend.common.outbox.event.UserRegisteredEvent;
 import com.pwb.backend.common.outbox.publisher.OutboxEventTypes;
+import com.pwb.backend.common.outbox.publisher.OutboxPayloadCipher;
 import com.pwb.backend.common.model.OutboxEvent;
 import com.pwb.backend.common.repository.OutboxEventRepository;
 import com.pwb.backend.common.security.jwt.JwtProperties;
@@ -65,6 +66,10 @@ import java.util.UUID;
 @Slf4j
 public class AuthServiceImpl implements AuthService {
 
+    private static final String DUMMY_HASH = "$2a$12$" +
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" +
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmn";
+
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final OutboxEventRepository outboxRepository;
@@ -79,6 +84,7 @@ public class AuthServiceImpl implements AuthService {
     private final LoginAttemptService loginAttemptService;
     private final SessionService sessionService;
     private final GoogleOAuthService googleOAuthService;
+    private final OutboxPayloadCipher outboxCipher;
     private final StringRedisTemplate stringRedisTemplate;
     private final DatabaseReader geoIpDatabaseReader;
 
@@ -188,43 +194,40 @@ public class AuthServiceImpl implements AuthService {
         log.info("LOGIN_ATTEMPT identifier={} ip={}", MaskingLogArg.email(identifier), MaskingLogArg.ip(ip));
 
         User user = userRepository.findByEmail(identifier).orElse(null);
-        if (user == null && identifier.contains("@")) {
-            throw new BusinessException(IamErrorCode.BAD_CREDENTIALS);
-        }
         if (user == null) {
-            user = userRepository.findByEmail(identifier).orElse(null);
-        }
-        if (user == null) {
-            log.warn("LOGIN_FAILED_CREDENTIALS identifier={} ip={}", MaskingLogArg.email(identifier), MaskingLogArg.ip(ip));
-            throw new BusinessException(IamErrorCode.BAD_CREDENTIALS);
+            user = userRepository.findByUsername(identifier).orElse(null);
         }
 
-        loginAttemptService.validateNotLocked(user.getId());
+        loginAttemptService.validateIpNotBlocked(ip);
 
-        if (user.getStatus() == UserStatus.BANNED) {
-            throw new BusinessException(IamErrorCode.ACCOUNT_BANNED);
-        }
-        if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
-            throw new BusinessException(
-                    IamErrorCode.REGISTRATION_IN_PROGRESS,
-                    "Account pending OTP verification",
-                    null,
-                    Map.of("redirectTo", "/verify-otp", "email", maskEmailForRedirect(user.getEmail())));
+        boolean userFound = user != null;
+        boolean passwordMatched = false;
+
+        if (userFound) {
+            loginAttemptService.validateNotLocked(user.getId());
+
+            if (user.isLocal() && user.getPasswordHash() != null) {
+                passwordMatched = passwordHasher.matches(request.password(), user.getPasswordHash());
+            } else {
+                passwordMatched = false;
+                passwordHasher.matches(request.password(), DUMMY_HASH);
+            }
+        } else {
+            passwordHasher.matches(request.password(), DUMMY_HASH);
         }
 
-        if (user.isLocal() && user.getPasswordHash() == null) {
-            log.warn("LOGIN_FAILED_CREDENTIALS userId={} reason=oauth_only", user.getId());
-            throw new BusinessException(IamErrorCode.BAD_CREDENTIALS);
-        }
-
-        boolean passwordMatched = passwordHasher.matches(request.password(), user.getPasswordHash());
-        if (!passwordMatched) {
-            loginAttemptService.recordFailure(user.getId());
-            log.warn("LOGIN_FAILED_CREDENTIALS userId={} ip={}", user.getId(), MaskingLogArg.ip(ip));
+        if (!userFound || !passwordMatched) {
+            if (userFound) {
+                loginAttemptService.recordFailure(user.getId());
+            }
+            loginAttemptService.recordIpFailure(ip);
+            log.warn("LOGIN_FAILED_CREDENTIALS identifier={} userFound={} ip={}",
+                    MaskingLogArg.email(identifier), userFound, MaskingLogArg.ip(ip));
             throw new BusinessException(IamErrorCode.BAD_CREDENTIALS);
         }
 
         loginAttemptService.clearFailures(user.getId());
+        loginAttemptService.clearIpFailures(ip);
         return completeSuccessfulLogin(user, ip, userAgent);
     }
 
@@ -232,45 +235,33 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public LoginResponse loginWithGoogle(GoogleLoginRequest request, String ip, String userAgent) {
         log.info("GOOGLE_LOGIN_ATTEMPT ip={}", MaskingLogArg.ip(ip));
-        GoogleUserInfo info = googleOAuthService.verify(request.idToken());
+        GoogleUserInfo info = googleOAuthService.verify(request.idToken(), request.nonce());
         String email = info.email().toLowerCase(Locale.ROOT);
 
         User user = userRepository.findByOauthProviderAndOauthId(OauthProvider.GOOGLE, info.googleSubId()).orElse(null);
+
         if (user == null) {
-            user = userRepository.findByEmail(email).orElse(null);
-        }
-        if (user == null) {
-            user = createOAuthAccount(info, email);
-            log.info("GOOGLE_ACCOUNT_LINKED userId={} provider=GOOGLE action=created", user.getId());
-        } else {
-            if (user.getStatus() == UserStatus.BANNED) {
-                throw new BusinessException(IamErrorCode.ACCOUNT_BANNED);
-            }
-            if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
-                user.setPasswordHash(null);
-                user.setOauthProvider(OauthProvider.GOOGLE);
-                user.setOauthId(info.googleSubId());
-                if (info.fullName() != null && !info.fullName().isBlank()) {
-                    user.setFullName(info.fullName());
-                }
-                if (info.avatarUrl() != null && !info.avatarUrl().isBlank()) {
-                    user.setAvatarUrl(info.avatarUrl());
-                }
-                user.setStatus(UserStatus.ACTIVE);
-                user.setEmailVerifiedAt(Instant.now());
+            User byEmail = userRepository.findByEmail(email).orElse(null);
+            if (byEmail == null) {
+                user = createOAuthAccount(info, email);
+                log.info("GOOGLE_ACCOUNT_LINKED userId={} provider=GOOGLE action=created", user.getId());
+            } else if (byEmail.isLocal() && byEmail.getStatus() == UserStatus.PENDING_VERIFICATION) {
+                byEmail.linkOAuth(info.googleSubId(), info.fullName(), info.avatarUrl());
+                byEmail.activateFromOtp();
+                byEmail.setPasswordHash(null);
                 clearOtpKeysForEmail(email);
+                userRepository.save(byEmail);
+                user = byEmail;
+                log.info("GOOGLE_ACCOUNT_LINKED userId={} provider=GOOGLE action=claim_pending_local", user.getId());
             } else {
-                user.setOauthProvider(OauthProvider.GOOGLE);
-                user.setOauthId(info.googleSubId());
-                if (info.fullName() != null && !info.fullName().isBlank()) {
-                    user.setFullName(info.fullName());
-                }
-                if (info.avatarUrl() != null && !info.avatarUrl().isBlank()) {
-                    user.setAvatarUrl(info.avatarUrl());
-                }
+                log.warn("OAUTH_EMAIL_CONFLICT email={} existingProvider={} existingStatus={}",
+                        MaskingLogArg.email(email), byEmail.getOauthProvider(), byEmail.getStatus());
+                throw new BusinessException(IamErrorCode.OAUTH_EMAIL_CONFLICT);
             }
+        } else {
+            user.linkOAuth(info.googleSubId(), info.fullName(), info.avatarUrl());
             userRepository.save(user);
-            log.info("GOOGLE_ACCOUNT_LINKED userId={} provider=GOOGLE", user.getId());
+            log.info("GOOGLE_ACCOUNT_LINKED userId={} provider=GOOGLE action=existing_oauth_user", user.getId());
         }
 
         loginAttemptService.validateNotLocked(user.getId());
@@ -483,17 +474,6 @@ public class AuthServiceImpl implements AuthService {
         stringRedisTemplate.delete("otp:lock:" + key);
     }
 
-    private static String maskEmailForRedirect(String email) {
-        if (email == null) {
-            return null;
-        }
-        int at = email.indexOf('@');
-        if (at <= 1) {
-            return "***";
-        }
-        return email.charAt(0) + "***" + email.substring(at);
-    }
-
     private void publishUserRegistered(User user, String otp, Instant issuedAt) {
         publishUserEvent(user, otp, issuedAt, OutboxEventTypes.USER_REGISTERED, KafkaTopics.IAM_USER_REGISTERED);
     }
@@ -521,7 +501,8 @@ public class AuthServiceImpl implements AuthService {
 
     private String serialize(Object value) {
         try {
-            return objectMapper.writeValueAsString(value);
+            String json = objectMapper.writeValueAsString(value);
+            return outboxCipher.encrypt(json);
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Failed to serialize outbox payload", ex);
         }

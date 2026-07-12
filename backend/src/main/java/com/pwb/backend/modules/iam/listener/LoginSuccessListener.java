@@ -22,6 +22,11 @@ public class LoginSuccessListener {
 
     private static final long LAST_LOGIN_TTL_DAYS = 30;
     private static final String LAST_LOGIN_KEY_PREFIX = "user:last_login:";
+    private static final String FIELD_IP = "ip";
+    private static final String FIELD_DEVICE = "device";
+    private static final String FIELD_COUNTRY = "country";
+    private static final String FIELD_CITY = "city";
+    private static final String FIELD_TIMESTAMP = "timestamp";
 
     private final StringRedisTemplate redisTemplate;
     private final DatabaseReader geoIpDatabaseReader;
@@ -34,33 +39,51 @@ public class LoginSuccessListener {
         }
         try {
             GeoIpConfig.GeoLocation location = GeoIpConfig.resolve(geoIpDatabaseReader, event.ip());
-            Map<String, String> hash = new HashMap<>();
-            hash.put("ip", event.ip() == null ? "unknown" : event.ip());
-            hash.put("device", event.userAgent() == null ? "unknown" : event.userAgent());
-            hash.put("country", location.country() == null ? "" : location.country());
-            hash.put("city", location.city() == null ? "" : location.city());
-            hash.put("timestamp", event.occurredAt() == null
+            Map<String, String> current = new HashMap<>();
+            current.put(FIELD_IP, event.ip() == null ? "unknown" : event.ip());
+            current.put(FIELD_DEVICE, event.userAgent() == null ? "unknown" : event.userAgent());
+            current.put(FIELD_COUNTRY, location.country() == null ? "" : location.country());
+            current.put(FIELD_CITY, location.city() == null ? "" : location.city());
+            current.put(FIELD_TIMESTAMP, event.occurredAt() == null
                     ? Instant.now().toString()
                     : event.occurredAt().toString());
 
             String key = LAST_LOGIN_KEY_PREFIX + event.userId();
-            redisTemplate.opsForHash().putAll(key, hash);
-            redisTemplate.expire(key, java.time.Duration.ofDays(LAST_LOGIN_TTL_DAYS));
+            Map<Object, Object> previous = redisTemplate.opsForHash().entries(key);
+            redisTemplate.opsForHash().putAll(key, current);
+            redisTemplate.expire(key, Duration.ofDays(LAST_LOGIN_TTL_DAYS));
 
-            if (isAnomalous(location, hash)) {
-                log.warn("SUSPICIOUS_LOGIN_DETECTED userId={} ip={} location={}",
-                        event.userId(), event.ip(), location.display());
+            if (isAnomalous(location, current, previous)) {
+                log.warn("SUSPICIOUS_LOGIN_DETECTED userId={} ip={} previousIp={} previousCountry={} currentCountry={}",
+                        event.userId(), event.ip(),
+                        previous.get(FIELD_IP), previous.get(FIELD_COUNTRY), location.country());
             }
         } catch (Exception ex) {
             log.warn("Failed to process LoginSuccessEvent for {}: {}", event.userId(), ex.getMessage());
         }
     }
 
-    private boolean isAnomalous(GeoIpConfig.GeoLocation location, Map<String, String> current) {
-        if (location.country() == null || location.country().isBlank()) {
+    private boolean isAnomalous(GeoIpConfig.GeoLocation location, Map<String, String> current, Map<Object, Object> previous) {
+        if (previous == null || previous.isEmpty()) {
             return false;
         }
-        return false;
+        String previousIp = asString(previous.get(FIELD_IP));
+        String previousCountry = asString(previous.get(FIELD_COUNTRY));
+        String previousDevice = asString(previous.get(FIELD_DEVICE));
+
+        boolean ipChanged = previousIp != null && !previousIp.isBlank()
+                && !previousIp.equals(current.get(FIELD_IP));
+        boolean countryChanged = previousCountry != null && !previousCountry.isBlank()
+                && location.country() != null
+                && !previousCountry.equalsIgnoreCase(location.country());
+        boolean deviceChanged = previousDevice != null && !previousDevice.isBlank()
+                && !previousDevice.equals(current.get(FIELD_DEVICE));
+
+        return (ipChanged || countryChanged) && deviceChanged;
+    }
+
+    private String asString(Object value) {
+        return value == null ? null : value.toString();
     }
 
     public Duration lastLoginTtl() {

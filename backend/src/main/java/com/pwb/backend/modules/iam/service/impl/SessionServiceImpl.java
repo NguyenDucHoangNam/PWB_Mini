@@ -51,6 +51,7 @@ public class SessionServiceImpl implements SessionService {
     private static final String GRANT_SCRIPT = "scripts/grant_session.lua";
     private static final String ROTATE_SCRIPT = "scripts/session_rotation.lua";
     private static final String REVOKE_OTHERS_SCRIPT = "scripts/revoke_other_sessions.lua";
+    private static final String ROTATE_RESOLVE_SCRIPT = "scripts/rotate_atomic.lua";
 
     private static final long METADATA_TTL_DAYS = 7;
     private static final String UNKNOWN_VALUE = "unknown";
@@ -66,22 +67,28 @@ public class SessionServiceImpl implements SessionService {
     private final LoginProperties loginProperties;
     private final JwtProperties jwtProperties;
     private final DatabaseReader geoIpDatabaseReader;
+    private final boolean blacklistFailClosed;
 
     private final DefaultRedisScript<List> grantScript;
     private final DefaultRedisScript<List> rotateScript;
+    private final DefaultRedisScript<List> rotateResolveScript;
     @SuppressWarnings("rawtypes")
     private final DefaultRedisScript<List> revokeOthersScript;
 
     public SessionServiceImpl(StringRedisTemplate redisTemplate,
                               LoginProperties loginProperties,
                               JwtProperties jwtProperties,
-                              DatabaseReader geoIpDatabaseReader) {
+                              DatabaseReader geoIpDatabaseReader,
+                              @org.springframework.beans.factory.annotation.Value("${app.security.session.blacklist-fail-closed:false}")
+                              boolean blacklistFailClosed) {
         this.redisTemplate = redisTemplate;
         this.loginProperties = loginProperties;
         this.jwtProperties = jwtProperties;
         this.geoIpDatabaseReader = geoIpDatabaseReader;
+        this.blacklistFailClosed = blacklistFailClosed;
         this.grantScript = loadScript(GRANT_SCRIPT);
         this.rotateScript = loadScript(ROTATE_SCRIPT);
+        this.rotateResolveScript = loadScript(ROTATE_RESOLVE_SCRIPT);
         this.revokeOthersScript = loadScript(REVOKE_OTHERS_SCRIPT);
     }
 
@@ -131,24 +138,35 @@ public class SessionServiceImpl implements SessionService {
         String revokedKey = REVOKED_PREFIX + oldRefreshToken;
         String zsetKey = SESSIONS_ZSET_PREFIX + userIdFromExpiredJwt;
 
-        String shadowNewToken = redisTemplate.opsForValue().get(shadowKey);
-        if (shadowNewToken != null && !shadowNewToken.isBlank()) {
-            String shadowUserId = redisTemplate.opsForValue().get(ACTIVE_PREFIX + shadowNewToken);
-            if (shadowUserId != null && shadowUserId.equals(userIdFromExpiredJwt.toString())) {
-                return new RotationResult(RotationStatus.ROTATED, userIdFromExpiredJwt, shadowNewToken, false);
-            }
+        List<Object> resolveResult;
+        try {
+            resolveResult = redisTemplate.execute(
+                    rotateResolveScript,
+                    List.of(activeKey, shadowKey, revokedKey, zsetKey),
+                    oldRefreshToken,
+                    userIdFromExpiredJwt.toString(),
+                    Long.toString(jwtProperties.getShadowGraceSeconds()),
+                    Long.toString(jwtProperties.getRefreshTokenTtlSeconds()));
+        } catch (Exception ex) {
+            log.warn("Failed to resolve rotate state for {}: {}", userIdFromExpiredJwt, ex.getMessage());
+            throw new IllegalStateException("Session rotation failed", ex);
         }
-
-        String existingUserId = redisTemplate.opsForValue().get(activeKey);
-        if (existingUserId == null) {
-            String revokedUserId = redisTemplate.opsForValue().get(revokedKey);
-            if (revokedUserId != null && revokedUserId.equals(userIdFromExpiredJwt.toString())) {
-                revokeAllSessions(userIdFromExpiredJwt);
-                log.error("TOKEN_THEFT_DETECTED userId={} usedToken={}", userIdFromExpiredJwt, mask(oldRefreshToken));
-            }
+        if (resolveResult == null || resolveResult.size() < 4) {
             return new RotationResult(RotationStatus.NOT_FOUND, null, null, false);
         }
-        if (!existingUserId.equals(userIdFromExpiredJwt.toString())) {
+        String status = String.valueOf(resolveResult.get(0));
+        String action = String.valueOf(resolveResult.get(1));
+
+        if ("SHADOW_HIT".equals(status) && "RETURN_SHADOW".equals(action)) {
+            String shadowNewToken = String.valueOf(resolveResult.get(2));
+            return new RotationResult(RotationStatus.ROTATED, userIdFromExpiredJwt, shadowNewToken, false);
+        }
+        if ("REVOKED".equals(status) && "REVOKE_ALL".equals(action)) {
+            revokeAllSessions(userIdFromExpiredJwt);
+            log.error("TOKEN_THEFT_DETECTED userId={} usedToken={}", userIdFromExpiredJwt, mask(oldRefreshToken));
+            return new RotationResult(RotationStatus.NOT_FOUND, null, null, false);
+        }
+        if (!"OK".equals(status) || !"ROTATE".equals(action)) {
             return new RotationResult(RotationStatus.NOT_FOUND, null, null, false);
         }
 
@@ -178,8 +196,8 @@ public class SessionServiceImpl implements SessionService {
         if (result == null || result.size() < 2) {
             return new RotationResult(RotationStatus.NOT_FOUND, null, null, false);
         }
-        String status = String.valueOf(result.get(1));
-        if (!"ROTATED".equals(status)) {
+        String rotateStatus = String.valueOf(result.get(1));
+        if (!"ROTATED".equals(rotateStatus)) {
             return new RotationResult(RotationStatus.NOT_FOUND, null, null, false);
         }
         log.info("TOKEN_ROTATED userId={} oldToken={} newToken={}",
@@ -234,14 +252,18 @@ public class SessionServiceImpl implements SessionService {
         if (refreshToken == null || refreshToken.isBlank()) {
             return;
         }
+        String ownerUserId = redisTemplate.opsForValue().get(ACTIVE_PREFIX + refreshToken);
         redisTemplate.delete(ACTIVE_PREFIX + refreshToken);
         redisTemplate.delete(METADATA_PREFIX + refreshToken);
-        Set<String> matching = redisTemplate.keys(SESSIONS_ZSET_PREFIX + "*");
-        if (matching != null) {
-            for (String zsetKey : matching) {
-                redisTemplate.opsForZSet().remove(zsetKey, refreshToken);
-            }
+        if (ownerUserId == null) {
+            return;
         }
+        try {
+            UUID.fromString(ownerUserId);
+        } catch (IllegalArgumentException ex) {
+            return;
+        }
+        redisTemplate.opsForZSet().remove(SESSIONS_ZSET_PREFIX + ownerUserId, refreshToken);
     }
 
     @Override
@@ -487,8 +509,9 @@ public class SessionServiceImpl implements SessionService {
             Boolean exists = redisTemplate.hasKey(BLACKLIST_PREFIX + jwtSignature);
             return Boolean.TRUE.equals(exists);
         } catch (Exception ex) {
-            log.warn("Failed to check blacklist, fail-open: {}", ex.getMessage());
-            return false;
+            log.warn("Failed to check blacklist, mode={} error={}",
+                    blacklistFailClosed ? "fail-closed" : "fail-open", ex.getMessage());
+            return blacklistFailClosed;
         }
     }
 

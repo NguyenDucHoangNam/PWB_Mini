@@ -8,6 +8,13 @@ spring:
     port: ${MAIL_PORT:587}
     username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
+  jpa:
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
 
 app:
   rate-limit:
@@ -96,17 +103,35 @@ app:
       header-name: Authorization
       header-prefix: "Bearer "
       blacklist-clock-skew-buffer-seconds: 30
+      secret: ${JWT_SECRET:}
+      refresh-secret: ${JWT_REFRESH_SECRET:}
+    outbox:
+      encryption-key: ${IAM_OUTBOX_ENCRYPTION_KEY:}
+    trusted-proxies:
+      trust-forwarded-headers: ${APP_SECURITY_TRUSTED_PROXIES_TRUST_FORWARDED_HEADERS:false}
+      cidrs: ${APP_SECURITY_TRUSTED_PROXIES_CIDRS:}
     cookie:
       secure: false
       samesite: Strict
     oauth:
       google:
         client-id: ${GOOGLE_CLIENT_ID:}
+    captcha:
+      turnstile:
+        enabled: ${APP_SECURITY_CAPTCHA_TURNSTILE_ENABLED:false}
+        secret-key: ${APP_SECURITY_CAPTCHA_TURNSTILE_SECRET_KEY:}
+        verify-url: ${APP_SECURITY_CAPTCHA_TURNSTILE_VERIFY_URL:https://challenges.cloudflare.com/turnstile/v0/siteverify}
+        timeout-millis: 3000
+        fail-open: ${APP_SECURITY_CAPTCHA_TURNSTILE_FAIL_OPEN:true}
+        site-key: ${APP_SECURITY_CAPTCHA_TURNSTILE_SITE_KEY:}
   login:
     max-concurrent-sessions: 3
     max-failed-attempts: 5
     failed-attempt-window-seconds: 900
     lockout-seconds: 900
+    ip-max-failed-attempts: 20
+    ip-attempt-window-seconds: 300
+    ip-lockout-seconds: 900
   outbox:
     retry-interval-ms: 30000
     max-attempts: 10

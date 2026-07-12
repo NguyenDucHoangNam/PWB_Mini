@@ -1,10 +1,8 @@
 package com.pwb.backend.common.model;
 
 import com.pwb.backend.common.enums.OutboxStatus;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
@@ -14,21 +12,17 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
 @Table(name = "outbox_events")
-@EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class OutboxEvent {
+@EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
+public class OutboxEvent extends BaseEntity {
 
     @Id
     @Column(name = "id", nullable = false, updatable = false)
@@ -68,16 +62,6 @@ public class OutboxEvent {
 
     @Column(name = "last_error", columnDefinition = "text")
     private String lastError;
-
-    @CreatedDate
-    @Column(name = "created_at", nullable = false, updatable = false)
-    @Setter(AccessLevel.NONE)
-    private Instant createdAt;
-
-    @LastModifiedDate
-    @Column(name = "updated_at", nullable = false)
-    @Setter(AccessLevel.NONE)
-    private Instant updatedAt;
 
     @Column(name = "processed_at")
     @Setter(AccessLevel.NONE)

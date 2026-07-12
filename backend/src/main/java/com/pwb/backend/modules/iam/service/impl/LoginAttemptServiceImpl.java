@@ -26,6 +26,8 @@ public class LoginAttemptServiceImpl implements LoginAttemptService {
 
     private static final String ATTEMPT_KEY_PREFIX = "login_attempts:";
     private static final String LOCKOUT_KEY_PREFIX = "login_lockout:";
+    private static final String IP_ATTEMPT_KEY_PREFIX = "login_attempts_ip:";
+    private static final String IP_LOCKOUT_KEY_PREFIX = "login_lockout_ip:";
     private static final String SCRIPT_RESOURCE = "scripts/login_attempt.lua";
 
     private final StringRedisTemplate redisTemplate;
@@ -49,7 +51,6 @@ public class LoginAttemptServiceImpl implements LoginAttemptService {
 
     @PostConstruct
     void warmUp() {
-        // Script body already cached in constructor.
     }
 
     @Override
@@ -107,5 +108,60 @@ public class LoginAttemptServiceImpl implements LoginAttemptService {
     @Override
     public long lockoutRetryAfterSeconds() {
         return properties.getLockoutSeconds();
+    }
+
+    @Override
+    public void validateIpNotBlocked(String clientIp) {
+        if (clientIp == null || clientIp.isBlank()) {
+            return;
+        }
+        Boolean exists = redisTemplate.hasKey(IP_LOCKOUT_KEY_PREFIX + clientIp);
+        if (Boolean.TRUE.equals(exists)) {
+            Long ttl = redisTemplate.getExpire(IP_LOCKOUT_KEY_PREFIX + clientIp, TimeUnit.SECONDS);
+            long seconds = ttl == null || ttl < 0 ? properties.getIpLockoutSeconds() : ttl;
+            throw new BusinessException(
+                    IamErrorCode.RATE_LIMIT_EXCEEDED,
+                    "Too many failed attempts from this IP. Retry after " + seconds + " seconds",
+                    null,
+                    Map.of("retryAfterSeconds", seconds));
+        }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void recordIpFailure(String clientIp) {
+        if (clientIp == null || clientIp.isBlank()) {
+            return;
+        }
+        String attemptKey = IP_ATTEMPT_KEY_PREFIX + clientIp;
+        String lockoutKey = IP_LOCKOUT_KEY_PREFIX + clientIp;
+        List<Object> result;
+        try {
+            result = redisTemplate.execute(
+                    script,
+                    List.of(attemptKey, lockoutKey),
+                    Integer.toString(properties.getIpMaxFailedAttempts()),
+                    Long.toString(properties.getIpAttemptWindowSeconds()),
+                    Long.toString(properties.getIpLockoutSeconds()));
+        } catch (Exception ex) {
+            log.warn("Failed to record IP login attempt for {}: {}", clientIp, ex.getMessage());
+            return;
+        }
+        if (result != null && result.size() >= 2) {
+            long locked = ((Number) result.get(1)).longValue();
+            if (locked == 1L) {
+                log.warn("IP_LOCKED_TEMPORARY ip={} lockoutSeconds={}",
+                        clientIp, properties.getIpLockoutSeconds());
+            }
+        }
+    }
+
+    @Override
+    public void clearIpFailures(String clientIp) {
+        if (clientIp == null || clientIp.isBlank()) {
+            return;
+        }
+        redisTemplate.delete(IP_ATTEMPT_KEY_PREFIX + clientIp);
+        redisTemplate.delete(IP_LOCKOUT_KEY_PREFIX + clientIp);
     }
 }

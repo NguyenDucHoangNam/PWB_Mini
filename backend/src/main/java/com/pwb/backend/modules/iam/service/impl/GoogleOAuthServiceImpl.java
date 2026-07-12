@@ -15,8 +15,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @Profile("!test")
@@ -40,6 +43,11 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
 
     @Override
     public GoogleUserInfo verify(String idToken) {
+        return verify(idToken, null);
+    }
+
+    @Override
+    public GoogleUserInfo verify(String idToken, String expectedNonce) {
         if (idToken == null || idToken.isBlank()) {
             throw new BusinessException(IamErrorCode.INVALID_OAUTH_TOKEN);
         }
@@ -64,15 +72,26 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
             if (email == null || email.isBlank() || sub == null || sub.isBlank()) {
                 throw new BusinessException(IamErrorCode.INVALID_OAUTH_TOKEN);
             }
+            String nonce = (String) payload.get("nonce");
+            if (expectedNonce != null && !expectedNonce.isBlank()) {
+                if (!MessageDigest.isEqual(
+                        Objects.requireNonNullElse(nonce, "").getBytes(),
+                        expectedNonce.getBytes())) {
+                    log.error("GOOGLE_OAUTH_FAILED error=nonce_mismatch sub={}", sub);
+                    throw new BusinessException(IamErrorCode.INVALID_OAUTH_TOKEN);
+                }
+            }
             String name = (String) payload.get("name");
             String picture = (String) payload.get("picture");
-            return new GoogleUserInfo(
+            return GoogleUserInfo.sanitized(
                     email.trim().toLowerCase(),
                     name == null ? "" : name,
                     picture == null ? null : picture,
                     sub);
         } catch (BusinessException ex) {
             throw ex;
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("MessageDigest comparison failed", ex);
         } catch (Exception ex) {
             log.error("GOOGLE_OAUTH_FAILED error={}", ex.getMessage());
             throw new BusinessException(IamErrorCode.INVALID_OAUTH_TOKEN);

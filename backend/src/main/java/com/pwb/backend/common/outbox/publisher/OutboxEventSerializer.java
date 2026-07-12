@@ -29,34 +29,45 @@ public class OutboxEventSerializer {
             OutboxEventTypes.ACCOUNT_DELETION_CANCELLED);
 
     private final ObjectMapper objectMapper;
-
+    private final OutboxPayloadCipher cipher;
 
     public String serialize(OutboxEvent event) {
+        String plaintext = cipher.isEnabled()
+                ? safeDecrypt(event.getPayload(), event.getId())
+                : event.getPayload();
         try {
             if (USER_EVENT_TYPES.contains(event.getEventType())) {
-                UserRegisteredEvent payload = objectMapper.readValue(
-                        event.getPayload(), UserRegisteredEvent.class);
+                UserRegisteredEvent payload = objectMapper.readValue(plaintext, UserRegisteredEvent.class);
                 return objectMapper.writeValueAsString(payload);
             }
             if (PASSWORD_RESET_EVENT_TYPES.contains(event.getEventType())) {
-                PasswordResetRequestedEvent payload = objectMapper.readValue(
-                        event.getPayload(), PasswordResetRequestedEvent.class);
+                PasswordResetRequestedEvent payload = objectMapper.readValue(plaintext, PasswordResetRequestedEvent.class);
                 return objectMapper.writeValueAsString(payload);
             }
             if (DELETION_EVENT_TYPES.contains(event.getEventType())) {
                 if (OutboxEventTypes.ACCOUNT_DELETION_REQUESTED.equals(event.getEventType())) {
-                    AccountDeletionRequestedEvent payload = objectMapper.readValue(
-                            event.getPayload(), AccountDeletionRequestedEvent.class);
+                    AccountDeletionRequestedEvent payload = objectMapper.readValue(plaintext, AccountDeletionRequestedEvent.class);
                     return objectMapper.writeValueAsString(payload);
                 }
-                AccountDeletionCancelledEvent payload = objectMapper.readValue(
-                        event.getPayload(), AccountDeletionCancelledEvent.class);
+                AccountDeletionCancelledEvent payload = objectMapper.readValue(plaintext, AccountDeletionCancelledEvent.class);
                 return objectMapper.writeValueAsString(payload);
             }
-            return event.getPayload();
+            return plaintext;
         } catch (Exception ex) {
             log.warn("Outbox serialization fallback for event {}: {}", event.getId(), ex.getMessage());
-            return event.getPayload();
+            return plaintext;
+        }
+    }
+
+    private String safeDecrypt(String stored, java.util.UUID eventId) {
+        if (stored == null || !cipher.isEncrypted(stored)) {
+            return stored;
+        }
+        try {
+            return cipher.decrypt(stored);
+        } catch (Exception ex) {
+            log.error("OUTBOX_PAYLOAD_DECRYPT_FAILED eventId={} reason={}", eventId, ex.getMessage());
+            throw ex;
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.pwb.backend.modules.iam.model;
 
+import com.pwb.backend.common.model.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -8,16 +9,17 @@ import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-import java.time.Instant;
 import java.util.UUID;
 
 @Entity
 @Table(name = "roles")
 @Getter
+@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class Role {
+@EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
+public class Role extends BaseEntity {
 
     @Id
     @Column(name = "id", nullable = false, updatable = false)
@@ -30,13 +32,9 @@ public class Role {
     @Column(name = "name", nullable = false, length = 64)
     private String name;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
-
     public Role(UUID id, String code, String name) {
         this.id = id;
         this.code = code;
         this.name = name;
-        this.createdAt = Instant.now();
     }
 }

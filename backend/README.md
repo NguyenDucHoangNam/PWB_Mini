@@ -96,3 +96,57 @@ which provides safe defaults (CORS origin, JWT secret).
 - [x] OAuth account linking requires password verification
 - [x] Outbox pattern with retry + Dead-Letter Queue
 - [x] `.env` files gitignored
+
+## TTL & Rate-Limit Defaults
+
+| Concern | Default | Source |
+| --- | --- | --- |
+| Access token TTL | 900 s (15 min) | `app.security.jwt.access-token-ttl-seconds` |
+| Refresh token TTL | 604 800 s (7 days) | `app.security.jwt.refresh-token-ttl-seconds` |
+| JWT blacklist skew | 30 s | `app.security.jwt.blacklist-clock-skew-buffer-seconds` |
+| OTP TTL | 300 s (5 min) | `app.iam.otp.ttl-seconds` |
+| OTP max attempts | 5 | `app.iam.otp.max-attempts` |
+| OTP resend cooldown | 60 s | `app.iam.otp.resend-cooldown-seconds` |
+| Password reset token TTL | 600 s (10 min) | `app.iam.password-reset.token-ttl-seconds` |
+| Account deletion grace | 30 days | `app.iam.account-deletion.grace-days` |
+| Failed-login attempts / user | 5 within 15 min | `app.login.max-failed-attempts` / `failed-attempt-window-seconds` |
+| Failed-login attempts / IP | 20 within 5 min | `app.login.ip-max-failed-attempts` / `ip-attempt-window-seconds` |
+| Anonymous login hash retention | 30 days | `LoginSuccessListener.LAST_LOGIN_TTL_DAYS` |
+| Outbox payload encryption | AES-256-GCM, optional | `app.security.outbox.encryption-key` |
+| Blacklist failure policy | close-by-default (configurable fail-open) | `app.security.jwt.blacklist-fail-closed` |
+| Captcha | Cloudflare Turnstile, opt-in | `app.security.captcha.turnstile.*` |
+
+## Environment Variables (Security-Sensitive)
+
+| Variable | Required? | Notes |
+| --- | --- | --- |
+| `JWT_SECRET` | yes (prod) | min 32 bytes; HS256. App fails to start in `prod` profile if missing/short. |
+| `JWT_REFRESH_SECRET` | recommended | Separate HS256 key for refresh tokens. |
+| `GOOGLE_CLIENT_ID` | optional | Enables `/login/google`. |
+| `IAM_OUTBOX_ENCRYPTION_KEY` | recommended | AES-256 raw key (base64 or arbitrary string → SHA-256 derived). Encrypts PII payloads at-rest. Leave blank to disable encryption (warns at boot). |
+| `APP_SECURITY_CAPTCHA_TURNSTILE_ENABLED` | optional | Set `true` in prod to enforce Turnstile on public auth endpoints. |
+| `APP_SECURITY_CAPTCHA_TURNSTILE_SECRET_KEY` | when captcha enabled | Server-side secret from Cloudflare dashboard. |
+| `APP_SECURITY_CAPTCHA_TURNSTILE_SITE_KEY` | frontend | Publishable site key. |
+| `APP_SECURITY_CAPTCHA_TURNSTILE_FAIL_OPEN` | optional | Default `true`: outages bypass captcha instead of locking everyone out. |
+| `APP_SECURITY_TRUSTED_PROXIES_TRUST_FORWARDED_HEADERS` | optional | Set `true` only when running behind a known reverse proxy. |
+| `APP_SECURITY_TRUSTED_PROXIES_CIDRS` | optional | Comma-separated CIDRs allowed to contribute XFF (e.g. `10.0.0.0/8,127.0.0.1/32`). |
+| `APP_SECURITY_ACTUATOR_PUBLIC` | optional | Set `true` to expose actuator without auth. Keep `false` in prod. |
+
+## Captcha (Cloudflare Turnstile)
+
+Wire Turnstile on public sign-in endpoints when abuse spikes:
+
+1. Pull site/secret keys from [Cloudflare Turnstile dashboard](https://dash.cloudflare.com/?to=/:account/turnstile).
+2. Set `APP_SECURITY_CAPTCHA_TURNSTILE_ENABLED=true` and fill in the keys above.
+3. Frontend renders the Turnstile widget and forwards the token as `captchaToken` on
+   `POST /api/v1/auth/register`, `/login`, `/forgot-password`, `/resend-otp`.
+4. With `fail-open=true`, a Turnstile outage (5xx, network timeout) lets requests through
+   and logs a `WARN` line. Flip to `fail-open=false` for stricter environments.
+
+## Trusted Proxies & X-Forwarded-For
+
+`HttpClientContextResolver` honors `X-Forwarded-For` **only** when both
+`app.security.trusted-proxies.trust-forwarded-headers=true` AND the socket's
+remote address falls inside `app.security.trusted-proxies.cidrs`. Outside of
+this allowlist the socket address is used directly, preventing client-controlled
+header spoofing.

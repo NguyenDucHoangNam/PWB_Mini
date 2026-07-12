@@ -3,16 +3,19 @@ package com.pwb.backend.modules.iam.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.common.kafka.constant.KafkaTopics;
+import com.pwb.backend.common.model.BaseEntity;
 import com.pwb.backend.common.model.OutboxEvent;
 import com.pwb.backend.common.outbox.event.AccountAnonymizedEvent;
 import com.pwb.backend.common.outbox.event.OutboxCreatedEvent;
 import com.pwb.backend.common.outbox.publisher.OutboxEventTypes;
+import com.pwb.backend.common.outbox.publisher.OutboxPayloadCipher;
 import com.pwb.backend.common.repository.OutboxEventRepository;
 import com.pwb.backend.modules.iam.enums.UserStatus;
 import com.pwb.backend.modules.iam.model.User;
 import com.pwb.backend.modules.iam.repository.UserRepository;
 import com.pwb.backend.modules.iam.service.AccountAnonymizationService;
 import com.pwb.backend.modules.iam.service.AnonymizationReport;
+import com.pwb.backend.modules.iam.service.AvatarUploadService;
 import com.pwb.backend.modules.iam.service.LoginAttemptService;
 import com.pwb.backend.modules.iam.service.SessionService;
 import lombok.RequiredArgsConstructor;
@@ -37,9 +40,11 @@ public class AccountAnonymizationServiceImpl implements AccountAnonymizationServ
     private final UserRepository userRepository;
     private final SessionService sessionService;
     private final LoginAttemptService loginAttemptService;
+    private final AvatarUploadService avatarUploadService;
     private final OutboxEventRepository outboxRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    private final OutboxPayloadCipher outboxCipher;
 
     @Value("${app.iam.account-anonymization.grace-days:30}")
     private int graceDays;
@@ -93,9 +98,15 @@ public class AccountAnonymizationServiceImpl implements AccountAnonymizationServ
 
         sessionService.purgeUserSessionData(userId);
         loginAttemptService.clearFailures(userId);
+        try {
+            avatarUploadService.deleteAvatar(userId);
+        } catch (Exception ex) {
+            log.warn("AVATAR_DELETE_FAILED_ON_ANONYMIZE userId={} error={}", userId, ex.getMessage());
+        }
 
         Instant deletionRequestedAt = user.getDeletionRequestedAt();
         user.anonymize(userId);
+        user.softDelete(BaseEntity.SYSTEM_PRINCIPAL);
         userRepository.save(user);
 
         publishAnonymizedEvent(userId, deletionRequestedAt);
@@ -121,7 +132,8 @@ public class AccountAnonymizationServiceImpl implements AccountAnonymizationServ
 
     private String serialize(Object value) {
         try {
-            return objectMapper.writeValueAsString(value);
+            String json = objectMapper.writeValueAsString(value);
+            return outboxCipher.encrypt(json);
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Failed to serialize outbox payload", ex);
         }

@@ -50,7 +50,7 @@ public class SessionController {
         List<SessionMetadata> sessions = sessionService.listActiveSessions(userId, currentRefreshToken);
         List<SessionInfoResponse> response = sessions.stream()
                 .map(meta -> new SessionInfoResponse(
-                        meta.refreshToken(),
+                        publicSessionId(meta.refreshToken()),
                         meta.ip(),
                         meta.device(),
                         meta.location(),
@@ -59,6 +59,13 @@ public class SessionController {
                 .toList();
         log.info("LIST_SESSIONS_REQUEST userId={}", userId);
         return ResponseEntity.ok(ApiResponse.success(message(MSG_SESSIONS_FETCHED), response));
+    }
+
+    private static String publicSessionId(String refreshToken) {
+        if (refreshToken == null || refreshToken.length() < 8) {
+            return "session";
+        }
+        return refreshToken.substring(0, 8);
     }
 
     @DeleteMapping("/{tokenUuid}")

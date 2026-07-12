@@ -8,6 +8,7 @@ import com.pwb.backend.common.model.OutboxEvent;
 import com.pwb.backend.common.outbox.event.OutboxCreatedEvent;
 import com.pwb.backend.common.outbox.event.PasswordResetRequestedEvent;
 import com.pwb.backend.common.outbox.publisher.OutboxEventTypes;
+import com.pwb.backend.common.outbox.publisher.OutboxPayloadCipher;
 import com.pwb.backend.common.repository.OutboxEventRepository;
 import com.pwb.backend.common.util.MaskingLogArg;
 import com.pwb.backend.common.util.PasswordHasher;
@@ -48,6 +49,7 @@ public class PasswordChangeServiceImpl implements PasswordChangeService {
     private final SessionService sessionService;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    private final OutboxPayloadCipher outboxCipher;
 
     @Override
     @Transactional
@@ -171,7 +173,8 @@ public class PasswordChangeServiceImpl implements PasswordChangeService {
 
     private String serialize(Object value) {
         try {
-            return objectMapper.writeValueAsString(value);
+            String json = objectMapper.writeValueAsString(value);
+            return outboxCipher.encrypt(json);
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Failed to serialize outbox payload", ex);
         }

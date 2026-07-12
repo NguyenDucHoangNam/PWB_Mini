@@ -30,7 +30,12 @@ public class AccountAnonymizationJob {
     }
 
     public AnonymizationReport runManual(int batchSize) {
-        return runInternal(Math.max(batchSize, 1));
+        return runManualLocked(Math.max(batchSize, 1));
+    }
+
+    @SchedulerLock(name = "anonymization_manual_lock", lockAtMostFor = "PT10M", lockAtLeastFor = "PT5S")
+    public AnonymizationReport runManualLocked(int batchSize) {
+        return runInternal(batchSize);
     }
 
     private AnonymizationReport runInternal(int batchSize) {

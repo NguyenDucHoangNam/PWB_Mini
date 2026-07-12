@@ -9,6 +9,7 @@ import com.pwb.backend.common.outbox.event.AccountDeletionCancelledEvent;
 import com.pwb.backend.common.outbox.event.AccountDeletionRequestedEvent;
 import com.pwb.backend.common.outbox.event.OutboxCreatedEvent;
 import com.pwb.backend.common.outbox.publisher.OutboxEventTypes;
+import com.pwb.backend.common.outbox.publisher.OutboxPayloadCipher;
 import com.pwb.backend.common.repository.OutboxEventRepository;
 import com.pwb.backend.common.util.MaskingLogArg;
 import com.pwb.backend.common.util.PasswordHasher;
@@ -50,6 +51,7 @@ public class AccountDeletionServiceImpl implements AccountDeletionService {
     private final OutboxEventRepository outboxRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    private final OutboxPayloadCipher outboxCipher;
     private final UserMapper userMapper;
 
     @Value("${app.iam.account-deletion.grace-days:30}")
@@ -197,7 +199,8 @@ public class AccountDeletionServiceImpl implements AccountDeletionService {
 
     private String serialize(Object value) {
         try {
-            return objectMapper.writeValueAsString(value);
+            String json = objectMapper.writeValueAsString(value);
+            return outboxCipher.encrypt(json);
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Failed to serialize outbox payload", ex);
         }

@@ -15,7 +15,10 @@ public class RefreshTokenCookieWriter {
     private final CookieProperties properties;
 
     public void writeRefreshCookie(HttpServletResponse response, String refreshToken, long maxAgeSeconds) {
-        if (refreshToken == null || refreshToken.isBlank() || maxAgeSeconds <= 0) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return;
+        }
+        if (maxAgeSeconds < 0) {
             return;
         }
         ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(properties.getRefreshCookieName(), refreshToken)
@@ -25,6 +28,17 @@ public class RefreshTokenCookieWriter {
                 .maxAge(maxAgeSeconds)
                 .sameSite(properties.getSamesite());
         response.addHeader(HttpHeaders.SET_COOKIE, builder.build().toString());
+    }
+
+    public void writeRefreshCookieIfPresent(HttpServletResponse response, String refreshToken, boolean clearRequired, long refreshTtlSeconds) {
+        if (clearRequired) {
+            clearRefreshCookie(response);
+            return;
+        }
+        if (refreshToken == null || refreshToken.isBlank() || refreshTtlSeconds <= 0) {
+            return;
+        }
+        writeRefreshCookie(response, refreshToken, refreshTtlSeconds);
     }
 
     public void clearRefreshCookie(HttpServletResponse response) {

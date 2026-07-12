@@ -4,6 +4,13 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record LoginRequest(
-        @NotBlank @Size(max = 255) String usernameOrEmail,
-        @NotBlank @Size(max = 100) String password) {
+        @NotBlank(message = "{validation.email.required}")
+        @Size(max = 255, message = "{validation.email.length}")
+        String usernameOrEmail,
+
+        @NotBlank(message = "{validation.password.required}")
+        @Size(max = 128, message = "{validation.password.length}")
+        String password,
+
+        String captchaToken) {
 }

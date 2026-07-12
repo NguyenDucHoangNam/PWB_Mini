@@ -1,7 +1,9 @@
 package com.pwb.backend.modules.iam.controller;
 
 import com.pwb.backend.common.dto.ApiResponse;
+import com.pwb.backend.common.exception.BusinessException;
 import com.pwb.backend.common.security.HttpClientContextResolver;
+import com.pwb.backend.common.security.captcha.CaptchaVerifier;
 import com.pwb.backend.common.security.cookie.RefreshTokenCookieWriter;
 import com.pwb.backend.common.security.jwt.BearerTokenExtractor;
 import com.pwb.backend.modules.iam.dto.request.GoogleLoginRequest;
@@ -14,6 +16,7 @@ import com.pwb.backend.modules.iam.dto.response.RefreshResponse;
 import com.pwb.backend.modules.iam.dto.response.RegisterResponse;
 import com.pwb.backend.modules.iam.dto.response.ResendOtpResponse;
 import com.pwb.backend.modules.iam.dto.response.VerifyOtpResponse;
+import com.pwb.backend.modules.iam.exception.IamErrorCode;
 import com.pwb.backend.modules.iam.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -46,10 +49,13 @@ public class AuthController {
     private final RefreshTokenCookieWriter cookieWriter;
     private final HttpClientContextResolver clientContextResolver;
     private final BearerTokenExtractor bearerTokenExtractor;
+    private final CaptchaVerifier captchaVerifier;
     private final MessageSource messageSource;
 
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<RegisterResponse>> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<ApiResponse<RegisterResponse>> register(@Valid @RequestBody RegisterRequest request,
+                                                                 HttpServletRequest httpRequest) {
+        captchaVerifier.verifyOrThrow(request.captchaToken(), httpRequest);
         RegisterResponse response = authService.register(request);
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.success(message(MSG_REGISTER_INITIATED), response));
@@ -62,7 +68,9 @@ public class AuthController {
     }
 
     @PostMapping("/resend-otp")
-    public ResponseEntity<ApiResponse<ResendOtpResponse>> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
+    public ResponseEntity<ApiResponse<ResendOtpResponse>> resendOtp(@Valid @RequestBody ResendOtpRequest request,
+                                                                    HttpServletRequest httpRequest) {
+        captchaVerifier.verifyOrThrow(request.captchaToken(), httpRequest);
         ResendOtpResponse response = authService.resendOtp(request);
         return ResponseEntity.ok(ApiResponse.success(message(MSG_OTP_RESENT), response));
     }
@@ -71,6 +79,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request,
                                                             HttpServletRequest httpRequest,
                                                             HttpServletResponse httpResponse) {
+        captchaVerifier.verifyOrThrow(request.captchaToken(), httpRequest);
         String ip = clientContextResolver.resolveIp(httpRequest);
         String userAgent = clientContextResolver.resolveUserAgent(httpRequest);
         LoginResponse data = authService.login(request, ip, userAgent);
@@ -96,8 +105,7 @@ public class AuthController {
         String expiredAccessToken = bearerTokenExtractor.extractOrThrow(authHeader);
         String oldRefreshToken = cookieWriter.readRefreshCookie(httpRequest);
         if (oldRefreshToken == null) {
-            throw new com.pwb.backend.common.exception.BusinessException(
-                    com.pwb.backend.modules.iam.exception.IamErrorCode.INVALID_REFRESH_TOKEN);
+            throw new BusinessException(IamErrorCode.INVALID_REFRESH_TOKEN);
         }
         String ip = clientContextResolver.resolveIp(httpRequest);
         String userAgent = clientContextResolver.resolveUserAgent(httpRequest);
@@ -122,7 +130,11 @@ public class AuthController {
     }
 
     private void writeRefreshCookieIfPresent(HttpServletResponse response, String refreshToken, long maxAgeSeconds) {
-        if (refreshToken != null && maxAgeSeconds > 0) {
+        if (maxAgeSeconds <= 0) {
+            cookieWriter.clearRefreshCookie(response);
+            return;
+        }
+        if (refreshToken != null && !refreshToken.isBlank()) {
             cookieWriter.writeRefreshCookie(response, refreshToken, maxAgeSeconds);
         }
     }

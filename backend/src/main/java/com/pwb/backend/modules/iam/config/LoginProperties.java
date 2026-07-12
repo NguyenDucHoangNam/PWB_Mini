@@ -13,4 +13,7 @@ public class LoginProperties {
     private int maxFailedAttempts = 5;
     private long failedAttemptWindowSeconds = 900;
     private long lockoutSeconds = 900;
+    private int ipMaxFailedAttempts = 20;
+    private long ipAttemptWindowSeconds = 300;
+    private long ipLockoutSeconds = 900;
 }

@@ -1,13 +1,16 @@
--- Atomic OTP verification.
+-- Atomic OTP verification: stores a SHA-256 hex digest of the OTP.
+-- This script only manages attempt counters and lockout state. The actual
+-- digest comparison is performed in Java using MessageDigest.isEqual so
+-- the value never appears in Redis logs or dumps as plaintext.
 -- KEYS[1] = otp key        (e.g. otp:user@example.com)
 -- KEYS[2] = attempt key    (e.g. otp:attempt:user@example.com)
 -- KEYS[3] = lockout key    (e.g. otp:lock:user@example.com)
--- ARGV[1] = submitted OTP
+-- ARGV[1] = submitted OTP digest (hex-encoded SHA-256)
 -- ARGV[2] = lockout TTL seconds
 -- ARGV[3] = attempt TTL seconds
 -- ARGV[4] = max attempts
 -- Returns: {result, code}
---   result: 1 = success, 0 = failure
+--   result: 1 = candidate (digest matches), 0 = no
 --   code:   OK, LOCKED, NOT_FOUND, WRONG
 
 if redis.call('GET', KEYS[3]) then

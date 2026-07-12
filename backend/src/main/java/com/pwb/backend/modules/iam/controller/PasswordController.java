@@ -2,6 +2,7 @@ package com.pwb.backend.modules.iam.controller;
 
 import com.pwb.backend.common.dto.ApiResponse;
 import com.pwb.backend.common.security.CurrentUserResolver;
+import com.pwb.backend.common.security.captcha.CaptchaVerifier;
 import com.pwb.backend.common.security.cookie.RefreshTokenCookieWriter;
 import com.pwb.backend.modules.iam.dto.request.ChangePasswordRequest;
 import com.pwb.backend.modules.iam.dto.request.ForgotPasswordRequest;
@@ -33,10 +34,13 @@ public class PasswordController {
     private final PasswordChangeService passwordChangeService;
     private final CurrentUserResolver currentUserResolver;
     private final RefreshTokenCookieWriter cookieWriter;
+    private final CaptchaVerifier captchaVerifier;
     private final MessageSource messageSource;
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request,
+                                                           HttpServletRequest httpRequest) {
+        captchaVerifier.verifyOrThrow(request.captchaToken(), httpRequest);
         passwordChangeService.requestPasswordReset(request.email());
         return ResponseEntity.ok(ApiResponse.success(message(MSG_RESET_LINK_SENT)));
     }

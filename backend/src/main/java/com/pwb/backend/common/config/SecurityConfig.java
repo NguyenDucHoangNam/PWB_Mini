@@ -1,8 +1,11 @@
 package com.pwb.backend.common.config;
 
+import com.pwb.backend.common.security.TrustedProxyProperties;
 import com.pwb.backend.common.security.jwt.JwtAuthenticationEntryPoint;
 import com.pwb.backend.common.security.jwt.JwtAuthenticationFilter;
 import com.pwb.backend.common.security.ratelimit.IpRateLimitFilter;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -16,13 +19,13 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@EnableConfigurationProperties(TrustedProxyProperties.class)
 public class SecurityConfig {
 
     private static final String[] PUBLIC_GET_PATHS = {
@@ -32,9 +35,8 @@ public class SecurityConfig {
             "/api/v1/demos/shared/{token}/stream/**",
             "/api/v1/demos/shared/{token}/download",
             "/api/v1/health",
-            "/api/v1/actuator/**",
-            "/v3/api-docs/**",
-            "/swagger-ui/**"
+            "/swagger-ui/**",
+            "/swagger-ui.html"
     };
 
     private static final String[] PUBLIC_POST_PATHS = {
@@ -52,13 +54,19 @@ public class SecurityConfig {
     private static final long HSTS_MAX_AGE_SECONDS = 31536000L;
     private static final int BCRYPT_STRENGTH = 12;
 
+    @Value("${app.security.actuator.public:false}")
+    private boolean actuatorPublic;
+
+    @Value("${springdoc.api-docs.path:/v3/api-docs}")
+    private String apiDocsPath;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    IpRateLimitFilter ipRateLimitFilter,
                                                    JwtAuthenticationFilter jwtAuthenticationFilter,
                                                    JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
                                                    CorsConfigurationSource corsConfigurationSource) throws Exception {
-        return http
+        http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -66,15 +74,25 @@ public class SecurityConfig {
                         .httpStrictTransportSecurity(hsts -> hsts
                                 .includeSubDomains(true)
                                 .maxAgeInSeconds(HSTS_MAX_AGE_SECONDS)))
-                .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.GET, PUBLIC_GET_PATHS).permitAll()
-                        .requestMatchers(HttpMethod.POST, PUBLIC_POST_PATHS).permitAll()
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .anyRequest().authenticated())
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(ipRateLimitFilter, AuthorizationFilter.class)
-                .build();
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint));
+
+        http.authorizeHttpRequests(auth -> {
+            auth.requestMatchers(HttpMethod.GET, PUBLIC_GET_PATHS).permitAll();
+            auth.requestMatchers(HttpMethod.POST, PUBLIC_POST_PATHS).permitAll();
+            auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+            if (actuatorPublic) {
+                auth.requestMatchers("/api/v1/actuator/**").permitAll();
+            } else {
+                auth.requestMatchers("/api/v1/actuator/**").hasRole("ADMIN");
+            }
+            auth.requestMatchers(apiDocsPath, apiDocsPath + "/**").hasRole("ADMIN");
+            auth.anyRequest().authenticated();
+        });
+
+        http.addFilterBefore(ipRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
     }
 
     @Bean
