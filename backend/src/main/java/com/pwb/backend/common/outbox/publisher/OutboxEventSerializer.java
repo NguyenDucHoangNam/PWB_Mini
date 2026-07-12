@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.common.outbox.event.AccountDeletionCancelledEvent;
 import com.pwb.backend.common.outbox.event.AccountDeletionRequestedEvent;
 import com.pwb.backend.common.outbox.event.PasswordResetRequestedEvent;
+import com.pwb.backend.common.outbox.event.ShareEmailEvent;
 import com.pwb.backend.common.outbox.event.UserRegisteredEvent;
 import com.pwb.backend.common.model.OutboxEvent;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,10 @@ public class OutboxEventSerializer {
             OutboxEventTypes.ACCOUNT_DELETION_REQUESTED,
             OutboxEventTypes.ACCOUNT_DELETION_CANCELLED);
 
+    private static final Set<String> SHARE_EVENT_TYPES = Set.of(
+            OutboxEventTypes.SEND_SHARE_EMAIL,
+            OutboxEventTypes.SEND_REVOKE_NOTICE);
+
     private final ObjectMapper objectMapper;
     private final OutboxPayloadCipher cipher;
 
@@ -50,6 +55,10 @@ public class OutboxEventSerializer {
                     return objectMapper.writeValueAsString(payload);
                 }
                 AccountDeletionCancelledEvent payload = objectMapper.readValue(plaintext, AccountDeletionCancelledEvent.class);
+                return objectMapper.writeValueAsString(payload);
+            }
+            if (SHARE_EVENT_TYPES.contains(event.getEventType())) {
+                ShareEmailEvent payload = objectMapper.readValue(plaintext, ShareEmailEvent.class);
                 return objectMapper.writeValueAsString(payload);
             }
             return plaintext;

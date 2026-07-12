@@ -11,6 +11,8 @@ public final class KafkaTopics {
     public static final String AUDIO_PROCESSING_EVENTS = "audio.processing.events.v1";
     public static final String AUDIO_PROCESSING_EVENTS_DLQ = "audio.processing.events.dlq.v1";
 
+    public static final String AUDIO_SHARE_EMAIL = "audio.share.email.v1";
+
     private KafkaTopics() {
     }
 }

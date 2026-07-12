@@ -533,7 +533,9 @@ public class AuthServiceImpl implements AuthService {
                 eventType,
                 user.getId().toString(),
                 serialize(payload),
-                Instant.now());
+                Instant.now(),
+                null,
+                1);
         outboxRepository.save(row);
 
         eventPublisher.publishEvent(new OutboxCreatedEvent(row.getId(), topic, OutboxEventTypes.AGGREGATE_USER));

@@ -85,6 +85,8 @@ public class OutboxRetryScheduler {
             case OutboxEventTypes.ACCOUNT_DELETION_REQUESTED,
                  OutboxEventTypes.ACCOUNT_DELETION_CANCELLED -> KafkaTopics.IAM_ACCOUNT_DELETION;
             case OutboxEventTypes.ACCOUNT_ANONYMIZED -> KafkaTopics.IAM_ACCOUNT_EVENTS;
+            case OutboxEventTypes.SEND_SHARE_EMAIL,
+                 OutboxEventTypes.SEND_REVOKE_NOTICE -> KafkaTopics.AUDIO_SHARE_EMAIL;
             default -> {
                 log.warn("Unknown outbox event type {} for event {}", row.getEventType(), row.getId());
                 yield null;

@@ -21,6 +21,10 @@ public class OutboxEventTopics {
         if (OutboxEventTypes.ACCOUNT_ANONYMIZED.equals(eventType)) {
             return KafkaTopics.IAM_ACCOUNT_EVENTS;
         }
+        if (OutboxEventTypes.SEND_SHARE_EMAIL.equals(eventType)
+                || OutboxEventTypes.SEND_REVOKE_NOTICE.equals(eventType)) {
+            return KafkaTopics.AUDIO_SHARE_EMAIL;
+        }
         throw new IllegalArgumentException("Unknown outbox eventType: " + eventType);
     }
 }

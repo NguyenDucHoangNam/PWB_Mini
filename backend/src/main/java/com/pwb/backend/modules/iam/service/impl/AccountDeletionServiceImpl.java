@@ -172,7 +172,9 @@ public class AccountDeletionServiceImpl implements AccountDeletionService {
                 OutboxEventTypes.ACCOUNT_DELETION_REQUESTED,
                 user.getId().toString(),
                 serialize(payload),
-                Instant.now());
+                Instant.now(),
+                null,
+                1);
         outboxRepository.save(row);
 
         eventPublisher.publishEvent(new OutboxCreatedEvent(
@@ -190,7 +192,9 @@ public class AccountDeletionServiceImpl implements AccountDeletionService {
                 OutboxEventTypes.ACCOUNT_DELETION_CANCELLED,
                 user.getId().toString(),
                 serialize(payload),
-                Instant.now());
+                Instant.now(),
+                null,
+                1);
         outboxRepository.save(row);
 
         eventPublisher.publishEvent(new OutboxCreatedEvent(

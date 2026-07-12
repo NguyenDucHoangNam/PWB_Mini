@@ -165,7 +165,9 @@ public class PasswordChangeServiceImpl implements PasswordChangeService {
                 OutboxEventTypes.PASSWORD_RESET,
                 user.getId().toString(),
                 serialize(payload),
-                Instant.now());
+                Instant.now(),
+                null,
+                1);
         outboxRepository.save(row);
 
         eventPublisher.publishEvent(new OutboxCreatedEvent(row.getId(), KafkaTopics.IAM_PASSWORD_RESET, OutboxEventTypes.AGGREGATE_USER));

@@ -60,6 +60,14 @@ public class OutboxEvent extends BaseEntity {
     @Column(name = "next_attempt_at", nullable = false)
     private Instant nextAttemptAt;
 
+    @Column(name = "idempotency_key")
+    @Setter(AccessLevel.NONE)
+    private UUID idempotencyKey;
+
+    @Column(name = "payload_key_version", nullable = false)
+    @Setter(AccessLevel.NONE)
+    private int payloadKeyVersion;
+
     @Column(name = "last_error", columnDefinition = "text")
     private String lastError;
 
@@ -73,7 +81,9 @@ public class OutboxEvent extends BaseEntity {
                        String eventType,
                        String payloadKey,
                        String payload,
-                       Instant nextAttemptAt) {
+                       Instant nextAttemptAt,
+                       UUID idempotencyKey,
+                       int payloadKeyVersion) {
         this.id = id;
         this.aggregateType = aggregateType;
         this.aggregateId = aggregateId;
@@ -83,6 +93,8 @@ public class OutboxEvent extends BaseEntity {
         this.status = OutboxStatus.PENDING;
         this.attemptCount = 0;
         this.nextAttemptAt = nextAttemptAt;
+        this.idempotencyKey = idempotencyKey;
+        this.payloadKeyVersion = payloadKeyVersion;
     }
 
     public void incrementAttemptCount() {

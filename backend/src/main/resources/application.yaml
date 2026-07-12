@@ -130,6 +130,18 @@ app:
         method: DELETE
         permits-per-window: 10
         window: 1m
+      - path-pattern: /api/v1/demos/*/distribute
+        method: POST
+        permits-per-window: 10
+        window: 1m
+      - path-pattern: /api/v1/demos/*/distributions
+        method: GET
+        permits-per-window: 30
+        window: 1m
+      - path-pattern: /api/v1/demos/recipients/suggest
+        method: GET
+        permits-per-window: 30
+        window: 1m
   security:
     jwt:
       access-token-ttl-seconds: 900
@@ -227,6 +239,13 @@ app:
     quota:
       max-active-demos-per-user: 50
       max-active-audio-bytes-per-user: 10737418240
+  share:
+    daily-recipients-limit: 100
+    daily-count-limit: 500
+    distribution-cache-ttl-seconds: 86400
+    blacklist-domain-check-enabled: true
+    blacklist-cache-ttl-seconds: 3600
+    share-link-base-url: https://pwbmini.com/shared/
   voice-tag:
     max-raw-text-length: 100
     max-ssml-length: 250

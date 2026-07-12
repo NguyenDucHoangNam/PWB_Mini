@@ -123,7 +123,9 @@ public class AccountAnonymizationServiceImpl implements AccountAnonymizationServ
                 OutboxEventTypes.ACCOUNT_ANONYMIZED,
                 userId.toString(),
                 serialize(payload),
-                Instant.now());
+                Instant.now(),
+                null,
+                1);
         outboxRepository.save(row);
 
         eventPublisher.publishEvent(new OutboxCreatedEvent(
