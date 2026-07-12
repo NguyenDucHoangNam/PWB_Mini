@@ -162,6 +162,10 @@ app:
         method: GET
         permits-per-window: 30
         window: 1m
+      - path-pattern: /api/v1/rooms
+        method: POST
+        permits-per-window: 3
+        window: 1m
   security:
     jwt:
       access-token-ttl-seconds: 900
@@ -308,6 +312,21 @@ app:
       endpoint: google.cloud.texttospeech.v1.TextToSpeechClient
       connect-timeout-ms: 5000
       read-timeout-ms: 15000
+  liveroom:
+    code-length: 6
+    alphabet: ABCDEFGHJKLMNPQRSTUVWXYZ23456789
+    lock-ttl-seconds: 10
+    code-collision-max-retries: 3
+    phase1-ttl-seconds: 30
+    phase2-ttl-seconds: 14400
+    host-grace-period-minutes: 5
+    orphan-threshold-minutes: 1
+    orphan-scan-cron: "0 */2 * * * *"
+    keyspace-listener-enabled: false
+    max-participants: 7
+    handshake-timeout-seconds: 10
+    heartbeat-incoming-ms: 10000
+    heartbeat-outgoing-ms: 10000
 
 mail:
   from: PWB Mini <noreply@pwb-mini.dev>
