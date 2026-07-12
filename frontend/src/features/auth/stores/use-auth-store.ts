@@ -13,10 +13,16 @@ interface AuthState {
   // Mirror of accessToken expiry in epoch milliseconds (so we can compute session-timeout from real JWT exp).
   // Stored in memory only (never persisted).
   accessTokenExpiresAt: number | null;
+  // True until useBootstrapAuth() has tried to restore the session from the
+  // refresh cookie. Guards must wait for this to flip false before redirecting
+  // logged-out users, otherwise a hard refresh on /dashboard would race the
+  // silent refresh and kick the user to /login.
+  bootstrapping: boolean;
   setAuth: (token: string, user: AuthUser, expiresAt?: number) => void;
   setUser: (user: AuthUser) => void;
   clearAuth: () => void;
   isAuthenticated: () => boolean;
+  setBootstrapping: (value: boolean) => void;
 }
 
 /**
@@ -35,12 +41,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: null,
   user: null,
   accessTokenExpiresAt: null,
+  bootstrapping: true,
 
   setAuth: (token, user, expiresAt) => {
     set({
       accessToken: token,
       user,
       accessTokenExpiresAt: expiresAt ?? get().accessTokenExpiresAt,
+      bootstrapping: false,
     });
   },
 
@@ -49,7 +57,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   clearAuth: () => {
-    set({ accessToken: null, user: null, accessTokenExpiresAt: null });
+    set({ accessToken: null, user: null, accessTokenExpiresAt: null, bootstrapping: false });
+  },
+
+  setBootstrapping: (value) => {
+    set({ bootstrapping: value });
   },
 
   isAuthenticated: () => !!get().accessToken,

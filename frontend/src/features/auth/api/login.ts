@@ -5,13 +5,10 @@ import type {
   LoginRequest,
   LoginResponse,
   Oauth2LoginRequest,
-  VerifyOtpResponse,
   RegisterRequest,
   RegisterResponse,
-  ResendOtpRequest,
   ForgotPasswordRequest,
   ResetPasswordRequest,
-  VerifyOtpRequest,
   CheckUsernameResponse,
 } from "../types";
 
@@ -31,29 +28,7 @@ export function useLoginWithGoogle() {
     }: {
       data: Oauth2LoginRequest;
     }): Promise<ApiResponse<LoginResponse>> => {
-      const res = await apiClient.post<ApiResponse<LoginResponse>>("/auth/oauth2/google", data);
-      return res.data;
-    },
-  });
-}
-
-export function useVerifyOtp() {
-  return useMutation({
-    mutationFn: async ({
-      data,
-    }: {
-      data: VerifyOtpRequest;
-    }): Promise<ApiResponse<VerifyOtpResponse>> => {
-      const res = await apiClient.post<ApiResponse<VerifyOtpResponse>>("/auth/verify-otp", data);
-      return res.data;
-    },
-  });
-}
-
-export function useResendOtp() {
-  return useMutation({
-    mutationFn: async ({ data }: { data: ResendOtpRequest }) => {
-      const res = await apiClient.post<ApiResponse<unknown>>("/auth/otp/resend", data);
+      const res = await apiClient.post<ApiResponse<LoginResponse>>("/auth/login/google", data);
       return res.data;
     },
   });

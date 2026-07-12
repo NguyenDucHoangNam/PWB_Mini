@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSessions, useRevokeSession, useRevokeAllOtherSessions } from "../api/sessions";
 import { Button } from "@/components/ui/button";
@@ -13,8 +13,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { asApiError } from "@/lib/api-client";
 
-export function SessionsTable() {
+function SessionsTableImpl() {
   const t = useTranslations("sessions");
   const locale = useLocale();
   const { data: response, isLoading, isError } = useSessions();
@@ -32,9 +33,9 @@ export function SessionsTable() {
           if (res.success) toast.success(t("revokeSuccess"));
           else toast.error(res.message || t("revokeError"));
         },
-        onError: (err: any) => {
+        onError: asApiError((err) => {
           toast.error(err?.message || t("revokeError"));
-        },
+        }),
       },
     );
   };
@@ -46,10 +47,10 @@ export function SessionsTable() {
         else toast.error(res.message || t("revokeAllError"));
         setConfirmOpen(false);
       },
-      onError: (err: any) => {
+      onError: asApiError((err) => {
         toast.error(err?.message || t("revokeAllError"));
         setConfirmOpen(false);
-      },
+      }),
     });
   };
 
@@ -144,7 +145,7 @@ export function SessionsTable() {
           <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
             {sessions.map((session) => (
               <tr
-                key={session.sessionUuid}
+                key={session.sessionPublicId}
                 className="hover:bg-neutral-50/50 dark:hover:bg-neutral-950/50"
               >
                 <td className="px-6 py-4 font-medium text-black dark:text-white flex items-center gap-2">
@@ -164,7 +165,7 @@ export function SessionsTable() {
                   {!session.isCurrent && (
                     <button
                       disabled={isPending}
-                      onClick={() => handleRevoke(session.sessionUuid)}
+                      onClick={() => handleRevoke(session.sessionPublicId)}
                       className="text-xs font-bold text-neutral-500 hover:text-black dark:hover:text-white hover:underline focus:outline-none disabled:opacity-50"
                     >
                       {t("revokeButton")}
@@ -180,7 +181,7 @@ export function SessionsTable() {
       <div className="flex flex-col gap-4 lg:hidden">
         {sessions.map((session) => (
           <div
-            key={session.sessionUuid}
+            key={session.sessionPublicId}
             className="flex flex-col gap-3 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black p-4 shadow-sm"
           >
             <div className="flex items-center justify-between">
@@ -194,7 +195,7 @@ export function SessionsTable() {
               ) : (
                 <button
                   disabled={isPending}
-                  onClick={() => handleRevoke(session.sessionUuid)}
+                  onClick={() => handleRevoke(session.sessionPublicId)}
                   className="text-xs font-bold text-neutral-500 hover:text-black dark:hover:text-white focus:outline-none min-h-[36px] px-2 flex items-center"
                 >
                   {t("revokeMobileButton")}
@@ -241,3 +242,5 @@ export function SessionsTable() {
     </div>
   );
 }
+
+export const SessionsTable = memo(SessionsTableImpl);

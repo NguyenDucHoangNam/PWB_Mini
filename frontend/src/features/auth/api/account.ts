@@ -4,7 +4,7 @@ import type { MutationConfig } from "@/lib/react-query";
 import type { ApiResponse } from "@/types/api";
 import { useAuthStore } from "../stores/use-auth-store";
 import { broadcastAuthMessage } from "@/lib/broadcast-channel";
-import type { DeleteAccountRequest } from "../types";
+import type { AvatarUploadResponse, DeleteAccountRequest, UserProfileResponse } from "../types";
 
 export const deleteAccount = ({
   data,
@@ -18,15 +18,17 @@ export const logout = (): Promise<ApiResponse<void>> => {
   return apiClient.post("/auth/logout").then((res) => res.data);
 };
 
-export const cancelDeletion = (): Promise<ApiResponse<void>> => {
-  return apiClient.post("/auth/account/cancel-deletion").then((res) => res.data);
+export const cancelDeletion = (): Promise<ApiResponse<UserProfileResponse>> => {
+  return apiClient
+    .post<ApiResponse<UserProfileResponse>>("/auth/account/cancel-deletion")
+    .then((res) => res.data);
 };
 
-export const uploadAvatar = (file: File): Promise<ApiResponse<{ avatarUrl: string }>> => {
+export const uploadAvatar = (file: File): Promise<ApiResponse<AvatarUploadResponse>> => {
   const formData = new FormData();
   formData.append("file", file);
   return apiClient
-    .post<ApiResponse<{ avatarUrl: string }>>("/auth/profile/avatar", formData, {
+    .post<ApiResponse<AvatarUploadResponse>>("/auth/profile/avatar", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     })
     .then((res) => res.data);
@@ -75,13 +77,15 @@ type UseCancelDeletionOptions = {
 export const useCancelDeletion = ({ mutationConfig }: UseCancelDeletionOptions = {}) => {
   return useMutation({
     onSuccess: (response) => {
-      if (response.success) {
+      if (response.success && response.data) {
         const current = useAuthStore.getState().user;
         if (current) {
-          // AuthUser doesn't carry deletionRequestedAt directly; fall back to
-          // updating only the status so the dashboard recognises ACTIVE.
-          useAuthStore.setState({
-            user: { ...current, status: "ACTIVE" },
+          useAuthStore.getState().setUser({
+            ...current,
+            fullName: response.data.fullName,
+            email: response.data.email,
+            role: response.data.role,
+            status: response.data.status,
           });
         }
       }
@@ -93,12 +97,8 @@ export const useCancelDeletion = ({ mutationConfig }: UseCancelDeletionOptions =
 
 export const useUploadAvatar = () => {
   return useMutation({
-    mutationFn: async (file: File): Promise<ApiResponse<{ avatarUrl: string }>> => {
+    mutationFn: async (file: File): Promise<ApiResponse<AvatarUploadResponse>> => {
       return uploadAvatar(file);
-    },
-    onSuccess: (response) => {
-      // Consumer can read response.data.avatarUrl and call setUser if needed.
-      return response;
     },
   });
 };

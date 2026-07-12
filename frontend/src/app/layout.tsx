@@ -8,8 +8,6 @@ import { SessionTimeoutWarning } from "@/components/session-timeout-warning";
 import { GoogleIdentityScript } from "@/components/google-identity-script";
 import "./globals.css";
 
-const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],

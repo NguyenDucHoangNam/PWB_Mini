@@ -13,6 +13,12 @@ vi.mock("axios", () => ({
   },
 }));
 
+vi.mock("./api-client", () => ({
+  apiClient: {
+    get: getMock,
+  },
+}));
+
 import axios from "axios";
 import { refreshAccessToken } from "./auth-refresh";
 

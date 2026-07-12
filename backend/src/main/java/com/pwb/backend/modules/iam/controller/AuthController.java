@@ -102,7 +102,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<RefreshResponse>> refresh(@RequestHeader(name = "Authorization", required = false) String authHeader,
                                                                 HttpServletRequest httpRequest,
                                                                 HttpServletResponse httpResponse) {
-        String expiredAccessToken = bearerTokenExtractor.extractOrThrow(authHeader);
+        String expiredAccessToken = bearerTokenExtractor.extract(authHeader);
         String oldRefreshToken = cookieWriter.readRefreshCookie(httpRequest);
         if (oldRefreshToken == null) {
             throw new BusinessException(IamErrorCode.INVALID_REFRESH_TOKEN);

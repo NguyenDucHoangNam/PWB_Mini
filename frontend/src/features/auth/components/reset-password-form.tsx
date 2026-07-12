@@ -11,6 +11,7 @@ import { PasswordStrengthBar } from "./password-strength-bar";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { asApiError } from "@/lib/api-client";
 
 export function ResetPasswordForm() {
   const t = useTranslations("auth.reset");
@@ -63,11 +64,11 @@ export function ResetPasswordForm() {
             setError(response.message || t("errorToast"));
           }
         },
-        onError: (err: any) => {
+        onError: asApiError((err) => {
           const apiError = err.errors?.[0]?.message;
           setError(apiError || err.message || t("invalidTokenError"));
           toast.error(t("errorToast"));
-        },
+        }),
       },
     );
   };

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { asApiError } from "@/lib/api-client";
 
 export function ForgotPasswordForm() {
   const t = useTranslations("auth.forgot");
@@ -39,15 +40,21 @@ export function ForgotPasswordForm() {
           toast.success(t("successToast"));
           setIsSubmitted(true);
         },
-        onError: (err: any) => {
+        onError: asApiError((err) => {
           if (err.status === 429) {
-            toast.warning(t("rateLimitToast"));
-            setError(t("rateLimitError"));
+            const retryAfter = Number(err.headers?.["retry-after"]);
+            if (Number.isFinite(retryAfter) && retryAfter > 0) {
+              toast.warning(t("rateLimitToastWithSeconds", { seconds: retryAfter }));
+              setError(t("rateLimitErrorWithSeconds", { seconds: retryAfter }));
+            } else {
+              toast.warning(t("rateLimitToast"));
+              setError(t("rateLimitError"));
+            }
           } else {
             setError(err.message || t("errorToast"));
             toast.error(t("errorToastTitle"));
           }
-        },
+        }),
       },
     );
   };

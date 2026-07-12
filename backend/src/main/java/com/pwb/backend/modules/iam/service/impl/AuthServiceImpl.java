@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maxmind.geoip2.DatabaseReader;
 import com.pwb.backend.common.config.GeoIpConfig;
 import com.pwb.backend.common.exception.BusinessException;
+import com.pwb.backend.common.exception.CommonErrorCode;
 import com.pwb.backend.common.kafka.constant.KafkaTopics;
 import com.pwb.backend.common.outbox.event.OutboxCreatedEvent;
 import com.pwb.backend.common.outbox.event.UserRegisteredEvent;
@@ -52,6 +53,7 @@ import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,6 +71,7 @@ public class AuthServiceImpl implements AuthService {
     private static final String DUMMY_HASH = "$2a$12$" +
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" +
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmn";
+    private static final int USERNAME_GENERATION_MAX_ATTEMPTS = 5;
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -92,26 +95,40 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
         String email = request.email().trim().toLowerCase(Locale.ROOT);
-        if (userRepository.existsByEmail(email)) {
+        User existing = userRepository.findByEmailForUpdate(email).orElse(null);
+
+        User user;
+        boolean isResend;
+        if (existing == null) {
+            Role userRole = roleRepository.findByCode(RoleType.USER.code())
+                    .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_FOUND,
+                            "Default USER role is missing"));
+            user = User.newPending(
+                    email,
+                    passwordHasher.hash(request.password()),
+                    request.fullName(),
+                    userRole);
+            user = saveUserWithUniqueUsername(user, email);
+            isResend = false;
+        } else if (existing.getStatus() == UserStatus.PENDING_VERIFICATION && existing.isLocal()) {
+            existing.setPasswordHash(passwordHasher.hash(request.password()));
+            if (request.fullName() != null && !request.fullName().isBlank()) {
+                existing.setFullName(request.fullName());
+            }
+            user = userRepository.save(existing);
+            isResend = true;
+        } else {
             throw new BusinessException(IamErrorCode.EMAIL_ALREADY_EXISTS);
         }
-        Role userRole = roleRepository.findByCode(RoleType.USER.code())
-                .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_FOUND,
-                        "Default USER role is missing"));
-
-        User user = User.newPending(
-                email,
-                passwordHasher.hash(request.password()),
-                request.fullName(),
-                userRole);
-
-        userRepository.save(user);
 
         String otp = otpGenerator.generate();
         otpService.issueOtp(email, otp);
 
         publishUserRegistered(user, otp, Instant.now());
 
+        if (isResend) {
+            log.info("REGISTRATION_RESENT userId={} email={}", user.getId(), MaskingLogArg.email(email));
+        }
         return userMapper.userToRegisterResponse(user);
     }
 
@@ -276,20 +293,10 @@ public class AuthServiceImpl implements AuthService {
     @Transactional(readOnly = true)
     public RefreshResponse refresh(String expiredAccessToken, String oldRefreshToken, String ip, String userAgent) {
         log.info("TOKEN_REFRESH_REQUEST ip={}", MaskingLogArg.ip(ip));
-        if (expiredAccessToken == null || expiredAccessToken.isBlank()) {
-            throw new BusinessException(IamErrorCode.JWT_EXPIRED);
-        }
         if (oldRefreshToken == null || oldRefreshToken.isBlank()) {
             throw new BusinessException(IamErrorCode.INVALID_REFRESH_TOKEN);
         }
-        UUID userId;
-        try {
-            userId = jwtSigner.parseExpiredTokenUserId(expiredAccessToken);
-        } catch (ExpiredJwtException ex) {
-            throw new BusinessException(IamErrorCode.JWT_EXPIRED);
-        } catch (JwtException ex) {
-            throw new BusinessException(IamErrorCode.JWT_EXPIRED);
-        }
+        UUID userId = resolveUserIdForRefresh(expiredAccessToken, oldRefreshToken);
 
         loginAttemptService.validateNotLocked(userId);
 
@@ -330,6 +337,25 @@ public class AuthServiceImpl implements AuthService {
                 accessExpiresAt,
                 result.newRefreshToken(),
                 refreshMaxAge);
+    }
+
+    private UUID resolveUserIdForRefresh(String expiredAccessToken, String oldRefreshToken) {
+        if (expiredAccessToken != null && !expiredAccessToken.isBlank()) {
+            try {
+                return jwtSigner.parseExpiredTokenUserId(expiredAccessToken);
+            } catch (JwtException ex) {
+                throw new BusinessException(IamErrorCode.JWT_EXPIRED);
+            }
+        }
+        String userIdStr = sessionService.findUserIdForRefreshToken(oldRefreshToken);
+        if (userIdStr == null || userIdStr.isBlank()) {
+            throw new BusinessException(IamErrorCode.INVALID_REFRESH_TOKEN);
+        }
+        try {
+            return UUID.fromString(userIdStr);
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException(IamErrorCode.INVALID_REFRESH_TOKEN);
+        }
     }
 
     @Override
@@ -447,12 +473,26 @@ public class AuthServiceImpl implements AuthService {
         Role userRole = roleRepository.findByCode(RoleType.USER.code())
                 .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_FOUND,
                         "Default USER role is missing"));
-        String usernamePrefix = User.generateUsernamePrefix(email);
-        String username = usernamePrefix + User.generateUsernameSuffix();
         User user = User.newOAuthActive(email, info.fullName(), info.googleSubId(), info.avatarUrl(), userRole);
-        userRepository.save(user);
-        log.debug("Created OAuth user with auto-username={}", username);
+        user = saveUserWithUniqueUsername(user, email);
+        log.debug("Created OAuth user with auto-username={}", user.getUsername());
         return user;
+    }
+
+    private User saveUserWithUniqueUsername(User user, String email) {
+        for (int attempt = 1; attempt <= USERNAME_GENERATION_MAX_ATTEMPTS; attempt++) {
+            try {
+                return userRepository.save(user);
+            } catch (DataIntegrityViolationException ex) {
+                log.warn("USERNAME_COLLISION_DETECTED email={} attempt={}/{} username={}",
+                        MaskingLogArg.email(email), attempt, USERNAME_GENERATION_MAX_ATTEMPTS, user.getUsername());
+                user.setUsername(User.generateUsernamePrefix(email) + User.generateUsernameSuffix());
+            }
+        }
+        log.error("USERNAME_GENERATION_EXHAUSTED email={} attempts={}",
+                MaskingLogArg.email(email), USERNAME_GENERATION_MAX_ATTEMPTS);
+        throw new BusinessException(CommonErrorCode.INTERNAL_ERROR,
+                "Failed to generate unique username after " + USERNAME_GENERATION_MAX_ATTEMPTS + " attempts");
     }
 
     @Override

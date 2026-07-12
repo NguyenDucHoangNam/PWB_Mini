@@ -22,9 +22,9 @@ import java.util.Locale;
 @Slf4j
 public class MailServiceImpl implements MailService {
 
-    private static final String OTP_TEMPLATE = "email/otp-registration";
-    private static final String PASSWORD_RESET_TEMPLATE = "email/password-reset";
-    private static final String ACCOUNT_DELETION_TEMPLATE = "email/account-deletion-requested";
+    private static final String OTP_TEMPLATE = "otp-registration";
+    private static final String PASSWORD_RESET_TEMPLATE = "password-reset";
+    private static final String ACCOUNT_DELETION_TEMPLATE = "account-deletion-requested";
     private static final String SUBJECT_PREFIX = "[PWB Mini] ";
     private static final String PASSWORD_RESET_SUBJECT = SUBJECT_PREFIX + "Hướng dẫn khôi phục mật khẩu tài khoản";
     private static final String ACCOUNT_DELETION_SUBJECT = SUBJECT_PREFIX + "Xác nhận yêu cầu xóa tài khoản của bạn";

@@ -37,3 +37,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Classpath helper files ###
+cp.txt
+cp-test.txt

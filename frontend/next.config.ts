@@ -6,10 +6,11 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 const isDev = process.env.NODE_ENV !== "production";
 
 // `getBackendOrigin` reads the same env var as the axios client, so CSP and
-// HTTP traffic always agree on what origin to allow. In dev we additionally
-// permit ws/wss so HMR keeps working.
+// HTTP traffic always agree on what origin to allow. The dev fallback below
+// mirrors constants.ts; without it, the browser blocks the first request
+// before any auth can run.
 function getBackendOriginForCsp(): string | null {
-  const raw = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const raw = process.env.NEXT_PUBLIC_API_BASE_URL ?? (isDev ? "http://localhost:8080/api/v1" : "");
   if (!raw) return null;
   try {
     return new URL(raw).origin;
@@ -41,6 +42,18 @@ const connectSrc = [
   .filter((value): value is string => Boolean(value))
   .join(" ");
 
+/**
+ * SCRIPT-SRC POLICY
+ *
+ * `'unsafe-inline'` is currently retained because Next.js 16 (with Turbopack)
+ * bootstraps the app via inline `<script>` tags before our handler can add a
+ * per-request nonce. Removing this requires:
+ *   1. A nonced runtime config (`generateNonceForHeader` + custom server), AND
+ *   2. Adopting the App Router streaming RSC nonce generator.
+ *
+ * Until both land together, swapping the policy to `'strict-dynamic'` plus a
+ * nonce breaks hydration in production. Track this as a follow-up.
+ */
 const scriptSrc =
   isDev
     ? `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com`

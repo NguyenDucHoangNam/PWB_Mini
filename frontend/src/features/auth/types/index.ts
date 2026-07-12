@@ -11,13 +11,19 @@ export interface LoginUserInfo {
   fullName: string;
   role?: string;
   status: string;
+  avatarUrl?: string | null;
   oauthProvider: OAuthProvider;
 }
 
 export interface LoginResponse {
   accessToken: string;
   expiresIn: number;
+  accessTokenExpiresAt?: string;
   user: LoginUserInfo;
+  refreshToken?: string;
+  refreshTokenMaxAgeSeconds?: number;
+  redirectTo?: string;
+  redirectEmail?: string;
 }
 
 export interface Oauth2LoginRequest {
@@ -42,12 +48,13 @@ export interface RegisterResponse {
 
 export interface VerifyOtpRequest {
   email: string;
-  otpCode: string;
+  otp: string;
 }
 
 export interface VerifyOtpResponse {
   accessToken: string;
   expiresIn: number;
+  accessTokenExpiresAt?: string;
   user: LoginUserInfo;
 }
 
@@ -71,14 +78,14 @@ export interface CheckUsernameResponse {
 }
 
 export interface UserProfileResponse {
-  username: string;
+  username?: string;
   email: string;
   fullName: string;
   role: string;
   status: string;
   avatarUrl: string | null;
   phone: string | null;
-  oauthProvider: OAuthProvider;
+  oauthProvider?: OAuthProvider;
   deletionRequestedAt: string | null;
 }
 
@@ -90,6 +97,8 @@ export interface UpdateProfileRequest {
 
 export interface AvatarUploadResponse {
   avatarUrl: string;
+  sizeBytes?: number;
+  contentType?: string;
 }
 
 export interface ChangePasswordRequest {
@@ -104,17 +113,20 @@ export interface DeleteAccountRequest {
 }
 
 export interface ActiveSessionResponse {
-  sessionUuid: string;
+  sessionPublicId: string;
   ipAddress: string;
   deviceInfo: string;
   location: string;
-  createdAt: string; // ISO date string
+  createdAt: string;
   isCurrent: boolean;
 }
 
 export interface RefreshResponse {
   accessToken: string;
   expiresIn: number;
+  accessTokenExpiresAt?: string;
+  refreshToken?: string;
+  refreshTokenMaxAgeSeconds?: number;
 }
 
 export interface RegistrationInProgressData {

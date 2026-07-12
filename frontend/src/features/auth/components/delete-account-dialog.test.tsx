@@ -17,31 +17,13 @@ vi.mock("@/components/ui/dialog", () => ({
   DialogTitle: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-// Mock profile API to return a Google-linked user.
-vi.mock("../api/profile", () => ({
-  useProfile: () => ({
-    data: {
-      success: true,
-      data: {
-        username: "u",
-        email: "user@gmail.com",
-        fullName: "User",
-        status: "ACTIVE",
-        role: "USER",
-        oauthProvider: "GOOGLE",
-        avatarUrl: null,
-        phone: null,
-        deletionRequestedAt: null,
-      },
-    },
-    isLoading: false,
-    isError: false,
-  }),
-  useUpdateProfile: () => ({ mutate: vi.fn(), isPending: false }),
-}));
-
 vi.mock("../api/account", () => ({
   useDeleteAccount: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
+vi.mock("../stores/use-auth-store", () => ({
+  useAuthStore: (selector: (state: { user: { oauthProvider: string } | null }) => unknown) =>
+    selector({ user: { oauthProvider: "GOOGLE" } }),
 }));
 
 import enMessages from "@/../messages/en.json";

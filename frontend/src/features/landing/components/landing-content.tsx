@@ -1,14 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { Keyboard } from "./keyboard";
 import { FALL_DELAY, LEFT_WORD, RIGHT_WORD } from "../lib/piano-positions";
+import { generateSandParticles } from "../lib/generate-sand-particles";
 
 const KEYBOARD_GAP = "h-3 w-full sm:h-0 sm:w-2 md:w-16 lg:w-24";
 const POINTER_EVENTS_DELAY = 2.5;
 const HINT_DELAY = FALL_DELAY + 1.2;
+const SAND_PARTICLE_COUNT = 20;
+
+const subscribeMounted = (callback: () => void) => {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("load", callback);
+  return () => window.removeEventListener("load", callback);
+};
+
+const getMountedSnapshot = () => true;
+const getServerMountedSnapshot = () => false;
 
 export function LandingContent() {
   return (
@@ -20,50 +31,51 @@ export function LandingContent() {
   );
 }
 
+interface SandParticle {
+  size: number;
+  duration: number;
+  delay: number;
+  left: string;
+  sway: number;
+}
+
 function SandParticles() {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(subscribeMounted, getMountedSnapshot, getServerMountedSnapshot);
+  const [particles, setParticles] = useState<SandParticle[]>([]);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    if (!mounted || particles.length > 0) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setParticles(generateSandParticles(SAND_PARTICLE_COUNT));
+  }, [mounted, particles.length]);
 
-  if (!mounted) return null;
+  if (!mounted || particles.length === 0) return null;
 
-  const particles = Array.from({ length: 20 });
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-      {particles.map((_, i) => {
-        const size = Math.random() * 3 + 1; // 1px to 4px
-        const duration = Math.random() * 20 + 20; // 20s to 40s
-        const delay = Math.random() * -20; // Start immediately
-        const left = `${Math.random() * 100}%`;
-        const startY = "110%";
-        const endY = "-10%";
-
-        return (
-          <motion.div
-            key={i}
-            className="absolute rounded-full bg-neutral-400/10 dark:bg-white/10 blur-[0.5px]"
-            style={{
-              width: size,
-              height: size,
-              left,
-            }}
-            initial={{ y: startY, opacity: 0 }}
-            animate={{
-              y: [startY, endY],
-              opacity: [0, 0.4, 0.4, 0],
-              x: [0, Math.random() * 40 - 20, 0], // Gentle sway
-            }}
-            transition={{
-              duration,
-              repeat: Infinity,
-              ease: "linear",
-              delay,
-            }}
-          />
-        );
-      })}
+      {particles.map((p, i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full bg-neutral-400/10 dark:bg-white/10 blur-[0.5px]"
+          style={{
+            width: p.size,
+            height: p.size,
+            left: p.left,
+          }}
+          initial={{ y: "110%", opacity: 0 }}
+          animate={{
+            y: ["110%", "-10%"],
+            opacity: [0, 0.4, 0.4, 0],
+            x: [0, p.sway, 0],
+          }}
+          transition={{
+            duration: p.duration,
+            repeat: Infinity,
+            ease: "linear",
+            delay: p.delay,
+          }}
+        />
+      ))}
     </div>
   );
 }

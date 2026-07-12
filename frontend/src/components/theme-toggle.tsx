@@ -2,16 +2,21 @@
 
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
+
+const subscribeMounted = (callback: () => void) => {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("load", callback);
+  return () => window.removeEventListener("load", callback);
+};
+
+const getMountedSnapshot = () => true;
+const getServerSnapshot = () => false;
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(subscribeMounted, getMountedSnapshot, getServerSnapshot);
 
   if (!mounted) {
     return (

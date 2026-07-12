@@ -40,7 +40,7 @@ public class User extends BaseEntity {
     @EqualsAndHashCode.Include
     private UUID id;
 
-    @Column(name = "username", length = 100)
+    @Column(name = "username", length = 100, unique = true)
     private String username;
 
     @Column(name = "email", nullable = false, unique = true, length = 255)

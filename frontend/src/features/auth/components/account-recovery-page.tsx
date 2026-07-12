@@ -8,15 +8,28 @@ import { useCancelDeletion, useLogout } from "../api/account";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
-const DELETION_GRACE_DAYS = 30;
+// Grace period fallback (days) - sourced from BE `app.iam.account-deletion.grace-days`.
+// Override with NEXT_PUBLIC_DELETION_GRACE_DAYS once the value is exposed in a public API
+// (BE currently does not surface it in any auth endpoint response).
+const DELETION_GRACE_DAYS_FALLBACK = 30;
 
-function computeDaysLeft(deletionRequestedAt: string | null | undefined): number {
-  if (!deletionRequestedAt) return DELETION_GRACE_DAYS;
+function readGraceDays(): number {
+  const fromEnv = Number(process.env.NEXT_PUBLIC_DELETION_GRACE_DAYS);
+  return Number.isFinite(fromEnv) && fromEnv > 0
+    ? fromEnv
+    : DELETION_GRACE_DAYS_FALLBACK;
+}
+
+function computeDaysLeft(
+  deletionRequestedAt: string | null | undefined,
+  graceDays: number,
+): number {
+  if (!deletionRequestedAt) return graceDays;
   const requestedAt = new Date(deletionRequestedAt).getTime();
-  if (Number.isNaN(requestedAt)) return DELETION_GRACE_DAYS;
+  if (Number.isNaN(requestedAt)) return graceDays;
   const elapsedMs = Date.now() - requestedAt;
   const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
-  return Math.max(0, Math.ceil(DELETION_GRACE_DAYS - elapsedDays));
+  return Math.max(0, Math.ceil(graceDays - elapsedDays));
 }
 
 export function AccountRecoveryPage() {
@@ -28,13 +41,13 @@ export function AccountRecoveryPage() {
 
   const [error, setError] = useState<string | null>(null);
 
-  const daysLeft = useMemo(
-    () =>
-      computeDaysLeft(
-        (user as { deletionRequestedAt?: string | null } | null)?.deletionRequestedAt ?? null,
-      ),
-    [user],
-  );
+  const daysLeft = useMemo(() => {
+    const graceDays = readGraceDays();
+    return computeDaysLeft(
+      (user as { deletionRequestedAt?: string | null } | null)?.deletionRequestedAt ?? null,
+      graceDays,
+    );
+  }, [user]);
   const isUrgent = daysLeft <= 3;
 
   const handleCancelDeletion = () => {

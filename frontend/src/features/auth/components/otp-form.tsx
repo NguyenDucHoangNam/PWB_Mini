@@ -8,6 +8,7 @@ import { useAuthStore } from "../stores/use-auth-store";
 import { OtpInput } from "./otp-input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { asApiError } from "@/lib/api-client";
 
 export function OtpForm() {
   const t = useTranslations("auth.otp");
@@ -65,7 +66,7 @@ export function OtpForm() {
 
     verifyMutate(
       {
-        data: { email, otpCode },
+        data: { email, otp: otpCode },
       },
       {
         onSuccess: (response) => {
@@ -77,11 +78,11 @@ export function OtpForm() {
             setError(response.message || t("errorToast"));
           }
         },
-        onError: (err: any) => {
+        onError: asApiError((err) => {
           const apiError = err.errors?.[0]?.message;
           setError(apiError || err.message || t("verificationFailed"));
           toast.error(t("errorToast"));
-        },
+        }),
       },
     );
   };
@@ -97,14 +98,14 @@ export function OtpForm() {
       {
         onSuccess: () => {
           toast.success(t("resendSuccess"));
-          setOtpExpiry(300); // reset expiration timer to 5m
-          setResendCooldown(60); // reset cooldown timer to 60s
+          setOtpExpiry(300);
+          setResendCooldown(60);
         },
-        onError: (err: any) => {
+        onError: asApiError((err) => {
           const apiError = err.errors?.[0]?.message;
           setError(apiError || err.message || t("resendFailed"));
           toast.error(t("resendFailedToast"));
-        },
+        }),
       },
     );
   };

@@ -1,9 +1,10 @@
-import axios, { type AxiosRequestConfig } from "axios";
+import axios, { AxiosHeaders, type AxiosRequestConfig } from "axios";
 import type { ApiResponse } from "@/types/api";
 import { API_BASE_URL } from "@/lib/constants";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { refreshAccessToken } from "./auth-refresh";
 import { isPublicPath } from "./config";
+import { SKIP_REFRESH_HEADER, shouldSkipRefresh } from "./request-flags";
 
 function getCookie(name: string): string | null {
   if (typeof document === "undefined") return null;
@@ -11,6 +12,68 @@ function getCookie(name: string): string | null {
   const parts = value.split(`; ${name}=`);
   if (parts.length === 2) return decodeURIComponent(parts.pop()?.split(";").shift() || "");
   return null;
+}
+
+function ensureHeaders(config: AxiosRequestConfig): AxiosHeaders {
+  if (config.headers instanceof AxiosHeaders) {
+    return config.headers;
+  }
+  const next = new AxiosHeaders();
+  if (config.headers) {
+    for (const [key, value] of Object.entries(config.headers)) {
+      if (value !== undefined) {
+        next.set(key, value as string | number | boolean);
+      }
+    }
+  }
+  config.headers = next;
+  return next;
+}
+
+export class ApiError<T = unknown> extends Error {
+  status: number;
+  headers: Record<string, string>;
+  success: boolean;
+  data: T | null;
+  errors?: Array<{ code: string; message: string; field?: string | null }>;
+  timestamp?: string;
+  traceId?: string | null;
+  code?: string;
+
+  constructor(params: {
+    status: number;
+    headers: Record<string, string>;
+    success?: boolean;
+    data?: T | null;
+    errors?: Array<{ code: string; message: string; field?: string | null }> | null;
+    timestamp?: string;
+    traceId?: string | null;
+    message?: string;
+  }) {
+    super(params.message ?? params.errors?.[0]?.message ?? "API Error");
+    this.name = "ApiError";
+    this.status = params.status;
+    this.headers = params.headers;
+    this.success = params.success ?? false;
+    this.data = params.data ?? null;
+    if (params.errors) this.errors = params.errors;
+    if (params.timestamp) this.timestamp = params.timestamp;
+    if (params.traceId) this.traceId = params.traceId;
+    this.code = params.errors?.[0]?.code;
+  }
+}
+
+/**
+ * Use this type for TanStack Query `onError` callbacks that receive an
+ * {@link ApiError}. The runtime contract from our Axios interceptor always
+ * rejects with an `ApiError` instance, but the Query type system expects a
+ * generic `Error`. The cast helper preserves the narrow type at the call site
+ * without the boilerplate of repeating the cast in every component.
+ */
+export type ApiMutationOnError<TData = unknown> = (err: ApiError<TData>) => void;
+
+export function asApiError<TData = unknown>(handler: ApiMutationOnError<TData>) {
+  return handler as unknown as (err: Error) => void;
 }
 
 const apiClient = axios.create({
@@ -29,13 +92,11 @@ const retriedRequests = new WeakMap<AxiosRequestConfig, boolean>();
 
 apiClient.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
+  const headers = ensureHeaders(config);
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    headers.set("Authorization", `Bearer ${token}`);
   }
-
-  const locale = getCookie("locale") || "vi";
-  config.headers["Accept-Language"] = locale;
-
+  headers.set("Accept-Language", getCookie("locale") || "vi");
   return config;
 });
 
@@ -51,15 +112,19 @@ apiClient.interceptors.response.use(
     const pathname = typeof window !== "undefined" ? window.location.pathname : "";
     const onPublicPage = isPublicPath(pathname);
     const alreadyRetried = retriedRequests.has(originalRequest);
+    const callerSkippedRefresh = shouldSkipRefresh(originalRequest);
 
-    // On a protected page: try the silent refresh once. If it succeeds,
-    // replay the original request with the new token.
-    if (isUnauthorized && !onPublicPage && !alreadyRetried) {
+    if (
+      isUnauthorized &&
+      !onPublicPage &&
+      !alreadyRetried &&
+      !callerSkippedRefresh
+    ) {
       retriedRequests.set(originalRequest, true);
       try {
         const newAccessToken = await refreshAccessToken();
-        originalRequest.headers = originalRequest.headers ?? {};
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        const headers = ensureHeaders(originalRequest);
+        headers.set("Authorization", `Bearer ${newAccessToken}`);
         return apiClient(originalRequest);
       } catch (refreshError) {
         // Refresh failed - the session is dead. Drop credentials and
@@ -74,10 +139,6 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // Either we've already retried, or the 401 came from a public page.
-    // Public pages (including "/") must NEVER redirect on 401, otherwise
-    // an unauthenticated visitor lands on /login immediately. Just clear
-    // stale credentials and let the caller decide what to do.
     if (isUnauthorized) {
       useAuthStore.getState().clearAuth();
       if (typeof window !== "undefined" && !onPublicPage) {
@@ -86,9 +147,18 @@ apiClient.interceptors.response.use(
       }
     }
 
-    const apiError = error.response.data as ApiResponse<unknown>;
+    const apiError = new ApiError({
+      ...(error.response.data as ApiResponse<unknown>),
+      status: error.response.status,
+      headers: Object.fromEntries(
+        Object.entries(error.response.headers).map(([k, v]) => [k, String(v)]),
+      ),
+    });
+    if (!originalRequest[SKIP_REFRESH_HEADER]) {
+      originalRequest[SKIP_REFRESH_HEADER] = true;
+    }
     return Promise.reject(apiError);
   },
 );
 
-export { apiClient, isPublicPath };
+export { apiClient, isPublicPath, SKIP_REFRESH_HEADER };

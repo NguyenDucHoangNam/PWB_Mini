@@ -1,31 +1,51 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useSyncExternalStore } from "react";
+
+const DEFAULT_LOCALE = "vi";
+
+function readLocale(): string {
+  if (typeof document === "undefined") return DEFAULT_LOCALE;
+  const match = document.cookie.match(/(^| )locale=([^;]+)/);
+  return match ? match[2] : DEFAULT_LOCALE;
+}
+
+function subscribeLocale(callback: () => void): () => void {
+  if (typeof document === "undefined") return () => {};
+  document.addEventListener("cookiechange", callback);
+  window.addEventListener("app-locale-change", callback);
+  return () => {
+    document.removeEventListener("cookiechange", callback);
+    window.removeEventListener("app-locale-change", callback);
+  };
+}
+
+function getLocaleSnapshot(): string {
+  return readLocale();
+}
+
+function getServerLocaleSnapshot(): string {
+  return DEFAULT_LOCALE;
+}
 
 export function LocaleSwitcher() {
-  const router = useRouter();
-  const [currentLocale, setCurrentLocale] = useState("vi");
+  const currentLocale = useSyncExternalStore(
+    subscribeLocale,
+    getLocaleSnapshot,
+    getServerLocaleSnapshot,
+  );
 
-  // Read current locale cookie value on mount
-  useEffect(() => {
-    const getLocaleCookie = () => {
-      const match = document.cookie.match(/(^| )locale=([^;]+)/);
-      return match ? match[2] : "vi";
-    };
-    setCurrentLocale(getLocaleCookie());
-  }, []);
+  const switchLocale = useCallback(
+    (newLocale: string) => {
+      if (newLocale === currentLocale) return;
+      if (typeof document === "undefined") return;
 
-  const switchLocale = (newLocale: string) => {
-    if (newLocale === currentLocale) return;
-
-    // Set locale cookie for 1 year
-    document.cookie = `locale=${newLocale}; path=/; max-age=31536000; SameSite=Lax`;
-    setCurrentLocale(newLocale);
-
-    // Refresh page to load new translation messages via next-intl
-    window.location.reload();
-  };
+      document.cookie = `locale=${newLocale}; path=/; max-age=31536000; SameSite=Lax`;
+      window.dispatchEvent(new Event("app-locale-change"));
+      window.location.reload();
+    },
+    [currentLocale],
+  );
 
   return (
     <div className="flex items-center gap-2 font-mono text-sm font-semibold text-neutral-400 dark:text-neutral-500 select-none">

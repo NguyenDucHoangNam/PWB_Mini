@@ -6,8 +6,9 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useLogin, useLoginWithGoogle } from "../api/login";
 import { useAuthStore, type AuthUser } from "../stores/use-auth-store";
-import { useCaptureReturnTo, readReturnTo, persistReturnTo } from "@/hooks/use-return-to";
+import { useCaptureReturnTo, readReturnTo } from "@/hooks/use-return-to";
 import { decodeJwtExpiry } from "@/lib/jwt-decode";
+import { asApiError, type ApiError } from "@/lib/api-client";
 import { PasswordInput } from "./password-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,10 +24,9 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
-const LOCKOUT_DURATION = 15 * 60; // 15 minutes in seconds
+const LOCKOUT_DURATION_FALLBACK = 15 * 60; // 15 minutes - fallback if BE omits Retry-After
 const STORAGE_KEY_USERNAME = "login_username";
 const STORAGE_KEY_REMEMBER = "login_remember";
-const STORAGE_KEY_PENDING_EMAIL = "pwb_pending_email";
 
 declare global {
   interface Window {
@@ -54,6 +54,23 @@ function maskEmail(email: string): string {
   return `${local.substring(0, 2)}******@${domain}`;
 }
 
+function parseRetryAfter(headers: Record<string, string> | undefined): number {
+  if (!headers) return 0;
+  const raw = headers["retry-after"] ?? headers["Retry-After"];
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function readInitialRememberMe(): { username: string; remember: boolean } {
+  if (typeof window === "undefined") return { username: "", remember: false };
+  const savedUsername = localStorage.getItem(STORAGE_KEY_USERNAME);
+  const savedRemember = localStorage.getItem(STORAGE_KEY_REMEMBER);
+  if (savedUsername && savedRemember === "true") {
+    return { username: savedUsername, remember: true };
+  }
+  return { username: "", remember: false };
+}
+
 export function LoginForm() {
   const t = useTranslations("auth.login");
   const router = useRouter();
@@ -62,10 +79,11 @@ export function LoginForm() {
   const setAuth = useAuthStore((state) => state.setAuth);
   const usernameInputRef = useRef<HTMLInputElement>(null);
   const googleInitRef = useRef(false);
+  const handleGoogleCredentialRef = useRef<(idToken: string) => void>(null);
 
-  const [usernameOrEmail, setUsernameOrEmail] = useState("");
+  const [usernameOrEmail, setUsernameOrEmail] = useState(() => readInitialRememberMe().username);
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => readInitialRememberMe().remember);
   const [error, setError] = useState<string | null>(null);
   const [lockoutRemaining, setLockoutRemaining] = useState(0);
   const [oauthLinkOpen, setOauthLinkOpen] = useState(false);
@@ -75,16 +93,6 @@ export function LoginForm() {
 
   // Capture ?returnTo= so we can send the user back after login.
   useCaptureReturnTo();
-
-  // Load saved username and remember preference on mount
-  useEffect(() => {
-    const savedUsername = localStorage.getItem(STORAGE_KEY_USERNAME);
-    const savedRemember = localStorage.getItem(STORAGE_KEY_REMEMBER);
-    if (savedUsername && savedRemember === "true") {
-      setUsernameOrEmail(savedUsername);
-      setRememberMe(true);
-    }
-  }, []);
 
   // Auto-focus username field on mount
   useEffect(() => {
@@ -114,13 +122,13 @@ export function LoginForm() {
     window.google.accounts.id.initialize({
       client_id: clientId,
       callback: (response) => {
-        if (response.credential) {
-          handleGoogleCredential(response.credential);
+        const credential = response.credential;
+        if (credential) {
+          handleGoogleCredentialRef.current?.(credential);
         }
       },
       cancel_on_tap_outside: true,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const redirectAfterLogin = useCallback(() => {
@@ -191,7 +199,7 @@ export function LoginForm() {
             setError(response.message || t("errorToast"));
           }
         },
-        onError: (err: any) => {
+        onError: asApiError<ApiError>((err) => {
           const apiError = err?.errors?.[0];
           const errorCode = apiError?.code;
 
@@ -199,53 +207,56 @@ export function LoginForm() {
             setError(t("incorrectCredentials"));
           } else if (errorCode === "ACCOUNT_TEMPORARILY_LOCKED") {
             setError(t("accountLocked"));
-            setLockoutRemaining(LOCKOUT_DURATION);
-          } else if (errorCode === "REGISTRATION_IN_PROGRESS") {
-            const redirectTo = err?.data?.redirectTo || "/verify-otp";
-            const email = err?.data?.email || usernameOrEmail;
-            // Persist email in sessionStorage so the user does not see it in the URL.
-            sessionStorage.setItem(STORAGE_KEY_PENDING_EMAIL, email);
-            router.push(redirectTo);
-            return;
+            const retrySeconds = parseRetryAfter(err?.headers);
+            setLockoutRemaining(retrySeconds > 0 ? retrySeconds : LOCKOUT_DURATION_FALLBACK);
+          } else if (errorCode === "RATE_LIMIT_EXCEEDED") {
+            const retrySeconds = parseRetryAfter(err?.headers);
+            setLockoutRemaining(retrySeconds > 0 ? retrySeconds : LOCKOUT_DURATION_FALLBACK);
+            setError(t("accountLocked"));
           } else if (errorCode === "ACCOUNT_BANNED") {
             setError(t("accountBanned"));
           } else {
             setError(err?.message || t("errorToast"));
           }
           toast.error(t("errorToast"));
-        },
+        }),
       },
     );
   };
 
-  const handleGoogleCredential = (idToken: string) => {
-    loginWithGoogleMutate(
-      { data: { idToken } },
-      {
-        onSuccess: (response) => {
-          if (!handleLoginResponse(response)) {
-            toast.error(response.message || t("errorToast"));
-          }
+  const handleGoogleCredential = useCallback(
+    (idToken: string) => {
+      loginWithGoogleMutate(
+        { data: { idToken } },
+        {
+          onSuccess: (response) => {
+            if (!handleLoginResponse(response)) {
+              toast.error(response.message || t("errorToast"));
+            }
+          },
+          onError: asApiError<{ email?: string }>((err) => {
+            const apiError = err?.errors?.[0];
+            if (apiError?.code === "OAUTH_LINK_PASSWORD_REQUIRED") {
+              setPendingGoogleIdToken(idToken);
+              setOauthLinkEmail(err?.data?.email || usernameOrEmail);
+              setOauthLinkOpen(true);
+              return;
+            }
+            if (apiError?.code === "ACCOUNT_BANNED") {
+              toast.error(t("accountBanned"));
+            } else {
+              toast.error(err?.message || t("googleLoginError"));
+            }
+          }),
         },
-        onError: (err: any) => {
-          const apiError = err?.errors?.[0];
-          if (apiError?.code === "OAUTH_LINK_PASSWORD_REQUIRED") {
-            // Backend wants the existing LOCAL password to link Google.
-            // We need to retry the same call with linkingPassword.
-            setPendingGoogleIdToken(idToken);
-            setOauthLinkEmail(err?.data?.email || usernameOrEmail);
-            setOauthLinkOpen(true);
-            return;
-          }
-          if (apiError?.code === "ACCOUNT_BANNED") {
-            toast.error(t("accountBanned"));
-          } else {
-            toast.error(err?.message || t("googleLoginError"));
-          }
-        },
-      },
-    );
-  };
+      );
+    },
+    [loginWithGoogleMutate, handleLoginResponse, usernameOrEmail, t],
+  );
+
+  useEffect(() => {
+    handleGoogleCredentialRef.current = handleGoogleCredential;
+  }, [handleGoogleCredential]);
 
   const handleGoogleLogin = () => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -281,14 +292,14 @@ export function LoginForm() {
           setOauthLinkPassword("");
           setPendingGoogleIdToken(null);
         },
-        onError: (err: any) => {
+        onError: asApiError((err) => {
           const apiError = err?.errors?.[0];
           if (apiError?.code === "INVALID_PASSWORD") {
             toast.error(t("incorrectCredentials"));
           } else {
             toast.error(err?.message || t("errorToast"));
           }
-        },
+        }),
       },
     );
   };
@@ -488,5 +499,3 @@ function formatLockoutTime(seconds: number) {
   const secs = seconds % 60;
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
-
-void persistReturnTo; // re-export style placeholder

@@ -9,6 +9,7 @@ import { PasswordStrengthBar } from "./password-strength-bar";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { asApiError } from "@/lib/api-client";
 
 export function ChangePasswordForm() {
   const t = useTranslations("profile.changePassword");
@@ -62,7 +63,7 @@ export function ChangePasswordForm() {
             setError(response.message || t("error"));
           }
         },
-        onError: (err: any) => {
+        onError: asApiError((err) => {
           const apiError = err.errors?.[0];
           if (apiError?.code === "OAUTH_ONLY_ACCOUNT") {
             setIsOauthOnly(true);
@@ -74,7 +75,7 @@ export function ChangePasswordForm() {
             setError(err.message || t("error"));
           }
           toast.error(t("error"));
-        },
+        }),
       },
     );
   };

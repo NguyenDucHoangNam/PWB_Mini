@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 
 export interface PasswordStrengthResult {
   level: number;
@@ -7,24 +7,16 @@ export interface PasswordStrengthResult {
   colorClass: string;
 }
 
-export function usePasswordStrength(password: string): PasswordStrengthResult {
-  const [result, setResult] = useState<PasswordStrengthResult>({
-    level: 0,
-    label: "",
-    percentage: 0,
-    colorClass: "bg-neutral-200",
-  });
+const EMPTY_RESULT: PasswordStrengthResult = {
+  level: 0,
+  label: "",
+  percentage: 0,
+  colorClass: "bg-neutral-200",
+};
 
-  useEffect(() => {
-    if (!password) {
-      setResult({
-        level: 0,
-        label: "",
-        percentage: 0,
-        colorClass: "bg-neutral-200",
-      });
-      return;
-    }
+export function usePasswordStrength(password: string): PasswordStrengthResult {
+  return useMemo<PasswordStrengthResult>(() => {
+    if (!password) return EMPTY_RESULT;
 
     let level = 1;
     let label = "Yếu";
@@ -59,8 +51,6 @@ export function usePasswordStrength(password: string): PasswordStrengthResult {
       }
     }
 
-    setResult({ level, label, percentage, colorClass });
+    return { level, label, percentage, colorClass };
   }, [password]);
-
-  return result;
 }

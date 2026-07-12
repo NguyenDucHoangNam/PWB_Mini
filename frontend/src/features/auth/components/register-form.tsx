@@ -14,6 +14,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { asApiError } from "@/lib/api-client";
+
+const USERNAME_MIN_LENGTH = 3;
+const USERNAME_PATTERN = /^[a-zA-Z0-9_]+$/;
+const PASSWORD_MIN_LENGTH = 8;
+const DEBOUNCE_MS = 300;
 
 export function RegisterForm() {
   const t = useTranslations("auth.register");
@@ -26,32 +32,60 @@ export function RegisterForm() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [usernameBlurred, setUsernameBlurred] = useState(false);
 
-  // Debounced username checking
-  const debouncedUsername = useDebounce(username, 300);
+  const debouncedUsername = useDebounce(username, DEBOUNCE_MS);
+
+  const usernameCheckEnabled = process.env.NEXT_PUBLIC_CHECK_USERNAME_ENABLED === "true";
+  const usernameIsLongEnough = debouncedUsername.trim().length >= USERNAME_MIN_LENGTH;
+
   const { data: checkData, isPending: isCheckingUsername } = useCheckUsername({
     username: debouncedUsername,
     queryConfig: {
-      enabled: debouncedUsername.trim().length >= 3,
+      enabled: usernameCheckEnabled && usernameBlurred && usernameIsLongEnough,
     },
   });
 
+  const usernameUnavailable =
+    usernameCheckEnabled &&
+    usernameBlurred &&
+    usernameIsLongEnough &&
+    !isCheckingUsername &&
+    checkData != null &&
+    checkData.data != null &&
+    !checkData.data.available;
+
   const passwordStrength = usePasswordStrength(password);
+
+  const isFormFilled =
+    fullName.trim().length > 0 &&
+    username.trim().length > 0 &&
+    email.trim().length > 0 &&
+    password.length > 0 &&
+    confirmPassword.length > 0;
+
+  const isFormValid =
+    isFormFilled &&
+    username.trim().length >= USERNAME_MIN_LENGTH &&
+    USERNAME_PATTERN.test(username) &&
+    password.length >= PASSWORD_MIN_LENGTH &&
+    password === confirmPassword &&
+    !usernameUnavailable;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!fullName || !username || !email || !password || !confirmPassword) {
+    if (!isFormFilled) {
       setError(t("fillAll"));
       return;
     }
 
-    if (username.length < 3 || !/^[a-zA-Z0-9_]+$/.test(username)) {
+    if (username.length < USERNAME_MIN_LENGTH || !USERNAME_PATTERN.test(username)) {
       setError(t("invalidUsername"));
       return;
     }
 
-    if (password.length < 8) {
+    if (password.length < PASSWORD_MIN_LENGTH) {
       setError(t("minPassword"));
       return;
     }
@@ -61,7 +95,7 @@ export function RegisterForm() {
       return;
     }
 
-    if (checkData && !checkData.data?.available) {
+    if (usernameUnavailable) {
       setError(t("usernameTaken"));
       return;
     }
@@ -81,17 +115,19 @@ export function RegisterForm() {
             setError(response.message || t("errorToast"));
           }
         },
-        onError: (err: any) => {
+        onError: asApiError((err) => {
           const apiError = err.errors?.[0]?.message;
           setError(apiError || err.message || t("errorToast"));
           toast.error(t("errorToast"));
-        },
+        }),
       },
     );
   };
 
   const getUsernameHelperText = () => {
-    if (username.trim().length < 3) return null;
+    if (!usernameCheckEnabled) return null;
+    if (!usernameBlurred) return null;
+    if (!usernameIsLongEnough) return null;
     if (isCheckingUsername) {
       return <span className="text-xs text-neutral-400 font-medium">{t("checkingUsername")}</span>;
     }
@@ -110,7 +146,7 @@ export function RegisterForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5 font-sans">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5 font-sans" noValidate>
       <div className="flex flex-col gap-2 text-center">
         <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
           {t("registerTitle")}
@@ -150,7 +186,11 @@ export function RegisterForm() {
           type="text"
           disabled={isPending}
           value={username}
-          onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ""))}
+          onChange={(e) => {
+            setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ""));
+            setUsernameBlurred(false);
+          }}
+          onBlur={() => setUsernameBlurred(true)}
           placeholder={t("usernamePlaceholder")}
           required
         />
@@ -204,7 +244,7 @@ export function RegisterForm() {
         type="submit"
         variant="default"
         size="lg"
-        disabled={isPending || (checkData && !checkData.data?.available)}
+        disabled={isPending || !isFormValid}
         className="w-full justify-center h-10 font-bold mt-2"
       >
         {isPending ? (

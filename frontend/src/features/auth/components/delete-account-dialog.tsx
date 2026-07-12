@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useDeleteAccount } from "../api/account";
-import { useProfile } from "../api/profile";
+import { useAuthStore } from "../stores/use-auth-store";
 import { PasswordInput } from "./password-input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { asApiError } from "@/lib/api-client";
 
 interface DeleteAccountDialogProps {
   isOpen: boolean;
@@ -24,9 +25,19 @@ interface DeleteAccountDialogProps {
 }
 
 export function DeleteAccountDialog({ isOpen, onClose }: DeleteAccountDialogProps) {
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      {/* Keying on the dialog's open state forces a remount on every open,
+          which gives us clean form state without calling setState inside an effect. */}
+      {isOpen ? <DeleteAccountDialogContent onClose={onClose} /> : null}
+    </Dialog>
+  );
+}
+
+function DeleteAccountDialogContent({ onClose }: { onClose: () => void }) {
   const t = useTranslations("account.delete");
   const router = useRouter();
-  const { data: profileResponse } = useProfile({ queryConfig: { enabled: isOpen } });
+  const authUser = useAuthStore((state) => state.user);
   const { mutate: deleteAccountMutate, isPending } = useDeleteAccount();
 
   const [password, setPassword] = useState("");
@@ -35,15 +46,7 @@ export function DeleteAccountDialog({ isOpen, onClose }: DeleteAccountDialogProp
   const [countdown, setCountdown] = useState(3);
   const [error, setError] = useState<string | null>(null);
 
-  // Countdown timer when dialog opens.
   useEffect(() => {
-    if (!isOpen) return;
-    setCountdown(3);
-    setError(null);
-    setPassword("");
-    setGoogleIdToken(null);
-    setGoogleReauthSuccess(false);
-
     const interval = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
@@ -53,11 +56,10 @@ export function DeleteAccountDialog({ isOpen, onClose }: DeleteAccountDialogProp
         return prev - 1;
       });
     }, 1000);
-
     return () => clearInterval(interval);
-  }, [isOpen]);
+  }, []);
 
-  const oauthProvider = profileResponse?.data?.oauthProvider;
+  const oauthProvider = authUser?.oauthProvider;
   const isGoogleUser = oauthProvider === "GOOGLE";
 
   const handleGoogleReauth = () => {
@@ -115,24 +117,31 @@ export function DeleteAccountDialog({ isOpen, onClose }: DeleteAccountDialogProp
             setError(res.message || t("toastError"));
           }
         },
-        onError: (err: any) => {
+        onError: asApiError((err) => {
           const apiError = err?.errors?.[0];
           if (apiError?.code === "INVALID_PASSWORD") {
             setError(t("incorrectPassword"));
           } else if (apiError?.code === "ACCOUNT_TEMPORARILY_LOCKED") {
             setError(t("accountLocked"));
+          } else if (apiError?.code === "REAUTH_REQUIRED") {
+            setError(t("reauthRequired"));
+            if (isGoogleUser) {
+              setGoogleIdToken(null);
+              setGoogleReauthSuccess(false);
+            } else {
+              setPassword("");
+            }
           } else {
             setError(err?.message || t("toastError"));
           }
-          toast.error(t("toastToast") || t("toastError"));
-        },
+          toast.error(t("toastError"));
+        }),
       },
     );
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
+    <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription>{t("warningDesc")}</DialogDescription>
@@ -258,7 +267,6 @@ export function DeleteAccountDialog({ isOpen, onClose }: DeleteAccountDialogProp
             {t("cancel")}
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </DialogContent>
   );
 }

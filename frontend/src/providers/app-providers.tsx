@@ -6,6 +6,7 @@ import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { DEFAULT_STALE_TIME } from "@/lib/constants";
+import { BootstrapAuth } from "@/lib/bootstrap-auth";
 
 function makeQueryClient() {
   return new QueryClient({
@@ -39,7 +40,10 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-        <TooltipProvider>{children}</TooltipProvider>
+        <TooltipProvider>
+          <BootstrapAuth />
+          {children}
+        </TooltipProvider>
         <Toaster />
       </ThemeProvider>
     </QueryClientProvider>
