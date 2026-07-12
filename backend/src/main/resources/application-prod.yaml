@@ -18,9 +18,9 @@ spring:
     baseline-on-migrate: true
   data:
     redis:
-      host: ${SPRING_REDIS_HOST}
-      port: ${SPRING_REDIS_PORT:6379}
-      password: ${SPRING_REDIS_PASSWORD:}
+      host: ${SPRING_DATA_REDIS_HOST}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
   kafka:
     bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
     producer:
@@ -47,7 +47,8 @@ mail:
 app:
   security:
     jwt:
-      secret: ${APP_SECURITY_JWT_SECRET}
+      secret: ${JWT_SECRET}
+      refresh-secret: ${JWT_REFRESH_SECRET}
 
 logging:
   level:

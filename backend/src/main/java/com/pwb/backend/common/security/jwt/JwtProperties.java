@@ -3,6 +3,7 @@ package com.pwb.backend.common.security.jwt;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.core.env.Environment;
 import org.springframework.util.StringUtils;
@@ -31,6 +32,7 @@ public class JwtProperties {
 
     private final Environment environment;
 
+    @Autowired
     public JwtProperties(Environment environment) {
         this.environment = environment;
     }
