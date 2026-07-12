@@ -49,7 +49,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex, HttpServletRequest request) {
         log.warn("BusinessException path={} code={} message={}", request.getRequestURI(), ex.errorCodeName(), ex.getMessage());
-        return buildResponse(ex.httpStatus(), ex.getErrorCode(), ex.getMessage(), null, ex.getDetails());
+        String localized = resolveMessage(ex.getErrorCode(), ex.getMessage());
+        return buildResponse(ex.httpStatus(), ex.getErrorCode(), localized, null, ex.getDetails());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -162,11 +163,15 @@ public class GlobalExceptionHandler {
     }
 
     private String resolveMessage(ErrorCode code) {
+        return resolveMessage(code, code != null ? code.defaultMessage() : null);
+    }
+
+    private String resolveMessage(ErrorCode code, String defaultMessage) {
         if (messageSource == null || code == null) {
-            return code != null ? code.defaultMessage() : null;
+            return defaultMessage;
         }
         String key = code instanceof Enum<?> enumCode ? enumCode.name() : code.code();
-        return messageSource.getMessage(key, null, code.defaultMessage(), LocaleContextHolder.getLocale());
+        return messageSource.getMessage(key, null, defaultMessage, LocaleContextHolder.getLocale());
     }
 
     private static ErrorDetail toFieldErrorDetail(FieldError fe) {

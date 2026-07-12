@@ -317,7 +317,7 @@ export function LoginForm() {
         <div
           role="alert"
           aria-live="assertive"
-          className="rounded-lg bg-neutral-100 p-3 text-xs font-semibold text-neutral-800 dark:bg-neutral-900 dark:text-neutral-200"
+          className="rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-600 dark:bg-red-950/20 dark:text-red-400 border border-red-100/50 dark:border-red-950/30"
         >
           <p>{error}</p>
           {error === t("accountLocked") && (

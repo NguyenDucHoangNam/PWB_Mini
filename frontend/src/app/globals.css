@@ -130,3 +130,212 @@
     @apply font-sans;
   }
 }
+
+@layer components {
+  .cn-toast {
+    @apply relative flex items-center border text-popover-foreground rounded-xl py-4 pl-4 pr-16 shadow-md w-full min-h-[56px] gap-3;
+    border-left-width: 12px !important;
+    border-left-color: var(--cn-toast-neutral);
+    border-top-width: 0 !important;
+    border-right-width: 1px !important;
+    border-bottom-width: 1px !important;
+    background: 
+      linear-gradient(to right, var(--border) 1px, transparent 1px) no-repeat right 52px top 0 / 1px 100%,
+      var(--popover) !important;
+    will-change: transform, opacity;
+    animation: cn-toast-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .cn-toast[data-type="success"] {
+    border-left-color: var(--cn-toast-success) !important;
+  }
+  .cn-toast[data-type="warning"] {
+    border-left-color: var(--cn-toast-warning) !important;
+  }
+  .cn-toast[data-type="error"] {
+    border-left-color: var(--cn-toast-error) !important;
+  }
+  .cn-toast[data-type="info"],
+  .cn-toast[data-type="default"],
+  .cn-toast[data-type="loading"] {
+    border-left-color: var(--cn-toast-neutral) !important;
+  }
+
+  .cn-toast__title {
+    @apply text-sm font-semibold tracking-tight;
+  }
+  .cn-toast__description {
+    @apply text-xs text-muted-foreground mt-0.5;
+  }
+
+  .cn-toast [data-close-button] {
+    position: absolute !important;
+    top: 50% !important;
+    right: 20px !important;
+    left: auto !important;
+    transform: translateY(-50%) !important;
+    border: 0 !important;
+    background: transparent !important;
+    @apply size-7 flex items-center justify-center rounded-md text-neutral-400 dark:text-neutral-500 hover:text-black dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors;
+  }
+
+  .cn-toast::before {
+    content: "" !important;
+    position: absolute !important;
+    right: 0 !important;
+    left: auto !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 14px !important;
+    background: repeating-linear-gradient(to bottom, 
+      oklch(0.98 0 0) 0px, 
+      oklch(0.98 0 0) 13px, 
+      oklch(0.85 0 0) 13px, 
+      oklch(0.85 0 0) 14px
+    ) !important;
+    border-left: 1px solid oklch(0.85 0 0) !important;
+    border-right: 0 !important;
+    border-top-right-radius: 11px !important;
+    border-bottom-right-radius: 11px !important;
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    pointer-events: none !important;
+    z-index: 5 !important;
+  }
+
+  .dark .cn-toast::before {
+    background: repeating-linear-gradient(to bottom, 
+      oklch(0.9 0 0) 0px, 
+      oklch(0.9 0 0) 13px, 
+      oklch(0.65 0 0) 13px, 
+      oklch(0.65 0 0) 14px
+    ) !important;
+    border-left: 1px solid oklch(0.65 0 0) !important;
+  }
+
+  .cn-toast::after {
+    content: "" !important;
+    position: absolute !important;
+    right: 6px !important;
+    left: auto !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 8px !important;
+    background: repeating-linear-gradient(to bottom,
+      transparent 0px,
+      transparent 8px,
+      oklch(0.15 0 0) 8px,
+      oklch(0.15 0 0) 18px,
+      transparent 18px,
+      transparent 28px
+    ) !important;
+    pointer-events: none !important;
+    z-index: 6 !important;
+    clip-path: none !important;
+    height: auto !important;
+  }
+
+  .dark .cn-toast::after {
+    background: repeating-linear-gradient(to bottom,
+      transparent 0px,
+      transparent 8px,
+      oklch(0.05 0 0) 8px,
+      oklch(0.05 0 0) 18px,
+      transparent 18px,
+      transparent 28px
+    ) !important;
+  }
+}
+
+@layer utilities {
+  @keyframes cn-toast-in {
+    from {
+      transform: translateY(-12px) scale(0.98);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes cn-progress-shrink {
+    from {
+      transform: scaleX(1);
+    }
+    to {
+      transform: scaleX(0);
+    }
+  }
+
+  @keyframes cn-progress-slide {
+    0% {
+      transform: translateX(-100%) scaleX(1);
+    }
+    100% {
+      transform: translateX(350%) scaleX(1);
+    }
+  }
+
+  @keyframes cn-waveform {
+    0%, 100% {
+      transform: scaleY(0.35);
+      opacity: 0.55;
+    }
+    50% {
+      transform: scaleY(1);
+      opacity: 1;
+    }
+  }
+
+  .cn-toast__waveform {
+    @apply ml-auto inline-flex items-end gap-[2px] opacity-70;
+    height: 14px;
+  }
+  .cn-toast__waveform > span {
+    @apply block w-[2px] rounded-full;
+    background-color: currentColor;
+    height: 100%;
+    transform-origin: bottom center;
+    will-change: transform, opacity;
+    animation: cn-waveform 900ms cubic-bezier(0.37, 0, 0.63, 1) infinite;
+  }
+  .cn-toast__waveform > span:nth-child(1) {
+    animation-delay: 0ms;
+  }
+  .cn-toast__waveform > span:nth-child(2) {
+    animation-delay: 120ms;
+  }
+  .cn-toast__waveform > span:nth-child(3) {
+    animation-delay: 240ms;
+  }
+  .cn-toast__waveform > span:nth-child(4) {
+    animation-delay: 360ms;
+  }
+  .cn-toast__waveform > span:nth-child(5) {
+    animation-delay: 480ms;
+  }
+}
+
+:root {
+  --cn-toast-success: oklch(0.65 0.16 155);
+  --cn-toast-warning: oklch(0.78 0.16 75);
+  --cn-toast-error: oklch(0.6 0.22 25);
+  --cn-toast-neutral: oklch(0.5 0 0);
+  --cn-toast-duration: 4000ms;
+}
+
+.dark {
+  --cn-toast-success: oklch(0.78 0.17 155);
+  --cn-toast-warning: oklch(0.85 0.16 80);
+  --cn-toast-error: oklch(0.72 0.2 25);
+  --cn-toast-neutral: oklch(0.7 0 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cn-toast,
+  .cn-toast__progress,
+  .cn-toast__waveform > span {
+    animation: none !important;
+  }
+}

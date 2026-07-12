@@ -33,6 +33,10 @@ export function RegisterForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [usernameBlurred, setUsernameBlurred] = useState(false);
+  const [confirmPasswordBlurred, setConfirmPasswordBlurred] = useState(false);
+  const [fullNameBlurred, setFullNameBlurred] = useState(false);
+  const [emailBlurred, setEmailBlurred] = useState(false);
+  const [passwordBlurred, setPasswordBlurred] = useState(false);
 
   const debouncedUsername = useDebounce(username, DEBOUNCE_MS);
 
@@ -137,7 +141,7 @@ export function RegisterForm() {
           {t("usernameAvailable")}
         </span>
       ) : (
-        <span className="text-xs text-black dark:text-white font-semibold">
+        <span className="text-xs text-red-600 dark:text-red-400 font-semibold">
           {t("usernameUnavailable")}
         </span>
       );
@@ -158,7 +162,7 @@ export function RegisterForm() {
         <div
           role="alert"
           aria-live="assertive"
-          className="rounded-lg bg-neutral-100 p-3 text-xs font-semibold text-neutral-800 dark:bg-neutral-900 dark:text-neutral-200"
+          className="rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-600 dark:bg-red-950/20 dark:text-red-400 border border-red-100/50 dark:border-red-950/30"
         >
           {error}
         </div>
@@ -172,10 +176,19 @@ export function RegisterForm() {
           type="text"
           disabled={isPending}
           value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
+          onChange={(e) => {
+            setFullName(e.target.value);
+            setFullNameBlurred(false);
+          }}
+          onBlur={() => setFullNameBlurred(true)}
           placeholder={t("fullNamePlaceholder")}
           required
         />
+        {fullNameBlurred && fullName.trim().length === 0 && (
+          <span className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
+            {t("fullNameRequired")}
+          </span>
+        )}
       </div>
 
       {/* Username */}
@@ -194,7 +207,19 @@ export function RegisterForm() {
           placeholder={t("usernamePlaceholder")}
           required
         />
-        <div className="min-h-4 mt-0.5">{getUsernameHelperText()}</div>
+        {usernameBlurred && username.trim().length === 0 && (
+          <span className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
+            {t("usernameRequired")}
+          </span>
+        )}
+        {usernameBlurred && username.trim().length > 0 && (username.trim().length < USERNAME_MIN_LENGTH || !USERNAME_PATTERN.test(username)) && (
+          <span className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
+            {t("invalidUsername")}
+          </span>
+        )}
+        {getUsernameHelperText() && (
+          <div className="min-h-4 mt-0.5">{getUsernameHelperText()}</div>
+        )}
       </div>
 
       {/* Email */}
@@ -206,10 +231,24 @@ export function RegisterForm() {
           inputMode="email"
           disabled={isPending}
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setEmailBlurred(false);
+          }}
+          onBlur={() => setEmailBlurred(true)}
           placeholder={t("emailPlaceholder")}
           required
         />
+        {emailBlurred && email.trim().length === 0 && (
+          <span className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
+            {t("emailRequired")}
+          </span>
+        )}
+        {emailBlurred && email.trim().length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) && (
+          <span className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
+            {t("invalidEmail")}
+          </span>
+        )}
       </div>
 
       {/* Password */}
@@ -219,10 +258,24 @@ export function RegisterForm() {
           id="password"
           disabled={isPending}
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setPasswordBlurred(false);
+          }}
+          onBlur={() => setPasswordBlurred(true)}
           placeholder={t("passwordPlaceholder")}
           required
         />
+        {passwordBlurred && password.length === 0 && (
+          <span className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
+            {t("passwordRequired")}
+          </span>
+        )}
+        {passwordBlurred && password.length > 0 && password.length < PASSWORD_MIN_LENGTH && (
+          <span className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
+            {t("minPassword")}
+          </span>
+        )}
         <PasswordStrengthBar strength={passwordStrength} />
       </div>
 
@@ -233,10 +286,22 @@ export function RegisterForm() {
           id="confirmPassword"
           disabled={isPending}
           value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
+          onChange={(e) => {
+            setConfirmPassword(e.target.value);
+            setConfirmPasswordBlurred(false);
+          }}
+          onBlur={() => setConfirmPasswordBlurred(true)}
           placeholder={t("confirmPasswordPlaceholder")}
           required
         />
+        {password.length > 0 &&
+          confirmPassword.length > 0 &&
+          password !== confirmPassword &&
+          (confirmPasswordBlurred || confirmPassword.length >= password.length) && (
+            <span className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
+              {t("passwordMismatch")}
+            </span>
+          )}
       </div>
 
       {/* Submit Button */}

@@ -49,15 +49,30 @@ export function SiteHeaderClient() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (!isLoggedIn && !isPublicPath(pathname)) {
-      router.push("/login");
-      toast.info(t("sessionExpired"));
+
+    if (!isLoggedIn) {
+      const activeLogout = sessionStorage.getItem("active_logout") === "true";
+      if (activeLogout) {
+        sessionStorage.removeItem("active_logout");
+        toast.success(t("logoutSuccess"));
+        if (!isPublicPath(pathname)) {
+          router.push("/login");
+        }
+      } else {
+        if (!isPublicPath(pathname)) {
+          router.push("/login");
+          toast.info(t("sessionExpired"));
+        }
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn]);
 
   const handleLogout = useCallback(() => {
     abortRefresh();
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("active_logout", "true");
+    }
 
     const finalize = () => {
       queryClient.clear();
@@ -69,15 +84,13 @@ export function SiteHeaderClient() {
     logoutMutate(undefined, {
       onSuccess: () => {
         finalize();
-        toast.success(t("logoutSuccess"));
       },
       onError: () => {
         finalize();
         useAuthStore.getState().clearAuth();
-        toast.warning(t("logoutError"));
       },
     });
-  }, [logoutMutate, queryClient, router, t]);
+  }, [logoutMutate, queryClient, router]);
 
   const publicItems: NavItem[] = [
     { label: t("home"), href: "/" },
