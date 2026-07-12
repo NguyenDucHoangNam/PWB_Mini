@@ -4,6 +4,8 @@ import com.pwb.backend.common.dto.ApiResponse;
 import com.pwb.backend.common.dto.ErrorDetail;
 import com.pwb.backend.common.security.HttpClientContextResolver;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pwb.backend.modules.share.security.BruteForceLockout;
+import com.pwb.backend.modules.share.security.ShareTokenRateLimiter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,6 +17,7 @@ import org.redisson.api.RedissonClient;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -22,7 +25,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+@Slf4j
 @Component
 public class IpRateLimitFilter extends OncePerRequestFilter {
 
@@ -31,19 +38,30 @@ public class IpRateLimitFilter extends OncePerRequestFilter {
     private static final String CODE_RATE_LIMITED = "RATE_LIMITED";
     private static final String MESSAGE_RATE_LIMITED = "Too many requests";
 
+    private static final Pattern SHARED_TOKEN_PATTERN =
+            Pattern.compile("^/api/v1/demos/shared/([0-9a-fA-F-]{36})(?:/.*)?$");
+    private static final Pattern STREAM_KEYS_PATTERN =
+            Pattern.compile("^/api/v1/stream/keys/([0-9a-fA-F-]{36})$");
+
     private final RedissonClient redissonClient;
     private final RateLimitProperties properties;
     private final HttpClientContextResolver clientContextResolver;
+    private final ShareTokenRateLimiter shareTokenRateLimiter;
+    private final BruteForceLockout bruteForceLockout;
     private final ObjectMapper objectMapper;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     public IpRateLimitFilter(RedissonClient redissonClient,
                              RateLimitProperties properties,
                              HttpClientContextResolver clientContextResolver,
+                             ShareTokenRateLimiter shareTokenRateLimiter,
+                             BruteForceLockout bruteForceLockout,
                              ObjectMapper objectMapper) {
         this.redissonClient = redissonClient;
         this.properties = properties;
         this.clientContextResolver = clientContextResolver;
+        this.shareTokenRateLimiter = shareTokenRateLimiter;
+        this.bruteForceLockout = bruteForceLockout;
         this.objectMapper = objectMapper;
     }
 
@@ -60,6 +78,31 @@ public class IpRateLimitFilter extends OncePerRequestFilter {
         if (matchedRule == null) {
             filterChain.doFilter(request, response);
             return;
+        }
+
+        UUID shareToken = resolveShareToken(request);
+        if (shareToken != null && request.getMethod().equalsIgnoreCase("GET")
+                && request.getRequestURI().startsWith("/api/v1/demos/shared/")) {
+            if (bruteForceLockout.isLocked(shareToken)) {
+                log.warn("BRUTE_FORCE_LOCKED_BLOCKED shareToken={}", shareToken);
+                writeRateLimitedResponse(response, matchedRule);
+                return;
+            }
+            bruteForceLockout.recordHit(shareToken);
+            if (!shareTokenRateLimiter.tryAcquireShared(shareToken)) {
+                log.warn("SHARE_TOKEN_RATE_LIMITED shareToken={}", shareToken);
+                writeRateLimitedResponse(response, matchedRule);
+                return;
+            }
+        }
+        if (shareToken != null
+                && request.getMethod().equalsIgnoreCase("GET")
+                && request.getRequestURI().startsWith("/api/v1/stream/keys/")) {
+            if (!shareTokenRateLimiter.tryAcquireKeys(shareToken)) {
+                log.warn("SHARE_TOKEN_RATE_LIMITED_KEYS shareToken={}", shareToken);
+                writeRateLimitedResponse(response, matchedRule);
+                return;
+            }
         }
 
         String clientIp = normalizeIp(clientContextResolver.resolveIp(request));
@@ -90,6 +133,27 @@ public class IpRateLimitFilter extends OncePerRequestFilter {
             }
             if (pathMatcher.match(rule.pathPattern(), path)) {
                 return rule;
+            }
+        }
+        return null;
+    }
+
+    private UUID resolveShareToken(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        Matcher sharedMatcher = SHARED_TOKEN_PATTERN.matcher(path);
+        if (sharedMatcher.matches()) {
+            try {
+                return UUID.fromString(sharedMatcher.group(1));
+            } catch (IllegalArgumentException ex) {
+                return null;
+            }
+        }
+        Matcher keysMatcher = STREAM_KEYS_PATTERN.matcher(path);
+        if (keysMatcher.matches()) {
+            try {
+                return UUID.fromString(keysMatcher.group(1));
+            } catch (IllegalArgumentException ex) {
+                return null;
             }
         }
         return null;

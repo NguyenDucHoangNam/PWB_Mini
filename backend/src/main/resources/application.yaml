@@ -138,6 +138,14 @@ app:
         method: GET
         permits-per-window: 30
         window: 1m
+      - path-pattern: /api/v1/demos/shared/*
+        method: GET
+        permits-per-window: 60
+        window: 1m
+      - path-pattern: /api/v1/stream/keys/*
+        method: GET
+        permits-per-window: 60
+        window: 1m
       - path-pattern: /api/v1/demos/recipients/suggest
         method: GET
         permits-per-window: 30
@@ -233,6 +241,17 @@ app:
     worker-concurrency: ${AUDIO_CONCURRENCY:2}
     waveform-peaks: 200
     hls-segment-seconds: 6
+    stream:
+      cookie-secret: ${AUDIO_STREAM_COOKIE_SECRET:}
+      cookie-ttl-seconds: 1800
+      cookie-name: pwb_stream_sess
+      cookie-secure: false
+      cookie-same-site: Strict
+      cidr-mask-bits-ipv4: 24
+      cidr-mask-bits-ipv6: 48
+    hls:
+      aes-key-bytes: 16
+      segment-duration-seconds: 6
     presigned:
       expiry-seconds: 60
       upload-claim-ttl-seconds: 7200

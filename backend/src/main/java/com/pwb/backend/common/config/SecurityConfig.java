@@ -34,6 +34,8 @@ public class SecurityConfig {
             "/api/v1/demos/shared/{token}/key",
             "/api/v1/demos/shared/{token}/stream/**",
             "/api/v1/demos/shared/{token}/download",
+            "/api/v1/demos/shared/**",
+            "/api/v1/stream/keys/**",
             "/api/v1/health",
             "/swagger-ui/**",
             "/swagger-ui.html"

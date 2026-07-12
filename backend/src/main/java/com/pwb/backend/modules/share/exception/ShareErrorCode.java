@@ -29,7 +29,23 @@ public enum ShareErrorCode implements ErrorCode {
 
     SHARE_QUOTA_EXCEEDED("SHARE_QUOTA_EXCEEDED",
             "Daily share quota exceeded (100 unique recipients / 500 distributions per 24h)",
-            HttpStatus.TOO_MANY_REQUESTS);
+            HttpStatus.TOO_MANY_REQUESTS),
+
+    LINK_REVOKED("LINK_REVOKED",
+            "Shared link has been revoked by the producer",
+            HttpStatus.FORBIDDEN),
+
+    LINK_NOT_FOUND("LINK_NOT_FOUND",
+            "Shared link not found",
+            HttpStatus.NOT_FOUND),
+
+    LINK_EXPIRED("LINK_EXPIRED",
+            "Shared link has expired",
+            HttpStatus.GONE),
+
+    IP_MISMATCH("IP_MISMATCH",
+            "Client IP subnet does not match the secure session cookie",
+            HttpStatus.FORBIDDEN);
 
     private final String code;
     private final String defaultMessage;
