@@ -97,6 +97,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
         theme={theme as ToasterProps["theme"]}
         className="toaster group"
         position={position}
+        offset={80}
+        mobileOffset={16}
         visibleToasts={3}
         closeButton
         richColors={false}

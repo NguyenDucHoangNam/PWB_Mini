@@ -132,18 +132,46 @@
 }
 
 @layer components {
+  .toaster:where([data-sonner-toaster]) {
+    z-index: 9999 !important;
+  }
+
+  [data-sonner-toaster][data-y-position="top"] {
+    top: max(80px, env(safe-area-inset-top, 0px)) !important;
+  }
+
+  [data-sonner-toaster][data-y-position="bottom"] {
+    bottom: max(var(--offset, 16px), env(safe-area-inset-bottom, 0px)) !important;
+  }
+
   .cn-toast {
     @apply relative flex items-center border text-popover-foreground rounded-xl py-4 pl-4 pr-16 shadow-md w-full min-h-[56px] gap-3;
+    width: calc(100dvw - 32px) !important;
+    max-width: calc(100dvw - 32px) !important;
     border-left-width: 12px !important;
     border-left-color: var(--cn-toast-neutral);
     border-top-width: 0 !important;
     border-right-width: 1px !important;
     border-bottom-width: 1px !important;
-    background: 
+    background:
       linear-gradient(to right, var(--border) 1px, transparent 1px) no-repeat right 52px top 0 / 1px 100%,
       var(--popover) !important;
     will-change: transform, opacity;
     animation: cn-toast-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @media (min-width: 640px) and (max-width: 1023px) {
+    .cn-toast {
+      width: 420px !important;
+      max-width: 420px !important;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .cn-toast {
+      width: 380px !important;
+      max-width: 380px !important;
+    }
   }
 
   .cn-toast[data-type="success"] {
