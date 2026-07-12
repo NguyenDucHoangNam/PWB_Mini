@@ -24,4 +24,8 @@ public interface DemoRepository extends JpaRepository<Demo, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT COALESCE(SUM(d.fileSize), 0L) FROM Demo d WHERE d.ownerId = :ownerId AND d.status = :status")
     long sumFileSizeByOwnerIdAndStatusForUpdate(@Param("ownerId") UUID ownerId, @Param("status") DemoStatus status);
+    @Query("""
+            SELECT COUNT(d) FROM Demo d WHERE d.voiceTagId = :voiceTagId AND d.status = :status
+            """)
+    long countByVoiceTagIdAndStatus(@Param("voiceTagId") UUID voiceTagId, @Param("status") DemoStatus status);
 }

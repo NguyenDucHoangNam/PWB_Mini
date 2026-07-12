@@ -44,6 +44,7 @@ public class ObjectStorageProperties {
             case DEMO_AUDIO -> "pwb-demo-audio";
             case COVER_IMAGE -> "pwb-covers";
             case GENERIC -> "pwb-misc";
+            case VOICE_TAG -> "pwb-voice-tags";
         };
     }
 }

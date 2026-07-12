@@ -110,6 +110,26 @@ app:
         method: GET
         permits-per-window: 120
         window: 1m
+      - path-pattern: /api/v1/voice-tags
+        method: POST
+        permits-per-window: 2
+        window: 1m
+      - path-pattern: /api/v1/voice-tags/*/preview
+        method: GET
+        permits-per-window: 60
+        window: 1m
+      - path-pattern: /api/v1/voice-tags/*/default
+        method: POST
+        permits-per-window: 10
+        window: 1m
+      - path-pattern: /api/v1/voice-tags
+        method: GET
+        permits-per-window: 60
+        window: 1m
+      - path-pattern: /api/v1/voice-tags/*
+        method: DELETE
+        permits-per-window: 10
+        window: 1m
   security:
     jwt:
       access-token-ttl-seconds: 900
@@ -192,6 +212,7 @@ app:
       demo-audio: ${STORAGE_BUCKET_DEMO_AUDIO:pwb-demo-audio}
       cover-image: ${STORAGE_BUCKET_COVER_IMAGE:pwb-covers}
       generic: ${STORAGE_BUCKET_GENERIC:pwb-misc}
+      voice-tag: ${STORAGE_BUCKET_VOICE_TAG:pwb-voice-tags}
   audio:
     temp-dir: ${AUDIO_TEMP_DIR:/tmp/pwb-audio}
     ffmpeg-path: ${FFMPEG_PATH:ffmpeg}
@@ -206,6 +227,27 @@ app:
     quota:
       max-active-demos-per-user: 50
       max-active-audio-bytes-per-user: 10737418240
+  voice-tag:
+    max-raw-text-length: 100
+    max-ssml-length: 250
+    max-nested-depth: 3
+    min-mp3-bytes: 1024
+    max-mp3-bytes: 5242880
+    daily-limit-per-user: 30
+    max-active-per-user: 50
+    max-storage-bytes-per-user: 209715200
+    voice-list-cache-ttl-seconds: 86400
+    preview-url-ttl-seconds: 30
+    restore-window-days: 7
+    compensation:
+      max-attempts: 5
+      initial-delay-millis: 2000
+      max-delay-millis: 60000
+      multiplier: 3.0
+    gcp:
+      endpoint: google.cloud.texttospeech.v1.TextToSpeechClient
+      connect-timeout-ms: 5000
+      read-timeout-ms: 15000
 
 mail:
   from: PWB Mini <noreply@pwb-mini.dev>

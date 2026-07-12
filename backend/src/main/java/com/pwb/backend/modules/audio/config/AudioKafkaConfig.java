@@ -1,6 +1,7 @@
 package com.pwb.backend.modules.audio.config;
 
 import com.pwb.backend.common.kafka.constant.KafkaTopics;
+import com.pwb.backend.modules.voice_tag.config.VoiceTagProperties;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -21,7 +22,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
-@EnableConfigurationProperties(AudioProperties.class)
+@EnableConfigurationProperties({AudioProperties.class, VoiceTagProperties.class})
 @RequiredArgsConstructor
 public class AudioKafkaConfig {
 

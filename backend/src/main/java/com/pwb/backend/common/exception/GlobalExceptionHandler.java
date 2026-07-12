@@ -2,6 +2,7 @@ package com.pwb.backend.common.exception;
 
 import com.pwb.backend.common.dto.ApiResponse;
 import com.pwb.backend.common.dto.ErrorDetail;
+import com.pwb.backend.modules.voice_tag.exception.VoiceTagErrorCode;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
@@ -127,7 +128,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException ex) {
-        log.warn("Data integrity violation: {}", rootCauseMessage(ex));
+        String rootMessage = rootCauseMessage(ex);
+        log.warn("Data integrity violation: {}", rootMessage);
+
+        if (rootMessage != null && rootMessage.contains("idx_one_default_per_user")) {
+            VoiceTagErrorCode voiceTagCode = VoiceTagErrorCode.VOICE_TAG_ALREADY_DEFAULT;
+            String localizedVoiceTag = resolveMessage(voiceTagCode, voiceTagCode.defaultMessage());
+            return buildResponse(voiceTagCode.httpStatus(), voiceTagCode, localizedVoiceTag, null, Map.of());
+        }
+
         String localized = resolveMessage(CommonErrorCode.CONFLICT);
         return buildResponse(CommonErrorCode.CONFLICT.httpStatus(), CommonErrorCode.CONFLICT, localized, null, Map.of());
     }

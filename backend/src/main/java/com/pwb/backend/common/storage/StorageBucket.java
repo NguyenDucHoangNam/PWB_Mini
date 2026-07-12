@@ -8,7 +8,8 @@ public enum StorageBucket {
     AVATAR("avatar", "avatars/"),
     DEMO_AUDIO("demo-audio", "demos/audio/"),
     COVER_IMAGE("cover-image", "covers/"),
-    GENERIC("generic", "misc/");
+    GENERIC("generic", "misc/"),
+    VOICE_TAG("voice-tag", "voicetags/");
 
     private final String propertyKey;
     private final String keyPrefix;
