@@ -9,10 +9,12 @@ import com.pwb.backend.modules.iam.repository.UserRepository;
 import com.pwb.backend.modules.liveroom.dto.request.ApproveRejectRequest;
 import com.pwb.backend.modules.liveroom.dto.request.CreateRoomRequest;
 import com.pwb.backend.modules.liveroom.dto.request.JoinRoomRequest;
+import com.pwb.backend.modules.liveroom.dto.request.SelectSourceRequest;
 import com.pwb.backend.modules.liveroom.dto.response.CreateRoomResponse;
 import com.pwb.backend.modules.liveroom.dto.response.JoinRoomResponse;
 import com.pwb.backend.modules.liveroom.dto.response.WaitingListResponse;
 import com.pwb.backend.modules.liveroom.service.ListenerJoinService;
+import com.pwb.backend.modules.liveroom.service.PlaybackService;
 import com.pwb.backend.modules.liveroom.service.RoomLifecycleService;
 import com.pwb.backend.modules.liveroom.service.WaitingListService;
 import jakarta.validation.Valid;
@@ -43,10 +45,12 @@ public class LiveRoomController {
     private static final String MSG_LISTENER_APPROVED = "LISTENER_APPROVED";
     private static final String MSG_LISTENER_REJECTED = "LISTENER_REJECTED";
     private static final String MSG_LISTENER_KICKED = "LISTENER_KICKED";
+    private static final String MSG_SOURCE_SELECTED = "SOURCE_SELECTED";
 
     private final RoomLifecycleService roomLifecycleService;
     private final ListenerJoinService listenerJoinService;
     private final WaitingListService waitingListService;
+    private final PlaybackService playbackService;
     private final CurrentUserResolver currentUserResolver;
     private final UserRepository userRepository;
     private final MessageSource messageSource;
@@ -113,6 +117,16 @@ public class LiveRoomController {
         UUID hostId = currentUserResolver.resolveUserId();
         waitingListService.kick(roomCode, hostId, request.listenerId());
         return ResponseEntity.ok(ApiResponse.success(message(MSG_LISTENER_KICKED)));
+    }
+
+    @PostMapping("/{roomCode}/source")
+    @PreAuthorize("hasRole('USER_PRO')")
+    public ResponseEntity<ApiResponse<Void>> selectSource(
+            @PathVariable String roomCode,
+            @Valid @RequestBody SelectSourceRequest request) {
+        UUID hostId = currentUserResolver.resolveUserId();
+        playbackService.selectSource(roomCode, hostId, request.demoId());
+        return ResponseEntity.ok(ApiResponse.success(message(MSG_SOURCE_SELECTED)));
     }
 
     private String message(String key, Object... args) {

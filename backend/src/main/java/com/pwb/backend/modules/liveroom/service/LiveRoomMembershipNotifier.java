@@ -2,6 +2,7 @@ package com.pwb.backend.modules.liveroom.service;
 
 import com.pwb.backend.modules.liveroom.dto.ws.JoinResultMessage;
 import com.pwb.backend.modules.liveroom.dto.ws.MembersSnapshotMessage;
+import com.pwb.backend.modules.liveroom.dto.ws.PlaybackChangeMessage;
 import com.pwb.backend.modules.liveroom.dto.ws.WaitingRequestNotification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ public class LiveRoomMembershipNotifier {
 
     private static final String HOST_TOPIC = "/topic/rooms/%s/host";
     private static final String MEMBERS_TOPIC = "/topic/rooms/%s/members";
+    private static final String PLAYBACK_TOPIC = "/topic/rooms/%s/playback";
     private static final String LISTENER_USER_DESTINATION = "/queue/rooms/join-result";
 
     private final SimpMessagingTemplate messagingTemplate;
@@ -42,6 +44,14 @@ public class LiveRoomMembershipNotifier {
             messagingTemplate.convertAndSend(String.format(MEMBERS_TOPIC, roomCode), snapshot);
         } catch (Exception ex) {
             log.warn("WS_MEMBERS_BROADCAST_FAILED roomCode={} reason={}", roomCode, ex.getMessage());
+        }
+    }
+
+    public void notifyPlaybackChange(String roomCode, PlaybackChangeMessage payload) {
+        try {
+            messagingTemplate.convertAndSend(String.format(PLAYBACK_TOPIC, roomCode), payload);
+        } catch (Exception ex) {
+            log.warn("WS_BROADCAST_SOURCE_FAILED roomCode={} reason={}", roomCode, ex.getMessage());
         }
     }
 }
