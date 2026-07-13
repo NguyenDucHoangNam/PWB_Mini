@@ -32,6 +32,8 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
     private static final String ROLE_USER_PRO = "USER_PRO";
     private static final String ROLE_LISTENER = "LISTENER";
 
+    public static final String SESSION_ATTR_IS_CONTROLLER = "isController";
+
     private final JwtSigner jwtSigner;
     private final BearerTokenExtractor bearerTokenExtractor;
     private final RoomLifecycleService roomLifecycleService;
@@ -76,6 +78,9 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
                 roomCode = accessor.getFirstNativeHeader("roomCode");
             }
             String sessionId = accessor.getSessionId();
+            if (accessor.getSessionAttributes() != null) {
+                accessor.getSessionAttributes().put(SESSION_ATTR_IS_CONTROLLER, ROLE_USER_PRO.equals(role));
+            }
             if (ROLE_LISTENER.equals(role)) {
                 bindListenerSession(sessionId, user.userId(), roomCode);
             } else if (ROLE_USER_PRO.equals(role)) {

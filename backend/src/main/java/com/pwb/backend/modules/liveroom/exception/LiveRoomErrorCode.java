@@ -53,7 +53,19 @@ public enum LiveRoomErrorCode implements ErrorCode {
 
     FORBIDDEN_LISTENER_SANDBOX("FORBIDDEN_LISTENER_SANDBOX",
             "Listener token is not allowed to access this endpoint",
-            HttpStatus.FORBIDDEN);
+            HttpStatus.FORBIDDEN),
+
+    PLAYBACK_ROOM_NOT_LIVE("PLAYBACK_ROOM_NOT_LIVE",
+            "Room is not in LIVE state",
+            HttpStatus.NOT_FOUND),
+
+    PLAYBACK_NO_ACTIVE_SOURCE("PLAYBACK_NO_ACTIVE_SOURCE",
+            "Room has no active audio source",
+            HttpStatus.CONFLICT),
+
+    PLAYBACK_SEEK_OUT_OF_BOUNDS("PLAYBACK_SEEK_OUT_OF_BOUNDS",
+            "currentTime is outside [0, duration]",
+            HttpStatus.BAD_REQUEST);
 
     private final String code;
     private final String defaultMessage;

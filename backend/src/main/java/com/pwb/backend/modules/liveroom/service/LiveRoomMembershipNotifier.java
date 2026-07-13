@@ -3,6 +3,7 @@ package com.pwb.backend.modules.liveroom.service;
 import com.pwb.backend.modules.liveroom.dto.ws.JoinResultMessage;
 import com.pwb.backend.modules.liveroom.dto.ws.MembersSnapshotMessage;
 import com.pwb.backend.modules.liveroom.dto.ws.PlaybackChangeMessage;
+import com.pwb.backend.modules.liveroom.dto.ws.PlaybackUpdateMessage;
 import com.pwb.backend.modules.liveroom.dto.ws.WaitingRequestNotification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +53,14 @@ public class LiveRoomMembershipNotifier {
             messagingTemplate.convertAndSend(String.format(PLAYBACK_TOPIC, roomCode), payload);
         } catch (Exception ex) {
             log.warn("WS_BROADCAST_SOURCE_FAILED roomCode={} reason={}", roomCode, ex.getMessage());
+        }
+    }
+
+    public void notifyPlaybackUpdate(String roomCode, PlaybackUpdateMessage payload) {
+        try {
+            messagingTemplate.convertAndSend(String.format(PLAYBACK_TOPIC, roomCode), payload);
+        } catch (Exception ex) {
+            log.warn("WS_PLAYBACK_UPDATE_BROADCAST_FAILED roomCode={} reason={}", roomCode, ex.getMessage());
         }
     }
 }

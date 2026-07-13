@@ -14,6 +14,7 @@ public final class LiveRoomRedisKeys {
     public static final String SESSION_LISTENER_KEY_PREFIX = "room:ws_listener:";
     public static final String SESSION_LISTENER_META_KEY_PREFIX = "room:ws_listener_meta:";
     public static final String ROOM_PLAYBACK_KEY_PREFIX = "room:playback:";
+    public static final String PLAYBACK_DURATION_CACHE_KEY_PREFIX = "room:duration:";
 
     public static String roomStatusKey(String roomCode) {
         return ROOM_STATUS_KEY_PREFIX + roomCode;
@@ -53,6 +54,10 @@ public final class LiveRoomRedisKeys {
 
     public static String roomPlaybackKey(String roomCode) {
         return ROOM_PLAYBACK_KEY_PREFIX + roomCode;
+    }
+
+    public static String playbackDurationCacheKey(String roomCode) {
+        return PLAYBACK_DURATION_CACHE_KEY_PREFIX + roomCode;
     }
 
     private LiveRoomRedisKeys() {

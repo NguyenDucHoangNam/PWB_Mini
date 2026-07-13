@@ -12,9 +12,11 @@ import com.pwb.backend.modules.liveroom.dto.request.JoinRoomRequest;
 import com.pwb.backend.modules.liveroom.dto.request.SelectSourceRequest;
 import com.pwb.backend.modules.liveroom.dto.response.CreateRoomResponse;
 import com.pwb.backend.modules.liveroom.dto.response.JoinRoomResponse;
+import com.pwb.backend.modules.liveroom.dto.response.PlaybackStateResponse;
 import com.pwb.backend.modules.liveroom.dto.response.WaitingListResponse;
 import com.pwb.backend.modules.liveroom.service.ListenerJoinService;
 import com.pwb.backend.modules.liveroom.service.PlaybackService;
+import com.pwb.backend.modules.liveroom.service.PlaybackSyncService;
 import com.pwb.backend.modules.liveroom.service.RoomLifecycleService;
 import com.pwb.backend.modules.liveroom.service.WaitingListService;
 import jakarta.validation.Valid;
@@ -46,11 +48,13 @@ public class LiveRoomController {
     private static final String MSG_LISTENER_REJECTED = "LISTENER_REJECTED";
     private static final String MSG_LISTENER_KICKED = "LISTENER_KICKED";
     private static final String MSG_SOURCE_SELECTED = "SOURCE_SELECTED";
+    private static final String MSG_PLAYBACK_GET = "PLAYBACK_GET_OK";
 
     private final RoomLifecycleService roomLifecycleService;
     private final ListenerJoinService listenerJoinService;
     private final WaitingListService waitingListService;
     private final PlaybackService playbackService;
+    private final PlaybackSyncService playbackSyncService;
     private final CurrentUserResolver currentUserResolver;
     private final UserRepository userRepository;
     private final MessageSource messageSource;
@@ -127,6 +131,12 @@ public class LiveRoomController {
         UUID hostId = currentUserResolver.resolveUserId();
         playbackService.selectSource(roomCode, hostId, request.demoId());
         return ResponseEntity.ok(ApiResponse.success(message(MSG_SOURCE_SELECTED)));
+    }
+
+    @GetMapping("/{roomCode}/playback")
+    public ResponseEntity<ApiResponse<PlaybackStateResponse>> getPlayback(@PathVariable String roomCode) {
+        PlaybackStateResponse data = playbackSyncService.getPlaybackState(roomCode);
+        return ResponseEntity.ok(ApiResponse.success(message(MSG_PLAYBACK_GET), data));
     }
 
     private String message(String key, Object... args) {

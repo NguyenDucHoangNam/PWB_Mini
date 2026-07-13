@@ -40,6 +40,7 @@ public class SecurityConfig {
             "/api/v1/stream/keys/**",
             "/api/v1/stream/*/playlist.m3u8",
             "/api/v1/stream/*/playlist-signature",
+            "/api/v1/rooms/*/playback",
             "/api/v1/health",
             "/swagger-ui/**",
             "/swagger-ui.html"
