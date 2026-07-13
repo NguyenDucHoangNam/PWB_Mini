@@ -20,13 +20,13 @@ import java.util.Set;
 @Profile("!test")
 public class MailConfig {
 
-    @Value("${spring.mail.host:}")
+    @Value("${spring.mail.host}")
     private String mailHost;
-    @Value("${spring.mail.port:587}")
+    @Value("${spring.mail.port}")
     private int mailPort;
-    @Value("${spring.mail.username:}")
+    @Value("${spring.mail.username}")
     private String mailUsername;
-    @Value("${spring.mail.password:}")
+    @Value("${spring.mail.password}")
     private String mailPassword;
 
     @Bean

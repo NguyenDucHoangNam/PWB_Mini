@@ -46,7 +46,7 @@ public class AvatarUploadServiceImpl implements AvatarUploadService {
     private final ObjectStorageService objectStorageService;
     private final UserRepository userRepository;
 
-    @Value("${app.iam.avatar.max-size-bytes:2097152}")
+    @Value("${app.iam.avatar.max-size-bytes}")
     private long maxSizeBytes;
 
     @Override

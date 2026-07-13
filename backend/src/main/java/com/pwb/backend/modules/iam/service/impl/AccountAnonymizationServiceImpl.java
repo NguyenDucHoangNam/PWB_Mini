@@ -46,7 +46,7 @@ public class AccountAnonymizationServiceImpl implements AccountAnonymizationServ
     private final ObjectMapper objectMapper;
     private final OutboxPayloadCipher outboxCipher;
 
-    @Value("${app.iam.account-anonymization.grace-days:30}")
+    @Value("${app.iam.account-anonymization.grace-days}")
     private int graceDays;
 
     @Override

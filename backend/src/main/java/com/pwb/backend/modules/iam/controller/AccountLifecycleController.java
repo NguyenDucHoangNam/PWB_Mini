@@ -32,7 +32,7 @@ public class AccountLifecycleController {
     private final CurrentUserResolver currentUserResolver;
     private final MessageSource messageSource;
 
-    @Value("${app.iam.account-deletion.grace-days:30}")
+    @Value("${app.iam.account-deletion.grace-days}")
     private int graceDays;
 
     @DeleteMapping

@@ -18,13 +18,13 @@ import java.util.Map;
 @Configuration
 public class KafkaProducerConfig {
 
-    @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
+    @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
-    @Value("${app.kafka.partitions:3}")
+    @Value("${app.kafka.partitions}")
     private int partitions;
 
-    @Value("${app.kafka.replicas:1}")
+    @Value("${app.kafka.replicas}")
     private short replicas;
 
     @Bean

@@ -54,7 +54,7 @@ public class AccountDeletionServiceImpl implements AccountDeletionService {
     private final OutboxPayloadCipher outboxCipher;
     private final UserMapper userMapper;
 
-    @Value("${app.iam.account-deletion.grace-days:30}")
+    @Value("${app.iam.account-deletion.grace-days}")
     private int graceDays;
 
     @Override

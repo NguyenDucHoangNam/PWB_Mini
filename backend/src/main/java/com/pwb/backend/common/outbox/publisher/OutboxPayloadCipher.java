@@ -25,7 +25,7 @@ public class OutboxPayloadCipher {
     private final String keyMaterial;
     private SecretKeySpec keySpec;
 
-    public OutboxPayloadCipher(@Value("${app.security.outbox.encryption-key:}") String keyMaterial) {
+    public OutboxPayloadCipher(@Value("${app.security.outbox.encryption-key}") String keyMaterial) {
         this.keyMaterial = keyMaterial;
     }
 

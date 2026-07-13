@@ -23,7 +23,7 @@ public class AesKeyEncryptor {
 
     private final SecureRandom secureRandom = new SecureRandom();
 
-    @Value("${AUDIO_AES_MASTER_KEY:}")
+    @Value("${AUDIO_AES_MASTER_KEY}")
     private String masterKeyHex;
 
     public byte[] generateAes128Key() {

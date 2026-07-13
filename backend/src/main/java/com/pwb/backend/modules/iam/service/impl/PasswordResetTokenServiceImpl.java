@@ -27,7 +27,7 @@ public class PasswordResetTokenServiceImpl implements PasswordResetTokenService 
 
     public PasswordResetTokenServiceImpl(
             StringRedisTemplate redisTemplate,
-            @Value("${app.iam.password-reset.token-ttl-seconds:600}") long ttlSeconds) {
+            @Value("${app.iam.password-reset.token-ttl-seconds}") long ttlSeconds) {
         this.redisTemplate = redisTemplate;
         this.ttl = Duration.ofSeconds(ttlSeconds);
     }

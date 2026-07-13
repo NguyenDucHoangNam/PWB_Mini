@@ -31,10 +31,10 @@ public class AudioKafkaConfig {
 
     private final KafkaTemplate<String, String> kafkaTemplate;
 
-    @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
+    @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
-    @Value("${app.audio.worker.concurrency:2}")
+    @Value("${app.audio.worker.concurrency}")
     private int workerConcurrency;
 
     @Bean

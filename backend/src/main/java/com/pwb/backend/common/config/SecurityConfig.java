@@ -64,10 +64,10 @@ public class SecurityConfig {
     private static final long HSTS_MAX_AGE_SECONDS = 31536000L;
     private static final int BCRYPT_STRENGTH = 12;
 
-    @Value("${app.security.actuator.public:false}")
+    @Value("${app.security.actuator.public}")
     private boolean actuatorPublic;
 
-    @Value("${springdoc.api-docs.path:/v3/api-docs}")
+    @Value("${springdoc.api-docs.path}")
     private String apiDocsPath;
 
     @Bean

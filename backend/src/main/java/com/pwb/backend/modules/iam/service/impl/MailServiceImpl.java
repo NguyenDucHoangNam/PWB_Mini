@@ -32,25 +32,25 @@ public class MailServiceImpl implements MailService {
     private final JavaMailSender mailSender;
     private final TemplateEngine emailTemplateEngine;
 
-    @Value("${mail.from:PWB Mini <noreply@pwb-mini.dev>}")
+    @Value("${mail.from}")
     private String mailFrom;
 
-    @Value("${mail.security-from:PWB Mini Security <security@pwb-mini.dev>}")
+    @Value("${mail.security-from}")
     private String securityFrom;
 
-    @Value("${app.iam.otp.ttl-seconds:300}")
+    @Value("${app.iam.otp.ttl-seconds}")
     private long otpTtlSeconds;
 
-    @Value("${app.iam.password-reset.token-ttl-seconds:600}")
+    @Value("${app.iam.password-reset.token-ttl-seconds}")
     private long passwordResetTtlSeconds;
 
-    @Value("${app.iam.password-reset.support-email:security@pwb-mini.dev}")
+    @Value("${app.iam.password-reset.support-email}")
     private String supportEmail;
 
-    @Value("${app.iam.account-deletion.support-email:support@pwb-mini.dev}")
+    @Value("${app.iam.account-deletion.support-email}")
     private String accountDeletionSupportEmail;
 
-    @Value("${app.iam.account-deletion.login-url:https://pwbmini.com/login}")
+    @Value("${app.iam.account-deletion.login-url}")
     private String accountDeletionLoginUrl;
 
     public MailServiceImpl(JavaMailSender mailSender,

@@ -13,9 +13,9 @@ public class BackoffCalculator {
     private final long multiplier;
 
     public BackoffCalculator(
-            @Value("${app.outbox.backoff.initial-seconds:30}") long initialSeconds,
-            @Value("${app.outbox.backoff.max-seconds:21600}") long maxSeconds,
-            @Value("${app.outbox.backoff.multiplier:3}") long multiplier) {
+            @Value("${app.outbox.backoff.initial-seconds}") long initialSeconds,
+            @Value("${app.outbox.backoff.max-seconds}") long maxSeconds,
+            @Value("${app.outbox.backoff.multiplier}") long multiplier) {
         this.initialSeconds = initialSeconds;
         this.maxSeconds = maxSeconds;
         this.multiplier = Math.max(1, multiplier);

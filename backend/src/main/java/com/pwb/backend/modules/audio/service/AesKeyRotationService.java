@@ -34,7 +34,7 @@ public class AesKeyRotationService {
     private final StreamKeyCacheService streamKeyCacheService;
     private final StringRedisTemplate stringRedisTemplate;
 
-    @Value("${app.audio.hls.key-rotation-enabled:true}")
+    @Value("${app.audio.hls.key-rotation-enabled}")
     private boolean keyRotationEnabled;
 
     @Transactional

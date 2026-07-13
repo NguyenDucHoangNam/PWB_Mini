@@ -34,13 +34,13 @@ public class OutboxRetryScheduler {
     private final BackoffCalculator backoffCalculator;
     private final OutboxRetryResultHandler resultHandler;
 
-    @Value("${app.outbox.max-attempts:10}")
+    @Value("${app.outbox.max-attempts}")
     private int maxAttempts;
-    @Value("${app.outbox.retry-batch-size:100}")
+    @Value("${app.outbox.retry-batch-size}")
     private int batchSize;
 
 
-    @Scheduled(fixedDelayString = "${app.outbox.retry-interval-ms:30000}")
+    @Scheduled(fixedDelayString = "${app.outbox.retry-interval-ms}")
     @SchedulerLock(name = "outbox-retry", lockAtMostFor = "PT5M", lockAtLeastFor = "PT30S")
     @Transactional
     public void retryDueEvents() {

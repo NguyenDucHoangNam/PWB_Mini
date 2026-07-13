@@ -39,15 +39,15 @@ public class OtpServiceImpl implements OtpService {
 
     private final StringRedisTemplate redisTemplate;
 
-    @Value("${app.iam.otp.ttl-seconds:300}")
+    @Value("${app.iam.otp.ttl-seconds}")
     private long otpTtlSeconds;
-    @Value("${app.iam.otp.attempt-ttl-seconds:600}")
+    @Value("${app.iam.otp.attempt-ttl-seconds}")
     private long attemptTtlSeconds;
-    @Value("${app.iam.otp.lockout-ttl-seconds:900}")
+    @Value("${app.iam.otp.lockout-ttl-seconds}")
     private long lockoutTtlSeconds;
-    @Value("${app.iam.otp.resend-cooldown-seconds:60}")
+    @Value("${app.iam.otp.resend-cooldown-seconds}")
     private long resendCooldownSeconds;
-    @Value("${app.iam.otp.max-attempts:5}")
+    @Value("${app.iam.otp.max-attempts}")
     private int maxAttempts;
 
     private final DefaultRedisScript<List> verifyScript;
