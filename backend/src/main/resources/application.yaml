@@ -178,6 +178,10 @@ app:
         method: POST
         permits-per-window: 10
         window: 1m
+      - path-pattern: /api/v1/webrtc/config
+        method: GET
+        permits-per-window: 60
+        window: 1m
   security:
     jwt:
       access-token-ttl-seconds: 900
@@ -344,6 +348,14 @@ app:
     waiting-entry-max-age-seconds: 300
     temporary-token-ttl-seconds: 14400
     listener-role: LISTENER
+    webrtc:
+      stun-server: "stun:stun.l.google.com:19302"
+      turn-servers:
+        - "turn:turn.pwbmini.com:3478?transport=udp"
+        - "turn:turn.pwbmini.com:3478?transport=tcp"
+      turn-static-secret: ${TURN_STATIC_SECRET:}
+      credential-ttl-seconds: 86400
+      signalling-rate-limit-per-minute: 100
 
 mail:
   from: PWB Mini <noreply@pwb-mini.dev>

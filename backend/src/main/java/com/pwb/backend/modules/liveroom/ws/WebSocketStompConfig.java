@@ -16,6 +16,7 @@ public class WebSocketStompConfig implements WebSocketMessageBrokerConfigurer {
 
     private final LiveRoomProperties properties;
     private final StompAuthChannelInterceptor stompAuthChannelInterceptor;
+    private final SignallingRateLimitInterceptor signallingRateLimitInterceptor;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
@@ -38,6 +39,6 @@ public class WebSocketStompConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
-        registration.interceptors(stompAuthChannelInterceptor);
+        registration.interceptors(stompAuthChannelInterceptor, signallingRateLimitInterceptor);
     }
 }
