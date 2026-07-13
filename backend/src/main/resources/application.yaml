@@ -356,6 +356,16 @@ app:
       turn-static-secret: ${TURN_STATIC_SECRET:}
       credential-ttl-seconds: 86400
       signalling-rate-limit-per-minute: 100
+    chat:
+      text-rate-limit-per-minute: 30
+      reaction-rate-limit-per-minute: 120
+      max-text-length: 200
+      max-payload-bytes: 1024
+      allowed-emojis:
+        - "\uD83D\uDD25"
+        - "\uD83D\uDC4D"
+        - "\uD83D\uDC4F"
+        - "\uD83D\uDCAF"
 
 mail:
   from: PWB Mini <noreply@pwb-mini.dev>
