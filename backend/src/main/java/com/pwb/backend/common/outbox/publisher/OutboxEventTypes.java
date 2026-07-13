@@ -14,6 +14,9 @@ public final class OutboxEventTypes {
 
     public static final String AGGREGATE_USER = "User";
     public static final String AGGREGATE_DEMO_DISTRIBUTION = "demo_distribution";
+    public static final String AGGREGATE_LIVE_ROOM = "live_room";
+
+    public static final String ROOM_LIFECYCLE_ENDED = "ROOM_LIFECYCLE_ENDED";
 
     private OutboxEventTypes() {
     }

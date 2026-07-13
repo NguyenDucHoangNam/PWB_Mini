@@ -35,10 +35,16 @@ public class LiveRoomProperties {
     private int hostGracePeriodMinutes = 5;
 
     @Min(1)
+    private int emptyRoomGraceMinutes = 15;
+
+    @Min(1)
     private int orphanThresholdMinutes = 1;
 
     @NotBlank
     private String orphanScanCron = "0 */2 * * * *";
+
+    @NotBlank
+    private String lifecycleCleanupCron = "0 */1 * * * *";
 
     private boolean keyspaceListenerEnabled = false;
 

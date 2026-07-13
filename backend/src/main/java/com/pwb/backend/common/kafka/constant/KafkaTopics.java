@@ -13,6 +13,8 @@ public final class KafkaTopics {
 
     public static final String AUDIO_SHARE_EMAIL = "audio.share.email.v1";
 
+    public static final String LIVEROOM_LIFECYCLE = "liveroom.lifecycle.v1";
+
     private KafkaTopics() {
     }
 }

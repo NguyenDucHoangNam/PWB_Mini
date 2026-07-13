@@ -17,18 +17,24 @@ public class RedisMessagePublisher {
     private final StringRedisTemplate stringRedisTemplate;
 
     public void publishDelegationEvent(String payloadJson) {
+        publish(LiveRoomRedisKeys.DELEGATION_PUBSUB_CHANNEL, payloadJson);
+    }
+
+    public void publishRoomEviction(String payloadJson) {
+        publish(LiveRoomRedisKeys.ROOM_EVICTION_PUBSUB_CHANNEL, payloadJson);
+    }
+
+    private void publish(String channel, String payloadJson) {
         try {
             RedisConnectionFactory factory = stringRedisTemplate.getRequiredConnectionFactory();
             try (var connection = factory.getConnection()) {
                 long receivers = connection.publish(
-                        LiveRoomRedisKeys.DELEGATION_PUBSUB_CHANNEL.getBytes(StandardCharsets.UTF_8),
+                        channel.getBytes(StandardCharsets.UTF_8),
                         payloadJson.getBytes(StandardCharsets.UTF_8));
-                log.debug("REDIS_PUBSUB_PUBLISHED channel={} receivers={}",
-                        LiveRoomRedisKeys.DELEGATION_PUBSUB_CHANNEL, receivers);
+                log.debug("REDIS_PUBSUB_PUBLISHED channel={} receivers={}", channel, receivers);
             }
         } catch (Exception ex) {
-            log.warn("REDIS_PUBSUB_PUBLISH_FAILED channel={} reason={}",
-                    LiveRoomRedisKeys.DELEGATION_PUBSUB_CHANNEL, ex.getMessage());
+            log.warn("REDIS_PUBSUB_PUBLISH_FAILED channel={} reason={}", channel, ex.getMessage());
         }
     }
 }

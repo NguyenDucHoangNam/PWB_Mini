@@ -178,6 +178,10 @@ app:
         method: POST
         permits-per-window: 10
         window: 1m
+      - path-pattern: /api/v1/rooms/*/close
+        method: POST
+        permits-per-window: 5
+        window: 1m
       - path-pattern: /api/v1/webrtc/config
         method: GET
         permits-per-window: 60
@@ -336,8 +340,10 @@ app:
     phase1-ttl-seconds: 30
     phase2-ttl-seconds: 14400
     host-grace-period-minutes: 5
+    empty-room-grace-minutes: 15
     orphan-threshold-minutes: 1
     orphan-scan-cron: "0 */2 * * * *"
+    lifecycle-cleanup-cron: "0 */1 * * * *"
     keyspace-listener-enabled: false
     max-participants: 7
     handshake-timeout-seconds: 10

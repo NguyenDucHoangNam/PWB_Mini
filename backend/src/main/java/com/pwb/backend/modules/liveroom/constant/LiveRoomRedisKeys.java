@@ -7,6 +7,9 @@ public final class LiveRoomRedisKeys {
     public static final String HOST_DISCONNECT_KEY_PREFIX = "room:host_disconnect:";
     public static final String SESSION_ROOM_KEY_PREFIX = "room:ws_session:";
     public static final String ACTIVE_ROOM_ZSET_KEY = "room:active";
+    public static final String ACTIVE_ROOM_ZSET_KEY_V2 = "rooms:active:zset";
+    public static final String CLEANUP_TIMELINE_ZSET_KEY = "rooms:cleanup:timeline";
+    public static final String ROOM_EVICTION_PUBSUB_CHANNEL = "room-eviction-events";
 
     public static final String ROOM_WAITING_KEY_PREFIX = "room:waiting:";
     public static final String ROOM_WAITING_METADATA_KEY_PREFIX = "room:waiting_metadata:";

@@ -65,6 +65,14 @@ public class LiveRoomMembershipNotifier {
         }
     }
 
+    public void notifyRoomClosed(String roomCode, com.pwb.backend.modules.liveroom.dto.ws.RoomClosedMessage payload) {
+        try {
+            messagingTemplate.convertAndSend(String.format(PLAYBACK_TOPIC, roomCode), payload);
+        } catch (Exception ex) {
+            log.warn("WS_ROOM_CLOSED_BROADCAST_FAILED roomCode={} reason={}", roomCode, ex.getMessage());
+        }
+    }
+
     public void notifyDelegationChange(String roomCode, DelegationChangedMessage payload) {
         try {
             messagingTemplate.convertAndSend(String.format(PLAYBACK_TOPIC, roomCode), payload);

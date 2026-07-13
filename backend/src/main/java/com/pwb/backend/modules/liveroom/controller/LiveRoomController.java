@@ -44,6 +44,7 @@ import java.util.UUID;
 public class LiveRoomController {
 
     private static final String MSG_ROOM_CREATED = "LIVE_ROOM_CREATED";
+    private static final String MSG_ROOM_CLOSED = "LIVE_ROOM_CLOSED";
     private static final String MSG_JOIN_APPROVED = "JOIN_APPROVED";
     private static final String MSG_JOIN_WAITING = "JOIN_WAITING";
     private static final String MSG_WAITING_LIST_FETCHED = "WAITING_LIST_FETCHED";
@@ -165,6 +166,14 @@ public class LiveRoomController {
         UUID hostId = currentUserResolver.resolveUserId();
         controlDelegationService.setGlobalDelegation(roomCode, hostId, request.enabled());
         return ResponseEntity.ok(ApiResponse.success(message(MSG_DELEGATION_GLOBAL)));
+    }
+
+    @PostMapping("/{roomCode}/close")
+    @PreAuthorize("hasRole('USER_PRO')")
+    public ResponseEntity<ApiResponse<Void>> closeRoom(@PathVariable String roomCode) {
+        UUID hostId = currentUserResolver.resolveUserId();
+        roomLifecycleService.closeRoomByHost(roomCode, hostId);
+        return ResponseEntity.ok(ApiResponse.success(message(MSG_ROOM_CLOSED)));
     }
 
     private String message(String key, Object... args) {

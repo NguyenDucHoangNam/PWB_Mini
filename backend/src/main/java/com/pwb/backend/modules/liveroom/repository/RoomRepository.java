@@ -16,6 +16,8 @@ public interface RoomRepository extends JpaRepository<Room, UUID> {
 
     Optional<Room> findByRoomCodeAndStatus(String roomCode, RoomStatus status);
 
+    Optional<Room> findByRoomCode(String roomCode);
+
     Optional<Room> findFirstByHostIdAndStatusOrderByCreatedAtDesc(UUID hostId, RoomStatus status);
 
     List<Room> findByStatusAndCreatedAtBefore(RoomStatus status, Instant threshold, Pageable pageable);

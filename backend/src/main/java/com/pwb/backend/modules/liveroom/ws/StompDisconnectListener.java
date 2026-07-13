@@ -5,6 +5,7 @@ import com.pwb.backend.modules.liveroom.constant.LiveRoomRedisKeys;
 import com.pwb.backend.modules.liveroom.dto.ws.JoinResultMessage;
 import com.pwb.backend.modules.liveroom.dto.ws.MembersSnapshotMessage;
 import com.pwb.backend.modules.liveroom.dto.ws.WaitingRequestNotification;
+import com.pwb.backend.modules.liveroom.enums.RoomStatus;
 import com.pwb.backend.modules.liveroom.service.LiveRoomLuaScripts;
 import com.pwb.backend.modules.liveroom.service.LiveRoomMembershipNotifier;
 import com.pwb.backend.modules.liveroom.service.RoomLifecycleService;
@@ -34,6 +35,7 @@ public class StompDisconnectListener {
     private final LiveRoomLuaScripts luaScripts;
     private final LiveRoomMembershipNotifier notifier;
     private final ObjectMapper objectMapper;
+    private final LocalRoomSessionRegistry localRoomSessionRegistry;
 
     @EventListener
     public void onDisconnect(SessionDisconnectEvent event) {
@@ -52,8 +54,8 @@ public class StompDisconnectListener {
             if (meta != null && meta.contains("role=" + ROLE_LISTENER)
                     && roomCode != null && listenerIdStr != null) {
                 handleListenerDisconnect(roomCode, listenerIdStr);
-            } else {
-                roomLifecycleService.markHostDisconnected(sessionId);
+            } else if (roomCode != null) {
+                localRoomSessionRegistry.unbind(roomCode, null);
             }
         } catch (Exception ex) {
             log.warn("WS_SESSION_DISCONNECT_FAILED sessionId={} reason={}", sessionId, ex.getMessage());
@@ -93,6 +95,29 @@ public class StompDisconnectListener {
         notifier.notifyHostWaitingListChange(roomCode,
                 new WaitingRequestNotification(listenerId, null, Instant.now(), "DISCONNECTED"));
         broadcastMembersSnapshot(roomCode);
+        localRoomSessionRegistry.unbind(roomCode, listenerId);
+        maybeScheduleEmptyCleanup(roomCode);
+    }
+
+    private void maybeScheduleEmptyCleanup(String roomCode) {
+        try {
+            Map<Object, Object> statusHash = stringRedisTemplate.opsForHash()
+                    .entries(LiveRoomRedisKeys.roomStatusKey(roomCode));
+            if (statusHash.isEmpty()) {
+                return;
+            }
+            Object statusObj = statusHash.get("status");
+            if (statusObj == null || RoomStatus.CLOSED.name().equals(statusObj.toString())) {
+                return;
+            }
+            Object currentObj = statusHash.get("currentParticipants");
+            int current = parseInt(currentObj);
+            if (current <= 0) {
+                roomLifecycleService.scheduleEmptyRoomCleanup(roomCode);
+            }
+        } catch (Exception ex) {
+            log.warn("EMPTY_CLEANUP_SCHEDULE_FAILED roomCode={} reason={}", roomCode, ex.getMessage());
+        }
     }
 
     private void broadcastMembersSnapshot(String roomCode) {

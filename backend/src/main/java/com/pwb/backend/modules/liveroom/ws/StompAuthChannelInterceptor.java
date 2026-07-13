@@ -6,8 +6,8 @@ import com.pwb.backend.common.security.jwt.JwtTypes;
 import com.pwb.backend.modules.liveroom.config.LiveRoomProperties;
 import com.pwb.backend.modules.liveroom.constant.LiveRoomRedisKeys;
 import com.pwb.backend.modules.liveroom.service.RoomLifecycleService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -17,13 +17,11 @@ import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.stereotype.Component;
-
 import java.time.Duration;
 import java.util.UUID;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
     private static final String DESTINATION_PREFIX = "/topic/rooms/";
@@ -39,6 +37,21 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
     private final RoomLifecycleService roomLifecycleService;
     private final LiveRoomProperties properties;
     private final StringRedisTemplate stringRedisTemplate;
+    private final LocalRoomSessionRegistry localRoomSessionRegistry;
+
+    public StompAuthChannelInterceptor(JwtSigner jwtSigner,
+                                       BearerTokenExtractor bearerTokenExtractor,
+                                       @Lazy RoomLifecycleService roomLifecycleService,
+                                       LiveRoomProperties properties,
+                                       StringRedisTemplate stringRedisTemplate,
+                                       LocalRoomSessionRegistry localRoomSessionRegistry) {
+        this.jwtSigner = jwtSigner;
+        this.bearerTokenExtractor = bearerTokenExtractor;
+        this.roomLifecycleService = roomLifecycleService;
+        this.properties = properties;
+        this.stringRedisTemplate = stringRedisTemplate;
+        this.localRoomSessionRegistry = localRoomSessionRegistry;
+    }
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -88,6 +101,9 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
             } else {
                 log.warn("WS_CONNECT_UNKNOWN_ROLE role={} userId={}", role, user.userId());
             }
+            if (roomCode != null && !roomCode.isBlank()) {
+                registerLocalRoomSession(accessor, roomCode);
+            }
         } catch (io.jsonwebtoken.JwtException | IllegalArgumentException ex) {
             log.warn("WS_CONNECT_REJECTED reason=invalid_token sessionId={} error={}",
                     accessor.getSessionId(), ex.getMessage());
@@ -102,6 +118,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         if (roomCode != null && !roomCode.isBlank()) {
             try {
                 roomLifecycleService.activateRoomPhase2(roomCode);
+                roomLifecycleService.markHostActive(roomCode);
             } catch (Exception ex) {
                 log.warn("WS_CONNECT_PHASE2_FAILED roomCode={} reason={}", roomCode, ex.getMessage());
             }
@@ -117,6 +134,13 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         }
         if (roomCode == null || roomCode.isBlank()) {
             log.warn("WS_CONNECT_LISTENER_NO_ROOM_CODE userId={} sessionId={}", userId, sessionId);
+        } else {
+            try {
+                roomLifecycleService.cancelEmptyRoomCleanup(roomCode);
+            } catch (Exception ex) {
+                log.warn("WS_CONNECT_LISTENER_CANCEL_CLEANUP_FAILED roomCode={} reason={}",
+                        roomCode, ex.getMessage());
+            }
         }
         writeSessionMeta(sessionId, userId.toString(), roomCode, ROLE_LISTENER);
         stringRedisTemplate.opsForValue().set(
@@ -164,6 +188,38 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
             stringRedisTemplate.delete(LiveRoomRedisKeys.sessionListenerMetaKey(sessionId));
             stringRedisTemplate.delete(LiveRoomRedisKeys.sessionListenerKey(sessionId));
         }
+    }
+
+    private void registerLocalRoomSession(StompHeaderAccessor accessor, String roomCode) {
+        if (accessor.getSessionAttributes() == null) {
+            return;
+        }
+        accessor.getSessionAttributes().put(LocalRoomSessionRegistry.ROOM_ATTR, roomCode);
+        try {
+            UUID userId = resolveUserId(accessor);
+            if (userId != null) {
+                accessor.getSessionAttributes().put(LocalRoomSessionRegistry.USER_ATTR, userId.toString());
+                localRoomSessionRegistry.bind(roomCode, userId, accessor.getSessionId());
+                if (!ROLE_LISTENER.equals(currentRole(accessor))) {
+                    roomLifecycleService.markHostActive(roomCode);
+                } else {
+                    roomLifecycleService.cancelEmptyRoomCleanup(roomCode);
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("LOCAL_SESSION_BIND_FAILED roomCode={} reason={}", roomCode, ex.getMessage());
+        }
+    }
+
+    private String currentRole(StompHeaderAccessor accessor) {
+        if (accessor.getSessionAttributes() == null) {
+            return null;
+        }
+        Object meta = accessor.getSessionAttributes().get(SESSION_ATTR_IS_CONTROLLER);
+        if (meta == null) {
+            return null;
+        }
+        return Boolean.TRUE.equals(meta) ? ROLE_USER_PRO : ROLE_LISTENER;
     }
 
     UUID resolveUserId(StompHeaderAccessor accessor) {

@@ -69,7 +69,15 @@ public enum LiveRoomErrorCode implements ErrorCode {
 
     DELEGATION_FORBIDDEN_NOT_HOST("DELEGATION_FORBIDDEN_NOT_HOST",
             "Only the room host can delegate control",
-            HttpStatus.FORBIDDEN);
+            HttpStatus.FORBIDDEN),
+
+    ROOM_LIFECYCLE_NOT_ACTIVE("ROOM_LIFECYCLE_NOT_ACTIVE",
+            "Room is not in an active lifecycle state",
+            HttpStatus.CONFLICT),
+
+    ROOM_LIFECYCLE_ALREADY_CLOSED("ROOM_LIFECYCLE_ALREADY_CLOSED",
+            "Room has already been closed",
+            HttpStatus.CONFLICT);
 
     private final String code;
     private final String defaultMessage;

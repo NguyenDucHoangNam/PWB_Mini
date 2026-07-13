@@ -25,6 +25,9 @@ public class OutboxEventTopics {
                 || OutboxEventTypes.SEND_REVOKE_NOTICE.equals(eventType)) {
             return KafkaTopics.AUDIO_SHARE_EMAIL;
         }
+        if (OutboxEventTypes.ROOM_LIFECYCLE_ENDED.equals(eventType)) {
+            return KafkaTopics.LIVEROOM_LIFECYCLE;
+        }
         throw new IllegalArgumentException("Unknown outbox eventType: " + eventType);
     }
 }
