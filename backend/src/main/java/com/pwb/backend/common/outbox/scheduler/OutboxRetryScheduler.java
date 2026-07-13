@@ -1,11 +1,11 @@
 package com.pwb.backend.common.outbox.scheduler;
 
+import com.pwb.backend.common.outbox.enums.OutboxStatus;
 import com.pwb.backend.common.outbox.publisher.OutboxEventSerializer;
 import com.pwb.backend.common.outbox.publisher.OutboxEventTypes;
 
 import com.pwb.backend.common.kafka.constant.KafkaTopics;
 import com.pwb.backend.common.model.OutboxEvent;
-import com.pwb.backend.common.enums.OutboxStatus;
 import com.pwb.backend.common.repository.OutboxEventRepository;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import lombok.RequiredArgsConstructor;

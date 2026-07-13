@@ -1,25 +1,30 @@
 spring:
   application:
     name: pwb-backend
-  profiles:
-    active: ${SPRING_PROFILES_ACTIVE}
-  data:
-    redis:
-      host: ${SPRING_DATA_REDIS_HOST}
-      port: ${SPRING_DATA_REDIS_PORT}
-      password: ${SPRING_DATA_REDIS_PASSWORD}
-  mail:
-    host: ${MAIL_HOST}
-    port: ${MAIL_PORT}
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
   jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
     properties:
       hibernate:
         jdbc:
+          time_zone: UTC
           batch_size: 50
         order_inserts: true
         order_updates: true
+        format_sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  kafka:
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
 
 app:
   rate-limit:
@@ -192,6 +197,8 @@ app:
         permits-per-window: 60
         window: 1m
   security:
+    actuator:
+      public: false
     jwt:
       access-token-ttl-seconds: 900
       refresh-token-ttl-seconds: 604800
@@ -205,8 +212,8 @@ app:
     outbox:
       encryption-key: ${IAM_OUTBOX_ENCRYPTION_KEY:}
     trusted-proxies:
-      trust-forwarded-headers: ${APP_SECURITY_TRUSTED_PROXIES_TRUST_FORWARDED_HEADERS}
-      cidrs: ${APP_SECURITY_TRUSTED_PROXIES_CIDRS}
+      trust-forwarded-headers: false
+      cidrs: ""
     cookie:
       secure: false
       samesite: Strict
@@ -215,12 +222,12 @@ app:
         client-id: ${GOOGLE_CLIENT_ID:}
     captcha:
       turnstile:
-        enabled: ${APP_SECURITY_CAPTCHA_TURNSTILE_ENABLED}
-        secret-key: ${APP_SECURITY_CAPTCHA_TURNSTILE_SECRET_KEY}
-        verify-url: ${APP_SECURITY_CAPTCHA_TURNSTILE_VERIFY_URL}
+        enabled: false
+        secret-key: ${APP_SECURITY_CAPTCHA_TURNSTILE_SECRET_KEY:}
+        verify-url: https://challenges.cloudflare.com/turnstile/v0/siteverify
         timeout-millis: 3000
-        fail-open: ${APP_SECURITY_CAPTCHA_TURNSTILE_FAIL_OPEN}
-        site-key: ${APP_SECURITY_CAPTCHA_TURNSTILE_SITE_KEY}
+        fail-open: true
+        site-key: ""
   login:
     max-concurrent-sessions: 3
     max-failed-attempts: 5
@@ -229,6 +236,9 @@ app:
     ip-max-failed-attempts: 20
     ip-attempt-window-seconds: 300
     ip-lockout-seconds: 900
+  kafka:
+    partitions: 3
+    replicas: 1
   outbox:
     retry-interval-ms: 30000
     max-attempts: 10
@@ -262,24 +272,24 @@ app:
     enabled: true
     provider: s3
     endpoint: ${STORAGE_ENDPOINT:}
-    region: ${STORAGE_REGION}
+    region: ap-southeast-1
     access-key: ${STORAGE_ACCESS_KEY:}
     secret-key: ${STORAGE_SECRET_KEY:}
     path-style-access-enabled: true
     public-base-url: ${STORAGE_PUBLIC_URL_PREFIX:}
     presigned-url-expiry-seconds: 900
     buckets:
-      avatar: ${STORAGE_BUCKET_AVATAR}
-      demo-audio: ${STORAGE_BUCKET_DEMO_AUDIO}
-      cover-image: ${STORAGE_BUCKET_COVER_IMAGE}
-      generic: ${STORAGE_BUCKET_GENERIC}
-      voice-tag: ${STORAGE_BUCKET_VOICE_TAG}
+      avatar: pwb-avatars
+      demo-audio: pwb-demo-audio
+      cover-image: pwb-covers
+      generic: pwb-misc
+      voice-tag: pwb-voice-tags
   audio:
-    temp-dir: ${AUDIO_TEMP_DIR}
-    ffmpeg-path: ${FFMPEG_PATH}
-    ffprobe-path: ${FFPROBE_PATH}
+    temp-dir: /tmp/pwb-audio
+    ffmpeg-path: ffmpeg
+    ffprobe-path: ffprobe
     max-file-size-bytes: 209715200
-    worker-concurrency: ${AUDIO_CONCURRENCY}
+    worker-concurrency: 2
     waveform-peaks: 200
     hls-segment-seconds: 6
     stream:
@@ -379,8 +389,8 @@ app:
         - "\uD83D\uDCAF"
 
 mail:
-  from: ${MAIL_FROM}
-  security-from: ${MAIL_SECURITY_FROM}
+  from: "PWB Mini <noreply@pwb-mini.dev>"
+  security-from: "PWB Mini Security <security@pwb-mini.dev>"
 
 spring.servlet.multipart:
   enabled: true

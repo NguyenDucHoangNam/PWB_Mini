@@ -1,4 +1,4 @@
-package com.pwb.backend.common.enums;
+package com.pwb.backend.common.outbox.enums;
 
 public enum OutboxStatus {
     PENDING,

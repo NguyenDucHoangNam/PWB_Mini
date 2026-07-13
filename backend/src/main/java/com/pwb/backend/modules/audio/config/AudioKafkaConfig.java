@@ -30,12 +30,10 @@ public class AudioKafkaConfig {
     private static final int MAX_RETRIES = 2;
 
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private final AudioProperties audioProperties;
 
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
-
-    @Value("${app.audio.worker.concurrency}")
-    private int workerConcurrency;
 
     @Bean
     public ConsumerFactory<String, String> audioProcessingConsumerFactory() {
@@ -53,7 +51,7 @@ public class AudioKafkaConfig {
     public ConcurrentKafkaListenerContainerFactory<String, String> audioProcessingKafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(audioProcessingConsumerFactory());
-        factory.setConcurrency(workerConcurrency);
+        factory.setConcurrency(audioProperties.getWorkerConcurrency());
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
 
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(

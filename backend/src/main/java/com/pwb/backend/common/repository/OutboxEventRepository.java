@@ -1,7 +1,8 @@
 package com.pwb.backend.common.repository;
 
 import com.pwb.backend.common.model.OutboxEvent;
-import com.pwb.backend.common.enums.OutboxStatus;
+import com.pwb.backend.common.outbox.enums.OutboxStatus;
+
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

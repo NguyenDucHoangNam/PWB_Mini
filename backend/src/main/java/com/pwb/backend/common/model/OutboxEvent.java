@@ -1,6 +1,5 @@
 package com.pwb.backend.common.model;
 
-import com.pwb.backend.common.enums.OutboxStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -15,6 +14,8 @@ import lombok.Setter;
 
 import java.time.Instant;
 import java.util.UUID;
+
+import com.pwb.backend.common.outbox.enums.OutboxStatus;
 
 @Entity
 @Table(name = "outbox_events")
