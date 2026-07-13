@@ -1,5 +1,6 @@
 package com.pwb.backend.modules.liveroom.service;
 
+import com.pwb.backend.modules.liveroom.dto.ws.DelegationChangedMessage;
 import com.pwb.backend.modules.liveroom.dto.ws.JoinResultMessage;
 import com.pwb.backend.modules.liveroom.dto.ws.MembersSnapshotMessage;
 import com.pwb.backend.modules.liveroom.dto.ws.PlaybackChangeMessage;
@@ -61,6 +62,14 @@ public class LiveRoomMembershipNotifier {
             messagingTemplate.convertAndSend(String.format(PLAYBACK_TOPIC, roomCode), payload);
         } catch (Exception ex) {
             log.warn("WS_PLAYBACK_UPDATE_BROADCAST_FAILED roomCode={} reason={}", roomCode, ex.getMessage());
+        }
+    }
+
+    public void notifyDelegationChange(String roomCode, DelegationChangedMessage payload) {
+        try {
+            messagingTemplate.convertAndSend(String.format(PLAYBACK_TOPIC, roomCode), payload);
+        } catch (Exception ex) {
+            log.warn("WS_DELEGATION_BROADCAST_FAILED roomCode={} reason={}", roomCode, ex.getMessage());
         }
     }
 }

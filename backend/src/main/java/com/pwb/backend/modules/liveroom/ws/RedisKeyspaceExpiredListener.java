@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.listener.PatternTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 
@@ -24,6 +25,7 @@ public class RedisKeyspaceExpiredListener implements MessageListener {
 
     private final RedisConnectionFactory connectionFactory;
     private final RoomLifecycleService roomLifecycleService;
+    private final StringRedisTemplate stringRedisTemplate;
 
     private RedisMessageListenerContainer container;
 
@@ -56,6 +58,12 @@ public class RedisKeyspaceExpiredListener implements MessageListener {
         }
         try {
             roomLifecycleService.closeRoom(roomCode);
+            try {
+                stringRedisTemplate.delete(LiveRoomRedisKeys.roomDelegatedKey(roomCode));
+            } catch (Exception ex) {
+                log.warn("ROOM_AUTO_CLOSE_DELEGATED_KEY_DELETE_FAILED roomCode={} reason={}",
+                        roomCode, ex.getMessage());
+            }
             log.info("ROOM_AUTO_CLOSED_KEYSPACE roomCode={} reason=ttl_expired", roomCode);
         } catch (Exception ex) {
             log.warn("ROOM_AUTO_CLOSE_FAILED roomCode={} reason={}", roomCode, ex.getMessage());

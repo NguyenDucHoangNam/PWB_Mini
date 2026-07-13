@@ -8,12 +8,15 @@ import com.pwb.backend.modules.iam.model.User;
 import com.pwb.backend.modules.iam.repository.UserRepository;
 import com.pwb.backend.modules.liveroom.dto.request.ApproveRejectRequest;
 import com.pwb.backend.modules.liveroom.dto.request.CreateRoomRequest;
+import com.pwb.backend.modules.liveroom.dto.request.DelegateControlRequest;
+import com.pwb.backend.modules.liveroom.dto.request.GlobalDelegationRequest;
 import com.pwb.backend.modules.liveroom.dto.request.JoinRoomRequest;
 import com.pwb.backend.modules.liveroom.dto.request.SelectSourceRequest;
 import com.pwb.backend.modules.liveroom.dto.response.CreateRoomResponse;
 import com.pwb.backend.modules.liveroom.dto.response.JoinRoomResponse;
 import com.pwb.backend.modules.liveroom.dto.response.PlaybackStateResponse;
 import com.pwb.backend.modules.liveroom.dto.response.WaitingListResponse;
+import com.pwb.backend.modules.liveroom.service.ControlDelegationService;
 import com.pwb.backend.modules.liveroom.service.ListenerJoinService;
 import com.pwb.backend.modules.liveroom.service.PlaybackService;
 import com.pwb.backend.modules.liveroom.service.PlaybackSyncService;
@@ -49,12 +52,16 @@ public class LiveRoomController {
     private static final String MSG_LISTENER_KICKED = "LISTENER_KICKED";
     private static final String MSG_SOURCE_SELECTED = "SOURCE_SELECTED";
     private static final String MSG_PLAYBACK_GET = "PLAYBACK_GET_OK";
+    private static final String MSG_DELEGATION_GRANTED = "DELEGATION_GRANTED_OK";
+    private static final String MSG_DELEGATION_REVOKED = "DELEGATION_REVOKED_OK";
+    private static final String MSG_DELEGATION_GLOBAL = "DELEGATION_GLOBAL_OK";
 
     private final RoomLifecycleService roomLifecycleService;
     private final ListenerJoinService listenerJoinService;
     private final WaitingListService waitingListService;
     private final PlaybackService playbackService;
     private final PlaybackSyncService playbackSyncService;
+    private final ControlDelegationService controlDelegationService;
     private final CurrentUserResolver currentUserResolver;
     private final UserRepository userRepository;
     private final MessageSource messageSource;
@@ -137,6 +144,27 @@ public class LiveRoomController {
     public ResponseEntity<ApiResponse<PlaybackStateResponse>> getPlayback(@PathVariable String roomCode) {
         PlaybackStateResponse data = playbackSyncService.getPlaybackState(roomCode);
         return ResponseEntity.ok(ApiResponse.success(message(MSG_PLAYBACK_GET), data));
+    }
+
+    @PostMapping("/{roomCode}/delegation")
+    @PreAuthorize("hasRole('USER_PRO')")
+    public ResponseEntity<ApiResponse<Void>> delegateControl(
+            @PathVariable String roomCode,
+            @Valid @RequestBody DelegateControlRequest request) {
+        UUID hostId = currentUserResolver.resolveUserId();
+        controlDelegationService.delegateControl(roomCode, hostId, request.listenerId(), request.action());
+        String msgKey = "GRANT".equalsIgnoreCase(request.action()) ? MSG_DELEGATION_GRANTED : MSG_DELEGATION_REVOKED;
+        return ResponseEntity.ok(ApiResponse.success(message(msgKey)));
+    }
+
+    @PostMapping("/{roomCode}/delegation/global")
+    @PreAuthorize("hasRole('USER_PRO')")
+    public ResponseEntity<ApiResponse<Void>> setGlobalDelegation(
+            @PathVariable String roomCode,
+            @Valid @RequestBody GlobalDelegationRequest request) {
+        UUID hostId = currentUserResolver.resolveUserId();
+        controlDelegationService.setGlobalDelegation(roomCode, hostId, request.enabled());
+        return ResponseEntity.ok(ApiResponse.success(message(MSG_DELEGATION_GLOBAL)));
     }
 
     private String message(String key, Object... args) {

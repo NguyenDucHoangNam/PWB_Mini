@@ -145,6 +145,8 @@ public class WaitingListServiceImpl implements WaitingListService {
             log.warn("KICK_NOT_A_MEMBER roomCode={} listenerId={}", roomCode, listenerId);
             throw new BusinessException(LiveRoomErrorCode.LISTENER_NOT_A_MEMBER);
         }
+        stringRedisTemplate.opsForSet().remove(
+                LiveRoomRedisKeys.roomDelegatedKey(roomCode), listenerId.toString());
         log.info("LISTENER_KICKED roomCode={} listenerId={} hostId={}", roomCode, listenerId, hostId);
         notifier.notifyJoinResult(listenerId,
                 new JoinResultMessage("KICKED", roomCode, Instant.now()));

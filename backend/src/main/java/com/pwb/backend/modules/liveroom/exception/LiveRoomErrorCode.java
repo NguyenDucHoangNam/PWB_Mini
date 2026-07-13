@@ -65,7 +65,11 @@ public enum LiveRoomErrorCode implements ErrorCode {
 
     PLAYBACK_SEEK_OUT_OF_BOUNDS("PLAYBACK_SEEK_OUT_OF_BOUNDS",
             "currentTime is outside [0, duration]",
-            HttpStatus.BAD_REQUEST);
+            HttpStatus.BAD_REQUEST),
+
+    DELEGATION_FORBIDDEN_NOT_HOST("DELEGATION_FORBIDDEN_NOT_HOST",
+            "Only the room host can delegate control",
+            HttpStatus.FORBIDDEN);
 
     private final String code;
     private final String defaultMessage;

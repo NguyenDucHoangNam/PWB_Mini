@@ -167,6 +167,7 @@ public class RoomLifecycleServiceImpl implements RoomLifecycleService {
         roomRepository.save(room);
         stringRedisTemplate.delete(LiveRoomRedisKeys.roomStatusKey(roomCode));
         stringRedisTemplate.delete(LiveRoomRedisKeys.hostDisconnectKey(roomCode));
+        stringRedisTemplate.delete(LiveRoomRedisKeys.roomDelegatedKey(roomCode));
         stringRedisTemplate.opsForZSet().remove(LiveRoomRedisKeys.ACTIVE_ROOM_ZSET_KEY, roomCode);
         log.info("ROOM_CLOSED roomCode={} hostId={} closedAt={}", roomCode, room.getHostId(), now);
     }
