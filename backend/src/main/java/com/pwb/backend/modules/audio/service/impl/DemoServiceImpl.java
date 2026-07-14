@@ -25,7 +25,6 @@ import com.pwb.backend.modules.audio.service.DemoService;
 import com.pwb.backend.modules.audio.service.UploadClaimService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -195,7 +194,6 @@ public class DemoServiceImpl implements DemoService {
     }
 
     private String currentRequestId() {
-        String requestId = MDC.get("requestId");
-        return requestId != null && !requestId.isBlank() ? requestId : UUID.randomUUID().toString();
+        return UUID.randomUUID().toString();
     }
 }
