@@ -87,7 +87,10 @@
       "googleInitFailed": "Không thể khởi tạo Google Sign-In. Vui lòng thử lại.",
       "oauthLinkTitle": "Nhập mật khẩu để liên kết {email}",
       "oauthLinkDesc": "Đã tồn tại tài khoản với email này. Nhập mật khẩu hiện tại để liên kết Google.",
-      "cancel": "Hủy bỏ"
+      "cancel": "Hủy bỏ",
+      "captchaRequired": "Bạn đã thử quá nhiều lần. Vui lòng hoàn thành xác minh CAPTCHA.",
+      "captchaInvalid": "Xác minh CAPTCHA thất bại. Vui lòng thử lại.",
+      "captchaServiceUnavailable": "Dịch vụ CAPTCHA tạm thời không khả dụng. Vui lòng thử lại sau."
     },
     "register": {
       "title": "ĐĂNG KÝ",

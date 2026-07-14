@@ -26,9 +26,11 @@ import {
 import { toast } from "sonner";
 import { getTurnstileSiteKey } from "@/lib/config";
 
-const LOCKOUT_DURATION_FALLBACK = 15 * 60; // 15 minutes - fallback if BE omits Retry-After
+const LOCKOUT_DURATION_FALLBACK = 15 * 60;
 const STORAGE_KEY_USERNAME = "login_username";
 const STORAGE_KEY_REMEMBER = "login_remember";
+
+type CaptchaErrorCode = "CAPTCHA_MISSING" | "CAPTCHA_INVALID" | "CAPTCHA_SERVICE_UNAVAILABLE";
 
 declare global {
   interface Window {
@@ -94,6 +96,8 @@ export function LoginForm() {
   const [oauthLinkEmail, setOauthLinkEmail] = useState("");
   const [oauthLinkPassword, setOauthLinkPassword] = useState("");
   const [pendingGoogleIdToken, setPendingGoogleIdToken] = useState<string | null>(null);
+  const [captchaRequired, setCaptchaRequired] = useState(false);
+  const [captchaError, setCaptchaError] = useState<string | null>(null);
 
   // Capture ?returnTo= so we can send the user back after login.
   useCaptureReturnTo();
@@ -184,10 +188,35 @@ export function LoginForm() {
     [t, handleAuthSuccess],
   );
 
+  const resetCaptchaState = useCallback(() => {
+    setCaptchaRequired(false);
+    setCaptchaError(null);
+    setCaptchaToken(null);
+  }, []);
+
+  const handleCaptchaChallenge = useCallback(
+    (code: CaptchaErrorCode) => {
+      setCaptchaRequired(true);
+      setError(null);
+      if (code === "CAPTCHA_MISSING") {
+        setCaptchaError(t("captchaRequired"));
+      } else if (code === "CAPTCHA_INVALID") {
+        setCaptchaError(t("captchaInvalid"));
+      } else {
+        setCaptchaError(t("captchaServiceUnavailable"));
+      }
+    },
+    [t],
+  );
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!usernameOrEmail || !password) {
       setError(t("fillAll"));
+      return;
+    }
+    if (captchaRequired && !captchaToken) {
+      setError(t("captchaRequired"));
       return;
     }
 
@@ -200,29 +229,47 @@ export function LoginForm() {
       {
         onSuccess: (response) => {
           if (!handleLoginResponse(response)) {
+            resetCaptchaState();
             setError(response.message || t("errorToast"));
+          } else {
+            resetCaptchaState();
           }
         },
         onError: asApiError<ApiError>((err) => {
           const apiError = err?.errors?.[0];
           const errorCode = apiError?.code;
 
-          if (errorCode === "BAD_CREDENTIALS") {
+          if (errorCode === "CAPTCHA_MISSING" || errorCode === "CAPTCHA_INVALID" || errorCode === "CAPTCHA_SERVICE_UNAVAILABLE") {
+            const messageKey =
+              errorCode === "CAPTCHA_MISSING"
+                ? "captchaRequired"
+                : errorCode === "CAPTCHA_INVALID"
+                  ? "captchaInvalid"
+                  : "captchaServiceUnavailable";
+            handleCaptchaChallenge(errorCode);
+            toast.error(t(messageKey));
+          } else if (errorCode === "BAD_CREDENTIALS") {
             setError(t("incorrectCredentials"));
+            toast.error(t("incorrectCredentials"));
           } else if (errorCode === "ACCOUNT_TEMPORARILY_LOCKED") {
             setError(t("accountLocked"));
+            toast.error(t("accountLocked"));
             const retrySeconds = parseRetryAfter(err?.headers);
             setLockoutRemaining(retrySeconds > 0 ? retrySeconds : LOCKOUT_DURATION_FALLBACK);
+            resetCaptchaState();
           } else if (errorCode === "RATE_LIMIT_EXCEEDED") {
             const retrySeconds = parseRetryAfter(err?.headers);
             setLockoutRemaining(retrySeconds > 0 ? retrySeconds : LOCKOUT_DURATION_FALLBACK);
             setError(t("accountLocked"));
+            toast.error(t("accountLocked"));
+            resetCaptchaState();
           } else if (errorCode === "ACCOUNT_BANNED") {
             setError(t("accountBanned"));
+            toast.error(t("accountBanned"));
           } else {
             setError(err?.message || t("errorToast"));
+            toast.error(t("errorToast"));
           }
-          toast.error(t("errorToast"));
         }),
       },
     );
@@ -332,7 +379,6 @@ export function LoginForm() {
         </div>
       )}
 
-      {/* Username or Email Input */}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="usernameOrEmail">{t("usernameLabel")}</Label>
         <Input
@@ -350,7 +396,6 @@ export function LoginForm() {
         />
       </div>
 
-      {/* Password Input */}
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
           <Label htmlFor="password">{t("passwordLabel")}</Label>
@@ -376,7 +421,6 @@ export function LoginForm() {
         />
       </div>
 
-      {/* Remember Me - username only, not session */}
       <div className="flex items-center gap-2">
         <Checkbox
           id="rememberMe"
@@ -402,17 +446,27 @@ export function LoginForm() {
         </Label>
       </div>
 
-      {/* Captcha Widget */}
-      {turnstileSiteKey && (
+      {captchaError && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="rounded-lg bg-amber-50 p-3 text-xs font-semibold text-amber-700 dark:bg-amber-950/20 dark:text-amber-300 border border-amber-100/50 dark:border-amber-950/30"
+        >
+          <p>{captchaError}</p>
+        </div>
+      )}
+
+      {turnstileSiteKey && captchaRequired && (
         <CaptchaWidget siteKey={turnstileSiteKey} onTokenChange={setCaptchaToken} />
       )}
 
-      {/* Submit Button */}
       <Button
         type="submit"
         variant="default"
         size="lg"
-        disabled={isPending || lockoutRemaining > 0}
+        disabled={
+          isPending || lockoutRemaining > 0 || (captchaRequired && !captchaToken)
+        }
         className="w-full justify-center h-10 font-bold"
         tabIndex={4}
       >

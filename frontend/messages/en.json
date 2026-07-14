@@ -87,7 +87,10 @@
       "googleInitFailed": "Google Sign-In could not be initialized. Please try again.",
       "oauthLinkTitle": "Confirm password to link {email}",
       "oauthLinkDesc": "An account already exists with this email. Enter your existing password to link Google login.",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "captchaRequired": "Too many failed attempts. Please complete the CAPTCHA verification.",
+      "captchaInvalid": "CAPTCHA verification failed. Please try again.",
+      "captchaServiceUnavailable": "CAPTCHA service is temporarily unavailable. Please try again later."
     },
     "register": {
       "title": "REGISTER",
