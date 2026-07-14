@@ -24,6 +24,8 @@ import com.pwb.backend.modules.audio.service.AesKeyRotationService;
 import com.pwb.backend.modules.audio.service.DemoQuotaService;
 import com.pwb.backend.modules.audio.service.DemoService;
 import com.pwb.backend.modules.audio.service.UploadClaimService;
+import com.pwb.backend.modules.voice_tag.entity.VoiceTag;
+import com.pwb.backend.modules.voice_tag.repository.VoiceTagRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -54,6 +56,7 @@ public class DemoServiceImpl implements DemoService {
     private final AudioProcessingEventPublisher audioProcessingEventPublisher;
     private final AudioProperties audioProperties;
     private final AesKeyRotationService aesKeyRotationService;
+    private final VoiceTagRepository voiceTagRepository;
 
     @Override
     @Transactional
@@ -139,6 +142,7 @@ public class DemoServiceImpl implements DemoService {
         UUID demoId = UUID.randomUUID();
         Demo demo = new Demo(demoId, ownerId, request.title().trim(), request.s3Key(),
                 metadata.sizeBytes(), request.voiceTagId());
+        attachVoiceTagSnapshotIfPresent(demo, request.voiceTagId(), ownerId);
         demoRepository.save(demo);
 
         AudioProcessingJob job = new AudioProcessingJob(UUID.randomUUID(), demoId);
@@ -205,5 +209,26 @@ public class DemoServiceImpl implements DemoService {
 
     private String currentRequestId() {
         return UUID.randomUUID().toString();
+    }
+
+    private void attachVoiceTagSnapshotIfPresent(Demo demo, UUID voiceTagId, UUID ownerId) {
+        if (voiceTagId == null) {
+            return;
+        }
+        VoiceTag tag = voiceTagRepository.findById(voiceTagId)
+                .orElseThrow(() -> new BusinessException(AudioErrorCode.VOICE_TAG_FORBIDDEN,
+                        "voiceTagId " + voiceTagId + " is not accessible"));
+        if (!tag.getOwnerId().equals(ownerId)) {
+            log.warn("VOICE_TAG_IDOR_ATTEMPT tagId={} actualOwnerId={} requesterUserId={}",
+                    tag.getId(), tag.getOwnerId(), ownerId);
+            throw new BusinessException(AudioErrorCode.VOICE_TAG_FORBIDDEN,
+                    "voiceTagId " + voiceTagId + " is not accessible");
+        }
+        if (tag.isDeleted()) {
+            throw new BusinessException(AudioErrorCode.VOICE_TAG_FORBIDDEN,
+                    "voiceTagId " + voiceTagId + " has been deleted");
+        }
+        demo.attachVoiceTagSnapshot(tag.getOwnerId(), tag.getTextContent(),
+                tag.getLanguageCode(), tag.getVoiceName());
     }
 }

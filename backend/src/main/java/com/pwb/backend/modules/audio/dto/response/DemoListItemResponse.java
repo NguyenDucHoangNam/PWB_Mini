@@ -15,6 +15,10 @@ public record DemoListItemResponse(
         Integer sampleRate,
         String format,
         UUID voiceTagId,
+        UUID voiceTagOwnerId,
+        String voiceTagTextContent,
+        String voiceTagLanguageCode,
+        String voiceTagVoiceName,
         Instant createdAt,
         Instant updatedAt,
         String errorMessage) {

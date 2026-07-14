@@ -20,6 +20,8 @@ import com.pwb.backend.modules.audio.service.crypto.AesKeyEncryptor;
 import com.pwb.backend.modules.audio.service.ffmpeg.AudioAnalysisResult;
 import com.pwb.backend.modules.audio.service.ffmpeg.FfmpegClient;
 import com.pwb.backend.modules.audio.service.ffmpeg.WaveformExtractor;
+import com.pwb.backend.modules.voice_tag.entity.VoiceTag;
+import com.pwb.backend.modules.voice_tag.repository.VoiceTagRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -49,6 +51,7 @@ public class AudioProcessingServiceImpl implements AudioProcessingService {
     private final AudioJobStateService audioJobStateService;
     private final AudioProperties audioProperties;
     private final ObjectMapper objectMapper;
+    private final VoiceTagRepository voiceTagRepository;
 
     @Override
     public void process(AudioProcessingEvent event) {
@@ -57,6 +60,8 @@ public class AudioProcessingServiceImpl implements AudioProcessingService {
             log.warn("AUDIO_JOB_SKIPPED_LOCKED demoId={}", event.demoId());
             return;
         }
+
+        verifyVoiceTagOwnershipOrFail(event);
 
         Path tempDir;
         try {
@@ -259,6 +264,31 @@ public class AudioProcessingServiceImpl implements AudioProcessingService {
         Path dir = base.resolve(demoId.toString());
         Files.createDirectories(dir);
         return dir;
+    }
+
+    private void verifyVoiceTagOwnershipOrFail(AudioProcessingEvent event) {
+        if (event.voiceTagId() == null) {
+            return;
+        }
+        Demo demo = demoRepository.findByOriginalS3Key(event.s3Key())
+                .orElseThrow(() -> new BusinessException(AudioErrorCode.FILE_NOT_FOUND_ON_S3,
+                        "Demo not found for s3Key=" + event.s3Key()));
+        VoiceTag tag = voiceTagRepository.findById(event.voiceTagId())
+                .orElseThrow(() -> {
+                    audioJobStateService.markFailed(event.demoId(),
+                            "Voice tag " + event.voiceTagId() + " not found at processing time");
+                    return new BusinessException(AudioErrorCode.VOICE_TAG_FORBIDDEN,
+                            "voiceTagId " + event.voiceTagId() + " is not accessible");
+                });
+        if (!tag.getOwnerId().equals(demo.getOwnerId()) || tag.isDeleted()) {
+            log.warn("VOICE_TAG_OWNERSHIP_MISMATCH_AT_PROCESSING demoId={} demoOwnerId={} "
+                    + "voiceTagId={} voiceTagOwnerId={} deleted={}",
+                    demo.getId(), demo.getOwnerId(), tag.getId(), tag.getOwnerId(), tag.isDeleted());
+            audioJobStateService.markFailed(event.demoId(),
+                    "Voice tag ownership mismatch detected at processing time");
+            throw new BusinessException(AudioErrorCode.VOICE_TAG_FORBIDDEN,
+                    "voiceTagId " + event.voiceTagId() + " is not accessible");
+        }
     }
 
     private void deleteRecursively(Path dir) {

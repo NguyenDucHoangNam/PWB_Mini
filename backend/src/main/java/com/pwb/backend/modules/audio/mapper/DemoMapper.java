@@ -44,6 +44,10 @@ public class DemoMapper {
                 demo.getSampleRate(),
                 demo.getFormat(),
                 demo.getVoiceTagId(),
+                demo.getVoiceTagOwnerId(),
+                demo.getVoiceTagTextContent(),
+                demo.getVoiceTagLanguageCode(),
+                demo.getVoiceTagVoiceName(),
                 demo.getCreatedAt(),
                 demo.getUpdatedAt(),
                 demo.getErrorMessage());

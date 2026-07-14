@@ -51,6 +51,18 @@ public class Demo extends BaseEntity {
     @Column(name = "voice_tag_id")
     private UUID voiceTagId;
 
+    @Column(name = "voice_tag_owner_id")
+    private UUID voiceTagOwnerId;
+
+    @Column(name = "voice_tag_text_content", length = 500)
+    private String voiceTagTextContent;
+
+    @Column(name = "voice_tag_language_code", length = 10)
+    private String voiceTagLanguageCode;
+
+    @Column(name = "voice_tag_voice_name", length = 100)
+    private String voiceTagVoiceName;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private DemoStatus status;
@@ -105,5 +117,13 @@ public class Demo extends BaseEntity {
 
     public void clearPreviousKey() {
         this.previousAesKeyEncrypted = null;
+    }
+
+    public void attachVoiceTagSnapshot(UUID ownerId, String textContent,
+                                       String languageCode, String voiceName) {
+        this.voiceTagOwnerId = ownerId;
+        this.voiceTagTextContent = textContent;
+        this.voiceTagLanguageCode = languageCode;
+        this.voiceTagVoiceName = voiceName;
     }
 }

@@ -16,6 +16,7 @@ public enum AudioErrorCode implements ErrorCode {
     FILE_NOT_FOUND_ON_S3("FILE_NOT_FOUND_ON_S3", "Uploaded file was not found on object storage", HttpStatus.BAD_REQUEST),
 
     INVALID_S3_KEY_OWNER("INVALID_S3_KEY_OWNER", "s3Key does not belong to the current user", HttpStatus.FORBIDDEN),
+    VOICE_TAG_FORBIDDEN("VOICE_TAG_FORBIDDEN", "voiceTagId is not accessible to the current user", HttpStatus.FORBIDDEN),
     DEMO_QUOTA_EXCEEDED("DEMO_QUOTA_EXCEEDED", "Maximum number of active demos reached", HttpStatus.FORBIDDEN),
     AUDIO_QUOTA_EXCEEDED("AUDIO_QUOTA_EXCEEDED", "Total audio storage quota exceeded", HttpStatus.FORBIDDEN),
 
