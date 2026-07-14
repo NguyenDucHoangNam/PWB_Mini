@@ -1,10 +1,7 @@
 package com.pwb.backend.modules.iam.service.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.common.exception.BusinessException;
-import com.pwb.backend.common.outbox.model.OutboxEvent;
-import com.pwb.backend.common.outbox.publisher.OutboxPayloadCipher;
-import com.pwb.backend.common.outbox.repository.OutboxEventRepository;
+import com.pwb.backend.common.outbox.OutboxService;
 import com.pwb.backend.common.util.PasswordHasher;
 import com.pwb.backend.modules.iam.enums.OauthProvider;
 import com.pwb.backend.modules.iam.enums.UserStatus;
@@ -20,7 +17,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
@@ -28,6 +24,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -37,7 +34,7 @@ class PasswordChangeServiceImplTest {
     private UserRepository userRepository;
 
     @Mock
-    private OutboxEventRepository outboxRepository;
+    private OutboxService outboxService;
 
     @Mock
     private PasswordHasher passwordHasher;
@@ -52,13 +49,7 @@ class PasswordChangeServiceImplTest {
     private SessionService sessionService;
 
     @Mock
-    private ApplicationEventPublisher eventPublisher;
-
-    @Mock
-    private ObjectMapper objectMapper;
-
-    @Mock
-    private OutboxPayloadCipher outboxCipher;
+    private com.pwb.backend.common.security.captcha.CaptchaVerifier captchaVerifier;
 
     private PasswordChangeServiceImpl passwordChangeService;
 
@@ -71,14 +62,12 @@ class PasswordChangeServiceImplTest {
     void setUp() {
         passwordChangeService = new PasswordChangeServiceImpl(
                 userRepository,
-                outboxRepository,
                 passwordHasher,
                 resetTokenService,
                 loginAttemptService,
                 sessionService,
-                eventPublisher,
-                objectMapper,
-                outboxCipher
+                outboxService,
+                captchaVerifier
         );
 
         userRole = new Role(UUID.randomUUID(), "USER", "User");
@@ -88,16 +77,14 @@ class PasswordChangeServiceImplTest {
     }
 
     @Test
-    void requestPasswordReset_success() throws Exception {
+    void requestPasswordReset_success() {
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(activeUser));
         when(resetTokenService.issueToken(email)).thenReturn("reset-token");
-        when(objectMapper.writeValueAsString(any())).thenReturn("{}");
-        when(outboxCipher.encrypt(anyString())).thenReturn("encrypted-payload");
 
         passwordChangeService.requestPasswordReset(email);
 
         verify(resetTokenService).issueToken(email);
-        verify(outboxRepository).save(any(OutboxEvent.class));
+        verify(outboxService).publish(anyString(), any(), anyString(), anyString(), any());
     }
 
     @Test
@@ -108,7 +95,7 @@ class PasswordChangeServiceImplTest {
         passwordChangeService.requestPasswordReset(email);
 
         verify(resetTokenService, never()).issueToken(any());
-        verify(outboxRepository, never()).save(any());
+        verify(outboxService, never()).publish(anyString(), any(), anyString(), anyString(), any());
     }
 
     @Test
@@ -186,7 +173,7 @@ class PasswordChangeServiceImplTest {
         passwordChangeService.requestPasswordReset(email);
 
         verify(resetTokenService, never()).issueToken(any());
-        verify(outboxRepository, never()).save(any());
+        verify(outboxService, never()).publish(anyString(), any(), anyString(), anyString(), any());
     }
 
     @Test
@@ -198,7 +185,7 @@ class PasswordChangeServiceImplTest {
         passwordChangeService.requestPasswordReset(email);
 
         verify(resetTokenService, never()).issueToken(any());
-        verify(outboxRepository, never()).save(any());
+        verify(outboxService, never()).publish(anyString(), any(), anyString(), anyString(), any());
     }
 
     @Test

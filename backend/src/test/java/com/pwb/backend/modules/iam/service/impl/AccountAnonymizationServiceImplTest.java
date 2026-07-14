@@ -1,9 +1,6 @@
 package com.pwb.backend.modules.iam.service.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.pwb.backend.common.outbox.model.OutboxEvent;
-import com.pwb.backend.common.outbox.publisher.OutboxPayloadCipher;
-import com.pwb.backend.common.outbox.repository.OutboxEventRepository;
+import com.pwb.backend.common.outbox.OutboxService;
 import com.pwb.backend.modules.iam.enums.UserStatus;
 import com.pwb.backend.modules.iam.model.Role;
 import com.pwb.backend.modules.iam.model.User;
@@ -17,7 +14,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -28,6 +24,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -46,16 +43,7 @@ class AccountAnonymizationServiceImplTest {
     private AvatarUploadService avatarUploadService;
 
     @Mock
-    private OutboxEventRepository outboxRepository;
-
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
-
-    @Mock
-    private ObjectMapper objectMapper;
-
-    @Mock
-    private OutboxPayloadCipher outboxCipher;
+    private OutboxService outboxService;
 
     private AccountAnonymizationServiceImpl anonymizationService;
 
@@ -69,10 +57,7 @@ class AccountAnonymizationServiceImplTest {
                 sessionService,
                 loginAttemptService,
                 avatarUploadService,
-                outboxRepository,
-                eventPublisher,
-                objectMapper,
-                outboxCipher
+                outboxService
         );
         ReflectionTestUtils.setField(anonymizationService, "graceDays", 30);
 
@@ -94,11 +79,9 @@ class AccountAnonymizationServiceImplTest {
     }
 
     @Test
-    void runOnce_processed() throws Exception {
+    void runOnce_processed() {
         when(userRepository.findExpiredPendingDeletion(any(), any(Pageable.class))).thenReturn(List.of(pendingUser));
         when(userRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(pendingUser));
-        when(objectMapper.writeValueAsString(any())).thenReturn("{}");
-        when(outboxCipher.encrypt(anyString())).thenReturn("encrypted");
 
         AnonymizationReport report = anonymizationService.runOnce(10);
 
@@ -109,7 +92,7 @@ class AccountAnonymizationServiceImplTest {
         verify(loginAttemptService).clearFailures(userId);
         verify(avatarUploadService).deleteAvatar(userId);
         verify(userRepository).save(pendingUser);
-        verify(outboxRepository).save(any(OutboxEvent.class));
+        verify(outboxService).publish(anyString(), any(), anyString(), anyString(), any());
     }
 
     @Test

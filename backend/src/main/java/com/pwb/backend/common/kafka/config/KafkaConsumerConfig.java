@@ -79,6 +79,14 @@ public class KafkaConsumerConfig {
     }
 
     @Bean
+    public NewTopic iamUserVerifiedTopic() {
+        return TopicBuilder.name(KafkaTopics.IAM_USER_VERIFIED)
+                .partitions(kafkaProperties.getPartitions())
+                .replicas(kafkaProperties.getReplicas())
+                .build();
+    }
+
+    @Bean
     public NewTopic iamOtpResentTopic() {
         return TopicBuilder.name(KafkaTopics.IAM_OTP_RESENT)
                 .partitions(kafkaProperties.getPartitions())

@@ -5,12 +5,15 @@ import com.pwb.backend.common.config.GeoIpConfig;
 import com.pwb.backend.common.exception.BusinessException;
 import com.pwb.backend.common.exception.CommonErrorCode;
 import com.pwb.backend.common.outbox.OutboxService;
+import com.pwb.backend.common.outbox.event.OtpResentEvent;
 import com.pwb.backend.common.outbox.event.UserRegisteredEvent;
+import com.pwb.backend.common.outbox.event.UserVerifiedEvent;
 import com.pwb.backend.common.outbox.publisher.OutboxEventTypes;
 import com.pwb.backend.common.security.captcha.CaptchaContext;
 import com.pwb.backend.common.security.captcha.CaptchaVerifier;
 import com.pwb.backend.common.security.jwt.JwtProperties;
 import com.pwb.backend.common.security.jwt.JwtSigner;
+import com.pwb.backend.common.util.DisposableEmailChecker;
 import com.pwb.backend.common.util.MaskingLogArg;
 import com.pwb.backend.common.util.PasswordHasher;
 import com.pwb.backend.common.util.SecureRandomOtpGenerator;
@@ -24,7 +27,6 @@ import com.pwb.backend.modules.iam.dto.response.RefreshResponse;
 import com.pwb.backend.modules.iam.dto.response.RegisterResponse;
 import com.pwb.backend.modules.iam.dto.response.ResendOtpResponse;
 import com.pwb.backend.modules.iam.dto.response.UserInfo;
-import com.pwb.backend.modules.iam.dto.response.VerifyOtpResponse;
 import com.pwb.backend.modules.iam.enums.OauthProvider;
 import com.pwb.backend.modules.iam.enums.RoleType;
 import com.pwb.backend.modules.iam.enums.UserStatus;
@@ -83,13 +85,35 @@ public class AuthServiceImpl implements AuthService {
     private final OutboxService outboxService;
     private final StringRedisTemplate stringRedisTemplate;
     private final DatabaseReader geoIpDatabaseReader;
+    private final DisposableEmailChecker disposableEmailChecker;
     private final CaptchaVerifier captchaVerifier;
 
     @Override
     @Transactional
-    public RegisterResponse register(RegisterRequest request) {
+    public RegisterResponse register(RegisterRequest request, String ip) {
         String email = request.email().trim().toLowerCase(Locale.ROOT);
-        User existing = userRepository.findByEmailForUpdate(email).orElse(null);
+
+        if (ip != null && !ip.isBlank()) {
+            loginAttemptService.validateIpNotBlocked(ip);
+        }
+
+        try {
+            if (disposableEmailChecker.isDisposable(email)) {
+                recordRegisterFailure(ip);
+                throw new BusinessException(IamErrorCode.EMAIL_DISPOSABLE);
+            }
+        } catch (BusinessException ex) {
+            recordRegisterFailure(ip);
+            throw ex;
+        }
+
+        User existing;
+        try {
+            existing = userRepository.findByEmailForUpdate(email).orElse(null);
+        } catch (RuntimeException ex) {
+            recordRegisterFailure(ip);
+            throw ex;
+        }
 
         User user;
         boolean isResend;
@@ -105,13 +129,33 @@ public class AuthServiceImpl implements AuthService {
             user = saveUserWithUniqueUsername(user, email);
             isResend = false;
         } else if (existing.getStatus() == UserStatus.PENDING_VERIFICATION && existing.isLocal()) {
-            existing.setPasswordHash(passwordHasher.hash(request.password()));
-            if (request.fullName() != null && !request.fullName().isBlank()) {
+            boolean updateCredentials = request.password() != null
+                    && !request.password().isBlank()
+                    && request.fullName() != null
+                    && !request.fullName().isBlank();
+            if (updateCredentials && (request.otp() == null || request.otp().isBlank())) {
+                throw new BusinessException(IamErrorCode.INVALID_OTP,
+                        "OTP is required to update password or full name on pending registration");
+            }
+            if (updateCredentials) {
+                boolean otpOk;
+                try {
+                    otpOk = otpService.verifyOtp(email, request.otp());
+                } catch (BusinessException ex) {
+                    throw ex;
+                }
+                if (!otpOk) {
+                    throw new BusinessException(IamErrorCode.INVALID_OTP);
+                }
+                existing.setPasswordHash(passwordHasher.hash(request.password()));
+                existing.setFullName(request.fullName());
+            } else if (request.fullName() != null && !request.fullName().isBlank()) {
                 existing.setFullName(request.fullName());
             }
             user = userRepository.save(existing);
             isResend = true;
         } else {
+            recordRegisterFailure(ip);
             throw new BusinessException(IamErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
@@ -123,12 +167,24 @@ public class AuthServiceImpl implements AuthService {
         if (isResend) {
             log.info("REGISTRATION_RESENT userId={} email={}", user.getId(), MaskingLogArg.email(email));
         }
+
+        if (ip != null && !ip.isBlank()) {
+            loginAttemptService.clearIpFailures(ip);
+        }
+
         return userMapper.userToRegisterResponse(user);
+    }
+
+    private void recordRegisterFailure(String ip) {
+        if (ip == null || ip.isBlank()) {
+            return;
+        }
+        loginAttemptService.recordIpFailure(ip);
     }
 
     @Override
     @Transactional
-    public VerifyOtpResponse verifyOtp(VerifyOtpRequest request) {
+    public LoginResponse verifyOtp(VerifyOtpRequest request, String ip, String userAgent) {
         String email = request.email().trim().toLowerCase(Locale.ROOT);
 
         User user = userRepository.findByEmailForUpdate(email)
@@ -165,11 +221,16 @@ public class AuthServiceImpl implements AuthService {
         user.setEmailVerifiedAt(Instant.now());
         userRepository.save(user);
 
-        String roleCode = user.getRole().getCode();
-        String accessToken = jwtSigner.generateAccessToken(user.getId(), user.getEmail(), roleCode);
-        Instant expiresAt = Instant.now().plusSeconds(jwtProperties.getAccessTokenTtlSeconds());
+        log.info("OTP_VERIFIED userId={} email={}", user.getId(), MaskingLogArg.email(email));
 
-        return new VerifyOtpResponse(user.getId(), user.getEmail(), roleCode, accessToken, expiresAt);
+        loginAttemptService.clearFailures(user.getId());
+        if (ip != null && !ip.isBlank()) {
+            loginAttemptService.clearIpFailures(ip);
+        }
+
+        LoginResponse response = completeSuccessfulLogin(user, ip, userAgent);
+        publishUserVerified(user, Instant.now());
+        return response;
     }
 
     @Override
@@ -177,11 +238,11 @@ public class AuthServiceImpl implements AuthService {
     public ResendOtpResponse resendOtp(ResendOtpRequest request) {
         String email = request.email().trim().toLowerCase(Locale.ROOT);
 
-        if (!otpService.canResend(email)) {
+        if (!otpService.tryAcquireResendSlot(email)) {
             throw BusinessException.builder()
                     .errorCode(IamErrorCode.OTP_RESEND_COOLDOWN)
                     .customMessage("Please wait before requesting a new OTP")
-                    .details(Map.of("retryAfterSeconds", 60L))
+                    .details(Map.of("retryAfterSeconds", otpService.lockoutRetryAfterSeconds()))
                     .build();
         }
 
@@ -194,7 +255,6 @@ public class AuthServiceImpl implements AuthService {
 
         String otp = otpGenerator.generate();
         otpService.issueOtp(email, otp);
-        otpService.markResent(email);
 
         publishOtpResent(user, otp, Instant.now());
 
@@ -523,8 +583,18 @@ public class AuthServiceImpl implements AuthService {
                 payload);
     }
 
+    private void publishUserVerified(User user, Instant verifiedAt) {
+        UserVerifiedEvent payload = new UserVerifiedEvent(user.getId(), user.getEmail(), verifiedAt);
+        outboxService.publish(
+                OutboxEventTypes.AGGREGATE_USER,
+                user.getId(),
+                OutboxEventTypes.USER_VERIFIED,
+                user.getId().toString(),
+                payload);
+    }
+
     private void publishOtpResent(User user, String otp, Instant issuedAt) {
-        UserRegisteredEvent payload = new UserRegisteredEvent(
+        OtpResentEvent payload = new OtpResentEvent(
                 user.getId(), user.getEmail(), user.getFullName(), otp, issuedAt);
         outboxService.publish(
                 OutboxEventTypes.AGGREGATE_USER,

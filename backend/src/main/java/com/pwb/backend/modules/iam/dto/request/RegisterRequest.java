@@ -22,5 +22,7 @@ public record RegisterRequest(
                 @Size(min = 2, max = 100, message = "{validation.fullname.length}")
                 String fullName,
 
-                String captchaToken) {
+                String captchaToken,
+
+                String otp) {
 }

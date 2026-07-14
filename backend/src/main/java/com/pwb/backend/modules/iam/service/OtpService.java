@@ -12,5 +12,7 @@ public interface OtpService {
 
     void markResent(String email);
 
+    boolean tryAcquireResendSlot(String email);
+
     long lockoutRetryAfterSeconds();
 }

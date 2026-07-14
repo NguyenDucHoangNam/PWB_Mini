@@ -1,10 +1,7 @@
 package com.pwb.backend.modules.iam.service.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.common.exception.BusinessException;
-import com.pwb.backend.common.outbox.model.OutboxEvent;
-import com.pwb.backend.common.outbox.publisher.OutboxPayloadCipher;
-import com.pwb.backend.common.outbox.repository.OutboxEventRepository;
+import com.pwb.backend.common.outbox.OutboxService;
 import com.pwb.backend.common.util.PasswordHasher;
 import com.pwb.backend.modules.iam.dto.request.DeleteAccountRequest;
 import com.pwb.backend.modules.iam.dto.response.UserProfileResponse;
@@ -24,7 +21,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
@@ -32,6 +28,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -53,16 +50,7 @@ class AccountDeletionServiceImplTest {
     private GoogleOAuthService googleOAuthService;
 
     @Mock
-    private OutboxEventRepository outboxRepository;
-
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
-
-    @Mock
-    private ObjectMapper objectMapper;
-
-    @Mock
-    private OutboxPayloadCipher outboxCipher;
+    private OutboxService outboxService;
 
     @Mock
     private UserMapper userMapper;
@@ -82,10 +70,7 @@ class AccountDeletionServiceImplTest {
                 loginAttemptService,
                 sessionService,
                 googleOAuthService,
-                outboxRepository,
-                eventPublisher,
-                objectMapper,
-                outboxCipher,
+                outboxService,
                 userMapper
         );
         ReflectionTestUtils.setField(accountDeletionService, "graceDays", 30);
@@ -97,13 +82,11 @@ class AccountDeletionServiceImplTest {
     }
 
     @Test
-    void requestDeletion_success_local() throws Exception {
+    void requestDeletion_success_local() {
         DeleteAccountRequest request = new DeleteAccountRequest("Password123", null);
 
         when(userRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(activeUser));
         when(passwordHasher.matches("Password123", "hashed_password")).thenReturn(true);
-        when(objectMapper.writeValueAsString(any())).thenReturn("{}");
-        when(outboxCipher.encrypt(anyString())).thenReturn("encrypted");
         when(userMapper.toUserProfileResponse(activeUser))
                 .thenReturn(new UserProfileResponse(userId, email, "Test Name", "USER", "PENDING_DELETION", null, null, null));
 
@@ -113,11 +96,11 @@ class AccountDeletionServiceImplTest {
         assertEquals(UserStatus.PENDING_DELETION, activeUser.getStatus());
         verify(userRepository).save(activeUser);
         verify(sessionService).purgeUserSessionData(userId);
-        verify(outboxRepository).save(any(OutboxEvent.class));
+        verify(outboxService).publish(anyString(), any(), anyString(), anyString(), any());
     }
 
     @Test
-    void requestDeletion_success_oauth() throws Exception {
+    void requestDeletion_success_oauth() {
         activeUser.setOauthProvider(OauthProvider.GOOGLE);
         activeUser.setOauthId("google-sub-id");
         activeUser.setPasswordHash(null);
@@ -126,8 +109,6 @@ class AccountDeletionServiceImplTest {
         when(userRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(activeUser));
         GoogleUserInfo googleUserInfo = new GoogleUserInfo(email, "Test Name", "avatar_url", "google-sub-id");
         when(googleOAuthService.verify("google_id_token")).thenReturn(googleUserInfo);
-        when(objectMapper.writeValueAsString(any())).thenReturn("{}");
-        when(outboxCipher.encrypt(anyString())).thenReturn("encrypted");
 
         accountDeletionService.requestDeletion(userId, request);
 
@@ -158,11 +139,9 @@ class AccountDeletionServiceImplTest {
     }
 
     @Test
-    void cancelDeletion_success() throws Exception {
+    void cancelDeletion_success() {
         activeUser.setStatus(UserStatus.PENDING_DELETION);
         when(userRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(activeUser));
-        when(objectMapper.writeValueAsString(any())).thenReturn("{}");
-        when(outboxCipher.encrypt(anyString())).thenReturn("encrypted");
         when(userMapper.toUserProfileResponse(activeUser))
                 .thenReturn(new UserProfileResponse(userId, email, "Test Name", "USER", "ACTIVE", null, null, null));
 
@@ -171,12 +150,12 @@ class AccountDeletionServiceImplTest {
         assertNotNull(response);
         assertEquals(UserStatus.ACTIVE, activeUser.getStatus());
         verify(userRepository).save(activeUser);
-        verify(outboxRepository).save(any(OutboxEvent.class));
+        verify(outboxService).publish(anyString(), any(), anyString(), anyString(), any());
     }
 
     @Test
     void cancelDeletion_throwsNotPendingDeletion() {
-        when(userRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(activeUser)); // active
+        when(userRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(activeUser));
 
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 accountDeletionService.cancelDeletion(userId)
@@ -185,7 +164,7 @@ class AccountDeletionServiceImplTest {
     }
 
     @Test
-    void requestDeletion_invalidPassword() throws Exception {
+    void requestDeletion_invalidPassword() {
         DeleteAccountRequest request = new DeleteAccountRequest("WrongPassword123", null);
 
         when(userRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(activeUser));

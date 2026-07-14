@@ -14,6 +14,7 @@ public class OutboxEventTopics {
     static {
         EVENT_TYPE_TO_TOPIC = new HashMap<>();
         EVENT_TYPE_TO_TOPIC.put(OutboxEventTypes.USER_REGISTERED, KafkaTopics.IAM_USER_REGISTERED);
+        EVENT_TYPE_TO_TOPIC.put(OutboxEventTypes.USER_VERIFIED, KafkaTopics.IAM_USER_VERIFIED);
         EVENT_TYPE_TO_TOPIC.put(OutboxEventTypes.OTP_RESENT, KafkaTopics.IAM_OTP_RESENT);
         EVENT_TYPE_TO_TOPIC.put(OutboxEventTypes.PASSWORD_RESET, KafkaTopics.IAM_PASSWORD_RESET);
         EVENT_TYPE_TO_TOPIC.put(OutboxEventTypes.ACCOUNT_DELETION_REQUESTED, KafkaTopics.IAM_ACCOUNT_DELETION);

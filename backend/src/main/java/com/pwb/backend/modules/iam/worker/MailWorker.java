@@ -3,6 +3,7 @@ package com.pwb.backend.modules.iam.worker;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.common.kafka.constant.KafkaTopics;
 import com.pwb.backend.common.outbox.event.AccountDeletionRequestedEvent;
+import com.pwb.backend.common.outbox.event.OtpResentEvent;
 import com.pwb.backend.common.outbox.event.UserRegisteredEvent;
 import com.pwb.backend.modules.iam.service.MailService;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +34,7 @@ public class MailWorker {
             groupId = "${app.kafka.mail-worker.group-id:mail-worker}",
             containerFactory = "defaultKafkaListenerContainerFactory")
     public void onOtpResent(String payload) {
-        handle(payload, KafkaTopics.IAM_OTP_RESENT);
+        handleOtpResent(payload, KafkaTopics.IAM_OTP_RESENT);
     }
 
     @KafkaListener(
@@ -59,6 +60,16 @@ public class MailWorker {
     private void handle(String payload, String topic) {
         try {
             UserRegisteredEvent event = objectMapper.readValue(payload, UserRegisteredEvent.class);
+            mailService.sendOtpEmail(event.email(), event.fullName(), event.otp());
+        } catch (Exception ex) {
+            log.warn("Failed to process mail event from {}: {}", topic, ex.getMessage());
+            throw new IllegalStateException("Mail event processing failed", ex);
+        }
+    }
+
+    private void handleOtpResent(String payload, String topic) {
+        try {
+            OtpResentEvent event = objectMapper.readValue(payload, OtpResentEvent.class);
             mailService.sendOtpEmail(event.email(), event.fullName(), event.otp());
         } catch (Exception ex) {
             log.warn("Failed to process mail event from {}: {}", topic, ex.getMessage());

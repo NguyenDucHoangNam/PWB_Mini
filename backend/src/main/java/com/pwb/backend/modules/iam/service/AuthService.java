@@ -9,13 +9,12 @@ import com.pwb.backend.modules.iam.dto.response.LoginResponse;
 import com.pwb.backend.modules.iam.dto.response.RefreshResponse;
 import com.pwb.backend.modules.iam.dto.response.RegisterResponse;
 import com.pwb.backend.modules.iam.dto.response.ResendOtpResponse;
-import com.pwb.backend.modules.iam.dto.response.VerifyOtpResponse;
 
 public interface AuthService {
 
-    RegisterResponse register(RegisterRequest request);
+    RegisterResponse register(RegisterRequest request, String ip);
 
-    VerifyOtpResponse verifyOtp(VerifyOtpRequest request);
+    LoginResponse verifyOtp(VerifyOtpRequest request, String ip, String userAgent);
 
     ResendOtpResponse resendOtp(ResendOtpRequest request);
 

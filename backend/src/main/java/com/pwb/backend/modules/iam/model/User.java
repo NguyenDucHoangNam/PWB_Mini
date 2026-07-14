@@ -19,7 +19,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.SQLRestriction;
 
-import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -32,8 +31,7 @@ import java.util.UUID;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
 public class User extends BaseEntity {
 
-    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-    private static final int USERNAME_LOCAL_SUFFIX_BOUND = 1_000_000;
+    private static final int USERNAME_SUFFIX_LENGTH = 8;
 
     @Id
     @Column(name = "id", nullable = false, updatable = false)
@@ -197,6 +195,6 @@ public class User extends BaseEntity {
     }
 
     public static String generateUsernameSuffix() {
-        return Integer.toString(SECURE_RANDOM.nextInt(USERNAME_LOCAL_SUFFIX_BOUND));
+        return UUID.randomUUID().toString().replace("-", "").substring(0, USERNAME_SUFFIX_LENGTH);
     }
 }

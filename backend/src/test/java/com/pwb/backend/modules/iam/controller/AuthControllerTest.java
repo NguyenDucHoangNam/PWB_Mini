@@ -17,7 +17,6 @@ import com.pwb.backend.modules.iam.dto.response.RefreshResponse;
 import com.pwb.backend.modules.iam.dto.response.RegisterResponse;
 import com.pwb.backend.modules.iam.dto.response.ResendOtpResponse;
 import com.pwb.backend.modules.iam.dto.response.UserInfo;
-import com.pwb.backend.modules.iam.dto.response.VerifyOtpResponse;
 import com.pwb.backend.modules.iam.service.AuthService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -79,10 +78,10 @@ class AuthControllerTest {
 
     @Test
     void register_success() throws Exception {
-        RegisterRequest request = new RegisterRequest(email, password, "Test Name", "captcha_token");
+        RegisterRequest request = new RegisterRequest(email, password, "Test Name", "captcha_token", null);
         RegisterResponse response = new RegisterResponse(email, "PENDING_VERIFICATION", Instant.now().plusSeconds(300));
 
-        when(authService.register(any())).thenReturn(response);
+        when(authService.register(any(), any())).thenReturn(response);
         when(messageSource.getMessage(anyString(), any(), any(), any())).thenReturn("Registration initiated");
 
         mockMvc.perform(post("/api/v1/auth/register")
@@ -94,12 +93,12 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.data.email").value(email))
                 .andExpect(jsonPath("$.data.status").value("PENDING_VERIFICATION"));
 
-        verify(captchaVerifier).verifyOrThrow(eq("captcha_token"), any());
+        verify(captchaVerifier).verifyOrThrow(eq("captcha_token"), any(), any());
     }
 
     @Test
     void register_validationError() throws Exception {
-        RegisterRequest request = new RegisterRequest("invalid-email", "", "Test Name", "captcha_token");
+        RegisterRequest request = new RegisterRequest("invalid-email", "", "Test Name", "captcha_token", null);
         when(messageSource.getMessage(anyString(), any(), any(), any())).thenReturn("Validation failed");
 
         mockMvc.perform(post("/api/v1/auth/register")
@@ -112,10 +111,10 @@ class AuthControllerTest {
 
     @Test
     void verifyOtp_success() throws Exception {
-        VerifyOtpRequest request = new VerifyOtpRequest(email, "123456");
-        VerifyOtpResponse response = new VerifyOtpResponse(UUID.randomUUID(), email, "USER", "access_token", Instant.now().plusSeconds(900));
+        VerifyOtpRequest request = new VerifyOtpRequest(email, "123456", "captcha_token");
+        LoginResponse response = new LoginResponse("access_token", 900L, Instant.now().plusSeconds(900), null, "refresh_token", 604800L, null, null);
 
-        when(authService.verifyOtp(any())).thenReturn(response);
+        when(authService.verifyOtp(any(), any(), any())).thenReturn(response);
         when(messageSource.getMessage(anyString(), any(), any(), any())).thenReturn("OTP verified");
 
         mockMvc.perform(post("/api/v1/auth/verify-otp")
@@ -168,7 +167,7 @@ class AuthControllerTest {
 
     @Test
     void loginGoogle_success() throws Exception {
-        GoogleLoginRequest request = new GoogleLoginRequest("google_id_token", "nonce");
+        GoogleLoginRequest request = new GoogleLoginRequest("google_id_token", "nonce", null);
         UserInfo userInfo = new UserInfo(UUID.randomUUID(), email, "Test Name", "USER", "ACTIVE", null);
         LoginResponse response = new LoginResponse(
                 "access_token", 900L, Instant.now().plusSeconds(900), userInfo, "refresh_token", 604800L, null, null

@@ -16,7 +16,6 @@ import com.pwb.backend.modules.iam.dto.response.LoginResponse;
 import com.pwb.backend.modules.iam.dto.response.RefreshResponse;
 import com.pwb.backend.modules.iam.dto.response.RegisterResponse;
 import com.pwb.backend.modules.iam.dto.response.ResendOtpResponse;
-import com.pwb.backend.modules.iam.dto.response.VerifyOtpResponse;
 import com.pwb.backend.modules.iam.exception.IamErrorCode;
 import com.pwb.backend.modules.iam.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -57,18 +56,23 @@ public class AuthController {
     public ResponseEntity<ApiResponse<RegisterResponse>> register(@Valid @RequestBody RegisterRequest request,
                                                                  HttpServletRequest httpRequest) {
         captchaVerifier.verifyOrThrow(request.captchaToken(), httpRequest, CaptchaContext.register(request.email()));
-        RegisterResponse response = authService.register(request);
+        String ip = clientContextResolver.resolveIp(httpRequest);
+        RegisterResponse response = authService.register(request, ip);
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.success(message(MSG_REGISTER_INITIATED), response));
     }
 
     @PostMapping("/verify-otp")
-    public ResponseEntity<ApiResponse<VerifyOtpResponse>> verifyOtp(@Valid @RequestBody VerifyOtpRequest request,
-                                                                   HttpServletRequest httpRequest) {
+    public ResponseEntity<ApiResponse<LoginResponse>> verifyOtp(@Valid @RequestBody VerifyOtpRequest request,
+                                                               HttpServletRequest httpRequest,
+                                                               HttpServletResponse httpResponse) {
         captchaVerifier.verifyOrThrow(request.captchaToken(), httpRequest, CaptchaContext.verifyOtp(request.email()));
-        VerifyOtpResponse response = authService.verifyOtp(request);
+        String ip = clientContextResolver.resolveIp(httpRequest);
+        String userAgent = clientContextResolver.resolveUserAgent(httpRequest);
+        LoginResponse data = authService.verifyOtp(request, ip, userAgent);
         captchaVerifier.clearFailure(CaptchaContext.verifyOtp(request.email()));
-        return ResponseEntity.ok(ApiResponse.success(message(MSG_OTP_VERIFIED), response));
+        writeRefreshCookieIfPresent(httpResponse, data.refreshToken(), data.refreshTokenMaxAgeSeconds());
+        return ResponseEntity.ok(ApiResponse.success(message(MSG_OTP_VERIFIED), data));
     }
 
     @PostMapping("/resend-otp")

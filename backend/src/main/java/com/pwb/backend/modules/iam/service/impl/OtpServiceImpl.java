@@ -37,6 +37,8 @@ public class OtpServiceImpl implements OtpService {
     private static final int DEFAULT_MAX_ATTEMPTS = 5;
     private static final String OTP_PEPPER = "pwb-mini:otp:hash:v1";
 
+    private static final String RESEND_SCRIPT_RESOURCE = "scripts/otp_resend.lua";
+
     private final StringRedisTemplate redisTemplate;
 
     @Value("${app.iam.otp.ttl-seconds}")
@@ -51,18 +53,25 @@ public class OtpServiceImpl implements OtpService {
     private int maxAttempts;
 
     private final DefaultRedisScript<List> verifyScript;
+    private final DefaultRedisScript<Long> resendScript;
 
     public OtpServiceImpl(StringRedisTemplate redisTemplate) {
         this.redisTemplate = redisTemplate;
         this.verifyScript = new DefaultRedisScript<>();
         this.verifyScript.setResultType(List.class);
+        this.resendScript = new DefaultRedisScript<>();
+        this.resendScript.setResultType(Long.class);
         try {
-            String body = StreamUtils.copyToString(
+            String verifyBody = StreamUtils.copyToString(
                     new ClassPathResource("scripts/otp_verify.lua").getInputStream(),
                     StandardCharsets.UTF_8);
-            this.verifyScript.setScriptText(body);
+            this.verifyScript.setScriptText(verifyBody);
+            String resendBody = StreamUtils.copyToString(
+                    new ClassPathResource(RESEND_SCRIPT_RESOURCE).getInputStream(),
+                    StandardCharsets.UTF_8);
+            this.resendScript.setScriptText(resendBody);
         } catch (IOException ex) {
-            throw new IllegalStateException("Failed to load otp_verify.lua", ex);
+            throw new IllegalStateException("Failed to load OTP Lua scripts", ex);
         }
     }
 
@@ -137,6 +146,22 @@ public class OtpServiceImpl implements OtpService {
     public void markResent(String email) {
         redisTemplate.opsForValue()
                 .set(KEY_LAST_SENT + email.toLowerCase(), "1", resendCooldownSeconds, TimeUnit.SECONDS);
+    }
+
+    @Override
+    public boolean tryAcquireResendSlot(String email) {
+        String normalized = email.toLowerCase();
+        Long acquired;
+        try {
+            acquired = redisTemplate.execute(
+                    resendScript,
+                    List.of(KEY_LAST_SENT + normalized),
+                    Long.toString(resendCooldownSeconds));
+        } catch (Exception ex) {
+            log.warn("OTP resend cooldown Redis failure for {}: {}", normalized, ex.getMessage());
+            return false;
+        }
+        return acquired != null && acquired == 1L;
     }
 
     @Override

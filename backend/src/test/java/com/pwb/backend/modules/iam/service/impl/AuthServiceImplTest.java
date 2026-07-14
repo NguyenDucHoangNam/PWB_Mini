@@ -1,13 +1,9 @@
 package com.pwb.backend.modules.iam.service.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maxmind.geoip2.DatabaseReader;
 import com.pwb.backend.common.exception.BusinessException;
-import com.pwb.backend.common.outbox.model.OutboxEvent;
 import com.pwb.backend.common.security.jwt.JwtProperties;
 import com.pwb.backend.common.security.jwt.JwtSigner;
-import com.pwb.backend.common.outbox.publisher.OutboxPayloadCipher;
-import com.pwb.backend.common.outbox.repository.OutboxEventRepository;
 import com.pwb.backend.common.util.PasswordHasher;
 import com.pwb.backend.common.util.SecureRandomOtpGenerator;
 import com.pwb.backend.modules.iam.dto.request.GoogleLoginRequest;
@@ -64,9 +60,6 @@ class AuthServiceImplTest {
     private RoleRepository roleRepository;
 
     @Mock
-    private OutboxEventRepository outboxRepository;
-
-    @Mock
     private OtpService otpService;
 
     @Mock
@@ -88,9 +81,6 @@ class AuthServiceImplTest {
     private ApplicationEventPublisher eventPublisher;
 
     @Mock
-    private ObjectMapper objectMapper;
-
-    @Mock
     private LoginAttemptService loginAttemptService;
 
     @Mock
@@ -100,13 +90,19 @@ class AuthServiceImplTest {
     private GoogleOAuthService googleOAuthService;
 
     @Mock
-    private OutboxPayloadCipher outboxCipher;
+    private com.pwb.backend.common.outbox.OutboxService outboxService;
 
     @Mock
     private StringRedisTemplate stringRedisTemplate;
 
     @Mock
     private DatabaseReader geoIpDatabaseReader;
+
+    @Mock
+    private com.pwb.backend.common.util.DisposableEmailChecker disposableEmailChecker;
+
+    @Mock
+    private com.pwb.backend.common.security.captcha.CaptchaVerifier captchaVerifier;
 
     private AuthServiceImpl authService;
 
@@ -120,7 +116,6 @@ class AuthServiceImplTest {
         authService = new AuthServiceImpl(
                 userRepository,
                 roleRepository,
-                outboxRepository,
                 otpService,
                 passwordHasher,
                 otpGenerator,
@@ -128,13 +123,14 @@ class AuthServiceImplTest {
                 jwtSigner,
                 jwtProperties,
                 eventPublisher,
-                objectMapper,
                 loginAttemptService,
                 sessionService,
                 googleOAuthService,
-                outboxCipher,
+                outboxService,
                 stringRedisTemplate,
-                geoIpDatabaseReader
+                geoIpDatabaseReader,
+                disposableEmailChecker,
+                captchaVerifier
         );
 
         userRole = new Role(UUID.randomUUID(), RoleType.USER.code(), "User");
@@ -145,84 +141,102 @@ class AuthServiceImplTest {
 
     @Test
     void register_success() throws Exception {
-        RegisterRequest request = new RegisterRequest(email, password, "Test Name", "captcha_token");
+        RegisterRequest request = new RegisterRequest(email, password, "Test Name", "captcha_token", null);
 
-        when(userRepository.existsByEmail(email)).thenReturn(false);
+        when(disposableEmailChecker.isDisposable(email)).thenReturn(false);
+        when(userRepository.findByEmailForUpdate(email)).thenReturn(Optional.empty());
         when(roleRepository.findByCode(RoleType.USER.code())).thenReturn(Optional.of(userRole));
         when(passwordHasher.hash(password)).thenReturn("hashed_password");
         when(otpGenerator.generate()).thenReturn("123456");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User u = invocation.getArgument(0);
+            if (u.getId() == null) {
+                ReflectionTestUtils.setField(u, "id", UUID.randomUUID());
+            }
+            return u;
+        });
         when(userMapper.userToRegisterResponse(any(User.class)))
                 .thenReturn(new RegisterResponse(email, "PENDING_VERIFICATION", Instant.now().plusSeconds(300)));
-        when(objectMapper.writeValueAsString(any())).thenReturn("{}");
 
-        RegisterResponse response = authService.register(request);
+        RegisterResponse response = authService.register(request, "127.0.0.1");
 
         assertNotNull(response);
         assertEquals(email, response.email());
         verify(userRepository).save(any(User.class));
         verify(otpService).issueOtp(email, "123456");
-        verify(outboxRepository).save(any(OutboxEvent.class));
+        verify(outboxService).publish(anyString(), any(), anyString(), anyString(), any());
     }
 
     @Test
     void register_throwsEmailExistsException() {
-        RegisterRequest request = new RegisterRequest(email, password, "Test Name", "captcha_token");
-        when(userRepository.existsByEmail(email)).thenReturn(true);
+        User existing = User.newPending(email, "hashed_password", "Test Name", userRole);
+        ReflectionTestUtils.setField(existing, "id", UUID.randomUUID());
+        existing.setStatus(UserStatus.ACTIVE);
+        RegisterRequest request = new RegisterRequest(email, password, "Test Name", "captcha_token", null);
 
-        BusinessException exception = assertThrows(BusinessException.class, () -> authService.register(request));
+        when(disposableEmailChecker.isDisposable(email)).thenReturn(false);
+        when(userRepository.findByEmailForUpdate(email)).thenReturn(Optional.of(existing));
+
+        BusinessException exception = assertThrows(BusinessException.class, () -> authService.register(request, "127.0.0.1"));
         assertEquals(IamErrorCode.EMAIL_ALREADY_EXISTS, exception.getErrorCode());
+        verify(loginAttemptService).recordIpFailure("127.0.0.1");
     }
 
     @Test
     void verifyOtp_success() {
-        VerifyOtpRequest request = new VerifyOtpRequest(email, "123456");
+        VerifyOtpRequest request = new VerifyOtpRequest(email, "123456", null);
 
         when(userRepository.findByEmailForUpdate(email)).thenReturn(Optional.of(pendingUser));
         when(otpService.isLocked(email)).thenReturn(false);
         when(otpService.verifyOtp(email, "123456")).thenReturn(true);
-        when(jwtSigner.generateAccessToken(any(), eq(email), eq("USER"))).thenReturn("access_token");
         when(jwtProperties.getAccessTokenTtlSeconds()).thenReturn(900L);
+        when(jwtProperties.getRefreshTokenTtlSeconds()).thenReturn(604800L);
+        when(sessionService.grantInitialSession(pendingUser.getId()))
+                .thenReturn(new IssuedSession(pendingUser.getId(), "refresh_token", Instant.now().plusSeconds(604800L), null));
+        when(jwtSigner.generateAccessToken(pendingUser.getId(), email, "USER")).thenReturn("access_token");
 
-        VerifyOtpResponse response = authService.verifyOtp(request);
+        LoginResponse response = authService.verifyOtp(request, "127.0.0.1", "Mozilla");
 
         assertNotNull(response);
         assertEquals("access_token", response.accessToken());
+        assertEquals("refresh_token", response.refreshToken());
         assertEquals(UserStatus.ACTIVE, pendingUser.getStatus());
-        verify(userRepository).save(pendingUser);
+        verify(userRepository, atLeastOnce()).save(pendingUser);
+        verify(loginAttemptService).clearFailures(pendingUser.getId());
     }
 
     @Test
     void verifyOtp_throwsOtpLocked() {
-        VerifyOtpRequest request = new VerifyOtpRequest(email, "123456");
+        VerifyOtpRequest request = new VerifyOtpRequest(email, "123456", null);
         when(userRepository.findByEmailForUpdate(email)).thenReturn(Optional.of(pendingUser));
         when(otpService.isLocked(email)).thenReturn(true);
         when(otpService.lockoutRetryAfterSeconds()).thenReturn(900L);
 
-        BusinessException exception = assertThrows(BusinessException.class, () -> authService.verifyOtp(request));
+        BusinessException exception = assertThrows(BusinessException.class, () -> authService.verifyOtp(request, "127.0.0.1", "Mozilla"));
         assertEquals(IamErrorCode.OTP_LOCKED, exception.getErrorCode());
     }
 
     @Test
     void resendOtp_success() throws Exception {
         ResendOtpRequest request = new ResendOtpRequest(email, "captcha_token");
-        when(otpService.canResend(email)).thenReturn(true);
+        when(otpService.tryAcquireResendSlot(email)).thenReturn(true);
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(pendingUser));
         when(otpGenerator.generate()).thenReturn("123456");
-        when(objectMapper.writeValueAsString(any())).thenReturn("{}");
 
         ResendOtpResponse response = authService.resendOtp(request);
 
         assertNotNull(response);
         assertEquals(email, response.email());
         verify(otpService).issueOtp(email, "123456");
-        verify(otpService).markResent(email);
-        verify(outboxRepository).save(any(OutboxEvent.class));
+        verify(otpService, never()).markResent(any());
+        verify(outboxService).publish(anyString(), any(), anyString(), anyString(), any());
     }
 
     @Test
     void resendOtp_throwsCooldownException() {
         ResendOtpRequest request = new ResendOtpRequest(email, "captcha_token");
-        when(otpService.canResend(email)).thenReturn(false);
+        when(otpService.tryAcquireResendSlot(email)).thenReturn(false);
+        when(otpService.lockoutRetryAfterSeconds()).thenReturn(900L);
 
         BusinessException exception = assertThrows(BusinessException.class, () -> authService.resendOtp(request));
         assertEquals(IamErrorCode.OTP_RESEND_COOLDOWN, exception.getErrorCode());
@@ -263,7 +277,7 @@ class AuthServiceImplTest {
 
     @Test
     void loginWithGoogle_success() {
-        GoogleLoginRequest request = new GoogleLoginRequest("google_id_token", "nonce");
+        GoogleLoginRequest request = new GoogleLoginRequest("google_id_token", "nonce", null);
         GoogleUserInfo googleUserInfo = new GoogleUserInfo(email, "Google User", "avatar_url", "google-id");
 
         when(googleOAuthService.verify("google_id_token", "nonce")).thenReturn(googleUserInfo);
@@ -314,31 +328,31 @@ class AuthServiceImplTest {
 
     @Test
     void verifyOtp_userNotFound() {
-        VerifyOtpRequest request = new VerifyOtpRequest(email, "123456");
+        VerifyOtpRequest request = new VerifyOtpRequest(email, "123456", null);
         when(userRepository.findByEmailForUpdate(email)).thenReturn(Optional.empty());
 
-        BusinessException exception = assertThrows(BusinessException.class, () -> authService.verifyOtp(request));
+        BusinessException exception = assertThrows(BusinessException.class, () -> authService.verifyOtp(request, "127.0.0.1", "Mozilla"));
         assertEquals(IamErrorCode.USER_NOT_FOUND, exception.getErrorCode());
     }
 
     @Test
     void verifyOtp_invalidOtp() {
-        VerifyOtpRequest request = new VerifyOtpRequest(email, "wrong123");
+        VerifyOtpRequest request = new VerifyOtpRequest(email, "wrong123", null);
         when(userRepository.findByEmailForUpdate(email)).thenReturn(Optional.of(pendingUser));
         when(otpService.isLocked(email)).thenReturn(false);
         when(otpService.verifyOtp(email, "wrong123")).thenReturn(false);
 
-        BusinessException exception = assertThrows(BusinessException.class, () -> authService.verifyOtp(request));
+        BusinessException exception = assertThrows(BusinessException.class, () -> authService.verifyOtp(request, "127.0.0.1", "Mozilla"));
         assertEquals(IamErrorCode.INVALID_OTP, exception.getErrorCode());
     }
 
     @Test
     void verifyOtp_userAlreadyActive() {
         pendingUser.setStatus(UserStatus.ACTIVE);
-        VerifyOtpRequest request = new VerifyOtpRequest(email, "123456");
+        VerifyOtpRequest request = new VerifyOtpRequest(email, "123456", null);
         when(userRepository.findByEmailForUpdate(email)).thenReturn(Optional.of(pendingUser));
 
-        BusinessException exception = assertThrows(BusinessException.class, () -> authService.verifyOtp(request));
+        BusinessException exception = assertThrows(BusinessException.class, () -> authService.verifyOtp(request, "127.0.0.1", "Mozilla"));
         assertEquals(IamErrorCode.USER_ALREADY_VERIFIED, exception.getErrorCode());
     }
 
@@ -387,7 +401,7 @@ class AuthServiceImplTest {
 
     @Test
     void loginWithGoogle_existingOAuthUser() {
-        GoogleLoginRequest request = new GoogleLoginRequest("google_id_token", "nonce");
+        GoogleLoginRequest request = new GoogleLoginRequest("google_id_token", "nonce", null);
         GoogleUserInfo googleUserInfo = new GoogleUserInfo(email, "Updated Name", "new_avatar_url", "google-id");
 
         User existingOAuthUser = User.newOAuthActive(email, "Old Name", "google-id", "old_avatar_url", userRole);
@@ -409,7 +423,7 @@ class AuthServiceImplTest {
 
     @Test
     void loginWithGoogle_userBanned() {
-        GoogleLoginRequest request = new GoogleLoginRequest("google_id_token", "nonce");
+        GoogleLoginRequest request = new GoogleLoginRequest("google_id_token", "nonce", null);
         GoogleUserInfo googleUserInfo = new GoogleUserInfo(email, "Google User", "avatar_url", "google-id");
 
         User bannedUser = User.newOAuthActive(email, "Google User", "google-id", "avatar_url", userRole);
