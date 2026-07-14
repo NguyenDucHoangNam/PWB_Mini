@@ -138,7 +138,7 @@ public class User extends BaseEntity {
         if ((this.fullName == null || this.fullName.isBlank()) && fullName != null && !fullName.isBlank()) {
             this.fullName = fullName;
         }
-        if (avatarUrl != null && !avatarUrl.isBlank()) {
+        if ((this.avatarUrl == null || this.avatarUrl.isBlank()) && avatarUrl != null && !avatarUrl.isBlank()) {
             this.avatarUrl = avatarUrl;
         }
     }

@@ -11,15 +11,14 @@ import com.pwb.backend.modules.iam.exception.IamErrorCode;
 import com.pwb.backend.modules.iam.service.GoogleOAuthService;
 import com.pwb.backend.modules.iam.service.GoogleUserInfo;
 import jakarta.annotation.PreDestroy;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.List;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
-
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
 
 @Service
 @Profile("!test")
@@ -37,7 +36,7 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
         this.properties = properties;
         this.httpTransport = Utils.getDefaultTransport();
         this.verifier = new GoogleIdTokenVerifier.Builder(httpTransport, GsonFactory.getDefaultInstance())
-                .setAudience(Collections.singletonList(safeClientId()))
+                .setAudience(resolveAudiences())
                 .build();
     }
 
@@ -54,17 +53,17 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
         try {
             GoogleIdToken token = verifier.verify(idToken);
             if (token == null) {
-                log.error("GOOGLE_OAUTH_FAILED error=invalid_token");
+                log.warn("GOOGLE_OAUTH_FAILED error=invalid_token");
                 throw new BusinessException(IamErrorCode.INVALID_OAUTH_TOKEN);
             }
             GoogleIdToken.Payload payload = token.getPayload();
             String issuer = payload.getIssuer();
             if (!EXPECTED_ISSUER.equals(issuer) && !ALTERNATE_ISSUER.equals(issuer)) {
-                log.error("GOOGLE_OAUTH_FAILED error=unexpected_iss");
+                log.warn("GOOGLE_OAUTH_FAILED error=unexpected_iss");
                 throw new BusinessException(IamErrorCode.INVALID_OAUTH_TOKEN);
             }
             Boolean emailVerified = payload.getEmailVerified();
-            if (Boolean.FALSE.equals(emailVerified)) {
+            if (!Boolean.TRUE.equals(emailVerified)) {
                 throw new BusinessException(IamErrorCode.INVALID_OAUTH_TOKEN);
             }
             String email = payload.getEmail();
@@ -75,9 +74,9 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
             String nonce = (String) payload.get("nonce");
             if (expectedNonce != null && !expectedNonce.isBlank()) {
                 if (!MessageDigest.isEqual(
-                        Objects.requireNonNullElse(nonce, "").getBytes(),
-                        expectedNonce.getBytes())) {
-                    log.error("GOOGLE_OAUTH_FAILED error=nonce_mismatch sub={}", sub);
+                        Objects.requireNonNullElse(nonce, "").getBytes(StandardCharsets.UTF_8),
+                        expectedNonce.getBytes(StandardCharsets.UTF_8))) {
+                    log.warn("GOOGLE_OAUTH_FAILED error=nonce_mismatch sub={}", sub);
                     throw new BusinessException(IamErrorCode.INVALID_OAUTH_TOKEN);
                 }
             }
@@ -93,18 +92,21 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("MessageDigest comparison failed", ex);
         } catch (Exception ex) {
-            log.error("GOOGLE_OAUTH_FAILED error={}", ex.getMessage());
+            log.warn("GOOGLE_OAUTH_FAILED error={}", ex.getMessage());
             throw new BusinessException(IamErrorCode.INVALID_OAUTH_TOKEN);
         }
     }
 
-    private String safeClientId() {
-        String id = properties.getClientId();
-        if (id == null || id.isBlank()) {
-            log.warn("Google OAuth client id is empty. Google login will fail.");
-            return "";
+    private List<String> resolveAudiences() {
+        List<String> ids = properties.getClientIds() == null
+                ? List.of()
+                : properties.getClientIds().stream()
+                        .filter(id -> id != null && !id.isBlank())
+                        .toList();
+        if (ids.isEmpty()) {
+            log.warn("Google OAuth client ids are empty. Google login will fail.");
         }
-        return id;
+        return ids;
     }
 
     @PreDestroy
@@ -112,9 +114,5 @@ public class GoogleOAuthServiceImpl implements GoogleOAuthService {
         if (httpTransport != null && httpTransport instanceof AutoCloseable closeable) {
             closeable.close();
         }
-    }
-
-    List<String> supportedAudiences() {
-        return Collections.singletonList(safeClientId());
     }
 }

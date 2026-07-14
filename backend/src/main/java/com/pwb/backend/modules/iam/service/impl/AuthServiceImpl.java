@@ -52,7 +52,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -84,7 +83,6 @@ public class AuthServiceImpl implements AuthService {
     private final SessionService sessionService;
     private final GoogleOAuthService googleOAuthService;
     private final OutboxService outboxService;
-    private final StringRedisTemplate stringRedisTemplate;
     private final DatabaseReader geoIpDatabaseReader;
     private final DisposableEmailChecker disposableEmailChecker;
     private final CaptchaVerifier captchaVerifier;
@@ -314,6 +312,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public LoginResponse loginWithGoogle(GoogleLoginRequest request, String ip, String userAgent) {
         log.info("GOOGLE_LOGIN_ATTEMPT ip={}", MaskingLogArg.ip(ip));
+        loginAttemptService.validateIpNotBlocked(ip);
         GoogleUserInfo info = googleOAuthService.verify(request.idToken(), request.nonce());
         String email = info.email().toLowerCase(Locale.ROOT);
 
@@ -324,14 +323,6 @@ public class AuthServiceImpl implements AuthService {
             if (byEmail == null) {
                 user = createOAuthAccount(info, email);
                 log.info("GOOGLE_ACCOUNT_LINKED userId={} provider=GOOGLE action=created", user.getId());
-            } else if (byEmail.isLocal() && byEmail.getStatus() == UserStatus.PENDING_VERIFICATION) {
-                byEmail.linkOAuth(info.googleSubId(), info.fullName(), info.avatarUrl());
-                byEmail.activateFromOtp();
-                byEmail.setPasswordHash(null);
-                clearOtpKeysForEmail(email);
-                userRepository.save(byEmail);
-                user = byEmail;
-                log.info("GOOGLE_ACCOUNT_LINKED userId={} provider=GOOGLE action=claim_pending_local", user.getId());
             } else {
                 log.warn("OAUTH_EMAIL_CONFLICT email={} existingProvider={} existingStatus={}",
                         MaskingLogArg.email(email), byEmail.getOauthProvider(), byEmail.getStatus());
@@ -596,13 +587,6 @@ public class AuthServiceImpl implements AuthService {
         } catch (JwtException | IllegalArgumentException ex) {
             return null;
         }
-    }
-
-    private void clearOtpKeysForEmail(String email) {
-        String key = email.toLowerCase(Locale.ROOT);
-        stringRedisTemplate.delete("otp:" + key);
-        stringRedisTemplate.delete("otp:attempt:" + key);
-        stringRedisTemplate.delete("otp:lock:" + key);
     }
 
     private void publishUserRegistered(User user, String otp, Instant issuedAt) {

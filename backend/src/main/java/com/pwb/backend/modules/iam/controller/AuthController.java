@@ -18,9 +18,12 @@ import com.pwb.backend.modules.iam.dto.response.RegisterResponse;
 import com.pwb.backend.modules.iam.dto.response.ResendOtpResponse;
 import com.pwb.backend.modules.iam.exception.IamErrorCode;
 import com.pwb.backend.modules.iam.service.AuthService;
+import com.pwb.backend.modules.iam.service.GoogleOAuthService;
+import com.pwb.backend.modules.iam.service.GoogleUserInfo;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -51,6 +54,7 @@ public class AuthController {
     private final BearerTokenExtractor bearerTokenExtractor;
     private final CaptchaVerifier captchaVerifier;
     private final MessageSource messageSource;
+    private final GoogleOAuthService googleOAuthService;
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<RegisterResponse>> register(@Valid @RequestBody RegisterRequest request,
@@ -100,10 +104,20 @@ public class AuthController {
     public ResponseEntity<ApiResponse<LoginResponse>> loginGoogle(@Valid @RequestBody GoogleLoginRequest request,
                                                                   HttpServletRequest httpRequest,
                                                                   HttpServletResponse httpResponse) {
-        captchaVerifier.verifyOrThrow(request.captchaToken(), httpRequest, CaptchaContext.googleLogin(request.idToken()));
+        GoogleUserInfo info = googleOAuthService.verify(request.idToken(), request.nonce());
+        String email = info.email().toLowerCase(Locale.ROOT);
+        CaptchaContext captchaContext = CaptchaContext.googleLogin(email);
+        captchaVerifier.verifyOrThrow(request.captchaToken(), httpRequest, captchaContext);
         String ip = clientContextResolver.resolveIp(httpRequest);
         String userAgent = clientContextResolver.resolveUserAgent(httpRequest);
-        LoginResponse data = authService.loginWithGoogle(request, ip, userAgent);
+        LoginResponse data;
+        try {
+            data = authService.loginWithGoogle(request, ip, userAgent);
+        } catch (BusinessException ex) {
+            captchaVerifier.recordFailure(captchaContext);
+            throw ex;
+        }
+        captchaVerifier.clearFailure(captchaContext);
         writeRefreshCookieIfPresent(httpResponse, data.refreshToken(), data.refreshTokenMaxAgeSeconds());
         return ResponseEntity.ok(ApiResponse.success(message(MSG_GOOGLE_LOGIN_SUCCESSFUL), data));
     }

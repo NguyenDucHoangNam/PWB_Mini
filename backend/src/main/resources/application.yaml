@@ -221,7 +221,10 @@ app:
       path: /
     oauth:
       google:
-        client-id: ${GOOGLE_CLIENT_ID:}
+        client-ids:
+          - ${GOOGLE_CLIENT_ID_WEB:}
+          - ${GOOGLE_CLIENT_ID_IOS:}
+          - ${GOOGLE_CLIENT_ID_ANDROID:}
     captcha:
       turnstile:
         enabled: ${APP_SECURITY_CAPTCHA_TURNSTILE_ENABLED:true}
