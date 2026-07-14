@@ -29,7 +29,7 @@ import java.util.UUID;
 public class RoleSandboxFilter extends OncePerRequestFilter {
 
     private static final String ROLE_LISTENER = "ROLE_LISTENER";
-    private static final String ROLE_USER_PRO = "ROLE_USER_PRO";
+    private static final String ROLE_PRO = "ROLE_PRO";
     private static final String ROLE_ADMIN = "ROLE_ADMIN";
 
     private static final String[] LISTENER_ALLOWED_PREFIXES = {

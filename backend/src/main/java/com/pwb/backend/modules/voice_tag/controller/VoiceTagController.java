@@ -5,7 +5,9 @@ import com.pwb.backend.common.security.CurrentUserResolver;
 import com.pwb.backend.modules.voice_tag.dto.request.CreateVoiceTagRequest;
 import com.pwb.backend.modules.voice_tag.dto.response.VoiceTagPreviewResponse;
 import com.pwb.backend.modules.voice_tag.dto.response.VoiceTagResponse;
+import com.pwb.backend.modules.voice_tag.dto.response.VoiceTagWhitelistResponse;
 import com.pwb.backend.modules.voice_tag.service.VoiceTagService;
+import com.pwb.backend.modules.voice_tag.service.VoiceTagVoiceWhitelistService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -38,9 +41,10 @@ public class VoiceTagController {
     private final VoiceTagService voiceTagService;
     private final CurrentUserResolver currentUserResolver;
     private final MessageSource messageSource;
+    private final VoiceTagVoiceWhitelistService voiceWhitelistService;
 
     @PostMapping
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<VoiceTagResponse>> create(@Valid @RequestBody CreateVoiceTagRequest request) {
         UUID ownerId = currentUserResolver.resolveUserId();
         VoiceTagResponse data = voiceTagService.create(ownerId, request);
@@ -48,7 +52,7 @@ public class VoiceTagController {
     }
 
     @GetMapping("/{tagId}/preview")
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<VoiceTagPreviewResponse>> preview(@PathVariable("tagId") UUID tagId) {
         UUID ownerId = currentUserResolver.resolveUserId();
         VoiceTagPreviewResponse data = voiceTagService.generatePreviewUrl(ownerId, tagId);
@@ -56,15 +60,29 @@ public class VoiceTagController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<List<VoiceTagResponse>>> list() {
         UUID ownerId = currentUserResolver.resolveUserId();
         List<VoiceTagResponse> data = voiceTagService.list(ownerId);
         return ResponseEntity.ok(ApiResponse.success(message(MSG_VOICE_TAG_LIST), data));
     }
 
+    @GetMapping("/whitelist")
+    @PreAuthorize("hasRole('PRO')")
+    public ResponseEntity<ApiResponse<VoiceTagWhitelistResponse>> whitelist(
+            @RequestParam("languageCode") String languageCode) {
+        List<VoiceTagWhitelistResponse.VoiceOption> options =
+                voiceWhitelistService.listVoicesForLanguage(languageCode).stream()
+                        .map(voice -> new VoiceTagWhitelistResponse.VoiceOption(
+                                voice.getName(), voice.getSsmlGender().name()))
+                        .sorted((a, b) -> a.voiceName().compareTo(b.voiceName()))
+                        .toList();
+        VoiceTagWhitelistResponse data = new VoiceTagWhitelistResponse(languageCode, options);
+        return ResponseEntity.ok(ApiResponse.success(message(MSG_VOICE_TAG_LIST), data));
+    }
+
     @PostMapping("/{tagId}/default")
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<Void>> setDefault(@PathVariable("tagId") UUID tagId) {
         UUID ownerId = currentUserResolver.resolveUserId();
         voiceTagService.setDefault(ownerId, tagId);
@@ -72,7 +90,7 @@ public class VoiceTagController {
     }
 
     @DeleteMapping("/{tagId}")
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<Void>> softDelete(@PathVariable("tagId") UUID tagId) {
         UUID ownerId = currentUserResolver.resolveUserId();
         voiceTagService.softDelete(ownerId, tagId);
@@ -80,7 +98,7 @@ public class VoiceTagController {
     }
 
     @PostMapping("/{tagId}/restore")
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<Void>> restore(@PathVariable("tagId") UUID tagId) {
         UUID ownerId = currentUserResolver.resolveUserId();
         voiceTagService.restore(ownerId, tagId);

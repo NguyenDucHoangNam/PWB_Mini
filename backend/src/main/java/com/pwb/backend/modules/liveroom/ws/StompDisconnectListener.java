@@ -28,7 +28,7 @@ import java.util.UUID;
 public class StompDisconnectListener {
 
     private static final String ROLE_LISTENER = "LISTENER";
-    private static final String ROLE_USER_PRO = "USER_PRO";
+    private static final String ROLE_PRO = "PRO";
 
     private final RoomLifecycleService roomLifecycleService;
     private final StringRedisTemplate stringRedisTemplate;

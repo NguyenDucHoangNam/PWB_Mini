@@ -30,7 +30,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
     private static final String DESTINATION_PREFIX = "/topic/rooms/";
     private static final String HEADER_ROOM_CODE = "X-Room-Code";
 
-    private static final String ROLE_USER_PRO = "USER_PRO";
+    private static final String ROLE_PRO = "PRO";
     private static final String ROLE_LISTENER = "LISTENER";
 
     public static final String SESSION_ATTR_IS_CONTROLLER = "isController";
@@ -95,11 +95,11 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
             }
             String sessionId = accessor.getSessionId();
             if (accessor.getSessionAttributes() != null) {
-                accessor.getSessionAttributes().put(SESSION_ATTR_IS_CONTROLLER, ROLE_USER_PRO.equals(role));
+                accessor.getSessionAttributes().put(SESSION_ATTR_IS_CONTROLLER, ROLE_PRO.equals(role));
             }
             if (ROLE_LISTENER.equals(role)) {
                 bindListenerSession(sessionId, user.userId(), roomCode);
-            } else if (ROLE_USER_PRO.equals(role)) {
+            } else if (ROLE_PRO.equals(role)) {
                 bindHostSession(sessionId, user.userId(), roomCode);
             } else {
                 log.warn("WS_CONNECT_UNKNOWN_ROLE role={} userId={}", role, user.userId());
@@ -128,7 +128,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         } else {
             log.info("WS_CONNECT_HOST_NO_ROOM_CODE userId={} sessionId={}", userId, sessionId);
         }
-        writeSessionMeta(sessionId, userId.toString(), roomCode, ROLE_USER_PRO);
+        writeSessionMeta(sessionId, userId.toString(), roomCode, ROLE_PRO);
     }
 
     private void bindListenerSession(String sessionId, UUID userId, String roomCode) {
@@ -222,7 +222,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         if (meta == null) {
             return null;
         }
-        return Boolean.TRUE.equals(meta) ? ROLE_USER_PRO : ROLE_LISTENER;
+        return Boolean.TRUE.equals(meta) ? ROLE_PRO : ROLE_LISTENER;
     }
 
     UUID resolveUserId(StompHeaderAccessor accessor) {

@@ -36,7 +36,7 @@ public class DemoDistributionController {
     private final MessageSource messageSource;
 
     @PostMapping("/{demoId}/distribute")
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<DistributeDemoResponse>> distribute(
             @PathVariable UUID demoId,
             @Valid @RequestBody DistributeDemoRequest request) {
@@ -47,7 +47,7 @@ public class DemoDistributionController {
     }
 
     @DeleteMapping("/{demoId}/distributions/{distributionId}")
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<DistributionListItemResponse>> revokeDistribution(
             @PathVariable UUID demoId,
             @PathVariable UUID distributionId) {
@@ -58,7 +58,7 @@ public class DemoDistributionController {
     }
 
     @DeleteMapping("/{demoId}/distributions")
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<Integer>> revokeAllDistributions(@PathVariable UUID demoId) {
         UUID producerId = currentUserResolver.resolveUserId();
         int count = demoDistributionService.revokeAllDistributions(demoId, producerId);

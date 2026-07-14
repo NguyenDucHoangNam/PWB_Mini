@@ -47,6 +47,7 @@ public class VoiceTagProperties {
     @Getter
     @Setter
     public static class Gcp {
+        private String credentialsPath;
         private String endpoint;
         private int connectTimeoutMs;
         private int readTimeoutMs;

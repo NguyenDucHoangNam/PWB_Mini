@@ -496,6 +496,9 @@
       "createTagVoiceLabel": "Voice",
       "createTagSubmit": "Generate",
       "createTagSuccess": "Voice tag created",
+      "voiceWhitelistLoadFailed": "Could not load voices",
+      "voiceWhitelistEmpty": "No voices available",
+      "retry": "Retry",
       "shareTitle": "Share Demo",
       "shareDesc": "Create a secure share link for this demo.",
       "shareEmailLabel": "Recipient email",
@@ -513,7 +516,8 @@
       "loading": "Loading...",
       "error": "Something went wrong. Please try again.",
       "back": "Back",
-      "copyLink": "Copy link"
+      "copyLink": "Copy link",
+      "retry": "Retry"
     }
   },
   "errors": {

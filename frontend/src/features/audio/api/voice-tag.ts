@@ -6,12 +6,24 @@ import type {
   CreateVoiceTagRequest,
   VoiceTagPreviewResponse,
   VoiceTagResponse,
+  VoiceWhitelistResponse,
 } from "../types";
 
 export const VOICE_TAGS_KEY = "audio-voice-tags" as const;
+export const VOICE_WHITELIST_KEY = "audio-voice-whitelist" as const;
 
 export const getVoiceTags = (): Promise<ApiResponse<VoiceTagResponse[]>> => {
   return apiClient.get("/voice-tags").then((res) => res.data);
+};
+
+export const getVoiceWhitelist = ({
+  languageCode,
+}: {
+  languageCode: string;
+}): Promise<ApiResponse<VoiceWhitelistResponse>> => {
+  return apiClient
+    .get("/voice-tags/whitelist", { params: { languageCode } })
+    .then((res) => res.data);
 };
 
 export const createVoiceTag = ({
@@ -66,6 +78,21 @@ export function useVoiceTags({
   return useQuery({
     queryKey: [VOICE_TAGS_KEY],
     queryFn: getVoiceTags,
+    ...queryConfig,
+  });
+}
+
+export function useVoiceWhitelist({
+  languageCode,
+  queryConfig,
+}: {
+  languageCode: string;
+  queryConfig?: QueryConfig<typeof getVoiceWhitelist>;
+} = { languageCode: "" }) {
+  return useQuery({
+    queryKey: [VOICE_WHITELIST_KEY, languageCode],
+    queryFn: () => getVoiceWhitelist({ languageCode }),
+    enabled: Boolean(languageCode) && (queryConfig?.enabled ?? true),
     ...queryConfig,
   });
 }

@@ -36,7 +36,7 @@ public class DemoDistributionListController {
     private final MessageSource messageSource;
 
     @GetMapping("/{demoId}/distributions")
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<Page<DistributionListItemResponse>>> listDistributions(
             @PathVariable UUID demoId,
             @RequestParam(defaultValue = "0") int page,

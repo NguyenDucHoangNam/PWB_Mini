@@ -12,7 +12,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -40,13 +39,17 @@ public class VoiceTagVoiceWhitelistService {
         if (voiceName == null || voiceName.isBlank()) {
             throw new BusinessException(VoiceTagErrorCode.INVALID_VOICE_NAME);
         }
-        Set<String> allowed = loadVoicesForLanguage(languageCode);
+        Set<String> allowed = loadVoiceNamesForLanguage(languageCode);
         if (!allowed.contains(voiceName)) {
             throw new BusinessException(VoiceTagErrorCode.INVALID_VOICE_NAME);
         }
     }
 
-    private Set<String> loadVoicesForLanguage(String languageCode) {
+    public List<Voice> listVoicesForLanguage(String languageCode) {
+        return fetchVoicesFromGcp(languageCode);
+    }
+
+    private Set<String> loadVoiceNamesForLanguage(String languageCode) {
         String cacheKey = CACHE_KEY_PREFIX + (languageCode == null ? "" : languageCode.toLowerCase());
         String cached = stringRedisTemplate.opsForValue().get(cacheKey);
         Set<String> result = new HashSet<>();
@@ -60,12 +63,15 @@ public class VoiceTagVoiceWhitelistService {
                 return result;
             }
         }
-        result.addAll(fetchFromGcp(languageCode));
-        cache(cacheKey, result);
+        List<Voice> voices = fetchVoicesFromGcp(languageCode);
+        for (Voice voice : voices) {
+            result.add(voice.getName());
+        }
+        cacheNames(cacheKey, result);
         return result;
     }
 
-    private Set<String> fetchFromGcp(String languageCode) {
+    private List<Voice> fetchVoicesFromGcp(String languageCode) {
         TextToSpeechClient client = textToSpeechClientProvider.getIfAvailable();
         if (client == null) {
             log.warn("GCP_TTS_CLIENT_UNAVAILABLE language={}", languageCode);
@@ -78,12 +84,8 @@ public class VoiceTagVoiceWhitelistService {
                 builder.setLanguageCode(languageCode);
             }
             List<Voice> voices = client.listVoices(builder.build()).getVoicesList();
-            Set<String> names = new HashSet<>();
-            for (Voice voice : voices) {
-                names.add(voice.getName());
-            }
-            log.info("GCP_TTS_VOICES_FETCHED language={} count={}", languageCode, names.size());
-            return names;
+            log.info("GCP_TTS_VOICES_FETCHED language={} count={}", languageCode, voices.size());
+            return voices;
         } catch (Exception ex) {
             log.warn("GCP_TTS_VOICE_FETCH_FAILED language={} reason={}", languageCode, ex.getMessage());
             throw new BusinessException(VoiceTagErrorCode.TTS_SERVICE_FAILED,
@@ -91,7 +93,7 @@ public class VoiceTagVoiceWhitelistService {
         }
     }
 
-    private void cache(String cacheKey, Collection<String> voices) {
+    private void cacheNames(String cacheKey, Set<String> voices) {
         if (voices.isEmpty()) {
             return;
         }

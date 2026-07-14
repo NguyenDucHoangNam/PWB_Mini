@@ -50,7 +50,7 @@ public class DemoController {
     private final MessageSource messageSource;
 
     @PostMapping("/presigned-upload-url")
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<PresignedUrlResponse>> generatePresignedUploadUrl(
             @Valid @RequestBody PresignedUrlRequest request) {
         UUID ownerId = currentUserResolver.resolveUserId();
@@ -59,7 +59,7 @@ public class DemoController {
     }
 
     @PostMapping("/confirm-upload")
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<ConfirmUploadResponse>> confirmUpload(
             @Valid @RequestBody ConfirmUploadRequest request) {
         UUID ownerId = currentUserResolver.resolveUserId();
@@ -69,7 +69,7 @@ public class DemoController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<Page<DemoListItemResponse>>> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
@@ -83,7 +83,7 @@ public class DemoController {
     }
 
     @GetMapping("/{demoId}/status")
-    @PreAuthorize("hasAnyRole('USER','USER_PRO','ADMIN')")
+    @PreAuthorize("hasAnyRole('USER','PRO','ADMIN')")
     public ResponseEntity<ApiResponse<DemoStatusResponse>> getStatus(@PathVariable("demoId") UUID demoId) {
         UUID ownerId = currentUserResolver.resolveUserId();
         DemoStatusResponse data = demoService.getStatus(ownerId, demoId);
@@ -91,7 +91,7 @@ public class DemoController {
     }
 
     @PostMapping("/{demoId}/rotate-key")
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<RotateKeyResponse>> rotateKey(@PathVariable("demoId") UUID demoId) {
         UUID ownerId = currentUserResolver.resolveUserId();
         RotateKeyResponse data = demoService.rotateKey(ownerId, demoId);

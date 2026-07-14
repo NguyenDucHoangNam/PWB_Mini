@@ -68,7 +68,7 @@ public class LiveRoomController {
     private final MessageSource messageSource;
 
     @PostMapping
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<CreateRoomResponse>> createRoom(
             @Valid @RequestBody CreateRoomRequest request) {
         UUID hostId = currentUserResolver.resolveUserId();
@@ -94,7 +94,7 @@ public class LiveRoomController {
     }
 
     @GetMapping("/{roomCode}/waiting")
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<WaitingListResponse>> listWaiting(@PathVariable String roomCode) {
         UUID hostId = currentUserResolver.resolveUserId();
         WaitingListResponse data = waitingListService.listWaiting(roomCode, hostId);
@@ -102,7 +102,7 @@ public class LiveRoomController {
     }
 
     @PostMapping("/{roomCode}/waiting/approve")
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<Void>> approve(
             @PathVariable String roomCode,
             @Valid @RequestBody ApproveRejectRequest request) {
@@ -112,7 +112,7 @@ public class LiveRoomController {
     }
 
     @PostMapping("/{roomCode}/waiting/reject")
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<Void>> reject(
             @PathVariable String roomCode,
             @Valid @RequestBody ApproveRejectRequest request) {
@@ -122,7 +122,7 @@ public class LiveRoomController {
     }
 
     @PostMapping("/{roomCode}/waiting/kick")
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<Void>> kick(
             @PathVariable String roomCode,
             @Valid @RequestBody ApproveRejectRequest request) {
@@ -132,7 +132,7 @@ public class LiveRoomController {
     }
 
     @PostMapping("/{roomCode}/source")
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<Void>> selectSource(
             @PathVariable String roomCode,
             @Valid @RequestBody SelectSourceRequest request) {
@@ -148,7 +148,7 @@ public class LiveRoomController {
     }
 
     @PostMapping("/{roomCode}/delegation")
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<Void>> delegateControl(
             @PathVariable String roomCode,
             @Valid @RequestBody DelegateControlRequest request) {
@@ -159,7 +159,7 @@ public class LiveRoomController {
     }
 
     @PostMapping("/{roomCode}/delegation/global")
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<Void>> setGlobalDelegation(
             @PathVariable String roomCode,
             @Valid @RequestBody GlobalDelegationRequest request) {
@@ -169,7 +169,7 @@ public class LiveRoomController {
     }
 
     @PostMapping("/{roomCode}/close")
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<Void>> closeRoom(@PathVariable String roomCode) {
         UUID hostId = currentUserResolver.resolveUserId();
         roomLifecycleService.closeRoomByHost(roomCode, hostId);

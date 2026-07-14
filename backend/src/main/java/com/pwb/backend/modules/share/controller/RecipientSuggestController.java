@@ -28,7 +28,7 @@ public class RecipientSuggestController {
     private final MessageSource messageSource;
 
     @GetMapping("/recipients/suggest")
-    @PreAuthorize("hasRole('USER_PRO')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<List<String>>> suggestRecipients(
             @RequestParam("q") String keyword) {
         UUID producerId = currentUserResolver.resolveUserId();

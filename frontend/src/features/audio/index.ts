@@ -14,17 +14,20 @@ export {
 } from "./api/audio";
 export {
   getVoiceTags,
+  getVoiceWhitelist,
   createVoiceTag,
   setDefaultVoiceTag,
   deleteVoiceTag,
   restoreVoiceTag,
   previewVoiceTag,
   useVoiceTags,
+  useVoiceWhitelist,
   useCreateVoiceTag,
   useSetDefaultVoiceTag,
   useDeleteVoiceTag,
   useRestoreVoiceTag,
   VOICE_TAGS_KEY,
+  VOICE_WHITELIST_KEY,
 } from "./api/voice-tag";
 export {
   getDistributions,

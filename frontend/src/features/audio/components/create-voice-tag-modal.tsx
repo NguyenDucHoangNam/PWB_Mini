@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import {
@@ -12,22 +12,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { asApiError } from "@/lib/api-client";
-import { useCreateVoiceTag } from "@/features/audio";
+import { useCreateVoiceTag, useVoiceWhitelist } from "@/features/audio";
 
-const LANGUAGES: { code: string; label: string; voices: string[] }[] = [
-  {
-    code: "vi-VN",
-    label: "Tiếng Việt",
-    voices: ["vi-VN-Neural2-A", "vi-VN-Standard-A", "vi-VN-Wavenet-A"],
-  },
-  {
-    code: "en-US",
-    label: "English (US)",
-    voices: ["en-US-Neural2-A", "en-US-Neural2-D", "en-US-Standard-A", "en-US-Wavenet-A"],
-  },
+const LANGUAGES: { code: string; label: string }[] = [
+  { code: "vi-VN", label: "Tiếng Việt" },
+  { code: "en-US", label: "English (US)" },
 ];
 
 interface CreateVoiceTagModalProps {
@@ -40,19 +31,59 @@ export function CreateVoiceTagModal({ open, onOpenChange }: CreateVoiceTagModalP
   const tCommon = useTranslations("dashboard.common");
   const [text, setText] = useState("");
   const [languageCode, setLanguageCode] = useState<string>(LANGUAGES[0].code);
-  const [voiceName, setVoiceName] = useState<string>(LANGUAGES[0].voices[0]);
+  const [voiceName, setVoiceName] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
   const { mutate: createMutate, isPending } = useCreateVoiceTag();
+  const {
+    data: whitelistResponse,
+    isLoading: isWhitelistLoading,
+    isFetching: isWhitelistFetching,
+    error: whitelistError,
+    refetch: refetchWhitelist,
+  } = useVoiceWhitelist({
+    languageCode,
+    queryConfig: { enabled: open },
+  });
 
-  const selectedLanguage =
-    LANGUAGES.find((l) => l.code === languageCode) ?? LANGUAGES[0];
+  const voices = whitelistResponse?.success && whitelistResponse.data
+    ? whitelistResponse.data.voices
+    : [];
+  const isWhitelistSuccess = whitelistResponse?.success === true && whitelistResponse.data !== null;
+  const hasWhitelistError = whitelistError !== null && whitelistError !== undefined;
+
+  const submitDisabledReason =
+    isPending ||
+    isWhitelistLoading ||
+    isWhitelistFetching ||
+    text.trim().length === 0 ||
+    !voiceName ||
+    !isWhitelistSuccess ||
+    voices.length === 0;
+
+  useEffect(() => {
+    if (voices.length > 0 && (voiceName === "" || !voices.some((v) => v.voiceName === voiceName))) {
+      setVoiceName(voices[0].voiceName);
+    }
+  }, [voices, voiceName]);
+
+  useEffect(() => {
+    if (!open) {
+      setText("");
+      setError(null);
+      setVoiceName("");
+    }
+  }, [open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     const trimmed = text.trim();
     if (trimmed.length < 1 || trimmed.length > 250) {
+      setError(tCommon("error"));
+      return;
+    }
+    if (!voiceName) {
       setError(tCommon("error"));
       return;
     }
@@ -80,6 +111,14 @@ export function CreateVoiceTagModal({ open, onOpenChange }: CreateVoiceTagModalP
       },
     );
   };
+
+  const voiceSelectPlaceholder = isWhitelistLoading || isWhitelistFetching
+    ? tCommon("loading")
+    : hasWhitelistError
+      ? t("voiceWhitelistLoadFailed")
+      : !isWhitelistSuccess || voices.length === 0
+        ? t("voiceWhitelistEmpty")
+        : null;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !isPending && onOpenChange(o)}>
@@ -117,8 +156,7 @@ export function CreateVoiceTagModal({ open, onOpenChange }: CreateVoiceTagModalP
                   onChange={(e) => {
                     const newCode = e.target.value;
                     setLanguageCode(newCode);
-                    const found = LANGUAGES.find((l) => l.code === newCode);
-                    if (found) setVoiceName(found.voices[0]);
+                    setVoiceName("");
                   }}
                   className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
                 >
@@ -136,14 +174,39 @@ export function CreateVoiceTagModal({ open, onOpenChange }: CreateVoiceTagModalP
                   id="tag-voice"
                   value={voiceName}
                   onChange={(e) => setVoiceName(e.target.value)}
-                  className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+                  disabled={
+                    isWhitelistLoading ||
+                    isWhitelistFetching ||
+                    hasWhitelistError ||
+                    !isWhitelistSuccess ||
+                    voices.length === 0
+                  }
+                  className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 disabled:opacity-50"
                 >
-                  {selectedLanguage.voices.map((voice) => (
-                    <option key={voice} value={voice}>
-                      {voice}
-                    </option>
-                  ))}
+                  {voiceSelectPlaceholder ? (
+                    <option value="">{voiceSelectPlaceholder}</option>
+                  ) : (
+                    voices.map((voice) => (
+                      <option key={voice.voiceName} value={voice.voiceName}>
+                        {voice.voiceName} ({voice.gender})
+                      </option>
+                    ))
+                  )}
                 </select>
+                {hasWhitelistError && (
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="text-red-500">
+                      {(whitelistError as Error)?.message || t("voiceWhitelistLoadFailed")}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => refetchWhitelist()}
+                      className="text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400"
+                    >
+                      {tCommon("retry")}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -165,7 +228,7 @@ export function CreateVoiceTagModal({ open, onOpenChange }: CreateVoiceTagModalP
               >
                 {t("closeBtn")}
               </Button>
-              <Button type="submit" disabled={isPending || text.trim().length === 0}>
+              <Button type="submit" disabled={Boolean(submitDisabledReason)}>
                 {isPending ? tCommon("loading") : t("createTagSubmit")}
               </Button>
             </DialogFooter>
