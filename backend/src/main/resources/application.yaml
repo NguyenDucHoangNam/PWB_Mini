@@ -327,7 +327,7 @@ app:
       demo-audio: pwb-demo-audio
       cover-image: pwb-covers
       generic: pwb-misc
-      voice-tag: pwb-voice-tags
+      voice-tag: pwb-mini-prod-bucket
   audio:
     temp-dir: /tmp/pwb-audio
     ffmpeg-path: ffmpeg

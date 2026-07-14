@@ -32,6 +32,7 @@ import javax.xml.transform.stream.StreamResult;
 public class VoiceTagSsmlSanitizer {
 
     private static final String SSML_ROOT = "speak";
+    private static final String SSML_WRAPPER_FORMAT = "<speak>%s</speak>";
     private static final Set<String> ALLOWED_TAGS = Set.of(
             "speak", "say-as", "phoneme", "break", "prosody", "emphasis");
     private static final Set<String> ALLOWED_ATTRIBUTES = Set.of(
@@ -51,6 +52,10 @@ public class VoiceTagSsmlSanitizer {
             throw new BusinessException(VoiceTagErrorCode.INVALID_SSML_TAG);
         }
 
+        if (!raw.contains("<")) {
+            return sanitizePlainText(raw);
+        }
+
         Document doc = parseStrict(raw);
         walkAndValidate(doc.getDocumentElement(), 0);
 
@@ -64,7 +69,20 @@ public class VoiceTagSsmlSanitizer {
         return new SanitizedSsml(serialized, rawTextLength);
     }
 
+    private SanitizedSsml sanitizePlainText(String raw) {
+        String trimmed = raw.strip();
+        if (trimmed.isEmpty()) {
+            throw new BusinessException(VoiceTagErrorCode.INVALID_SSML_TAG);
+        }
+        if (trimmed.length() > properties.getMaxRawTextLength()) {
+            throw new BusinessException(VoiceTagErrorCode.TTS_TEXT_TOO_LONG);
+        }
+        String ssml = String.format(SSML_WRAPPER_FORMAT, escapeXml(trimmed));
+        return new SanitizedSsml(ssml, trimmed.length());
+    }
+
     private Document parseStrict(String xml) {
+        String normalized = wrapIfPlainText(xml);
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
@@ -75,11 +93,43 @@ public class VoiceTagSsmlSanitizer {
             factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
             factory.setNamespaceAware(false);
             factory.setExpandEntityReferences(false);
-            return factory.newDocumentBuilder().parse(new InputSource(new StringReader(xml)));
+            return factory.newDocumentBuilder().parse(new InputSource(new StringReader(normalized)));
         } catch (ParserConfigurationException | SAXException | IOException ex) {
-            log.warn("SSML parsing failed: {}", ex.getMessage());
+            log.warn("SSML parsing failed: inputLen={} reason={}", xml.length(), ex.getMessage());
             throw new BusinessException(VoiceTagErrorCode.INVALID_SSML_TAG);
         }
+    }
+
+    private String wrapIfPlainText(String xml) {
+        if (xml == null) {
+            return "<speak></speak>";
+        }
+        String stripped = stripBom(xml).strip();
+        return String.format(SSML_WRAPPER_FORMAT, escapeXml(stripped));
+    }
+
+    private String stripBom(String input) {
+        return (!input.isEmpty() && input.charAt(0) == '﻿') ? input.substring(1) : input;
+    }
+
+    private String escapeXml(String input) {
+        StringBuilder sb = new StringBuilder(input.length());
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+            switch (c) {
+                case '<' -> sb.append("&lt;");
+                case '>' -> sb.append("&gt;");
+                case '&' -> sb.append("&amp;");
+                case '"' -> sb.append("&quot;");
+                case '\'' -> sb.append("&apos;");
+                default -> {
+                    if (c >= 0x20 || c == '\n' || c == '\r' || c == '\t') {
+                        sb.append(c);
+                    }
+                }
+            }
+        }
+        return sb.toString();
     }
 
     private void walkAndValidate(Element element, int depth) {

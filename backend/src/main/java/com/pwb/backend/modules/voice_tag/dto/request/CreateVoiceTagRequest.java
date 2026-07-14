@@ -16,7 +16,7 @@ public record CreateVoiceTagRequest(
 
         @NotBlank(message = "{validation.voiceTag.voiceName.required}")
         @Pattern(
-                regexp = "^[a-z]{2,3}-[A-Z]{2,3}-(Standard|Neural|Wavenet)-[A-Z]{1,3}$",
+                regexp = "^[a-z]{2,3}-[A-Z]{2,3}-.+$",
                 message = "{validation.voiceTag.voiceName.format}")
         String voiceName) {
 }
