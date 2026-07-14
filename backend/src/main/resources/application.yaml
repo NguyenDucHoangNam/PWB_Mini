@@ -237,8 +237,25 @@ app:
     ip-attempt-window-seconds: 300
     ip-lockout-seconds: 900
   kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     partitions: 3
     replicas: 1
+    producer:
+      retries: 3
+      retry-backoff-ms: 100
+      acks-timeout-ms: 30000
+      idempotence: true
+    consumer:
+      group-id-prefix: pwb
+      max-poll-records: 500
+      concurrency: 3
+    retry:
+      max-attempts: 5
+      initial-interval-ms: 1000
+      multiplier: 2.0
+      max-interval-ms: 30000
+    mail-worker:
+      group-id: mail-worker
   outbox:
     retry-interval-ms: 30000
     max-attempts: 10

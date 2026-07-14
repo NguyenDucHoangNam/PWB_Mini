@@ -2,12 +2,10 @@ package com.pwb.backend.common.outbox.scheduler;
 
 import com.pwb.backend.common.outbox.enums.OutboxStatus;
 import com.pwb.backend.common.outbox.publisher.OutboxEventSerializer;
+import com.pwb.backend.common.outbox.publisher.OutboxEventTopics;
 import com.pwb.backend.common.outbox.publisher.OutboxEventTypes;
-
-import com.pwb.backend.common.kafka.constant.KafkaTopics;
 import com.pwb.backend.common.model.OutboxEvent;
 import com.pwb.backend.common.repository.OutboxEventRepository;
-import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -31,6 +29,7 @@ public class OutboxRetryScheduler {
     private final OutboxEventRepository outboxRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final OutboxEventSerializer outboxEventSerializer;
+    private final OutboxEventTopics outboxEventTopics;
     private final BackoffCalculator backoffCalculator;
     private final OutboxRetryResultHandler resultHandler;
 
@@ -38,7 +37,6 @@ public class OutboxRetryScheduler {
     private int maxAttempts;
     @Value("${app.outbox.retry-batch-size}")
     private int batchSize;
-
 
     @Scheduled(fixedDelayString = "${app.outbox.retry-interval-ms}")
     @SchedulerLock(name = "outbox-retry", lockAtMostFor = "PT5M", lockAtLeastFor = "PT30S")
@@ -55,10 +53,16 @@ public class OutboxRetryScheduler {
             row.setStatus(OutboxStatus.PROCESSING);
             outboxRepository.save(row);
 
-            String topic = resolveTopic(row);
-            if (topic == null) {
+            String topic;
+            try {
+                topic = outboxEventTopics.resolveTopic(row.getEventType());
+            } catch (IllegalArgumentException ex) {
+                log.warn("Unknown outbox event type {} for event {}", row.getEventType(), row.getId());
+                resultHandler.handleFailure(row.getId(), ex.getMessage(), maxAttempts, now,
+                        backoffCalculator, log, outboxRepository);
                 continue;
             }
+
             final String payload = outboxEventSerializer.serialize(row);
             final String key = row.getPayloadKey() != null ? row.getPayloadKey() : row.getAggregateId().toString();
             final java.util.UUID rowId = row.getId();
@@ -75,22 +79,5 @@ public class OutboxRetryScheduler {
                 }
             });
         }
-    }
-
-    private String resolveTopic(OutboxEvent row) {
-        return switch (row.getEventType()) {
-            case OutboxEventTypes.USER_REGISTERED -> KafkaTopics.IAM_USER_REGISTERED;
-            case OutboxEventTypes.OTP_RESENT -> KafkaTopics.IAM_OTP_RESENT;
-            case OutboxEventTypes.PASSWORD_RESET -> KafkaTopics.IAM_PASSWORD_RESET;
-            case OutboxEventTypes.ACCOUNT_DELETION_REQUESTED,
-                 OutboxEventTypes.ACCOUNT_DELETION_CANCELLED -> KafkaTopics.IAM_ACCOUNT_DELETION;
-            case OutboxEventTypes.ACCOUNT_ANONYMIZED -> KafkaTopics.IAM_ACCOUNT_EVENTS;
-            case OutboxEventTypes.SEND_SHARE_EMAIL,
-                 OutboxEventTypes.SEND_REVOKE_NOTICE -> KafkaTopics.AUDIO_SHARE_EMAIL;
-            default -> {
-                log.warn("Unknown outbox event type {} for event {}", row.getEventType(), row.getId());
-                yield null;
-            }
-        };
     }
 }

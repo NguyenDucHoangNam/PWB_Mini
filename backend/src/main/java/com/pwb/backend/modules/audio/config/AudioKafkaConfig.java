@@ -1,11 +1,10 @@
 package com.pwb.backend.modules.audio.config;
 
-import com.pwb.backend.common.kafka.constant.KafkaTopics;
+import com.pwb.backend.common.kafka.config.KafkaProperties;
 import com.pwb.backend.modules.voice_tag.config.VoiceTagProperties;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,7 +15,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
-import org.springframework.util.backoff.FixedBackOff;
+import org.springframework.util.backoff.ExponentialBackOff;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -26,24 +25,20 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AudioKafkaConfig {
 
-    private static final long RETRY_INTERVAL_MS = 2000L;
-    private static final int MAX_RETRIES = 2;
-
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final AudioProperties audioProperties;
-
-    @Value("${spring.kafka.bootstrap-servers}")
-    private String bootstrapServers;
+    private final KafkaProperties kafkaProperties;
 
     @Bean
     public ConsumerFactory<String, String> audioProcessingConsumerFactory() {
         Map<String, Object> props = new HashMap<>();
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProperties.getBootstrapServers());
         props.put(ConsumerConfig.GROUP_ID_CONFIG, "audio-worker");
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, kafkaProperties.getConsumer().getMaxPollRecords());
         return new DefaultKafkaConsumerFactory<>(props);
     }
 
@@ -54,11 +49,15 @@ public class AudioKafkaConfig {
         factory.setConcurrency(audioProperties.getWorkerConcurrency());
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
 
-        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
-                kafkaTemplate,
+        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate,
                 (record, ex) -> new org.apache.kafka.common.TopicPartition(
-                        KafkaTopics.AUDIO_PROCESSING_EVENTS_DLQ, record.partition()));
-        FixedBackOff backOff = new FixedBackOff(RETRY_INTERVAL_MS, MAX_RETRIES);
+                        record.topic() + ".dlq", record.partition()));
+
+        ExponentialBackOff backOff = new ExponentialBackOff(
+                kafkaProperties.getRetry().getInitialIntervalMs(),
+                kafkaProperties.getRetry().getMultiplier());
+        backOff.setMaxInterval(kafkaProperties.getRetry().getMaxIntervalMs());
+
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, backOff);
         factory.setCommonErrorHandler(errorHandler);
         return factory;

@@ -20,18 +20,26 @@ public class MailWorker {
     private final ObjectMapper objectMapper;
     private final MailService mailService;
 
-
-    @KafkaListener(topics = KafkaTopics.IAM_USER_REGISTERED, groupId = "${app.kafka.mail-worker.group-id:mail-worker}")
+    @KafkaListener(
+            topics = KafkaTopics.IAM_USER_REGISTERED,
+            groupId = "${app.kafka.mail-worker.group-id:mail-worker}",
+            containerFactory = "defaultKafkaListenerContainerFactory")
     public void onUserRegistered(String payload) {
         handle(payload, KafkaTopics.IAM_USER_REGISTERED);
     }
 
-    @KafkaListener(topics = KafkaTopics.IAM_OTP_RESENT, groupId = "${app.kafka.mail-worker.group-id:mail-worker}")
+    @KafkaListener(
+            topics = KafkaTopics.IAM_OTP_RESENT,
+            groupId = "${app.kafka.mail-worker.group-id:mail-worker}",
+            containerFactory = "defaultKafkaListenerContainerFactory")
     public void onOtpResent(String payload) {
         handle(payload, KafkaTopics.IAM_OTP_RESENT);
     }
 
-    @KafkaListener(topics = KafkaTopics.IAM_ACCOUNT_DELETION, groupId = "${app.kafka.mail-worker.group-id:mail-worker}")
+    @KafkaListener(
+            topics = KafkaTopics.IAM_ACCOUNT_DELETION,
+            groupId = "${app.kafka.mail-worker.group-id:mail-worker}",
+            containerFactory = "defaultKafkaListenerContainerFactory")
     public void onAccountDeletion(String payload) {
         try {
             AccountDeletionRequestedEvent event = objectMapper.readValue(payload, AccountDeletionRequestedEvent.class);
