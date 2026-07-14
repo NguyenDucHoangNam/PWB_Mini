@@ -2,8 +2,9 @@ package com.pwb.backend.common.outbox.publisher;
 
 import com.pwb.backend.common.kafka.constant.KafkaTopics;
 import com.pwb.backend.common.outbox.event.OutboxCreatedEvent;
+import com.pwb.backend.common.outbox.repository.OutboxEventRepository;
 import com.pwb.backend.common.model.OutboxEvent;
-import com.pwb.backend.common.repository.OutboxEventRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;

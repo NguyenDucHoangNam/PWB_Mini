@@ -1,7 +1,8 @@
 package com.pwb.backend.common.outbox.scheduler;
 
 import com.pwb.backend.common.outbox.enums.OutboxStatus;
-import com.pwb.backend.common.repository.OutboxEventRepository;
+import com.pwb.backend.common.outbox.repository.OutboxEventRepository;
+
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;

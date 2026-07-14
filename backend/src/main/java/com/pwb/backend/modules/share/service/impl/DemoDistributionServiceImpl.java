@@ -10,7 +10,7 @@ import com.pwb.backend.common.outbox.event.OutboxCreatedEvent;
 import com.pwb.backend.common.outbox.event.ShareEmailEvent;
 import com.pwb.backend.common.outbox.publisher.OutboxEventTypes;
 import com.pwb.backend.common.outbox.publisher.OutboxPayloadCipher;
-import com.pwb.backend.common.repository.OutboxEventRepository;
+import com.pwb.backend.common.outbox.repository.OutboxEventRepository;
 import com.pwb.backend.modules.audio.entity.Demo;
 import com.pwb.backend.modules.audio.service.AesKeyRotationService;
 import com.pwb.backend.modules.share.config.ShareProperties;

@@ -9,7 +9,7 @@ import com.pwb.backend.common.outbox.event.AccountAnonymizedEvent;
 import com.pwb.backend.common.outbox.event.OutboxCreatedEvent;
 import com.pwb.backend.common.outbox.publisher.OutboxEventTypes;
 import com.pwb.backend.common.outbox.publisher.OutboxPayloadCipher;
-import com.pwb.backend.common.repository.OutboxEventRepository;
+import com.pwb.backend.common.outbox.repository.OutboxEventRepository;
 import com.pwb.backend.modules.iam.enums.UserStatus;
 import com.pwb.backend.modules.iam.model.User;
 import com.pwb.backend.modules.iam.repository.UserRepository;

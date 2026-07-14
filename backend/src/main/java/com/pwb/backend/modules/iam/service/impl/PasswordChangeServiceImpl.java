@@ -9,7 +9,7 @@ import com.pwb.backend.common.outbox.event.OutboxCreatedEvent;
 import com.pwb.backend.common.outbox.event.PasswordResetRequestedEvent;
 import com.pwb.backend.common.outbox.publisher.OutboxEventTypes;
 import com.pwb.backend.common.outbox.publisher.OutboxPayloadCipher;
-import com.pwb.backend.common.repository.OutboxEventRepository;
+import com.pwb.backend.common.outbox.repository.OutboxEventRepository;
 import com.pwb.backend.common.util.MaskingLogArg;
 import com.pwb.backend.common.util.PasswordHasher;
 import com.pwb.backend.modules.iam.enums.OauthProvider;

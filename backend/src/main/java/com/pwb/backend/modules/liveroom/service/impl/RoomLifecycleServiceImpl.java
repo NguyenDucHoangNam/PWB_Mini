@@ -8,7 +8,7 @@ import com.pwb.backend.common.model.OutboxEvent;
 import com.pwb.backend.common.outbox.event.OutboxCreatedEvent;
 import com.pwb.backend.common.outbox.publisher.OutboxEventTypes;
 import com.pwb.backend.common.outbox.publisher.OutboxPayloadCipher;
-import com.pwb.backend.common.repository.OutboxEventRepository;
+import com.pwb.backend.common.outbox.repository.OutboxEventRepository;
 import com.pwb.backend.modules.liveroom.config.LiveRoomProperties;
 import com.pwb.backend.modules.liveroom.constant.LiveRoomRedisKeys;
 import com.pwb.backend.modules.liveroom.dto.response.CreateRoomResponse;

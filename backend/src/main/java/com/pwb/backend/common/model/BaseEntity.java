@@ -7,6 +7,7 @@ import jakarta.persistence.Version;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.SQLRestriction;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
@@ -19,6 +20,7 @@ import java.time.Instant;
 @Setter
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
+@SQLRestriction("deleted_at IS NULL")
 public abstract class BaseEntity {
 
     public static final String SYSTEM_PRINCIPAL = "SYSTEM";
@@ -68,7 +70,9 @@ public abstract class BaseEntity {
     }
 
     public void restore() {
-        this.deletedAt = null;
-        this.deletedBy = null;
+        if (deletedAt != null) {
+            this.deletedAt = null;
+            this.deletedBy = null;
+        }
     }
 }

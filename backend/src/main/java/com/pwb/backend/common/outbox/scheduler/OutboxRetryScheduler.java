@@ -4,8 +4,9 @@ import com.pwb.backend.common.outbox.enums.OutboxStatus;
 import com.pwb.backend.common.outbox.publisher.OutboxEventSerializer;
 import com.pwb.backend.common.outbox.publisher.OutboxEventTopics;
 import com.pwb.backend.common.outbox.publisher.OutboxEventTypes;
+import com.pwb.backend.common.outbox.repository.OutboxEventRepository;
 import com.pwb.backend.common.model.OutboxEvent;
-import com.pwb.backend.common.repository.OutboxEventRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -14,6 +15,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -44,7 +46,7 @@ public class OutboxRetryScheduler {
     public void retryDueEvents() {
         Instant now = Instant.now();
         List<OutboxEvent> due = outboxRepository.findDueForRetry(
-                Set.of(OutboxStatus.PENDING, OutboxStatus.FAILED), now, batchSize);
+                Set.of(OutboxStatus.PENDING, OutboxStatus.FAILED), now, PageRequest.of(0, batchSize));
         if (due.isEmpty()) {
             return;
         }
