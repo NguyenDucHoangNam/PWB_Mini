@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { asApiError } from "@/lib/api-client";
+import { CaptchaWidget } from "./captcha-widget";
+import { getTurnstileSiteKey } from "@/lib/config";
 
 export function ResetPasswordForm() {
   const t = useTranslations("auth.reset");
@@ -24,6 +26,8 @@ export function ResetPasswordForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileSiteKey = getTurnstileSiteKey();
 
   const { mutate: resetMutate, isPending } = useResetPassword();
   const strength = usePasswordStrength(newPassword);
@@ -50,7 +54,7 @@ export function ResetPasswordForm() {
 
     resetMutate(
       {
-        data: { token, newPassword, confirmPassword },
+        data: { token, newPassword, confirmPassword, captchaToken: captchaToken ?? undefined },
       },
       {
         onSuccess: (response) => {
@@ -198,6 +202,11 @@ export function ResetPasswordForm() {
           required
         />
       </div>
+
+      {/* Captcha Widget */}
+      {turnstileSiteKey && (
+        <CaptchaWidget siteKey={turnstileSiteKey} onTokenChange={setCaptchaToken} />
+      )}
 
       {/* Submit Button */}
       <Button

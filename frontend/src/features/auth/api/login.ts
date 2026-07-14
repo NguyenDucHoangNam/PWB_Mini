@@ -9,7 +9,6 @@ import type {
   RegisterResponse,
   ForgotPasswordRequest,
   ResetPasswordRequest,
-  CheckUsernameResponse,
 } from "../types";
 
 export function useLogin() {
@@ -63,11 +62,4 @@ export function useResetPassword() {
       return res.data;
     },
   });
-}
-
-export async function checkUsername(username: string): Promise<ApiResponse<CheckUsernameResponse>> {
-  const res = await apiClient.get<ApiResponse<CheckUsernameResponse>>(
-    `/auth/check-username?username=${encodeURIComponent(username)}`,
-  );
-  return res.data;
 }

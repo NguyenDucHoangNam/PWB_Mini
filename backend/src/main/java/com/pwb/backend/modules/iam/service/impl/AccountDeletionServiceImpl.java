@@ -49,7 +49,8 @@ public class AccountDeletionServiceImpl implements AccountDeletionService {
 
     @Override
     @Transactional
-    public UserProfileResponse requestDeletion(UUID userId, DeleteAccountRequest request) {
+    public UserProfileResponse requestDeletion(UUID userId, DeleteAccountRequest request,
+                                               String accessTokenFingerprint, long accessTokenTtlSeconds) {
         User user = userRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_FOUND));
 
@@ -74,6 +75,11 @@ public class AccountDeletionServiceImpl implements AccountDeletionService {
 
         loginAttemptService.clearFailures(userId);
         sessionService.purgeUserSessionData(userId);
+
+        if (accessTokenFingerprint != null && !accessTokenFingerprint.isBlank() && accessTokenTtlSeconds > 0) {
+            sessionService.blacklistAccessToken(accessTokenFingerprint, accessTokenTtlSeconds);
+            log.info("DELETION_ACCESS_TOKEN_BLACKLISTED userId={}", userId);
+        }
 
         publishDeletionRequested(user, now, scheduledPermanent);
 

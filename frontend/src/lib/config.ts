@@ -27,6 +27,23 @@ export function getBackendOrigin(): string | null {
   }
 }
 
+export function getOtpExpirySeconds(): number {
+  const raw = process.env.NEXT_PUBLIC_AUTH_OTP_EXPIRY_SECONDS;
+  const parsed = raw ? Number(raw) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 300;
+}
+
+export function getOtpResendCooldownSeconds(): number {
+  const raw = process.env.NEXT_PUBLIC_AUTH_OTP_RESEND_COOLDOWN_SECONDS;
+  const parsed = raw ? Number(raw) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 60;
+}
+
+export function getTurnstileSiteKey(): string | null {
+  const raw = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  return raw && raw.trim().length > 0 ? raw.trim() : null;
+}
+
 export const isDev = process.env.NODE_ENV !== "production";
 
 /**

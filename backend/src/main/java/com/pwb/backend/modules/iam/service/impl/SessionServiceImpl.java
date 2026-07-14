@@ -251,21 +251,33 @@ public class SessionServiceImpl implements SessionService {
     }
 
     @Override
-    public void revokeSingleSession(String refreshToken) {
-        if (refreshToken == null || refreshToken.isBlank()) {
+    public void revokeSingleSession(UUID ownerUserId, String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank() || ownerUserId == null) {
             return;
         }
-        String ownerUserId = redisTemplate.opsForValue().get(ACTIVE_PREFIX + refreshToken);
-        redisTemplate.delete(ACTIVE_PREFIX + refreshToken);
-        redisTemplate.delete(METADATA_PREFIX + refreshToken);
-        if (ownerUserId == null) {
+        String activeKey = ACTIVE_PREFIX + refreshToken;
+        String storedOwner = redisTemplate.opsForValue().get(activeKey);
+        if (storedOwner == null) {
+            redisTemplate.delete(METADATA_PREFIX + refreshToken);
             return;
         }
+        UUID storedOwnerId;
         try {
-            UUID.fromString(ownerUserId);
+            storedOwnerId = UUID.fromString(storedOwner);
         } catch (IllegalArgumentException ex) {
+            log.warn("REVOKE_SINGLE_SESSION_INVALID_OWNER ownerUserId={} storedOwner={}",
+                    ownerUserId, mask(storedOwner));
+            redisTemplate.delete(activeKey);
+            redisTemplate.delete(METADATA_PREFIX + refreshToken);
             return;
         }
+        if (!storedOwnerId.equals(ownerUserId)) {
+            log.warn("REVOKE_SINGLE_SESSION_OWNERSHIP_MISMATCH requester={} actualOwner={}",
+                    ownerUserId, storedOwnerId);
+            throw new BusinessException(IamErrorCode.SESSION_NOT_FOUND);
+        }
+        redisTemplate.delete(activeKey);
+        redisTemplate.delete(METADATA_PREFIX + refreshToken);
         redisTemplate.opsForZSet().remove(SESSIONS_ZSET_PREFIX + ownerUserId, refreshToken);
     }
 

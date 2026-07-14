@@ -47,7 +47,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
         try {
-            String signature = jwtSigner.extractSignature(token);
+            String signature = jwtSigner.extractTokenFingerprint(token);
             if (signature != null && sessionService.isAccessTokenBlacklisted(signature)) {
                 SecurityContextHolder.clearContext();
                 writeBlacklistedResponse(request, response);

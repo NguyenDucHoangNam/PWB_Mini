@@ -28,6 +28,9 @@ app:
     jwt:
       secret: ${JWT_SECRET}
       refresh-secret: ${JWT_REFRESH_SECRET}
+    cookie:
+      secure: true
+      refresh-cookie-name: __Host-pwb_rt
 
 logging:
   level:

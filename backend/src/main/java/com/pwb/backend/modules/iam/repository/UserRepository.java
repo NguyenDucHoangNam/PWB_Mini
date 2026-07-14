@@ -1,7 +1,5 @@
 package com.pwb.backend.modules.iam.repository;
 
-import com.pwb.backend.modules.iam.enums.UserStatus;
-
 import com.pwb.backend.modules.iam.enums.OauthProvider;
 import com.pwb.backend.modules.iam.model.User;
 import jakarta.persistence.LockModeType;
@@ -20,26 +18,45 @@ import java.util.UUID;
 @Repository
 public interface UserRepository extends JpaRepository<User, UUID> {
 
-    Optional<User> findByEmail(String email);
+    @Query("""
+        select u from User u
+        where u.email = :email
+          and u.deletedAt is null
+        """)
+    Optional<User> findByEmail(@Param("email") String email);
 
-    boolean existsByEmail(String email);
+    @Query("""
+        select case when count(u) > 0 then true else false end from User u
+        where u.email = :email
+          and u.deletedAt is null
+        """)
+    boolean existsByEmail(@Param("email") String email);
 
     Optional<User> findByUsername(String username);
 
     boolean existsByUsername(String username);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select u from User u where u.email = :email")
+    @Query("""
+        select u from User u
+        where u.email = :email
+          and u.deletedAt is null
+        """)
     Optional<User> findByEmailForUpdate(@Param("email") String email);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select u from User u where u.id = :id")
+    @Query("""
+        select u from User u
+        where u.id = :id
+          and u.deletedAt is null
+        """)
     Optional<User> findByIdForUpdate(@Param("id") UUID id);
 
     @Query("""
         select u from User u
         where u.oauthProvider = :provider
           and u.oauthId = :oauthId
+          and u.deletedAt is null
         """)
     Optional<User> findByOauthProviderAndOauthId(@Param("provider") OauthProvider provider,
                                                 @Param("oauthId") String oauthId);

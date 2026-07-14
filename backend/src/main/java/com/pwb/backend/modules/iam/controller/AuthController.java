@@ -128,14 +128,11 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> logout(@RequestHeader(name = "Authorization", required = false) String authHeader,
                                                     HttpServletRequest httpRequest,
                                                     HttpServletResponse httpResponse) {
-        try {
-            String accessToken = bearerTokenExtractor.extract(authHeader);
-            String refreshToken = cookieWriter.readRefreshCookie(httpRequest);
-            String ip = clientContextResolver.resolveIp(httpRequest);
-            authService.logout(accessToken, refreshToken, ip);
-        } finally {
-            cookieWriter.clearRefreshCookie(httpResponse);
-        }
+        String accessToken = bearerTokenExtractor.extract(authHeader);
+        String refreshToken = cookieWriter.readRefreshCookie(httpRequest);
+        String ip = clientContextResolver.resolveIp(httpRequest);
+        authService.logout(accessToken, refreshToken, ip);
+        cookieWriter.clearRefreshCookie(httpResponse);
         return ResponseEntity.ok(ApiResponse.success(message(MSG_LOGOUT_SUCCESSFUL)));
     }
 

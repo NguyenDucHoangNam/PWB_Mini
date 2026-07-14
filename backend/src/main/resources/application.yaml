@@ -215,21 +215,21 @@ app:
       trust-forwarded-headers: false
       cidrs: ""
     cookie:
-      secure: false
+      secure: ${COOKIE_SECURE:false}
       samesite: Strict
-      refresh-cookie-name: refreshToken
+      refresh-cookie-name: ${REFRESH_COOKIE_NAME:refreshToken}
       path: /
     oauth:
       google:
         client-id: ${GOOGLE_CLIENT_ID:}
     captcha:
       turnstile:
-        enabled: false
+        enabled: ${APP_SECURITY_CAPTCHA_TURNSTILE_ENABLED:true}
         secret-key: ${APP_SECURITY_CAPTCHA_TURNSTILE_SECRET_KEY:}
         verify-url: https://challenges.cloudflare.com/turnstile/v0/siteverify
         timeout-millis: 3000
         fail-open: true
-        site-key: ""
+        site-key: ${APP_SECURITY_CAPTCHA_TURNSTILE_SITE_KEY:}
         adaptive:
           enabled: true
           failure-threshold: 3
@@ -279,6 +279,19 @@ app:
       lockout-ttl-seconds: 900
       resend-cooldown-seconds: 60
       max-attempts: 5
+    rate-limit:
+      register:
+        max-attempts: 5
+        window-seconds: 900
+        lockout-seconds: 1800
+      resend:
+        max-attempts: 5
+        window-seconds: 3600
+        lockout-seconds: 1800
+      forgot:
+        max-attempts: 3
+        window-seconds: 3600
+        lockout-seconds: 1800
     password-reset:
       token-ttl-seconds: 600
       support-email: security@pwb-mini.dev

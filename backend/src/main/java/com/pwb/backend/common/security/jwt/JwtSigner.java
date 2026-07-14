@@ -6,6 +6,7 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -19,6 +20,7 @@ import java.util.HexFormat;
 import java.util.UUID;
 
 @Service
+@Slf4j
 public class JwtSigner {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -90,11 +92,12 @@ public class JwtSigner {
             }
             return UUID.fromString(subject);
         } catch (JwtException | IllegalArgumentException ex) {
-            throw new JwtException("Invalid refresh handshake: " + ex.getMessage(), ex);
+            log.warn("JWT_REFRESH_HANDSHAKE_INVALID reason={}", ex.getClass().getSimpleName());
+            throw new JwtException("Invalid refresh handshake");
         }
     }
 
-    public String extractSignature(String token) {
+    public String extractTokenFingerprint(String token) {
         if (token == null || token.isBlank()) {
             return null;
         }

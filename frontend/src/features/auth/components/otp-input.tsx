@@ -4,14 +4,14 @@ import { useState, useRef, useEffect } from "react";
 
 interface OtpInputProps {
   disabled?: boolean;
+  invalid?: boolean;
   onChange: (otp: string) => void;
 }
 
-export function OtpInput({ disabled = false, onChange }: OtpInputProps) {
+export function OtpInput({ disabled = false, invalid = false, onChange }: OtpInputProps) {
   const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Focus the first input on mount
   useEffect(() => {
     if (inputRefs.current[0]) {
       inputRefs.current[0].focus();
@@ -19,7 +19,6 @@ export function OtpInput({ disabled = false, onChange }: OtpInputProps) {
   }, []);
 
   const handleChange = (value: string, index: number) => {
-    // Only accept numeric inputs
     if (value && !/^\d$/.test(value)) return;
 
     const newOtp = [...otp];
@@ -29,7 +28,6 @@ export function OtpInput({ disabled = false, onChange }: OtpInputProps) {
     const otpString = newOtp.join("");
     onChange(otpString);
 
-    // Auto-focus next input if value is filled
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -38,35 +36,43 @@ export function OtpInput({ disabled = false, onChange }: OtpInputProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
     if (e.key === "Backspace") {
       if (!otp[index] && index > 0) {
-        // Current field is empty, delete previous field and focus it
         const newOtp = [...otp];
         newOtp[index - 1] = "";
         setOtp(newOtp);
         onChange(newOtp.join(""));
         inputRefs.current[index - 1]?.focus();
       } else if (otp[index]) {
-        // Clear current field
         const newOtp = [...otp];
         newOtp[index] = "";
         setOtp(newOtp);
         onChange(newOtp.join(""));
       }
+      return;
+    }
+
+    if (e.key === "ArrowLeft" && index > 0) {
+      e.preventDefault();
+      inputRefs.current[index - 1]?.focus();
+      return;
+    }
+
+    if (e.key === "ArrowRight" && index < 5) {
+      e.preventDefault();
+      inputRefs.current[index + 1]?.focus();
+      return;
     }
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
-    const pastedData = e.clipboardData.getData("text").trim();
-
-    // Check if pasted data is exactly 6 digits
-    if (!/^\d{6}$/.test(pastedData)) return;
+    const pastedData = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (pastedData.length !== 6) return;
 
     const newOtp = pastedData.split("");
     setOtp(newOtp);
     onChange(pastedData);
 
-    // Focus last input or blur
-    inputRefs.current[5]?.focus();
+    inputRefs.current[5]?.blur();
   };
 
   return (
@@ -86,6 +92,7 @@ export function OtpInput({ disabled = false, onChange }: OtpInputProps) {
             maxLength={1}
             value={otp[index]}
             disabled={disabled}
+            aria-invalid={invalid}
             aria-label={`OTP digit ${index + 1} of 6`}
             aria-describedby="otp-instructions"
             ref={(el) => {
@@ -94,7 +101,11 @@ export function OtpInput({ disabled = false, onChange }: OtpInputProps) {
             onChange={(e) => handleChange(e.target.value, index)}
             onKeyDown={(e) => handleKeyDown(e, index)}
             onPaste={index === 0 ? handlePaste : undefined}
-            className="size-10 sm:size-11 md:size-12 border border-neutral-200 text-center text-lg font-bold rounded-lg outline-none transition-colors focus:border-black focus:ring-3 focus:ring-black/10 disabled:bg-neutral-100 disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-900 dark:focus:border-white dark:focus:ring-white/10"
+            className={`size-10 sm:size-11 md:size-12 border text-center text-lg font-bold rounded-lg outline-none transition-colors focus:border-black focus:ring-3 focus:ring-black/10 disabled:bg-neutral-100 disabled:opacity-50 dark:bg-neutral-900 dark:focus:border-white dark:focus:ring-white/10 ${
+              invalid
+                ? "border-red-500 focus:border-red-500 focus:ring-red-500/20 dark:border-red-500"
+                : "border-neutral-200 dark:border-neutral-800"
+            }`}
           />
         ))}
     </div>

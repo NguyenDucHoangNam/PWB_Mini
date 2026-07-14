@@ -39,6 +39,7 @@ import com.pwb.backend.modules.iam.repository.RoleRepository;
 import com.pwb.backend.modules.iam.repository.UserRepository;
 import com.pwb.backend.modules.iam.service.AuthService;
 import com.pwb.backend.modules.iam.service.GoogleOAuthService;
+import com.pwb.backend.modules.iam.service.EmailRateLimiter;
 import com.pwb.backend.modules.iam.service.GoogleUserInfo;
 import com.pwb.backend.modules.iam.service.LoginAttemptService;
 import com.pwb.backend.modules.iam.service.OtpService;
@@ -87,11 +88,13 @@ public class AuthServiceImpl implements AuthService {
     private final DatabaseReader geoIpDatabaseReader;
     private final DisposableEmailChecker disposableEmailChecker;
     private final CaptchaVerifier captchaVerifier;
+    private final EmailRateLimiter emailRateLimiter;
 
     @Override
     @Transactional
     public RegisterResponse register(RegisterRequest request, String ip) {
         String email = request.email().trim().toLowerCase(Locale.ROOT);
+        emailRateLimiter.checkRegisterAttempt(email);
 
         if (ip != null && !ip.isBlank()) {
             loginAttemptService.validateIpNotBlocked(ip);
@@ -237,6 +240,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public ResendOtpResponse resendOtp(ResendOtpRequest request) {
         String email = request.email().trim().toLowerCase(Locale.ROOT);
+        emailRateLimiter.checkResendOtpAttempt(email);
 
         if (!otpService.tryAcquireResendSlot(email)) {
             throw BusinessException.builder()
@@ -246,7 +250,7 @@ public class AuthServiceImpl implements AuthService {
                     .build();
         }
 
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByEmailForUpdate(email)
                 .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_FOUND));
 
         if (user.getStatus() == UserStatus.ACTIVE) {
@@ -376,7 +380,7 @@ public class AuthServiceImpl implements AuthService {
                 user.getRole().getCode());
         String accessSignature;
         try {
-            accessSignature = jwtSigner.extractSignature(accessToken);
+            accessSignature = jwtSigner.extractTokenFingerprint(accessToken);
         } catch (JwtException | IllegalArgumentException ex) {
             accessSignature = null;
         }
@@ -420,7 +424,8 @@ public class AuthServiceImpl implements AuthService {
     public void logout(String accessToken, String refreshToken, String ip) {
         if ((accessToken == null || accessToken.isBlank()) && (refreshToken == null || refreshToken.isBlank())) {
             log.warn("LOGOUT_MISSING_TOKENS ip={}", MaskingLogArg.ip(ip));
-            return;
+            throw new BusinessException(IamErrorCode.BAD_CREDENTIALS,
+                    "No credentials provided for logout; provide access token or refresh cookie");
         }
 
         log.info("LOGOUT_REQUEST_RECEIVED ip={} hasAccessToken={} hasRefreshToken={}",
@@ -431,12 +436,36 @@ public class AuthServiceImpl implements AuthService {
         blacklistAccessTokenIfPresent(accessToken, ip);
 
         if (refreshToken != null && !refreshToken.isBlank()) {
-            try {
-                sessionService.revokeSingleSession(refreshToken);
-            } catch (Exception ex) {
-                log.warn("LOGOUT_REDIS_ERROR ip={} operation=revokeRefreshToken error={}",
-                        MaskingLogArg.ip(ip), ex.getMessage());
+            UUID ownerUserId = resolveRefreshTokenOwner(refreshToken);
+            if (ownerUserId == null) {
+                log.info("LOGOUT_NO_ACTIVE_REFRESH ip={}", MaskingLogArg.ip(ip));
+            } else {
+                try {
+                    sessionService.revokeSingleSession(ownerUserId, refreshToken);
+                } catch (BusinessException ex) {
+                    log.warn("LOGOUT_REVOKE_OWNERSHIP_MISMATCH ip={} ownerUserId={}",
+                            MaskingLogArg.ip(ip), ownerUserId);
+                    throw ex;
+                } catch (Exception ex) {
+                    log.warn("LOGOUT_REDIS_ERROR ip={} operation=revokeRefreshToken error={}",
+                            MaskingLogArg.ip(ip), ex.getMessage());
+                }
             }
+        }
+    }
+
+    private UUID resolveRefreshTokenOwner(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return null;
+        }
+        String ownerStr = sessionService.findUserIdForRefreshToken(refreshToken);
+        if (ownerStr == null || ownerStr.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(ownerStr);
+        } catch (IllegalArgumentException ex) {
+            return null;
         }
     }
 
@@ -447,7 +476,7 @@ public class AuthServiceImpl implements AuthService {
         String signature;
         long expiryEpochSecond;
         try {
-            signature = jwtSigner.extractSignature(accessToken);
+            signature = jwtSigner.extractTokenFingerprint(accessToken);
             expiryEpochSecond = jwtSigner.extractExpiryEpochSecond(accessToken);
         } catch (JwtException | IllegalArgumentException ex) {
             log.warn("LOGOUT_INVALID_ACCESS_TOKEN ip={} error={}", MaskingLogArg.ip(ip), ex.getMessage());
@@ -491,7 +520,7 @@ public class AuthServiceImpl implements AuthService {
 
         String accessSignature;
         try {
-            accessSignature = jwtSigner.extractSignature(accessToken);
+            accessSignature = jwtSigner.extractTokenFingerprint(accessToken);
         } catch (JwtException | IllegalArgumentException ex) {
             accessSignature = null;
         }
@@ -555,11 +584,15 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public String blacklistAccessTokenSignature(String accessToken) {
+        return blacklistAccessTokenFingerprint(accessToken);
+    }
+
+    private String blacklistAccessTokenFingerprint(String accessToken) {
         if (accessToken == null || accessToken.isBlank()) {
             return null;
         }
         try {
-            return jwtSigner.extractSignature(accessToken);
+            return jwtSigner.extractTokenFingerprint(accessToken);
         } catch (JwtException | IllegalArgumentException ex) {
             return null;
         }

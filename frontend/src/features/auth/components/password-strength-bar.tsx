@@ -29,7 +29,7 @@ export function PasswordStrengthBar({ strength }: PasswordStrengthBarProps) {
   };
 
   return (
-    <div className="mt-2 flex flex-col gap-1.5 font-sans">
+    <div className="mt-2 min-h-[42px] flex flex-col gap-1.5 font-sans">
       <div className="flex items-center justify-between text-xs">
         <span className="text-neutral-500 dark:text-neutral-400">{t("strengthTitle")}</span>
         <span className="font-semibold text-black dark:text-white">{getLabel()}</span>

@@ -9,12 +9,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { asApiError } from "@/lib/api-client";
+import { CaptchaWidget } from "./captcha-widget";
+import { getTurnstileSiteKey } from "@/lib/config";
 
 export function ForgotPasswordForm() {
   const t = useTranslations("auth.forgot");
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileSiteKey = getTurnstileSiteKey();
 
   const { mutate: forgotMutate, isPending } = useForgotPassword();
 
@@ -34,7 +38,7 @@ export function ForgotPasswordForm() {
     setError(null);
 
     forgotMutate(
-      { data: { email } },
+      { data: { email, captchaToken: captchaToken ?? undefined } },
       {
         onSuccess: () => {
           toast.success(t("successToast"));
@@ -128,6 +132,11 @@ export function ForgotPasswordForm() {
           required
         />
       </div>
+
+      {/* Captcha Widget */}
+      {turnstileSiteKey && (
+        <CaptchaWidget siteKey={turnstileSiteKey} onTokenChange={setCaptchaToken} />
+      )}
 
       {/* Submit Button */}
       <Button

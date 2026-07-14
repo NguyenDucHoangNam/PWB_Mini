@@ -9,6 +9,7 @@ import { useAuthStore, type AuthUser } from "../stores/use-auth-store";
 import { useCaptureReturnTo, readReturnTo } from "@/hooks/use-return-to";
 import { decodeJwtExpiry } from "@/lib/jwt-decode";
 import { asApiError, type ApiError } from "@/lib/api-client";
+import { CaptchaWidget } from "./captcha-widget";
 import { PasswordInput } from "./password-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { getTurnstileSiteKey } from "@/lib/config";
 
 const LOCKOUT_DURATION_FALLBACK = 15 * 60; // 15 minutes - fallback if BE omits Retry-After
 const STORAGE_KEY_USERNAME = "login_username";
@@ -78,6 +80,8 @@ export function LoginForm() {
   const { mutate: loginWithGoogleMutate } = useLoginWithGoogle();
   const setAuth = useAuthStore((state) => state.setAuth);
   const usernameInputRef = useRef<HTMLInputElement>(null);
+  const turnstileSiteKey = getTurnstileSiteKey();
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const googleInitRef = useRef(false);
   const handleGoogleCredentialRef = useRef<(idToken: string) => void>(null);
 
@@ -191,7 +195,7 @@ export function LoginForm() {
 
     loginMutate(
       {
-        data: { usernameOrEmail, password },
+        data: { usernameOrEmail, password, captchaToken: captchaToken ?? undefined },
       },
       {
         onSuccess: (response) => {
@@ -397,6 +401,11 @@ export function LoginForm() {
           {t("rememberMe")}
         </Label>
       </div>
+
+      {/* Captcha Widget */}
+      {turnstileSiteKey && (
+        <CaptchaWidget siteKey={turnstileSiteKey} onTokenChange={setCaptchaToken} />
+      )}
 
       {/* Submit Button */}
       <Button

@@ -25,7 +25,7 @@ public interface SessionService {
 
     void purgeUserSessionData(UUID userId);
 
-    void revokeSingleSession(String refreshToken);
+    void revokeSingleSession(UUID ownerUserId, String refreshToken);
 
     void revokeSingleSessionForCurrent(UUID userId, String refreshToken, String currentRefreshToken, String currentAccessSignature);
 

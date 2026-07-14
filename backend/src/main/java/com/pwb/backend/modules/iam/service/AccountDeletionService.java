@@ -7,7 +7,7 @@ import java.util.UUID;
 
 public interface AccountDeletionService {
 
-    UserProfileResponse requestDeletion(UUID userId, DeleteAccountRequest request);
+    UserProfileResponse requestDeletion(UUID userId, DeleteAccountRequest request, String accessTokenFingerprint, long accessTokenTtlSeconds);
 
     UserProfileResponse cancelDeletion(UUID userId);
 }

@@ -13,6 +13,7 @@ import com.pwb.backend.modules.iam.enums.UserStatus;
 import com.pwb.backend.modules.iam.exception.IamErrorCode;
 import com.pwb.backend.modules.iam.model.User;
 import com.pwb.backend.modules.iam.repository.UserRepository;
+import com.pwb.backend.modules.iam.service.EmailRateLimiter;
 import com.pwb.backend.modules.iam.service.LoginAttemptService;
 import com.pwb.backend.modules.iam.service.PasswordChangeService;
 import com.pwb.backend.modules.iam.service.PasswordResetTokenService;
@@ -43,11 +44,13 @@ public class PasswordChangeServiceImpl implements PasswordChangeService {
     private final SessionService sessionService;
     private final OutboxService outboxService;
     private final CaptchaVerifier captchaVerifier;
+    private final EmailRateLimiter emailRateLimiter;
 
     @Override
     @Transactional
     public void requestPasswordReset(String email) {
         String normalized = normalizeEmail(email);
+        emailRateLimiter.checkForgotPasswordAttempt(normalized);
         User user = userRepository.findByEmail(normalized).orElse(null);
         if (user == null || user.getStatus() != UserStatus.ACTIVE || user.getOauthProvider() != OauthProvider.LOCAL) {
             applyTimingFlattener();

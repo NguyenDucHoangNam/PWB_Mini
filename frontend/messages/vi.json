@@ -96,7 +96,7 @@
       "submitting": "Đang đăng ký...",
       "fillAll": "Vui lòng điền đầy đủ các trường",
       "invalidUsername": "Tên đăng nhập không hợp lệ (tối thiểu 3 ký tự, chỉ chứa chữ, số, gạch dưới)",
-      "minPassword": "Mật khẩu phải chứa ít nhất 8 ký tự",
+      "minPassword": "Mật khẩu phải có 8-128 ký tự và bao gồm chữ hoa, chữ thường, chữ số và ký tự đặc biệt",
       "passwordMismatch": "Mật khẩu nhập lại không khớp",
       "fullNameRequired": "Họ và tên không được để trống",
       "usernameRequired": "Tên đăng nhập không được để trống",
@@ -122,7 +122,17 @@
       "confirmPasswordLabel": "Nhập lại mật khẩu *",
       "confirmPasswordPlaceholder": "Nhập lại mật khẩu",
       "hasAccountText": "Đã có tài khoản?",
-      "loginLink": "Đăng nhập ngay"
+      "loginLink": "Đăng nhập ngay",
+      "otpLabel": "Mã OTP *",
+      "otpPlaceholder": "Nhập mã OTP gồm 6 chữ số",
+      "otpHint": "Email này đang chờ xác thực. Nhập mã OTP mới nhất để cập nhật thông tin đăng ký.",
+      "otpRequired": "Cần mã OTP để cập nhật thông tin đăng ký đang chờ",
+      "maxPassword": "Mật khẩu không quá 128 ký tự",
+      "fullNameLength": "Họ và tên phải có từ 2 đến 100 ký tự",
+      "emailLength": "Email không quá 255 ký tự",
+      "passwordComplexity": "Mật khẩu phải có 8-128 ký tự và bao gồm chữ hoa, chữ thường, chữ số và ký tự đặc biệt",
+      "confirmPasswordRequired": "Vui lòng nhập lại mật khẩu",
+      "rateLimitError": "Bạn đã thử quá nhiều lần. Vui lòng đợi ít phút rồi thử lại."
     },
     "otp": {
       "title": "XÁC THỰC OTP",
@@ -148,7 +158,12 @@
       "verifyBtn": "XÁC THỰC",
       "notReceivedText": "Chưa nhận được mã?",
       "resendCooldownText": "Gửi lại OTP (sau {seconds}s)",
-      "resending": "Đang gửi lại..."
+      "resending": "Đang gửi lại...",
+      "missingEmail": "Vui lòng đăng ký trước khi xác thực tài khoản.",
+      "lockedError": "Bạn đã nhập sai quá nhiều lần. Vui lòng đợi ít phút rồi thử lại.",
+      "changeEmail": "Đổi email khác",
+      "metaTitle": "Xác thực OTP | PWB",
+      "metaDescription": "Xác thực tài khoản bằng mã OTP gồm 6 chữ số."
     },
     "forgot": {
       "title": "QUÊN MẬT KHẨU",
@@ -201,6 +216,10 @@
       "newPasswordPlaceholder": "Nhập mật khẩu mới",
       "confirmPasswordPlaceholder": "Nhập lại mật khẩu mới",
       "submitBtn": "ĐẶT LẠI MẬT KHẨU"
+    },
+    "captcha": {
+      "loadFailed": "Không thể tải CAPTCHA. Vui lòng kiểm tra kết nối mạng.",
+      "retry": "Tải lại"
     }
   },
   "profile": {

@@ -96,7 +96,7 @@
       "submitting": "Registering...",
       "fillAll": "Please fill in all fields",
       "invalidUsername": "Invalid username (minimum 3 characters, alphanumeric and underscore only)",
-      "minPassword": "Password must contain at least 8 characters",
+      "minPassword": "Password must be 8-128 characters and include uppercase, lowercase, digit and special character",
       "passwordMismatch": "Passwords do not match",
       "fullNameRequired": "Full name is required",
       "usernameRequired": "Username is required",
@@ -122,7 +122,17 @@
       "confirmPasswordLabel": "Confirm Password *",
       "confirmPasswordPlaceholder": "Confirm password",
       "hasAccountText": "Already have an account?",
-      "loginLink": "Log in now"
+      "loginLink": "Log in now",
+      "otpLabel": "OTP Code *",
+      "otpPlaceholder": "Enter the 6-digit OTP code",
+      "otpHint": "This email is already pending verification. Enter the latest OTP code to update your registration details.",
+      "otpRequired": "OTP code is required to update pending registration",
+      "maxPassword": "Password must not exceed 128 characters",
+      "fullNameLength": "Full name must be between 2 and 100 characters",
+      "emailLength": "Email must not exceed 255 characters",
+      "passwordComplexity": "Password must be 8-128 characters and include uppercase, lowercase, digit and special character",
+      "confirmPasswordRequired": "Please confirm your password",
+      "rateLimitError": "Too many attempts. Please wait a few minutes before trying again."
     },
     "otp": {
       "title": "OTP VERIFICATION",
@@ -148,7 +158,12 @@
       "verifyBtn": "VERIFY",
       "notReceivedText": "Didn't receive code?",
       "resendCooldownText": "Resend OTP (after {seconds}s)",
-      "resending": "Resending..."
+      "resending": "Resending...",
+      "missingEmail": "Please register before verifying your account.",
+      "lockedError": "Too many incorrect attempts. Please wait a few minutes before trying again.",
+      "changeEmail": "Use a different email",
+      "metaTitle": "OTP Verification | PWB",
+      "metaDescription": "Verify your account using a 6-digit OTP code."
     },
     "forgot": {
       "title": "FORGOT PASSWORD",
@@ -201,6 +216,10 @@
       "newPasswordPlaceholder": "Enter new password",
       "confirmPasswordPlaceholder": "Confirm new password",
       "submitBtn": "RESET PASSWORD"
+    },
+    "captcha": {
+      "loadFailed": "Could not load CAPTCHA. Please check your network connection.",
+      "retry": "Retry"
     }
   },
   "profile": {

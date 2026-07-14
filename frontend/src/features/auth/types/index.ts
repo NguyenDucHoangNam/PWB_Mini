@@ -1,6 +1,7 @@
 export interface LoginRequest {
   usernameOrEmail: string;
   password: string;
+  captchaToken?: string;
 }
 
 export type OAuthProvider = "LOCAL" | "GOOGLE";
@@ -32,11 +33,11 @@ export interface Oauth2LoginRequest {
 }
 
 export interface RegisterRequest {
-  username: string;
   email: string;
   password: string;
-  confirmPassword: string;
   fullName: string;
+  captchaToken?: string;
+  otp?: string;
 }
 
 export interface RegisterResponse {
@@ -49,6 +50,7 @@ export interface RegisterResponse {
 export interface VerifyOtpRequest {
   email: string;
   otp: string;
+  captchaToken?: string;
 }
 
 export interface VerifyOtpResponse {
@@ -60,16 +62,24 @@ export interface VerifyOtpResponse {
 
 export interface ResendOtpRequest {
   email: string;
+  captchaToken?: string;
+}
+
+export interface ResendOtpResponse {
+  email: string;
+  sentAt: string;
 }
 
 export interface ForgotPasswordRequest {
   email: string;
+  captchaToken?: string;
 }
 
 export interface ResetPasswordRequest {
   token: string;
   newPassword: string;
   confirmPassword: string;
+  captchaToken?: string;
 }
 
 export interface CheckUsernameResponse {

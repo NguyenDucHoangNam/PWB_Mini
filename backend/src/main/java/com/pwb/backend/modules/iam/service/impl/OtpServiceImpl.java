@@ -106,7 +106,8 @@ public class OtpServiceImpl implements OtpService {
                     Long.toString(attemptTtlSeconds),
                     Integer.toString(maxAttempts));
         } catch (Exception ex) {
-            log.warn("OTP verification Redis failure for {}: {}", normalized, ex.getMessage());
+            log.error("OTP_VERIFICATION_REDIS_FAILURE emailHash={} errorType={} errorMessage={}",
+                    normalized.hashCode(), ex.getClass().getSimpleName(), ex.getMessage());
             throw new BusinessException(IamErrorCode.INVALID_OTP);
         }
 
@@ -158,7 +159,8 @@ public class OtpServiceImpl implements OtpService {
                     List.of(KEY_LAST_SENT + normalized),
                     Long.toString(resendCooldownSeconds));
         } catch (Exception ex) {
-            log.warn("OTP resend cooldown Redis failure for {}: {}", normalized, ex.getMessage());
+            log.error("OTP_RESEND_COOLDOWN_REDIS_FAILURE emailHash={} errorType={} errorMessage={}",
+                    normalized.hashCode(), ex.getClass().getSimpleName(), ex.getMessage());
             return false;
         }
         return acquired != null && acquired == 1L;
