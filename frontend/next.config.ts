@@ -56,8 +56,8 @@ const connectSrc = [
  */
 const scriptSrc =
   isDev
-    ? `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com`
-    : `script-src 'self' 'unsafe-inline' https://accounts.google.com`;
+    ? `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://challenges.cloudflare.com`
+    : `script-src 'self' 'unsafe-inline' https://accounts.google.com https://challenges.cloudflare.com`;
 
 /**
  * Content-Security-Policy. Intentionally permissive in development so HMR
@@ -70,7 +70,7 @@ const csp = [
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
   `connect-src ${connectSrc}`,
-  "frame-src https://accounts.google.com",
+  "frame-src https://accounts.google.com https://challenges.cloudflare.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

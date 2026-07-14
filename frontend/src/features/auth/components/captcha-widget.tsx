@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 const TURNSTILE_SCRIPT_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js";
 const TURNSTILE_SCRIPT_ID = "cf-turnstile-script";
 const MAX_LOAD_ATTEMPTS = 3;
+const RENDER_TIMEOUT_MS = 8000;
 
 type TurnstileApi = {
   render: (
@@ -43,7 +44,7 @@ export function CaptchaWidget({ siteKey, onTokenChange, theme = "auto" }: Captch
   const widgetIdRef = useRef<string | null>(null);
   const [attempts, setAttempts] = useState(0);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [scriptReady, setScriptReady] = useState(() => typeof window !== "undefined" && !!window.turnstile);
+  const [scriptReady, setScriptReady] = useState(false);
   const onTokenChangeRef = useRef(onTokenChange);
 
   useEffect(() => {
@@ -53,7 +54,10 @@ export function CaptchaWidget({ siteKey, onTokenChange, theme = "auto" }: Captch
   useEffect(() => {
     if (!siteKey || !scriptReady || !containerRef.current || loadFailed) return;
     const api = window.turnstile;
-    if (!api) return;
+    if (!api) {
+      setLoadFailed(true);
+      return;
+    }
 
     const handleToken = (token: string) => {
       onTokenChangeRef.current(token);
@@ -65,6 +69,12 @@ export function CaptchaWidget({ siteKey, onTokenChange, theme = "auto" }: Captch
       onTokenChangeRef.current(null);
     };
 
+    const timeoutId = window.setTimeout(() => {
+      if (!widgetIdRef.current) {
+        setLoadFailed(true);
+      }
+    }, RENDER_TIMEOUT_MS);
+
     widgetIdRef.current = api.render(containerRef.current, {
       sitekey: siteKey,
       theme,
@@ -74,12 +84,13 @@ export function CaptchaWidget({ siteKey, onTokenChange, theme = "auto" }: Captch
     });
 
     return () => {
+      window.clearTimeout(timeoutId);
       if (widgetIdRef.current && window.turnstile) {
         window.turnstile.remove(widgetIdRef.current);
       }
       widgetIdRef.current = null;
     };
-  }, [siteKey, scriptReady, theme, loadFailed]);
+  }, [siteKey, scriptReady, theme, loadFailed, attempts]);
 
   const handleRetry = () => {
     setLoadFailed(false);
@@ -107,18 +118,16 @@ export function CaptchaWidget({ siteKey, onTokenChange, theme = "auto" }: Captch
 
   return (
     <>
-      {!scriptReady && (
-        <Script
-          key={attempts}
-          id={TURNSTILE_SCRIPT_ID}
-          src={TURNSTILE_SCRIPT_SRC}
-          strategy="lazyOnload"
-          async
-          defer
-          onLoad={() => setScriptReady(true)}
-          onError={() => setLoadFailed(true)}
-        />
-      )}
+      <Script
+        key={attempts}
+        id={TURNSTILE_SCRIPT_ID}
+        src={TURNSTILE_SCRIPT_SRC}
+        strategy="afterInteractive"
+        async
+        defer
+        onLoad={() => setScriptReady(true)}
+        onError={() => setLoadFailed(true)}
+      />
       <div
         id={containerId}
         ref={containerRef}
