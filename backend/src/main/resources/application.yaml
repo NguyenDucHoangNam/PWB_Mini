@@ -309,6 +309,9 @@ app:
       batch-size: 100
     avatar:
       max-size-bytes: 2097152
+    seeder:
+      enabled: ${IAM_SEEDER_ENABLED:false}
+      users: []
   storage:
     enabled: true
     provider: s3

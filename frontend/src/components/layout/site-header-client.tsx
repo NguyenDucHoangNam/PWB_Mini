@@ -103,8 +103,6 @@ export function SiteHeaderClient() {
     { label: t("liveRooms"), href: "/rooms" },
   ];
 
-  const navItems = isLoggedIn ? loggedInItems : publicItems;
-
   const dropdownItems = [
     { label: t("profile"), href: "/profile" },
     { label: t("sessions"), href: "/sessions" },
@@ -121,7 +119,7 @@ export function SiteHeaderClient() {
             </span>
           </Link>
           <nav className="hidden items-center gap-6 xl:flex">
-            {isMounted && <DesktopNav items={navItems} pathname={pathname} />}
+            {isMounted && <DesktopNav items={publicItems} pathname={pathname} />}
           </nav>
         </div>
 
@@ -129,6 +127,11 @@ export function SiteHeaderClient() {
 
         <div className="flex shrink-0 items-center gap-3 sm:gap-6">
           <div className="hidden items-center gap-4 sm:gap-6 xl:flex">
+            {isMounted && isLoggedIn && (
+              <nav className="flex items-center gap-6 mr-4">
+                <DesktopNav items={loggedInItems} pathname={pathname} />
+              </nav>
+            )}
             <ThemeToggle />
             <LocaleSwitcher />
             {isMounted && (

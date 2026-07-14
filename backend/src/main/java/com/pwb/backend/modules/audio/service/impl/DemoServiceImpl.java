@@ -7,6 +7,7 @@ import com.pwb.backend.modules.audio.config.AudioProperties;
 import com.pwb.backend.modules.audio.dto.request.ConfirmUploadRequest;
 import com.pwb.backend.modules.audio.dto.request.PresignedUrlRequest;
 import com.pwb.backend.modules.audio.dto.response.ConfirmUploadResponse;
+import com.pwb.backend.modules.audio.dto.response.DemoListItemResponse;
 import com.pwb.backend.modules.audio.dto.response.DemoStatusResponse;
 import com.pwb.backend.modules.audio.dto.response.PresignedUrlResponse;
 import com.pwb.backend.modules.audio.dto.response.RotateKeyResponse;
@@ -25,6 +26,8 @@ import com.pwb.backend.modules.audio.service.DemoService;
 import com.pwb.backend.modules.audio.service.UploadClaimService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -181,6 +184,13 @@ public class DemoServiceImpl implements DemoService {
                 demo.getId(), ownerId);
         return new RotateKeyResponse(result.demoId(), result.newVersion(), result.rotated(),
                 "AES_KEY_ROTATED");
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<DemoListItemResponse> list(UUID ownerId, Pageable pageable) {
+        return demoRepository.findByOwnerId(ownerId, pageable)
+                .map(demoMapper::toListItemResponse);
     }
 
     private void validateRequest(PresignedUrlRequest request) {

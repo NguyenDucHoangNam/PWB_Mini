@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.common.exception.BusinessException;
 import com.pwb.backend.common.exception.CommonErrorCode;
+import com.pwb.backend.modules.audio.dto.response.DemoListItemResponse;
 import com.pwb.backend.modules.audio.dto.response.DemoStatusResponse;
 import com.pwb.backend.modules.audio.entity.Demo;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,21 @@ public class DemoMapper {
                 demo.getFormat(),
                 parseWaveform(demo.getWaveformData()),
                 hlsPlaylistUrl,
+                demo.getErrorMessage());
+    }
+
+    public DemoListItemResponse toListItemResponse(Demo demo) {
+        return new DemoListItemResponse(
+                demo.getId(),
+                demo.getTitle(),
+                demo.getStatus(),
+                demo.getFileSize(),
+                demo.getDuration(),
+                demo.getSampleRate(),
+                demo.getFormat(),
+                demo.getVoiceTagId(),
+                demo.getCreatedAt(),
+                demo.getUpdatedAt(),
                 demo.getErrorMessage());
     }
 
