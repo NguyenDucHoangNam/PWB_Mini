@@ -7,6 +7,8 @@ import com.pwb.backend.common.exception.CommonErrorCode;
 import com.pwb.backend.common.outbox.OutboxService;
 import com.pwb.backend.common.outbox.event.UserRegisteredEvent;
 import com.pwb.backend.common.outbox.publisher.OutboxEventTypes;
+import com.pwb.backend.common.security.captcha.CaptchaContext;
+import com.pwb.backend.common.security.captcha.CaptchaVerifier;
 import com.pwb.backend.common.security.jwt.JwtProperties;
 import com.pwb.backend.common.security.jwt.JwtSigner;
 import com.pwb.backend.common.util.MaskingLogArg;
@@ -81,6 +83,7 @@ public class AuthServiceImpl implements AuthService {
     private final OutboxService outboxService;
     private final StringRedisTemplate stringRedisTemplate;
     private final DatabaseReader geoIpDatabaseReader;
+    private final CaptchaVerifier captchaVerifier;
 
     @Override
     @Transactional
@@ -150,9 +153,11 @@ public class AuthServiceImpl implements AuthService {
         try {
             ok = otpService.verifyOtp(email, request.otp());
         } catch (BusinessException ex) {
+            captchaVerifier.recordFailure(CaptchaContext.verifyOtp(email));
             throw ex;
         }
         if (!ok) {
+            captchaVerifier.recordFailure(CaptchaContext.verifyOtp(email));
             throw new BusinessException(IamErrorCode.INVALID_OTP);
         }
 
@@ -230,6 +235,7 @@ public class AuthServiceImpl implements AuthService {
                 loginAttemptService.recordFailure(user.getId());
             }
             loginAttemptService.recordIpFailure(ip);
+            captchaVerifier.recordFailure(CaptchaContext.login(identifier));
             log.warn("LOGIN_FAILED_CREDENTIALS identifier={} userFound={} ip={}",
                     MaskingLogArg.email(identifier), userFound, MaskingLogArg.ip(ip));
             throw new BusinessException(IamErrorCode.BAD_CREDENTIALS);

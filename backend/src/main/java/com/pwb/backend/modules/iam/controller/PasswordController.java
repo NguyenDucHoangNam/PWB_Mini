@@ -2,6 +2,7 @@ package com.pwb.backend.modules.iam.controller;
 
 import com.pwb.backend.common.dto.ApiResponse;
 import com.pwb.backend.common.security.CurrentUserResolver;
+import com.pwb.backend.common.security.captcha.CaptchaContext;
 import com.pwb.backend.common.security.captcha.CaptchaVerifier;
 import com.pwb.backend.common.security.cookie.RefreshTokenCookieWriter;
 import com.pwb.backend.modules.iam.dto.request.ChangePasswordRequest;
@@ -40,14 +41,17 @@ public class PasswordController {
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request,
                                                            HttpServletRequest httpRequest) {
-        captchaVerifier.verifyOrThrow(request.captchaToken(), httpRequest);
+        captchaVerifier.verifyOrThrow(request.captchaToken(), httpRequest, CaptchaContext.forgotPassword(request.email()));
         passwordChangeService.requestPasswordReset(request.email());
         return ResponseEntity.ok(ApiResponse.success(message(MSG_RESET_LINK_SENT)));
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest request,
+                                                           HttpServletRequest httpRequest) {
+        captchaVerifier.verifyOrThrow(request.captchaToken(), httpRequest, CaptchaContext.resetPassword());
         passwordChangeService.resetPassword(request.token(), request.newPassword());
+        captchaVerifier.clearFailure(CaptchaContext.resetPassword());
         return ResponseEntity.ok(ApiResponse.success(message(MSG_RESET_SUCCESSFUL)));
     }
 

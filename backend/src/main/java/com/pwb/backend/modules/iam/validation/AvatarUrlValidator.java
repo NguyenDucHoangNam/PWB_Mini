@@ -1,4 +1,4 @@
-package com.pwb.backend.common.security.url;
+package com.pwb.backend.modules.iam.validation;
 
 import java.net.URI;
 import java.util.List;

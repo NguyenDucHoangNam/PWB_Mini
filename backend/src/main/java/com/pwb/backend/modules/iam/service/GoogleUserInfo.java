@@ -1,6 +1,6 @@
 package com.pwb.backend.modules.iam.service;
 
-import com.pwb.backend.common.security.url.AvatarUrlValidator;
+import com.pwb.backend.modules.iam.validation.AvatarUrlValidator;
 
 public record GoogleUserInfo(
         String email,

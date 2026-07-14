@@ -230,6 +230,12 @@ app:
         timeout-millis: 3000
         fail-open: true
         site-key: ""
+        adaptive:
+          enabled: true
+          failure-threshold: 3
+          tracking-window-seconds: 900
+          bypass-on-success: true
+          always-required: false
   login:
     max-concurrent-sessions: 3
     max-failed-attempts: 5

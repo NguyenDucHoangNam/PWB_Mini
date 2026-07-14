@@ -4,6 +4,8 @@ import com.pwb.backend.common.exception.BusinessException;
 import com.pwb.backend.common.outbox.OutboxService;
 import com.pwb.backend.common.outbox.event.PasswordResetRequestedEvent;
 import com.pwb.backend.common.outbox.publisher.OutboxEventTypes;
+import com.pwb.backend.common.security.captcha.CaptchaContext;
+import com.pwb.backend.common.security.captcha.CaptchaVerifier;
 import com.pwb.backend.common.util.MaskingLogArg;
 import com.pwb.backend.common.util.PasswordHasher;
 import com.pwb.backend.modules.iam.enums.OauthProvider;
@@ -40,6 +42,7 @@ public class PasswordChangeServiceImpl implements PasswordChangeService {
     private final LoginAttemptService loginAttemptService;
     private final SessionService sessionService;
     private final OutboxService outboxService;
+    private final CaptchaVerifier captchaVerifier;
 
     @Override
     @Transactional
@@ -59,6 +62,7 @@ public class PasswordChangeServiceImpl implements PasswordChangeService {
         String token = resetTokenService.issueToken(normalized);
         Instant issuedAt = Instant.now();
         publishPasswordResetEvent(user, token, issuedAt);
+        captchaVerifier.clearFailure(CaptchaContext.forgotPassword(normalized));
 
         log.info("FORGOT_PASSWORD_REQUESTED userId={} email={}", user.getId(), MaskingLogArg.email(normalized));
     }
@@ -67,17 +71,23 @@ public class PasswordChangeServiceImpl implements PasswordChangeService {
     @Transactional
     public void resetPassword(String token, String newPassword) {
         if (token == null || token.isBlank()) {
+            captchaVerifier.recordFailure(CaptchaContext.resetPassword());
             throw new BusinessException(IamErrorCode.INVALID_RESET_TOKEN);
         }
         String email = resetTokenService.consumeToken(token);
         if (email == null) {
+            captchaVerifier.recordFailure(CaptchaContext.resetPassword());
             throw new BusinessException(IamErrorCode.INVALID_RESET_TOKEN);
         }
 
         User user = userRepository.findByEmailForUpdate(email)
-                .orElseThrow(() -> new BusinessException(IamErrorCode.INVALID_RESET_TOKEN));
+                .orElseThrow(() -> {
+                    captchaVerifier.recordFailure(CaptchaContext.resetPassword());
+                    return new BusinessException(IamErrorCode.INVALID_RESET_TOKEN);
+                });
         if (user.getOauthProvider() != OauthProvider.LOCAL || user.getStatus() != UserStatus.ACTIVE) {
             resetTokenService.invalidate(token);
+            captchaVerifier.recordFailure(CaptchaContext.resetPassword());
             throw new BusinessException(IamErrorCode.OAUTH_ONLY_ACCOUNT);
         }
 

@@ -20,6 +20,7 @@ import org.redisson.api.RedissonClient;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
@@ -34,6 +35,7 @@ import java.util.regex.Pattern;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class IpRateLimitFilter extends OncePerRequestFilter {
 
     private static final String REDISSON_RATE_LIMITER_PREFIX = "ratelimit:ip:";
@@ -55,24 +57,6 @@ public class IpRateLimitFilter extends OncePerRequestFilter {
     private final ObjectMapper objectMapper;
     private final IpHashUtil ipHashUtil;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
-
-    public IpRateLimitFilter(RedissonClient redissonClient,
-                             RateLimitProperties properties,
-                             HttpClientContextResolver clientContextResolver,
-                             ShareTokenRateLimiter shareTokenRateLimiter,
-                             BruteForceLockout bruteForceLockout,
-                             IpBruteForceCounter ipBruteForceCounter,
-                             ObjectMapper objectMapper,
-                             IpHashUtil ipHashUtil) {
-        this.redissonClient = redissonClient;
-        this.properties = properties;
-        this.clientContextResolver = clientContextResolver;
-        this.shareTokenRateLimiter = shareTokenRateLimiter;
-        this.bruteForceLockout = bruteForceLockout;
-        this.ipBruteForceCounter = ipBruteForceCounter;
-        this.objectMapper = objectMapper;
-        this.ipHashUtil = ipHashUtil;
-    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,

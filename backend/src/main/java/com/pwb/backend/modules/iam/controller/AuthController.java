@@ -3,6 +3,7 @@ package com.pwb.backend.modules.iam.controller;
 import com.pwb.backend.common.dto.ApiResponse;
 import com.pwb.backend.common.exception.BusinessException;
 import com.pwb.backend.common.security.HttpClientContextResolver;
+import com.pwb.backend.common.security.captcha.CaptchaContext;
 import com.pwb.backend.common.security.captcha.CaptchaVerifier;
 import com.pwb.backend.common.security.cookie.RefreshTokenCookieWriter;
 import com.pwb.backend.common.security.jwt.BearerTokenExtractor;
@@ -55,22 +56,25 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<RegisterResponse>> register(@Valid @RequestBody RegisterRequest request,
                                                                  HttpServletRequest httpRequest) {
-        captchaVerifier.verifyOrThrow(request.captchaToken(), httpRequest);
+        captchaVerifier.verifyOrThrow(request.captchaToken(), httpRequest, CaptchaContext.register(request.email()));
         RegisterResponse response = authService.register(request);
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.success(message(MSG_REGISTER_INITIATED), response));
     }
 
     @PostMapping("/verify-otp")
-    public ResponseEntity<ApiResponse<VerifyOtpResponse>> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
+    public ResponseEntity<ApiResponse<VerifyOtpResponse>> verifyOtp(@Valid @RequestBody VerifyOtpRequest request,
+                                                                   HttpServletRequest httpRequest) {
+        captchaVerifier.verifyOrThrow(request.captchaToken(), httpRequest, CaptchaContext.verifyOtp(request.email()));
         VerifyOtpResponse response = authService.verifyOtp(request);
+        captchaVerifier.clearFailure(CaptchaContext.verifyOtp(request.email()));
         return ResponseEntity.ok(ApiResponse.success(message(MSG_OTP_VERIFIED), response));
     }
 
     @PostMapping("/resend-otp")
     public ResponseEntity<ApiResponse<ResendOtpResponse>> resendOtp(@Valid @RequestBody ResendOtpRequest request,
                                                                     HttpServletRequest httpRequest) {
-        captchaVerifier.verifyOrThrow(request.captchaToken(), httpRequest);
+        captchaVerifier.verifyOrThrow(request.captchaToken(), httpRequest, CaptchaContext.resendOtp(request.email()));
         ResendOtpResponse response = authService.resendOtp(request);
         return ResponseEntity.ok(ApiResponse.success(message(MSG_OTP_RESENT), response));
     }
@@ -79,10 +83,11 @@ public class AuthController {
     public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request,
                                                             HttpServletRequest httpRequest,
                                                             HttpServletResponse httpResponse) {
-        captchaVerifier.verifyOrThrow(request.captchaToken(), httpRequest);
+        captchaVerifier.verifyOrThrow(request.captchaToken(), httpRequest, CaptchaContext.login(request.usernameOrEmail()));
         String ip = clientContextResolver.resolveIp(httpRequest);
         String userAgent = clientContextResolver.resolveUserAgent(httpRequest);
         LoginResponse data = authService.login(request, ip, userAgent);
+        captchaVerifier.clearFailure(CaptchaContext.login(request.usernameOrEmail()));
         writeRefreshCookieIfPresent(httpResponse, data.refreshToken(), data.refreshTokenMaxAgeSeconds());
         return ResponseEntity.ok(ApiResponse.success(message(MSG_LOGIN_SUCCESSFUL), data));
     }
@@ -91,6 +96,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<LoginResponse>> loginGoogle(@Valid @RequestBody GoogleLoginRequest request,
                                                                   HttpServletRequest httpRequest,
                                                                   HttpServletResponse httpResponse) {
+        captchaVerifier.verifyOrThrow(request.captchaToken(), httpRequest, CaptchaContext.googleLogin(request.idToken()));
         String ip = clientContextResolver.resolveIp(httpRequest);
         String userAgent = clientContextResolver.resolveUserAgent(httpRequest);
         LoginResponse data = authService.loginWithGoogle(request, ip, userAgent);

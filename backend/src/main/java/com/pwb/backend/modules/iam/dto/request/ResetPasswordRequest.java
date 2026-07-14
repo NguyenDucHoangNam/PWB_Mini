@@ -7,16 +7,18 @@ import jakarta.validation.constraints.Size;
 
 @PasswordMatches(first = "newPassword", second = "confirmPassword", message = "{password.mismatch}")
 public record ResetPasswordRequest(
-        @NotBlank(message = "{validation.token.required}")
-        String token,
+                @NotBlank(message = "{validation.token.required}")
+                String token,
 
-        @NotBlank(message = "{validation.password.required}")
-        @Size(min = 8, max = 128, message = "{validation.password.length}")
-        @Pattern(
-                regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]+$",
-                message = "{validation.password.complexity}")
-        String newPassword,
+                @NotBlank(message = "{validation.password.required}")
+                @Size(min = 8, max = 128, message = "{validation.password.length}")
+                @Pattern(
+                                regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]+$",
+                                message = "{validation.password.complexity}")
+                String newPassword,
 
-        @NotBlank(message = "{validation.password.required}")
-        String confirmPassword) {
+                @NotBlank(message = "{validation.password.required}")
+                String confirmPassword,
+
+                String captchaToken) {
 }
