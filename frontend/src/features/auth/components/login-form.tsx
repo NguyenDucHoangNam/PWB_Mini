@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useLogin, useLoginWithGoogle } from "../api/login";
 import { useAuthStore, type AuthUser } from "../stores/use-auth-store";
+import { useGoogleIdentity } from "../hooks/use-google-identity";
 import { useCaptureReturnTo, readReturnTo } from "@/hooks/use-return-to";
 import { decodeJwtExpiry } from "@/lib/jwt-decode";
 import { asApiError, type ApiError } from "@/lib/api-client";
@@ -15,14 +17,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { getTurnstileSiteKey } from "@/lib/config";
 
@@ -31,32 +25,6 @@ const STORAGE_KEY_USERNAME = "login_username";
 const STORAGE_KEY_REMEMBER = "login_remember";
 
 type CaptchaErrorCode = "CAPTCHA_MISSING" | "CAPTCHA_INVALID" | "CAPTCHA_SERVICE_UNAVAILABLE";
-
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (config: {
-            client_id: string;
-            callback: (response: { credential?: string }) => void;
-            auto_select?: boolean;
-            cancel_on_tap_outside?: boolean;
-          }) => void;
-          prompt: () => void;
-          renderButton: (parent: HTMLElement, options: Record<string, unknown>) => void;
-        };
-      };
-    };
-  }
-}
-
-function maskEmail(email: string): string {
-  const [local, domain] = email.split("@");
-  if (!local || !domain) return email;
-  if (local.length <= 2) return `${local}**@${domain}`;
-  return `${local.substring(0, 2)}******@${domain}`;
-}
 
 function parseRetryAfter(headers: Record<string, string> | undefined): number {
   if (!headers) return 0;
@@ -84,20 +52,20 @@ export function LoginForm() {
   const usernameInputRef = useRef<HTMLInputElement>(null);
   const turnstileSiteKey = getTurnstileSiteKey();
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const googleInitRef = useRef(false);
-  const handleGoogleCredentialRef = useRef<(idToken: string) => void>(null);
+  const handleGoogleCredentialRef = useRef<((idToken: string) => void) | null>(null);
 
   const [usernameOrEmail, setUsernameOrEmail] = useState(() => readInitialRememberMe().username);
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(() => readInitialRememberMe().remember);
   const [error, setError] = useState<string | null>(null);
   const [lockoutRemaining, setLockoutRemaining] = useState(0);
-  const [oauthLinkOpen, setOauthLinkOpen] = useState(false);
-  const [oauthLinkEmail, setOauthLinkEmail] = useState("");
-  const [oauthLinkPassword, setOauthLinkPassword] = useState("");
-  const [pendingGoogleIdToken, setPendingGoogleIdToken] = useState<string | null>(null);
   const [captchaRequired, setCaptchaRequired] = useState(false);
   const [captchaError, setCaptchaError] = useState<string | null>(null);
+  const [googleCaptchaRequired, setGoogleCaptchaRequired] = useState(false);
+  const [googleCaptchaToken, setGoogleCaptchaToken] = useState<string | null>(null);
+  const { ready: googleReady, triggerClick: googleTriggerClick, handleLoad: googleHandleLoad, setContainerRef: googleContainerRef, scriptSrc: googleScriptSrc, scriptId: googleScriptId } = useGoogleIdentity(
+    (idToken) => handleGoogleCredentialRef.current?.(idToken),
+  );
 
   // Capture ?returnTo= so we can send the user back after login.
   useCaptureReturnTo();
@@ -118,27 +86,6 @@ export function LoginForm() {
     return () => clearInterval(interval);
   }, [lockoutRemaining]);
 
-  // Initialize Google Identity Services (GIS) for ID-token flow.
-  useEffect(() => {
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    if (!clientId || typeof window === "undefined" || !window.google) {
-      return;
-    }
-    if (googleInitRef.current) return;
-    googleInitRef.current = true;
-
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      callback: (response) => {
-        const credential = response.credential;
-        if (credential) {
-          handleGoogleCredentialRef.current?.(credential);
-        }
-      },
-      cancel_on_tap_outside: true,
-    });
-  }, []);
-
   const redirectAfterLogin = useCallback(() => {
     const target = readReturnTo();
     if (target) {
@@ -153,8 +100,7 @@ export function LoginForm() {
       const expiresAt = decodeJwtExpiry(token);
       setAuth(token, user, expiresAt ?? undefined);
 
-      // Remember-me only persists the username (not the password or token).
-      if (rememberMe) {
+      if (rememberMe && usernameOrEmail.trim().length > 0) {
         localStorage.setItem(STORAGE_KEY_USERNAME, usernameOrEmail);
         localStorage.setItem(STORAGE_KEY_REMEMBER, "true");
       } else {
@@ -278,22 +224,36 @@ export function LoginForm() {
   const handleGoogleCredential = useCallback(
     (idToken: string) => {
       loginWithGoogleMutate(
-        { data: { idToken } },
+        { data: { idToken, captchaToken: googleCaptchaToken ?? undefined } },
         {
           onSuccess: (response) => {
-            if (!handleLoginResponse(response)) {
-              toast.error(response.message || t("errorToast"));
-            }
-          },
-          onError: asApiError<{ email?: string }>((err) => {
-            const apiError = err?.errors?.[0];
-            if (apiError?.code === "OAUTH_LINK_PASSWORD_REQUIRED") {
-              setPendingGoogleIdToken(idToken);
-              setOauthLinkEmail(err?.data?.email || usernameOrEmail);
-              setOauthLinkOpen(true);
+            if (handleLoginResponse(response)) {
+              setGoogleCaptchaRequired(false);
+              setGoogleCaptchaToken(null);
               return;
             }
-            if (apiError?.code === "ACCOUNT_BANNED") {
+            toast.error(response.message || t("errorToast"));
+          },
+          onError: asApiError<ApiError>((err) => {
+            const apiError = err?.errors?.[0];
+            const errorCode = apiError?.code;
+
+            if (
+              errorCode === "CAPTCHA_MISSING" ||
+              errorCode === "CAPTCHA_INVALID" ||
+              errorCode === "CAPTCHA_SERVICE_UNAVAILABLE"
+            ) {
+              const messageKey =
+                errorCode === "CAPTCHA_MISSING"
+                  ? "googleCaptchaRequired"
+                  : errorCode === "CAPTCHA_INVALID"
+                    ? "captchaInvalid"
+                    : "captchaServiceUnavailable";
+              setGoogleCaptchaRequired(true);
+              toast.error(t(messageKey));
+            } else if (errorCode === "OAUTH_EMAIL_CONFLICT") {
+              toast.error(t("oauthEmailConflict"));
+            } else if (errorCode === "ACCOUNT_BANNED") {
               toast.error(t("accountBanned"));
             } else {
               toast.error(err?.message || t("googleLoginError"));
@@ -302,57 +262,22 @@ export function LoginForm() {
         },
       );
     },
-    [loginWithGoogleMutate, handleLoginResponse, usernameOrEmail, t],
+    [loginWithGoogleMutate, handleLoginResponse, googleCaptchaToken, t],
   );
 
   useEffect(() => {
     handleGoogleCredentialRef.current = handleGoogleCredential;
+    return () => {
+      handleGoogleCredentialRef.current = null;
+    };
   }, [handleGoogleCredential]);
 
   const handleGoogleLogin = () => {
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      toast.error(t("googleInitFailed"));
-      return;
-    }
-    if (typeof window === "undefined" || !window.google) {
+    if (!googleReady) {
       toast.error(t("googleLoginUnavailable"));
       return;
     }
-    try {
-      window.google.accounts.id.prompt();
-    } catch {
-      toast.error(t("googleInitFailed"));
-    }
-  };
-
-  const handleOauthLinkSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!pendingGoogleIdToken || !oauthLinkPassword) return;
-    loginWithGoogleMutate(
-      { data: { idToken: pendingGoogleIdToken, linkingPassword: oauthLinkPassword } },
-      {
-        onSuccess: (response) => {
-          if (response.success && response.data) {
-            toast.success(t("successToast"));
-            handleAuthSuccess(response.data.accessToken, response.data.user);
-          } else {
-            toast.error(response.message || t("errorToast"));
-          }
-          setOauthLinkOpen(false);
-          setOauthLinkPassword("");
-          setPendingGoogleIdToken(null);
-        },
-        onError: asApiError((err) => {
-          const apiError = err?.errors?.[0];
-          if (apiError?.code === "INVALID_PASSWORD") {
-            toast.error(t("incorrectCredentials"));
-          } else {
-            toast.error(err?.message || t("errorToast"));
-          }
-        }),
-      },
-    );
+    googleTriggerClick();
   };
 
   return (
@@ -506,12 +431,32 @@ export function LoginForm() {
         <div className="flex-grow border-t border-neutral-200 dark:border-neutral-800" />
       </div>
 
-      {/* Google Login button - uses Google Identity Services (ID token) */}
+      {/* Google Login - hidden GIS rendered button + visible custom button */}
+      {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
+        <Script
+          id={googleScriptId}
+          src={googleScriptSrc}
+          strategy="afterInteractive"
+          async
+          defer
+          onLoad={googleHandleLoad}
+        />
+      )}
+      <div
+        ref={googleContainerRef}
+        style={{ position: "absolute", width: 0, height: 0, overflow: "hidden", pointerEvents: "none" }}
+        aria-hidden="true"
+      />
+
+      {turnstileSiteKey && googleCaptchaRequired && (
+        <CaptchaWidget siteKey={turnstileSiteKey} onTokenChange={setGoogleCaptchaToken} />
+      )}
+
       <Button
         type="button"
         variant="outline"
         size="lg"
-        disabled={isPending || lockoutRemaining > 0}
+        disabled={isPending || lockoutRemaining > 0 || !googleReady}
         onClick={handleGoogleLogin}
         className="w-full justify-center gap-2 border-neutral-200 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-900"
       >
@@ -527,32 +472,6 @@ export function LoginForm() {
           {t("registerLink")}
         </Link>
       </div>
-
-      {/* OAuth account linking dialog */}
-      <Dialog open={oauthLinkOpen} onOpenChange={setOauthLinkOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("oauthLinkTitle", { email: maskEmail(oauthLinkEmail) })}</DialogTitle>
-            <DialogDescription>{t("oauthLinkDesc")}</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleOauthLinkSubmit} className="flex flex-col gap-4">
-            <PasswordInput
-              id="oauthLinkPassword"
-              value={oauthLinkPassword}
-              onChange={(e) => setOauthLinkPassword(e.target.value)}
-              placeholder={t("passwordPlaceholder")}
-              required
-              autoComplete="current-password"
-            />
-            <DialogFooter className="flex-col sm:flex-row gap-2">
-              <Button type="button" variant="outline" onClick={() => setOauthLinkOpen(false)}>
-                {t("cancel")}
-              </Button>
-              <Button type="submit">{t("submit")}</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </form>
   );
 }

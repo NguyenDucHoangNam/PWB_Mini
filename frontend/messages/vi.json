@@ -87,6 +87,8 @@
       "googleInitFailed": "Không thể khởi tạo Google Sign-In. Vui lòng thử lại.",
       "oauthLinkTitle": "Nhập mật khẩu để liên kết {email}",
       "oauthLinkDesc": "Đã tồn tại tài khoản với email này. Nhập mật khẩu hiện tại để liên kết Google.",
+      "oauthEmailConflict": "Email này đã được đăng ký bằng phương thức khác. Vui lòng đăng nhập bằng phương thức hiện có.",
+      "googleCaptchaRequired": "Vui lòng hoàn thành captcha để tiếp tục với Google.",
       "cancel": "Hủy bỏ",
       "captchaRequired": "Bạn đã thử quá nhiều lần. Vui lòng hoàn thành xác minh CAPTCHA.",
       "captchaInvalid": "Xác minh CAPTCHA thất bại. Vui lòng thử lại.",

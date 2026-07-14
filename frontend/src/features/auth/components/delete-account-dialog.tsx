@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useDeleteAccount } from "../api/account";
@@ -62,18 +62,20 @@ function DeleteAccountDialogContent({ onClose }: { onClose: () => void }) {
   const oauthProvider = authUser?.oauthProvider;
   const isGoogleUser = oauthProvider === "GOOGLE";
 
-  const handleGoogleReauth = () => {
+  const googleReauthContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleGoogleReauth = useCallback(() => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    if (!clientId || typeof window === "undefined" || !window.google) {
+    if (!clientId || typeof window === "undefined" || !window.google?.accounts?.id) {
       toast.error("Google Identity Services not available");
       return;
     }
-    toast.info(t("googleReauthToast"));
-    // For one-shot re-auth we initialize a temporary instance so we
-    // don't disturb the login-form's initialization.
+    const container = googleReauthContainerRef.current;
+    if (!container) return;
+
     window.google.accounts.id.initialize({
       client_id: clientId,
-      callback: (response) => {
+      callback: (response: { credential?: string }) => {
         if (response.credential) {
           setGoogleIdToken(response.credential);
           setGoogleReauthSuccess(true);
@@ -81,12 +83,21 @@ function DeleteAccountDialogContent({ onClose }: { onClose: () => void }) {
         }
       },
     });
-    try {
-      window.google.accounts.id.prompt();
-    } catch {
-      toast.error("Google re-authentication failed");
-    }
-  };
+
+    container.innerHTML = "";
+    window.google.accounts.id.renderButton(container, {
+      type: "standard",
+      size: "large",
+      width: 300,
+    });
+
+    requestAnimationFrame(() => {
+      const btn =
+        container.querySelector<HTMLElement>('[role="button"]') ??
+        container.querySelector<HTMLElement>("div[tabindex]");
+      if (btn) btn.click();
+    });
+  }, [t]);
 
   const handleDeleteSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,6 +190,11 @@ function DeleteAccountDialogContent({ onClose }: { onClose: () => void }) {
           {isGoogleUser ? (
             <div className="flex flex-col gap-2">
               <Label>{t("googleReauth")}</Label>
+              <div
+                ref={googleReauthContainerRef}
+                style={{ position: "absolute", width: 0, height: 0, overflow: "hidden", pointerEvents: "none" }}
+                aria-hidden="true"
+              />
               <Button
                 type="button"
                 variant="outline"

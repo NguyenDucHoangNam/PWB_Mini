@@ -29,7 +29,7 @@ export interface LoginResponse {
 
 export interface Oauth2LoginRequest {
   idToken: string;
-  linkingPassword?: string;
+  captchaToken?: string;
 }
 
 export interface RegisterRequest {
