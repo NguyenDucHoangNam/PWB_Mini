@@ -1,5 +1,8 @@
 package com.pwb.backend.modules.liveroom.ws;
 
+import java.nio.charset.StandardCharsets;
+import org.springframework.messaging.Message;
+
 import com.pwb.backend.common.security.jwt.JwtTypes;
 import com.pwb.backend.modules.liveroom.dto.ws.SignallingFrame;
 import com.pwb.backend.modules.liveroom.service.SignallingRoutingService;
@@ -29,7 +32,7 @@ public class SignallingMessageController {
     @MessageMapping("/rooms/{roomCode}/signalling")
     public void onSignalling(@DestinationVariable String roomCode,
                              SignallingFrame frame,
-                             org.springframework.messaging.Message<?> message) {
+                             Message<?> message) {
         try {
             StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
             if (accessor == null) {
@@ -66,7 +69,7 @@ public class SignallingMessageController {
         if (frame.getPayload() == null || frame.getPayload().isBlank()) {
             return false;
         }
-        return frame.getPayload().getBytes(java.nio.charset.StandardCharsets.UTF_8).length <= MAX_PAYLOAD_BYTES;
+        return frame.getPayload().getBytes(StandardCharsets.UTF_8).length <= MAX_PAYLOAD_BYTES;
     }
 
     private UUID resolveUserId(StompHeaderAccessor accessor) {

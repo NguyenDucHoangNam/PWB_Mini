@@ -1,5 +1,8 @@
 package com.pwb.backend.modules.iam.service.impl;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
+
 import com.pwb.backend.common.config.GeoIpConfig;
 import com.pwb.backend.common.exception.BusinessException;
 import com.pwb.backend.common.security.jwt.JwtProperties;
@@ -79,7 +82,7 @@ public class SessionServiceImpl implements SessionService {
                               LoginProperties loginProperties,
                               JwtProperties jwtProperties,
                               DatabaseReader geoIpDatabaseReader,
-                              @org.springframework.beans.factory.annotation.Value("${app.security.session.blacklist-fail-closed:false}")
+                              @Value("${app.security.session.blacklist-fail-closed:false}")
                               boolean blacklistFailClosed) {
         this.redisTemplate = redisTemplate;
         this.loginProperties = loginProperties;
@@ -354,7 +357,7 @@ public class SessionServiceImpl implements SessionService {
         redisTemplate.executePipelined(new SessionCallback<Object>() {
             @Override
             @SuppressWarnings({"unchecked", "rawtypes"})
-            public Object execute(RedisOperations operations) throws org.springframework.dao.DataAccessException {
+            public Object execute(RedisOperations operations) throws DataAccessException {
                 for (String token : tokens) {
                     operations.delete(ACTIVE_PREFIX + token);
                     operations.delete(METADATA_PREFIX + token);
@@ -463,7 +466,7 @@ public class SessionServiceImpl implements SessionService {
         redisTemplate.executePipelined(new SessionCallback<Object>() {
             @Override
             @SuppressWarnings({"unchecked", "rawtypes"})
-            public Object execute(RedisOperations operations) throws org.springframework.dao.DataAccessException {
+            public Object execute(RedisOperations operations) throws DataAccessException {
                 for (String token : tokens) {
                     operations.delete(ACTIVE_PREFIX + token);
                     operations.delete(SHADOW_PREFIX + token);

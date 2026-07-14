@@ -217,6 +217,8 @@ app:
     cookie:
       secure: false
       samesite: Strict
+      refresh-cookie-name: refreshToken
+      path: /
     oauth:
       google:
         client-id: ${GOOGLE_CLIENT_ID:}
@@ -394,6 +396,7 @@ app:
       turn-static-secret: ${TURN_STATIC_SECRET:}
       credential-ttl-seconds: 86400
       signalling-rate-limit-per-minute: 100
+      signalling-destination-pattern: "^/app/rooms/[^/]+/signalling$"
     chat:
       text-rate-limit-per-minute: 30
       reaction-rate-limit-per-minute: 120
@@ -404,6 +407,9 @@ app:
         - "\uD83D\uDC4D"
         - "\uD83D\uDC4F"
         - "\uD83D\uDCAF"
+      chat-destination-pattern: "^/app/rooms/[^/]+/chat$"
+      chat-broadcast-destination: "/topic/rooms/%s/chat"
+      chat-rate-limit-user-destination: "/queue/rooms/chat"
 
 mail:
   from: "PWB Mini <noreply@pwb-mini.dev>"

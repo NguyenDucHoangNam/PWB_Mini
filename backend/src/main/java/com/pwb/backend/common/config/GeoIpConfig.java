@@ -1,5 +1,7 @@
 package com.pwb.backend.common.config;
 
+import java.io.ByteArrayInputStream;
+
 import com.maxmind.geoip2.DatabaseReader;
 import com.maxmind.geoip2.model.CityResponse;
 import com.maxmind.geoip2.record.City;
@@ -31,7 +33,7 @@ public class GeoIpConfig {
         try (InputStream in = resource.getInputStream()) {
             byte[] payload = in.readAllBytes();
             log.info("Loaded GeoIP database ({} bytes) into memory", payload.length);
-            return new DatabaseReader.Builder(new java.io.ByteArrayInputStream(payload)).build();
+            return new DatabaseReader.Builder(new ByteArrayInputStream(payload)).build();
         }
     }
 

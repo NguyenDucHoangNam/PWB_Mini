@@ -1,5 +1,8 @@
 package com.pwb.backend.modules.voice_tag.service;
 
+import java.io.IOException;
+import org.xml.sax.SAXException;
+
 import com.pwb.backend.common.exception.BusinessException;
 import com.pwb.backend.modules.voice_tag.config.VoiceTagProperties;
 import com.pwb.backend.modules.voice_tag.exception.VoiceTagErrorCode;
@@ -73,7 +76,7 @@ public class VoiceTagSsmlSanitizer {
             factory.setNamespaceAware(false);
             factory.setExpandEntityReferences(false);
             return factory.newDocumentBuilder().parse(new InputSource(new StringReader(xml)));
-        } catch (ParserConfigurationException | org.xml.sax.SAXException | java.io.IOException ex) {
+        } catch (ParserConfigurationException | SAXException | IOException ex) {
             log.warn("SSML parsing failed: {}", ex.getMessage());
             throw new BusinessException(VoiceTagErrorCode.INVALID_SSML_TAG);
         }

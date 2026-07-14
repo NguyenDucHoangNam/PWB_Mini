@@ -1,5 +1,7 @@
 package com.pwb.backend.common.kafka.config;
 
+import org.apache.kafka.common.TopicPartition;
+
 import com.pwb.backend.common.kafka.constant.KafkaTopics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,7 +55,7 @@ public class KafkaConsumerConfig {
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
 
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate,
-                (record, ex) -> new org.apache.kafka.common.TopicPartition(
+                (record, ex) -> new TopicPartition(
                         record.topic() + ".dlq", record.partition()));
 
         ExponentialBackOff backOff = new ExponentialBackOff(

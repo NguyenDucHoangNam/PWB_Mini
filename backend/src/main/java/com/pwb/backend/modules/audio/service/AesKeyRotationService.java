@@ -1,5 +1,7 @@
 package com.pwb.backend.modules.audio.service;
 
+import org.springframework.data.domain.PageRequest;
+
 import com.pwb.backend.common.exception.BusinessException;
 import com.pwb.backend.modules.audio.entity.Demo;
 import com.pwb.backend.modules.audio.enums.DemoStatus;
@@ -121,7 +123,7 @@ public class AesKeyRotationService {
         log.error("AES_KEY_COMPROMISED demoId={} keyVersion={}", demoId, demo.getAesKeyVersion());
         streamKeyCacheService.evict(demoId);
         for (DemoDistribution distribution : demoDistributionRepository.findByDemoIdAndRevokedFalse(
-                demoId, org.springframework.data.domain.PageRequest.of(0, 1000)).getContent()) {
+                demoId, PageRequest.of(0, 1000)).getContent()) {
             revokeJtisForDistribution(distribution.getShareToken());
         }
     }

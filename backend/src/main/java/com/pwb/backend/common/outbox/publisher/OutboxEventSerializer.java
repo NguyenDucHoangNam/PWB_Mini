@@ -1,12 +1,14 @@
 package com.pwb.backend.common.outbox.publisher;
 
+import java.util.UUID;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.common.outbox.event.AccountDeletionCancelledEvent;
 import com.pwb.backend.common.outbox.event.AccountDeletionRequestedEvent;
 import com.pwb.backend.common.outbox.event.PasswordResetRequestedEvent;
 import com.pwb.backend.common.outbox.event.ShareEmailEvent;
 import com.pwb.backend.common.outbox.event.UserRegisteredEvent;
-import com.pwb.backend.common.model.OutboxEvent;
+import com.pwb.backend.common.outbox.model.OutboxEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -68,7 +70,7 @@ public class OutboxEventSerializer {
         }
     }
 
-    private String safeDecrypt(String stored, java.util.UUID eventId) {
+    private String safeDecrypt(String stored, UUID eventId) {
         if (stored == null || !cipher.isEncrypted(stored)) {
             return stored;
         }

@@ -1,16 +1,10 @@
 package com.pwb.backend.modules.share.service.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.common.exception.BusinessException;
-import com.pwb.backend.common.kafka.constant.KafkaTopics;
 import com.pwb.backend.common.model.BaseEntity;
-import com.pwb.backend.common.model.OutboxEvent;
-import com.pwb.backend.common.outbox.event.OutboxCreatedEvent;
+import com.pwb.backend.common.outbox.OutboxService;
 import com.pwb.backend.common.outbox.event.ShareEmailEvent;
 import com.pwb.backend.common.outbox.publisher.OutboxEventTypes;
-import com.pwb.backend.common.outbox.publisher.OutboxPayloadCipher;
-import com.pwb.backend.common.outbox.repository.OutboxEventRepository;
 import com.pwb.backend.modules.audio.entity.Demo;
 import com.pwb.backend.modules.audio.service.AesKeyRotationService;
 import com.pwb.backend.modules.share.config.ShareProperties;
@@ -29,16 +23,17 @@ import com.pwb.backend.modules.share.service.DemoDistributionService;
 import com.pwb.backend.modules.share.service.ShareDailyQuotaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
@@ -62,14 +57,11 @@ public class DemoDistributionServiceImpl implements DemoDistributionService {
     private final ShareDailyQuotaService quotaService;
     private final SharedThreadRepository sharedThreadRepository;
     private final DemoDistributionRepository demoDistributionRepository;
-    private final OutboxEventRepository outboxRepository;
-    private final OutboxPayloadCipher outboxCipher;
+    private final OutboxService outboxService;
     private final DemoDistributionCacheService cacheService;
     private final ShareProperties shareProperties;
-    private final ObjectMapper objectMapper;
-    private final ApplicationEventPublisher eventPublisher;
     private final AesKeyRotationService aesKeyRotationService;
-    private final org.springframework.data.redis.core.StringRedisTemplate stringRedisTemplate;
+    private final StringRedisTemplate stringRedisTemplate;
 
     @Override
     @Transactional
@@ -174,13 +166,17 @@ public class DemoDistributionServiceImpl implements DemoDistributionService {
     public DistributionListItemResponse revokeDistribution(UUID demoId, UUID distributionId, UUID producerId) {
         ownershipService.assertOwned(demoId, producerId);
         DemoDistribution distribution = demoDistributionRepository.findById(distributionId)
-                .orElseThrow(() -> new BusinessException(ShareErrorCode.DEMO_NOT_FOUND,
-                        "Distribution " + distributionId + " not found"));
+                .orElseThrow(() -> BusinessException.builder()
+                        .errorCode(ShareErrorCode.DEMO_NOT_FOUND)
+                        .customMessage("Distribution " + distributionId + " not found")
+                        .build());
         if (!distribution.getDemoId().equals(demoId)) {
             log.warn("DISTRIBUTION_REVOKE_WRONG_DEMO distId={} expectedDemo={} actualDemo={}",
                     distributionId, demoId, distribution.getDemoId());
-            throw new BusinessException(ShareErrorCode.FORBIDDEN_ACCESS,
-                    "Distribution does not belong to demo " + demoId);
+            throw BusinessException.builder()
+                    .errorCode(ShareErrorCode.FORBIDDEN_ACCESS)
+                    .customMessage("Distribution does not belong to demo " + demoId)
+                    .build();
         }
         if (!distribution.isRevoked()) {
             Instant now = Instant.now();
@@ -198,7 +194,7 @@ public class DemoDistributionServiceImpl implements DemoDistributionService {
     @Transactional
     public int revokeAllDistributions(UUID demoId, UUID producerId) {
         ownershipService.assertOwned(demoId, producerId);
-        java.util.List<DemoDistribution> active = demoDistributionRepository
+        List<DemoDistribution> active = demoDistributionRepository
                 .findByDemoIdAndRevokedFalse(demoId, PageRequest.of(0, 1000))
                 .getContent();
         if (active.isEmpty()) {
@@ -217,11 +213,11 @@ public class DemoDistributionServiceImpl implements DemoDistributionService {
         return active.size();
     }
 
-    private void markRedisRevoked(java.util.UUID shareToken, Instant now) {
+    private void markRedisRevoked(UUID shareToken, Instant now) {
         try {
             String revokedKey = ShareRedisKeys.distributionRevokedKey(shareToken);
             stringRedisTemplate.opsForValue().set(revokedKey, "1",
-                    java.time.Duration.ofSeconds(shareProperties.getDistributionCacheTtlSeconds()));
+                    Duration.ofSeconds(shareProperties.getDistributionCacheTtlSeconds()));
             cacheService.evict(shareToken);
         } catch (Exception ex) {
             log.warn("DISTRIBUTION_REDIS_REVOKE_FAILED shareToken={} reason={}",
@@ -230,33 +226,14 @@ public class DemoDistributionServiceImpl implements DemoDistributionService {
     }
 
     private void persistOutboxEvent(UUID distributionId, UUID shareToken, ShareEmailEvent eventPayload) {
-        String plaintext;
-        try {
-            plaintext = objectMapper.writeValueAsString(eventPayload);
-        } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("Failed to serialize share email event payload", ex);
-        }
-        String encryptedPayload = outboxCipher.encrypt(plaintext);
-        UUID idempotencyKey = UUID.randomUUID();
-        OutboxEvent row = new OutboxEvent(
-                UUID.randomUUID(),
+        outboxService.publish(
                 OutboxEventTypes.AGGREGATE_DEMO_DISTRIBUTION,
                 distributionId,
                 OutboxEventTypes.SEND_SHARE_EMAIL,
                 shareToken.toString(),
-                encryptedPayload,
-                Instant.now(),
-                idempotencyKey,
-                1);
-        outboxRepository.save(row);
-        log.info("OUTBOX_EMAIL_QUEUED eventId={} distributionId={} type={}",
-                row.getId(), distributionId, OutboxEventTypes.SEND_SHARE_EMAIL);
-        if (outboxCipher.isEnabled()) {
-            log.info("OUTBOX_PAYLOAD_ENCRYPTED eventId={} keyVersion={}",
-                    row.getId(), row.getPayloadKeyVersion());
-        }
-        eventPublisher.publishEvent(new OutboxCreatedEvent(
-                row.getId(), KafkaTopics.AUDIO_SHARE_EMAIL, OutboxEventTypes.AGGREGATE_DEMO_DISTRIBUTION));
+                eventPayload,
+                UUID.randomUUID());
+        log.info("OUTBOX_EMAIL_QUEUED distributionId={} type={}", distributionId, OutboxEventTypes.SEND_SHARE_EMAIL);
     }
 
     private static String normalizeEmail(String raw) {

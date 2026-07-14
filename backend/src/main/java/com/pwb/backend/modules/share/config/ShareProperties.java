@@ -13,17 +13,17 @@ import org.springframework.validation.annotation.Validated;
 public class ShareProperties {
 
     @Min(1)
-    private int dailyRecipientsLimit = 100;
+    private int dailyRecipientsLimit;
 
     @Min(1)
-    private int dailyCountLimit = 500;
+    private int dailyCountLimit;
 
     @Min(60)
-    private long distributionCacheTtlSeconds = 86400L;
+    private long distributionCacheTtlSeconds;
 
-    private boolean blacklistDomainCheckEnabled = true;
+    private boolean blacklistDomainCheckEnabled;
 
-    private String shareLinkBaseUrl = "https://pwbmini.com/shared/";
+    private String shareLinkBaseUrl;
 
-    private long blacklistCacheTtlSeconds = 3600L;
+    private long blacklistCacheTtlSeconds;
 }

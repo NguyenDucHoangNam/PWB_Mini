@@ -1,5 +1,8 @@
 package com.pwb.backend.common.outbox.publisher;
 
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -55,7 +58,7 @@ public class OutboxPayloadCipher {
         }
         try {
             byte[] iv = new byte[IV_LENGTH_BYTES];
-            java.security.SecureRandom.getInstanceStrong().nextBytes(iv);
+            SecureRandom.getInstanceStrong().nextBytes(iv);
             Cipher cipher = Cipher.getInstance(TRANSFORMATION);
             cipher.init(Cipher.ENCRYPT_MODE, keySpec, new GCMParameterSpec(TAG_LENGTH_BITS, iv));
             byte[] cipherBytes = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
@@ -104,7 +107,7 @@ public class OutboxPayloadCipher {
         try {
             byte[] hashed = MessageDigest.getInstance("SHA-256").digest(raw.getBytes(StandardCharsets.UTF_8));
             return java.util.Arrays.copyOf(hashed, RAW_KEY_BYTES);
-        } catch (java.security.NoSuchAlgorithmException ex) {
+        } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("SHA-256 not available", ex);
         }
     }

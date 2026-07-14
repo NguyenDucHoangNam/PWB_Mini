@@ -13,8 +13,8 @@ import java.util.List;
 @Setter
 public class RateLimitProperties {
 
-    private boolean enabled = true;
-    private long defaultPermitsPerWindow = 100;
-    private Duration defaultWindow = Duration.ofMinutes(1);
+    private boolean enabled;
+    private long defaultPermitsPerWindow;
+    private Duration defaultWindow;
     private List<RateLimitRule> rules = new ArrayList<>();
 }

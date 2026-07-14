@@ -9,5 +9,5 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Setter
 public class GoogleOAuthProperties {
 
-    private String clientId = "";
+    private String clientId;
 }

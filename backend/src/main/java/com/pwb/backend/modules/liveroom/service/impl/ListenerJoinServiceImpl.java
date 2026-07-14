@@ -58,7 +58,7 @@ public class ListenerJoinServiceImpl implements ListenerJoinService {
             throw new BusinessException(LiveRoomErrorCode.ROOM_NOT_FOUND,
                     "Room " + roomCode + " not found or not ACTIVE",
                     null,
-                    java.util.Map.<String, Object>of("roomCode", roomCode));
+                    Map.<String, Object>of("roomCode", roomCode));
         }
 
         String roomStatus = asString(statusHash.get(ROOM_STATUS_FIELD_STATUS));
@@ -67,7 +67,7 @@ public class ListenerJoinServiceImpl implements ListenerJoinService {
             throw new BusinessException(LiveRoomErrorCode.ROOM_NOT_FOUND,
                     "Room " + roomCode + " not in ACTIVE state",
                     null,
-                    java.util.Map.<String, Object>of("roomCode", roomCode));
+                    Map.<String, Object>of("roomCode", roomCode));
         }
 
         String modeStr = asString(statusHash.get(ROOM_STATUS_FIELD_MODE));

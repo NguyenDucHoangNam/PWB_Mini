@@ -1,5 +1,7 @@
 package com.pwb.backend.modules.liveroom.ws;
 
+import org.springframework.messaging.Message;
+
 import com.pwb.backend.common.security.jwt.JwtTypes;
 import com.pwb.backend.modules.liveroom.dto.ws.ChatFrame;
 import com.pwb.backend.modules.liveroom.service.ChatBroadcastService;
@@ -24,7 +26,7 @@ public class ChatMessageController {
     @MessageMapping("/rooms/{roomCode}/chat")
     public void onChat(@DestinationVariable String roomCode,
                        ChatFrame frame,
-                       org.springframework.messaging.Message<?> message) {
+                       Message<?> message) {
         try {
             StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
             if (accessor == null) {

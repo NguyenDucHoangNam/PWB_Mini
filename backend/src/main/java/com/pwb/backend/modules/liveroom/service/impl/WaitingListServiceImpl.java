@@ -1,5 +1,7 @@
 package com.pwb.backend.modules.liveroom.service.impl;
 
+import org.springframework.data.redis.core.ZSetOperations;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.common.exception.BusinessException;
@@ -54,7 +56,7 @@ public class WaitingListServiceImpl implements WaitingListService {
         }
 
         String waitingKey = LiveRoomRedisKeys.roomWaitingKey(roomCode);
-        Set<org.springframework.data.redis.core.ZSetOperations.TypedTuple<String>> tuples =
+        Set<ZSetOperations.TypedTuple<String>> tuples =
                 stringRedisTemplate.opsForZSet().rangeWithScores(waitingKey, 0, -1);
         if (tuples == null || tuples.isEmpty()) {
             return buildResponse(roomCode, List.of());
@@ -208,7 +210,7 @@ public class WaitingListServiceImpl implements WaitingListService {
             throw new BusinessException(LiveRoomErrorCode.ROOM_NOT_FOUND,
                     null,
                     null,
-                    java.util.Map.<String, Object>of("roomCode", roomCode));
+                    Map.<String, Object>of("roomCode", roomCode));
         }
         String status = asString(statusHash.get(ROOM_STATUS_FIELD_STATUS));
         String owner = asString(statusHash.get(ROOM_STATUS_FIELD_HOST_ID));
@@ -216,14 +218,14 @@ public class WaitingListServiceImpl implements WaitingListService {
             throw new BusinessException(LiveRoomErrorCode.ROOM_NOT_FOUND,
                     null,
                     null,
-                    java.util.Map.<String, Object>of("roomCode", roomCode));
+                    Map.<String, Object>of("roomCode", roomCode));
         }
         if (owner == null || !owner.equals(hostId.toString())) {
             log.warn("HOST_FORBIDDEN roomCode={} callerId={} ownerId={}", roomCode, hostId, owner);
             throw new BusinessException(LiveRoomErrorCode.FORBIDDEN_NOT_HOST,
                     null,
                     null,
-                    java.util.Map.<String, Object>of("roomCode", roomCode));
+                    Map.<String, Object>of("roomCode", roomCode));
         }
     }
 

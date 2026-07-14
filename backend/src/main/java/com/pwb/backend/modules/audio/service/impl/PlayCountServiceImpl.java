@@ -1,5 +1,7 @@
 package com.pwb.backend.modules.audio.service.impl;
 
+import com.pwb.backend.modules.share.entity.DemoDistribution;
+
 import com.pwb.backend.modules.audio.security.PlaySessionFingerprint;
 import com.pwb.backend.modules.audio.service.PlayCountService;
 import com.pwb.backend.modules.share.constant.ShareRedisKeys;
@@ -31,7 +33,7 @@ public class PlayCountServiceImpl implements PlayCountService {
     @Override
     @Transactional
     public void recordPlay(UUID shareToken, HttpServletRequest request) {
-        Optional<com.pwb.backend.modules.share.entity.DemoDistribution> distributionOpt =
+        Optional<DemoDistribution> distributionOpt =
                 demoDistributionRepository.findByShareToken(shareToken);
         if (distributionOpt.isEmpty()) {
             log.warn("PLAY_COUNT_LINK_MISSING token={}", shareToken);

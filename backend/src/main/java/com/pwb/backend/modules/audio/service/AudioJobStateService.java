@@ -1,5 +1,7 @@
 package com.pwb.backend.modules.audio.service;
 
+import java.math.BigDecimal;
+
 import com.pwb.backend.modules.audio.entity.AudioProcessingJob;
 import com.pwb.backend.modules.audio.entity.Demo;
 import com.pwb.backend.modules.audio.enums.AudioJobStatus;
@@ -40,7 +42,7 @@ public class AudioJobStateService {
     }
 
     @Transactional
-    public void markCompleted(UUID demoId, java.math.BigDecimal duration, Integer sampleRate,
+    public void markCompleted(UUID demoId, BigDecimal duration, Integer sampleRate,
                               String format, String playlistKey, byte[] aesEncrypted,
                               String waveformJson) {
         Demo demo = demoRepository.findById(demoId)

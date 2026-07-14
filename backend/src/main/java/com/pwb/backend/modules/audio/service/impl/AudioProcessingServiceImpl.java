@@ -1,5 +1,7 @@
 package com.pwb.backend.modules.audio.service.impl;
 
+import java.util.Map;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.common.exception.BusinessException;
@@ -111,7 +113,7 @@ public class AudioProcessingServiceImpl implements AudioProcessingService {
                 "stream/" + demoId + "/waveform.png",
                 waveformPng,
                 "image/png",
-                java.util.Map.of("demoId", demoId.toString()));
+                Map.of("demoId", demoId.toString()));
 
         String waveformJson;
         try {

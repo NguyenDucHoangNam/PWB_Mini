@@ -1,5 +1,6 @@
-package com.pwb.backend.common.model;
+package com.pwb.backend.common.outbox.model;
 
+import com.pwb.backend.common.outbox.enums.OutboxStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -15,15 +16,13 @@ import lombok.Setter;
 import java.time.Instant;
 import java.util.UUID;
 
-import com.pwb.backend.common.outbox.enums.OutboxStatus;
-
 @Entity
 @Table(name = "outbox_events")
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
-public class OutboxEvent extends BaseEntity {
+public class OutboxEvent {
 
     @Id
     @Column(name = "id", nullable = false, updatable = false)

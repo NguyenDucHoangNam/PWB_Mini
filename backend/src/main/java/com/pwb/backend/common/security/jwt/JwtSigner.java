@@ -1,5 +1,8 @@
 package com.pwb.backend.common.security.jwt;
 
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -70,7 +73,7 @@ public class JwtSigner {
 
     public UUID parseExpiredTokenUserId(String token) {
         if (token == null || token.isBlank()) {
-            throw new io.jsonwebtoken.ExpiredJwtException(null, null, "Token is empty");
+            throw new ExpiredJwtException(null, null, "Token is empty");
         }
         try {
             Jwts.parser()
@@ -79,15 +82,15 @@ public class JwtSigner {
                     .build()
                     .parseSignedClaims(token);
             throw new IllegalStateException("Token is not expired; use verifyAndExtract instead");
-        } catch (io.jsonwebtoken.ExpiredJwtException ex) {
+        } catch (ExpiredJwtException ex) {
             Claims claims = ex.getClaims();
             String subject = claims.getSubject();
             if (subject == null || subject.isBlank()) {
-                throw new io.jsonwebtoken.JwtException("Missing subject");
+                throw new JwtException("Missing subject");
             }
             return UUID.fromString(subject);
-        } catch (io.jsonwebtoken.JwtException | IllegalArgumentException ex) {
-            throw new io.jsonwebtoken.JwtException("Invalid refresh handshake: " + ex.getMessage(), ex);
+        } catch (JwtException | IllegalArgumentException ex) {
+            throw new JwtException("Invalid refresh handshake: " + ex.getMessage(), ex);
         }
     }
 
@@ -105,7 +108,7 @@ public class JwtSigner {
 
     public long extractExpiryEpochSecond(String token) {
         if (token == null || token.isBlank()) {
-            throw new io.jsonwebtoken.JwtException("Token is empty");
+            throw new JwtException("Token is empty");
         }
         Claims claims;
         try {
@@ -115,12 +118,12 @@ public class JwtSigner {
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
-        } catch (io.jsonwebtoken.ExpiredJwtException ex) {
+        } catch (ExpiredJwtException ex) {
             claims = ex.getClaims();
         }
         Date expiration = claims.getExpiration();
         if (expiration == null) {
-            throw new io.jsonwebtoken.JwtException("Missing expiration claim");
+            throw new JwtException("Missing expiration claim");
         }
         return expiration.toInstant().getEpochSecond();
     }

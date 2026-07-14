@@ -2,7 +2,7 @@ package com.pwb.backend.modules.iam.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.common.exception.BusinessException;
-import com.pwb.backend.common.model.OutboxEvent;
+import com.pwb.backend.common.outbox.model.OutboxEvent;
 import com.pwb.backend.common.outbox.publisher.OutboxPayloadCipher;
 import com.pwb.backend.common.outbox.repository.OutboxEventRepository;
 import com.pwb.backend.common.util.PasswordHasher;

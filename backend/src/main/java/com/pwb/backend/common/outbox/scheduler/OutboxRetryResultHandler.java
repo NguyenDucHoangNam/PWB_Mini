@@ -1,5 +1,8 @@
 package com.pwb.backend.common.outbox.scheduler;
 
+import java.time.Instant;
+import java.util.UUID;
+
 import com.pwb.backend.common.outbox.enums.OutboxStatus;
 import com.pwb.backend.common.outbox.repository.OutboxEventRepository;
 
@@ -11,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class OutboxRetryResultHandler {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void handleSuccess(java.util.UUID rowId, java.time.Instant when, OutboxEventRepository repository) {
+    public void handleSuccess(UUID rowId, Instant when, OutboxEventRepository repository) {
         repository.findById(rowId).ifPresent(row -> {
             row.markProcessed(when);
             row.setLastError(null);
@@ -20,10 +23,10 @@ public class OutboxRetryResultHandler {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void handleFailure(java.util.UUID rowId,
+    public void handleFailure(UUID rowId,
                               String errorMessage,
                               int maxAttempts,
-                              java.time.Instant now,
+                              Instant now,
                               BackoffCalculator backoffCalculator,
                               org.slf4j.Logger log,
                               OutboxEventRepository repository) {

@@ -1,5 +1,7 @@
 package com.pwb.backend.modules.liveroom.ws;
 
+import java.util.Map;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.modules.liveroom.constant.LiveRoomRedisKeys;
@@ -66,7 +68,7 @@ public class DelegationPubSubSubscriber implements MessageListener {
             messagingTemplate.convertAndSendToUser(
                     userId,
                     "/queue/controller-sync",
-                    java.util.Map.of(
+                    Map.of(
                             "event", "CONTROLLER_SYNC",
                             "userId", userId,
                             "isController", isController));

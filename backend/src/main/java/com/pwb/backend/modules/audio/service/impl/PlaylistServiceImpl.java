@@ -1,5 +1,7 @@
 package com.pwb.backend.modules.audio.service.impl;
 
+import java.math.RoundingMode;
+
 import com.pwb.backend.modules.audio.config.AudioProperties;
 import com.pwb.backend.modules.audio.entity.Demo;
 import com.pwb.backend.modules.audio.repository.DemoRepository;
@@ -40,7 +42,7 @@ public class PlaylistServiceImpl implements PlaylistService {
                 : BigDecimal.valueOf(60);
 
         int segmentCount = durationSeconds
-                .divide(segmentDuration, 0, java.math.RoundingMode.CEILING)
+                .divide(segmentDuration, 0, RoundingMode.CEILING)
                 .intValue();
         if (segmentCount < 1) {
             segmentCount = 1;

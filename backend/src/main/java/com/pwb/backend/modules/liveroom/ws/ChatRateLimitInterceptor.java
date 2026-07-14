@@ -1,5 +1,7 @@
 package com.pwb.backend.modules.liveroom.ws;
 
+import java.nio.charset.StandardCharsets;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.common.security.jwt.JwtTypes;
 import com.pwb.backend.modules.liveroom.config.ChatProperties;
@@ -103,7 +105,7 @@ public class ChatRateLimitInterceptor implements ChannelInterceptor {
         if (payload instanceof byte[] raw) {
             bytes = raw;
         } else {
-            bytes = payload.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            bytes = payload.toString().getBytes(StandardCharsets.UTF_8);
         }
         try {
             ChatFrame frame = objectMapper.readValue(bytes, ChatFrame.class);

@@ -1,5 +1,7 @@
 package com.pwb.backend.modules.share.constant;
 
+import java.util.UUID;
+
 public final class ShareRedisKeys {
 
     public static final String DAILY_RECIPIENTS_KEY_PREFIX = "share:daily_recipients:";
@@ -14,19 +16,19 @@ public final class ShareRedisKeys {
     public static final String WS_HEARTBEAT_KEY_PREFIX = "ws_heartbeat:";
     public static final String KEYS_REQUEST_COUNT_KEY_PREFIX = "keys_request_count:";
 
-    public static String distributionCacheKey(java.util.UUID shareToken) {
+    public static String distributionCacheKey(UUID shareToken) {
         return DISTRIBUTION_CACHE_KEY_PREFIX + shareToken;
     }
 
-    public static String distributionRevokedKey(java.util.UUID shareToken) {
+    public static String distributionRevokedKey(UUID shareToken) {
         return DISTRIBUTION_REVOKED_KEY_PREFIX + shareToken;
     }
 
-    public static String distributionLockedKey(java.util.UUID shareToken) {
+    public static String distributionLockedKey(UUID shareToken) {
         return DISTRIBUTION_LOCKED_KEY_PREFIX + shareToken;
     }
 
-    public static String activeCookieSessionSetKey(java.util.UUID shareToken) {
+    public static String activeCookieSessionSetKey(UUID shareToken) {
         return COOKIE_ACTIVE_SESSIONS_KEY_PREFIX + shareToken;
     }
 
@@ -34,7 +36,7 @@ public final class ShareRedisKeys {
         return COOKIE_REVOKED_KEY_PREFIX + jti;
     }
 
-    public static String playSessionKey(java.util.UUID shareToken, String sessionId) {
+    public static String playSessionKey(UUID shareToken, String sessionId) {
         return PLAY_SESSION_KEY_PREFIX + shareToken + ":" + sessionId;
     }
 

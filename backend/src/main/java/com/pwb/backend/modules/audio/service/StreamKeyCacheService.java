@@ -1,5 +1,7 @@
 package com.pwb.backend.modules.audio.service;
 
+import java.util.HashMap;
+
 import com.pwb.backend.modules.audio.constant.AudioRedisKeys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -68,7 +70,7 @@ public class StreamKeyCacheService {
         try {
             String key = AudioRedisKeys.demoKeyCacheKey(demoId);
             String base64 = Base64.getEncoder().encodeToString(keyBytes);
-            Map<String, String> values = new java.util.HashMap<>();
+            Map<String, String> values = new HashMap<>();
             values.put(FIELD_KEY_BYTES, base64);
             values.put(FIELD_VERSION, String.valueOf(version));
             if (previousKeyBytes != null && previousKeyBytes.length > 0) {

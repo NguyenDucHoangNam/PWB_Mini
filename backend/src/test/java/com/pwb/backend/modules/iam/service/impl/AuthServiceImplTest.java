@@ -3,7 +3,7 @@ package com.pwb.backend.modules.iam.service.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maxmind.geoip2.DatabaseReader;
 import com.pwb.backend.common.exception.BusinessException;
-import com.pwb.backend.common.model.OutboxEvent;
+import com.pwb.backend.common.outbox.model.OutboxEvent;
 import com.pwb.backend.common.security.jwt.JwtProperties;
 import com.pwb.backend.common.security.jwt.JwtSigner;
 import com.pwb.backend.common.outbox.publisher.OutboxPayloadCipher;

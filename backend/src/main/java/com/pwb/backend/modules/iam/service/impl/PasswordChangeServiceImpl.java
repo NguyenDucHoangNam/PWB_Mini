@@ -1,15 +1,9 @@
 package com.pwb.backend.modules.iam.service.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.common.exception.BusinessException;
-import com.pwb.backend.common.kafka.constant.KafkaTopics;
-import com.pwb.backend.common.model.OutboxEvent;
-import com.pwb.backend.common.outbox.event.OutboxCreatedEvent;
+import com.pwb.backend.common.outbox.OutboxService;
 import com.pwb.backend.common.outbox.event.PasswordResetRequestedEvent;
 import com.pwb.backend.common.outbox.publisher.OutboxEventTypes;
-import com.pwb.backend.common.outbox.publisher.OutboxPayloadCipher;
-import com.pwb.backend.common.outbox.repository.OutboxEventRepository;
 import com.pwb.backend.common.util.MaskingLogArg;
 import com.pwb.backend.common.util.PasswordHasher;
 import com.pwb.backend.modules.iam.enums.OauthProvider;
@@ -23,7 +17,6 @@ import com.pwb.backend.modules.iam.service.PasswordResetTokenService;
 import com.pwb.backend.modules.iam.service.SessionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,14 +35,11 @@ public class PasswordChangeServiceImpl implements PasswordChangeService {
     private static final int DUMMY_PASSWORD_LENGTH = 16;
 
     private final UserRepository userRepository;
-    private final OutboxEventRepository outboxRepository;
     private final PasswordHasher passwordHasher;
     private final PasswordResetTokenService resetTokenService;
     private final LoginAttemptService loginAttemptService;
     private final SessionService sessionService;
-    private final ApplicationEventPublisher eventPublisher;
-    private final ObjectMapper objectMapper;
-    private final OutboxPayloadCipher outboxCipher;
+    private final OutboxService outboxService;
 
     @Override
     @Transactional
@@ -157,29 +147,12 @@ public class PasswordChangeServiceImpl implements PasswordChangeService {
     private void publishPasswordResetEvent(User user, String token, Instant issuedAt) {
         PasswordResetRequestedEvent payload = new PasswordResetRequestedEvent(
                 user.getId(), user.getEmail(), user.getFullName(), token, issuedAt);
-
-        OutboxEvent row = new OutboxEvent(
-                UUID.randomUUID(),
+        outboxService.publish(
                 OutboxEventTypes.AGGREGATE_USER,
                 user.getId(),
                 OutboxEventTypes.PASSWORD_RESET,
                 user.getId().toString(),
-                serialize(payload),
-                Instant.now(),
-                null,
-                1);
-        outboxRepository.save(row);
-
-        eventPublisher.publishEvent(new OutboxCreatedEvent(row.getId(), KafkaTopics.IAM_PASSWORD_RESET, OutboxEventTypes.AGGREGATE_USER));
-    }
-
-    private String serialize(Object value) {
-        try {
-            String json = objectMapper.writeValueAsString(value);
-            return outboxCipher.encrypt(json);
-        } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("Failed to serialize outbox payload", ex);
-        }
+                payload);
     }
 
     private static String normalizeEmail(String email) {

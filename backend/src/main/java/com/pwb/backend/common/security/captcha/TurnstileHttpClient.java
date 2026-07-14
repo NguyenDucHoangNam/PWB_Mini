@@ -1,5 +1,9 @@
 package com.pwb.backend.common.security.captcha;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,10 +58,10 @@ public class TurnstileHttpClient {
         }
         JsonNode json = objectMapper.readTree(response.body());
         boolean success = json.path("success").asBoolean(false);
-        List<String> errors = java.util.Collections.emptyList();
+        List<String> errors = Collections.emptyList();
         JsonNode errorCodes = json.get("error-codes");
         if (errorCodes != null && errorCodes.isArray()) {
-            List<String> collected = new java.util.ArrayList<>();
+            List<String> collected = new ArrayList<>();
             for (JsonNode node : errorCodes) {
                 collected.add(node.asText());
             }
@@ -67,6 +71,6 @@ public class TurnstileHttpClient {
     }
 
     private static String urlEncode(String value) {
-        return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8);
+        return java.net.URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 }

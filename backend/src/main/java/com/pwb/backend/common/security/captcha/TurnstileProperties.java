@@ -9,9 +9,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Setter
 public class TurnstileProperties {
 
-    private boolean enabled = false;
-    private String secretKey = "";
-    private String verifyUrl = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
-    private long timeoutMillis = 3000;
-    private boolean failOpen = true;
+    private boolean enabled;
+    private String secretKey;
+    private String verifyUrl;
+    private long timeoutMillis;
+    private boolean failOpen;
 }

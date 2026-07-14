@@ -1,5 +1,7 @@
 package com.pwb.backend.modules.iam.service.impl;
 
+import java.time.Instant;
+
 import com.pwb.backend.common.exception.BusinessException;
 import com.pwb.backend.common.exception.CommonErrorCode;
 import com.pwb.backend.common.storage.ObjectStorageService;
@@ -92,7 +94,7 @@ public class AvatarUploadServiceImpl implements AvatarUploadService {
                     key,
                     sanitizedBytes,
                     storageContentType,
-                    Map.of("userId", userId.toString(), "uploadedAt", java.time.Instant.now().toString()));
+                    Map.of("userId", userId.toString(), "uploadedAt", Instant.now().toString()));
         } catch (Exception ex) {
             log.warn("Failed to upload avatar for userId={}: {}", userId, ex.getMessage());
             throw new BusinessException(IamErrorCode.AVATAR_UPLOAD_FAILED,

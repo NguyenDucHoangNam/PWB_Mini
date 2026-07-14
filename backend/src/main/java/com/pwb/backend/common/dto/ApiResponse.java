@@ -2,7 +2,6 @@ package com.pwb.backend.common.dto;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 public record ApiResponse<T>(
     boolean success,

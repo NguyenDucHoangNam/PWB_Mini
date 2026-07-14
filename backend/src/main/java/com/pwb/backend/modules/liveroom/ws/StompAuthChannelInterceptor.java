@@ -1,5 +1,8 @@
 package com.pwb.backend.modules.liveroom.ws;
 
+import io.jsonwebtoken.JwtException;
+import org.springframework.security.access.AccessDeniedException;
+
 import com.pwb.backend.common.security.jwt.BearerTokenExtractor;
 import com.pwb.backend.common.security.jwt.JwtSigner;
 import com.pwb.backend.common.security.jwt.JwtTypes;
@@ -79,7 +82,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         String token = bearerTokenExtractor.extract(authHeader);
         if (token == null) {
             log.warn("WS_CONNECT_REJECTED reason=missing_token sessionId={}", accessor.getSessionId());
-            throw new org.springframework.security.access.AccessDeniedException("Missing Authorization header");
+            throw new AccessDeniedException("Missing Authorization header");
         }
         try {
             JwtTypes.AuthenticatedUser user = jwtSigner.verifyAndExtract(token);
@@ -104,10 +107,10 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
             if (roomCode != null && !roomCode.isBlank()) {
                 registerLocalRoomSession(accessor, roomCode);
             }
-        } catch (io.jsonwebtoken.JwtException | IllegalArgumentException ex) {
+        } catch (JwtException | IllegalArgumentException ex) {
             log.warn("WS_CONNECT_REJECTED reason=invalid_token sessionId={} error={}",
                     accessor.getSessionId(), ex.getMessage());
-            throw new org.springframework.security.access.AccessDeniedException("Invalid JWT");
+            throw new AccessDeniedException("Invalid JWT");
         }
     }
 

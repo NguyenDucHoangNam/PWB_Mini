@@ -1,5 +1,7 @@
 package com.pwb.backend.modules.audio.worker;
 
+import com.pwb.backend.modules.audio.enums.AudioJobStatus;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.common.kafka.constant.KafkaTopics;
 import com.pwb.backend.modules.audio.entity.AudioProcessingJob;
@@ -68,7 +70,7 @@ public class AudioProcessingConsumer {
         return jobRepository.findByDemoId(demoId).map(job -> {
             job.incrementAttempt(truncate(reason));
             if (job.getAttemptCount() >= AudioProcessingJob.MAX_ATTEMPTS) {
-                job.setStatus(com.pwb.backend.modules.audio.enums.AudioJobStatus.FAILED);
+                job.setStatus(AudioJobStatus.FAILED);
                 job.setCompletedAt(Instant.now());
             }
             jobRepository.save(job);

@@ -1,5 +1,8 @@
 package com.pwb.backend.modules.audio.service.ffmpeg;
 
+import java.io.InputStream;
+import java.nio.file.Files;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.common.exception.BusinessException;
@@ -104,13 +107,13 @@ public class FfmpegClient {
                     "FFmpeg waveform extraction failed: " + result.stderr());
         }
         try {
-            return java.nio.file.Files.readAllBytes(output);
+            return Files.readAllBytes(output);
         } catch (IOException ex) {
             throw new BusinessException(CommonErrorCode.INTERNAL_ERROR,
                     "Failed to read waveform image: " + ex.getMessage(), ex);
         } finally {
             try {
-                java.nio.file.Files.deleteIfExists(output);
+                Files.deleteIfExists(output);
             } catch (IOException ignored) {
             }
         }
@@ -161,7 +164,7 @@ public class FfmpegClient {
         return command;
     }
 
-    private Thread readerThread(java.io.InputStream input, StringBuilder sink) {
+    private Thread readerThread(InputStream input, StringBuilder sink) {
         Thread thread = new Thread(() -> {
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(input, StandardCharsets.UTF_8))) {

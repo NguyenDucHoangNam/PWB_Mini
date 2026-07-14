@@ -1,18 +1,12 @@
 package com.pwb.backend.modules.iam.service.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maxmind.geoip2.DatabaseReader;
 import com.pwb.backend.common.config.GeoIpConfig;
 import com.pwb.backend.common.exception.BusinessException;
 import com.pwb.backend.common.exception.CommonErrorCode;
-import com.pwb.backend.common.kafka.constant.KafkaTopics;
-import com.pwb.backend.common.outbox.event.OutboxCreatedEvent;
+import com.pwb.backend.common.outbox.OutboxService;
 import com.pwb.backend.common.outbox.event.UserRegisteredEvent;
 import com.pwb.backend.common.outbox.publisher.OutboxEventTypes;
-import com.pwb.backend.common.outbox.publisher.OutboxPayloadCipher;
-import com.pwb.backend.common.outbox.repository.OutboxEventRepository;
-import com.pwb.backend.common.model.OutboxEvent;
 import com.pwb.backend.common.security.jwt.JwtProperties;
 import com.pwb.backend.common.security.jwt.JwtSigner;
 import com.pwb.backend.common.util.MaskingLogArg;
@@ -48,7 +42,6 @@ import com.pwb.backend.modules.iam.service.SessionService;
 import com.pwb.backend.modules.iam.session.IssuedSession;
 import com.pwb.backend.modules.iam.session.RotationResult;
 import com.pwb.backend.modules.iam.session.RotationStatus;
-import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -75,7 +68,6 @@ public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
-    private final OutboxEventRepository outboxRepository;
     private final OtpService otpService;
     private final PasswordHasher passwordHasher;
     private final SecureRandomOtpGenerator otpGenerator;
@@ -83,11 +75,10 @@ public class AuthServiceImpl implements AuthService {
     private final JwtSigner jwtSigner;
     private final JwtProperties jwtProperties;
     private final ApplicationEventPublisher eventPublisher;
-    private final ObjectMapper objectMapper;
     private final LoginAttemptService loginAttemptService;
     private final SessionService sessionService;
     private final GoogleOAuthService googleOAuthService;
-    private final OutboxPayloadCipher outboxCipher;
+    private final OutboxService outboxService;
     private final StringRedisTemplate stringRedisTemplate;
     private final DatabaseReader geoIpDatabaseReader;
 
@@ -148,11 +139,11 @@ public class AuthServiceImpl implements AuthService {
         }
 
         if (otpService.isLocked(email)) {
-            throw new BusinessException(
-                    IamErrorCode.OTP_LOCKED,
-                    "OTP is locked. Retry after " + otpService.lockoutRetryAfterSeconds() + " seconds",
-                    null,
-                    Map.of("retryAfterSeconds", otpService.lockoutRetryAfterSeconds()));
+            throw BusinessException.builder()
+                    .errorCode(IamErrorCode.OTP_LOCKED)
+                    .customMessage("OTP is locked. Retry after " + otpService.lockoutRetryAfterSeconds() + " seconds")
+                    .details(Map.of("retryAfterSeconds", otpService.lockoutRetryAfterSeconds()))
+                    .build();
         }
 
         boolean ok;
@@ -182,10 +173,11 @@ public class AuthServiceImpl implements AuthService {
         String email = request.email().trim().toLowerCase(Locale.ROOT);
 
         if (!otpService.canResend(email)) {
-            throw new BusinessException(IamErrorCode.OTP_RESEND_COOLDOWN,
-                    "Please wait before requesting a new OTP",
-                    null,
-                    Map.of("retryAfterSeconds", 60L));
+            throw BusinessException.builder()
+                    .errorCode(IamErrorCode.OTP_RESEND_COOLDOWN)
+                    .customMessage("Please wait before requesting a new OTP")
+                    .details(Map.of("retryAfterSeconds", 60L))
+                    .build();
         }
 
         User user = userRepository.findByEmail(email)
@@ -515,38 +507,24 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private void publishUserRegistered(User user, String otp, Instant issuedAt) {
-        publishUserEvent(user, otp, issuedAt, OutboxEventTypes.USER_REGISTERED, KafkaTopics.IAM_USER_REGISTERED);
+        UserRegisteredEvent payload = new UserRegisteredEvent(
+                user.getId(), user.getEmail(), user.getFullName(), otp, issuedAt);
+        outboxService.publish(
+                OutboxEventTypes.AGGREGATE_USER,
+                user.getId(),
+                OutboxEventTypes.USER_REGISTERED,
+                user.getId().toString(),
+                payload);
     }
 
     private void publishOtpResent(User user, String otp, Instant issuedAt) {
-        publishUserEvent(user, otp, issuedAt, OutboxEventTypes.OTP_RESENT, KafkaTopics.IAM_OTP_RESENT);
-    }
-
-    private void publishUserEvent(User user, String otp, Instant issuedAt, String eventType, String topic) {
         UserRegisteredEvent payload = new UserRegisteredEvent(
                 user.getId(), user.getEmail(), user.getFullName(), otp, issuedAt);
-
-        OutboxEvent row = new OutboxEvent(
-                UUID.randomUUID(),
+        outboxService.publish(
                 OutboxEventTypes.AGGREGATE_USER,
                 user.getId(),
-                eventType,
+                OutboxEventTypes.OTP_RESENT,
                 user.getId().toString(),
-                serialize(payload),
-                Instant.now(),
-                null,
-                1);
-        outboxRepository.save(row);
-
-        eventPublisher.publishEvent(new OutboxCreatedEvent(row.getId(), topic, OutboxEventTypes.AGGREGATE_USER));
-    }
-
-    private String serialize(Object value) {
-        try {
-            String json = objectMapper.writeValueAsString(value);
-            return outboxCipher.encrypt(json);
-        } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("Failed to serialize outbox payload", ex);
-        }
+                payload);
     }
 }

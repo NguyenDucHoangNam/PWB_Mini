@@ -12,7 +12,7 @@ import java.util.List;
 @Setter
 public class TrustedProxyProperties {
 
-    private boolean trustForwardedHeaders = false;
+    private boolean trustForwardedHeaders;
 
     private List<String> cidrs = new ArrayList<>();
 }

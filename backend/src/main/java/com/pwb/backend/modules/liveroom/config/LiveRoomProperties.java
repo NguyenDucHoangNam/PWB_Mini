@@ -14,61 +14,61 @@ import org.springframework.validation.annotation.Validated;
 public class LiveRoomProperties {
 
     @Min(4)
-    private int codeLength = 6;
+    private int codeLength;
 
     @NotBlank
-    private String alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    private String alphabet;
 
     @Min(1)
-    private int lockTtlSeconds = 10;
+    private int lockTtlSeconds;
 
     @Min(1)
-    private int codeCollisionMaxRetries = 3;
+    private int codeCollisionMaxRetries;
 
     @Min(1)
-    private int phase1TtlSeconds = 30;
+    private int phase1TtlSeconds;
 
     @Min(60)
-    private int phase2TtlSeconds = 14400;
+    private int phase2TtlSeconds;
 
     @Min(1)
-    private int hostGracePeriodMinutes = 5;
+    private int hostGracePeriodMinutes;
 
     @Min(1)
-    private int emptyRoomGraceMinutes = 15;
+    private int emptyRoomGraceMinutes;
 
     @Min(1)
-    private int orphanThresholdMinutes = 1;
+    private int orphanThresholdMinutes;
 
     @NotBlank
-    private String orphanScanCron = "0 */2 * * * *";
+    private String orphanScanCron;
 
     @NotBlank
-    private String lifecycleCleanupCron = "0 */1 * * * *";
+    private String lifecycleCleanupCron;
 
-    private boolean keyspaceListenerEnabled = false;
+    private boolean keyspaceListenerEnabled;
 
     @Min(2)
-    private int maxParticipants = 7;
+    private int maxParticipants;
 
-    private int handshakeTimeoutSeconds = 10;
+    private int handshakeTimeoutSeconds;
 
-    private int heartbeatIncomingMs = 10000;
+    private int heartbeatIncomingMs;
 
-    private int heartbeatOutgoingMs = 10000;
-
-    @Min(60)
-    private int waitingEntryTtlSeconds = 14400;
+    private int heartbeatOutgoingMs;
 
     @Min(60)
-    private int membersTtlSeconds = 14400;
+    private int waitingEntryTtlSeconds;
+
+    @Min(60)
+    private int membersTtlSeconds;
 
     @Min(1)
-    private int waitingEntryMaxAgeSeconds = 300;
+    private int waitingEntryMaxAgeSeconds;
 
     @Min(60)
-    private int temporaryTokenTtlSeconds = 14400;
+    private int temporaryTokenTtlSeconds;
 
     @NotBlank
-    private String listenerRole = "LISTENER";
+    private String listenerRole;
 }

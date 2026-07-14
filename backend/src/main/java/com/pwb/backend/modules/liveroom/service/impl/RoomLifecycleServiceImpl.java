@@ -1,14 +1,10 @@
 package com.pwb.backend.modules.liveroom.service.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.pwb.backend.common.exception.BusinessException;
-import com.pwb.backend.common.kafka.constant.KafkaTopics;
-import com.pwb.backend.common.model.OutboxEvent;
-import com.pwb.backend.common.outbox.event.OutboxCreatedEvent;
 import com.pwb.backend.common.outbox.publisher.OutboxEventTypes;
-import com.pwb.backend.common.outbox.publisher.OutboxPayloadCipher;
-import com.pwb.backend.common.outbox.repository.OutboxEventRepository;
+import java.util.Set;
+
+import com.pwb.backend.common.exception.BusinessException;
+import com.pwb.backend.common.outbox.OutboxService;
 import com.pwb.backend.modules.liveroom.config.LiveRoomProperties;
 import com.pwb.backend.modules.liveroom.constant.LiveRoomRedisKeys;
 import com.pwb.backend.modules.liveroom.dto.response.CreateRoomResponse;
@@ -76,10 +72,8 @@ public class RoomLifecycleServiceImpl implements RoomLifecycleService {
     private final LiveRoomProperties properties;
     private final StringRedisTemplate stringRedisTemplate;
     private final RedisMessagePublisher redisMessagePublisher;
-    private final OutboxEventRepository outboxRepository;
-    private final OutboxPayloadCipher outboxCipher;
+    private final OutboxService outboxService;
     private final ApplicationEventPublisher eventPublisher;
-    private final ObjectMapper objectMapper;
     @Lazy
     private final LiveRoomMembershipNotifier notifier;
 
@@ -88,20 +82,16 @@ public class RoomLifecycleServiceImpl implements RoomLifecycleService {
                                     LiveRoomProperties properties,
                                     StringRedisTemplate stringRedisTemplate,
                                     RedisMessagePublisher redisMessagePublisher,
-                                    OutboxEventRepository outboxRepository,
-                                    OutboxPayloadCipher outboxCipher,
+                                    OutboxService outboxService,
                                     ApplicationEventPublisher eventPublisher,
-                                    ObjectMapper objectMapper,
                                     @Lazy LiveRoomMembershipNotifier notifier) {
         this.roomRepository = roomRepository;
         this.roomCodeGenerator = roomCodeGenerator;
         this.properties = properties;
         this.stringRedisTemplate = stringRedisTemplate;
         this.redisMessagePublisher = redisMessagePublisher;
-        this.outboxRepository = outboxRepository;
-        this.outboxCipher = outboxCipher;
+        this.outboxService = outboxService;
         this.eventPublisher = eventPublisher;
-        this.objectMapper = objectMapper;
         this.notifier = notifier;
     }
 
@@ -115,11 +105,11 @@ public class RoomLifecycleServiceImpl implements RoomLifecycleService {
             Room current = existing.get();
             log.warn("ROOM_ALREADY_ACTIVE_REJECTED hostId={} currentRoomCode={}",
                     hostId, current.getRoomCode());
-            throw new BusinessException(
-                    LiveRoomErrorCode.ROOM_ALREADY_ACTIVE,
-                    "Host already owns an ACTIVE room " + current.getRoomCode(),
-                    null,
-                    Map.<String, Object>of("roomCode", current.getRoomCode()));
+            throw BusinessException.builder()
+                    .errorCode(LiveRoomErrorCode.ROOM_ALREADY_ACTIVE)
+                    .customMessage("Host already owns an ACTIVE room " + current.getRoomCode())
+                    .details(Map.<String, Object>of("roomCode", current.getRoomCode()))
+                    .build();
         }
 
         int maxRetries = properties.getCodeCollisionMaxRetries();
@@ -206,24 +196,26 @@ public class RoomLifecycleServiceImpl implements RoomLifecycleService {
     @Transactional
     public void closeRoomByHost(String roomCode, UUID hostId) {
         Room room = roomRepository.findByRoomCode(roomCode)
-                .orElseThrow(() -> new BusinessException(LiveRoomErrorCode.ROOM_NOT_FOUND,
-                        "Room " + roomCode + " not found",
-                        null,
-                        Map.<String, Object>of("roomCode", roomCode)));
+                .orElseThrow(() -> BusinessException.builder()
+                        .errorCode(LiveRoomErrorCode.ROOM_NOT_FOUND)
+                        .customMessage("Room " + roomCode + " not found")
+                        .details(Map.<String, Object>of("roomCode", roomCode))
+                        .build());
         if (room.getStatus() == RoomStatus.CLOSED) {
             log.info("ROOM_CLOSE_NOOP roomCode={} reason=already_closed", roomCode);
-            throw new BusinessException(LiveRoomErrorCode.ROOM_LIFECYCLE_ALREADY_CLOSED,
-                    "Room " + roomCode + " already closed",
-                    null,
-                    Map.<String, Object>of("roomCode", roomCode));
+            throw BusinessException.builder()
+                    .errorCode(LiveRoomErrorCode.ROOM_LIFECYCLE_ALREADY_CLOSED)
+                    .customMessage("Room " + roomCode + " already closed")
+                    .details(Map.<String, Object>of("roomCode", roomCode))
+                    .build();
         }
         if (!room.getHostId().equals(hostId)) {
             log.warn("UNAUTHORIZED_CLOSE_ATTEMPT roomCode={} callerId={} ownerId={}",
                     roomCode, hostId, room.getHostId());
-            throw new BusinessException(LiveRoomErrorCode.FORBIDDEN_NOT_HOST,
-                    null,
-                    null,
-                    Map.<String, Object>of("roomCode", roomCode));
+            throw BusinessException.builder()
+                    .errorCode(LiveRoomErrorCode.FORBIDDEN_NOT_HOST)
+                    .details(Map.<String, Object>of("roomCode", roomCode))
+                    .build();
         }
         log.info("VOLUNTARY_CLOSE_REQUEST roomCode={} hostId={}", roomCode, hostId);
         closeRoom(roomCode, CLOSE_REASON_HOST_VOLUNTARY);
@@ -316,10 +308,10 @@ public class RoomLifecycleServiceImpl implements RoomLifecycleService {
     }
 
     @Override
-    public java.util.Set<String> findExpiredCleanupCandidates(long scoreCeilingExclusive, int limit) {
-        java.util.Set<String> result = stringRedisTemplate.opsForZSet()
+    public Set<String> findExpiredCleanupCandidates(long scoreCeilingExclusive, int limit) {
+        Set<String> result = stringRedisTemplate.opsForZSet()
                 .rangeByScore(LiveRoomRedisKeys.CLEANUP_TIMELINE_ZSET_KEY, 0, scoreCeilingExclusive, 0, limit);
-        return result == null ? java.util.Set.of() : result;
+        return result == null ? Set.of() : result;
     }
 
     @Override
@@ -457,29 +449,15 @@ public class RoomLifecycleServiceImpl implements RoomLifecycleService {
     }
 
     private void persistLifecycleOutboxEvent(Room room, RoomLifecycleEndedEvent payload) {
-        String plaintext;
-        try {
-            plaintext = objectMapper.writeValueAsString(payload);
-        } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("Failed to serialize RoomLifecycleEndedEvent", ex);
-        }
-        String stored = outboxCipher.encrypt(plaintext);
-        UUID idempotencyKey = UUID.randomUUID();
-        OutboxEvent row = new OutboxEvent(
-                UUID.randomUUID(),
+        outboxService.publish(
                 OutboxEventTypes.AGGREGATE_LIVE_ROOM,
                 room.getId(),
                 OutboxEventTypes.ROOM_LIFECYCLE_ENDED,
                 room.getRoomCode(),
-                stored,
-                Instant.now(),
-                idempotencyKey,
-                1);
-        outboxRepository.save(row);
-        log.info("OUTBOX_LIFECYCLE_QUEUED eventId={} roomCode={} reason={}",
-                row.getId(), room.getRoomCode(), payload.reason());
-        eventPublisher.publishEvent(new OutboxCreatedEvent(
-                row.getId(), KafkaTopics.LIVEROOM_LIFECYCLE, OutboxEventTypes.AGGREGATE_LIVE_ROOM));
+                payload,
+                UUID.randomUUID());
+        log.info("OUTBOX_LIFECYCLE_QUEUED roomId={} roomCode={} reason={}",
+                room.getId(), room.getRoomCode(), payload.reason());
     }
 
     private String resolveCloseReasonLabel(String reason) {

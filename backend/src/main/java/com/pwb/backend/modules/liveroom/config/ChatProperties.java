@@ -18,26 +18,26 @@ import java.util.Set;
 public class ChatProperties {
 
     @Min(1)
-    private int textRateLimitPerMinute = 30;
+    private int textRateLimitPerMinute;
 
     @Min(1)
-    private int reactionRateLimitPerMinute = 120;
+    private int reactionRateLimitPerMinute;
 
     @Min(1)
-    private int maxTextLength = 200;
+    private int maxTextLength;
 
     @Min(1)
-    private int maxPayloadBytes = 1024;
+    private int maxPayloadBytes;
 
     @NotEmpty
-    private Set<@NotBlank String> allowedEmojis = new LinkedHashSet<>(Set.of("\uD83D\uDD25", "\uD83D\uDC4D", "\uD83D\uDC4F", "\uD83D\uDCAF"));
+    private Set<@NotBlank String> allowedEmojis = new LinkedHashSet<>();
 
     @NotBlank
-    private String chatDestinationPattern = "^/app/rooms/[^/]+/chat$";
+    private String chatDestinationPattern;
 
     @NotBlank
-    private String chatBroadcastDestination = "/topic/rooms/%s/chat";
+    private String chatBroadcastDestination;
 
     @NotBlank
-    private String chatRateLimitUserDestination = "/queue/rooms/chat";
+    private String chatRateLimitUserDestination;
 }

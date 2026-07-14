@@ -13,23 +13,23 @@ import java.util.Map;
 @ConfigurationProperties(prefix = "app.storage")
 public class ObjectStorageProperties {
 
-    private boolean enabled = true;
+    private boolean enabled;
 
-    private String provider = "s3";
+    private String provider;
 
     private String endpoint;
 
-    private String region = "us-east-1";
+    private String region;
 
     private String accessKey;
 
     private String secretKey;
 
-    private boolean pathStyleAccessEnabled = true;
+    private boolean pathStyleAccessEnabled;
 
     private String publicBaseUrl;
 
-    private long presignedUrlExpirySeconds = 900;
+    private long presignedUrlExpirySeconds;
 
     @NestedConfigurationProperty
     private Map<String, String> buckets = new HashMap<>();

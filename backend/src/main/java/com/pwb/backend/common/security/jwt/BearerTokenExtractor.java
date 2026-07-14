@@ -1,5 +1,7 @@
 package com.pwb.backend.common.security.jwt;
 
+import com.pwb.backend.common.exception.BusinessException;
+
 import org.springframework.stereotype.Component;
 
 @Component
@@ -26,7 +28,7 @@ public class BearerTokenExtractor {
     public String extractOrThrow(String authorizationHeader) {
         String token = extract(authorizationHeader);
         if (token == null) {
-            throw new com.pwb.backend.common.exception.BusinessException(
+            throw new BusinessException(
                     com.pwb.backend.common.exception.CommonErrorCode.UNAUTHORIZED);
         }
         return token;

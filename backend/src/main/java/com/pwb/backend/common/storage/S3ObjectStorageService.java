@@ -1,5 +1,7 @@
 package com.pwb.backend.common.storage;
 
+import software.amazon.awssdk.services.s3.S3ClientBuilder;
+
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
@@ -57,7 +59,7 @@ public class S3ObjectStorageService implements ObjectStorageService {
                 .build();
 
         S3Client s3;
-        software.amazon.awssdk.services.s3.S3ClientBuilder builder = S3Client.builder()
+        S3ClientBuilder builder = S3Client.builder()
                 .region(Region.of(orDefault(properties.getRegion(), "us-east-1")))
                 .credentialsProvider(StaticCredentialsProvider.create(credentials))
                 .httpClient(httpClientBuilder.build())

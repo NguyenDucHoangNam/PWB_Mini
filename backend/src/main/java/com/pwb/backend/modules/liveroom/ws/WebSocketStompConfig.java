@@ -1,5 +1,7 @@
 package com.pwb.backend.modules.liveroom.ws;
 
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+
 import com.pwb.backend.modules.liveroom.config.LiveRoomProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
@@ -23,7 +25,7 @@ public class WebSocketStompConfig implements WebSocketMessageBrokerConfigurer {
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         registry.enableSimpleBroker("/topic")
                 .setHeartbeatValue(new long[]{properties.getHeartbeatIncomingMs(), properties.getHeartbeatOutgoingMs()})
-                .setTaskScheduler(new org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler() {{
+                .setTaskScheduler(new ThreadPoolTaskScheduler() {{
                     setPoolSize(1);
                     setThreadNamePrefix("liveroom-ws-heartbeat-");
                     initialize();

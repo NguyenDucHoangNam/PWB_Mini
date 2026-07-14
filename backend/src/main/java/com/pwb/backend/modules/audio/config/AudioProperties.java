@@ -9,39 +9,39 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app.audio")
 public class AudioProperties {
 
-    private String tempDir = "/tmp/pwb-audio";
+    private String tempDir;
 
-    private String ffmpegPath = "ffmpeg";
+    private String ffmpegPath;
 
-    private String ffprobePath = "ffprobe";
+    private String ffprobePath;
 
-    private long maxFileSizeBytes = 209715200L;
+    private long maxFileSizeBytes;
 
-    private int workerConcurrency = 2;
+    private int workerConcurrency;
 
     private Presigned presigned = new Presigned();
 
     private Quota quota = new Quota();
 
-    private int waveformPeaks = 200;
+    private int waveformPeaks;
 
-    private int hlsSegmentSeconds = 6;
+    private int hlsSegmentSeconds;
 
     @Getter
     @Setter
     public static class Presigned {
 
-        private long expirySeconds = 60;
+        private long expirySeconds;
 
-        private long uploadClaimTtlSeconds = 7200L;
+        private long uploadClaimTtlSeconds;
     }
 
     @Getter
     @Setter
     public static class Quota {
 
-        private int maxActiveDemosPerUser = 50;
+        private int maxActiveDemosPerUser;
 
-        private long maxActiveAudioBytesPerUser = 10737418240L;
+        private long maxActiveAudioBytesPerUser;
     }
 }

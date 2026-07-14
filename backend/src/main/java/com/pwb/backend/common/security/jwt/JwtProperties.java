@@ -22,13 +22,13 @@ public class JwtProperties {
 
     private String secret;
     private String refreshSecret;
-    private long accessTokenTtlSeconds = 900;
-    private long refreshTokenTtlSeconds = 604800;
-    private long shadowGraceSeconds = 10;
-    private String issuer = "pwb-mini";
-    private String headerName = "Authorization";
-    private String headerPrefix = "Bearer ";
-    private long blacklistClockSkewBufferSeconds = 30;
+    private long accessTokenTtlSeconds;
+    private long refreshTokenTtlSeconds;
+    private long shadowGraceSeconds;
+    private String issuer;
+    private String headerName;
+    private String headerPrefix;
+    private long blacklistClockSkewBufferSeconds;
 
     private final Environment environment;
 

@@ -1,5 +1,7 @@
 package com.pwb.backend.modules.liveroom.ws;
 
+import org.springframework.messaging.Message;
+
 import com.pwb.backend.common.security.jwt.JwtTypes;
 import com.pwb.backend.modules.liveroom.dto.request.PlaybackSyncCommand;
 import com.pwb.backend.modules.liveroom.service.PlaybackSyncService;
@@ -24,7 +26,7 @@ public class PlaybackSyncMessageController {
     @MessageMapping("/rooms/{roomCode}/sync-state")
     public void onSyncState(@DestinationVariable String roomCode,
                             PlaybackSyncCommand command,
-                            org.springframework.messaging.Message<?> message) {
+                            Message<?> message) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
         if (accessor == null) {
             log.warn("WS_SYNC_ERROR roomCode={} reason=missing_accessor", roomCode);

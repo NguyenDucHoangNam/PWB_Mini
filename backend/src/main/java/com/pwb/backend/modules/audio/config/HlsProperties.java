@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app.audio.hls")
 public class HlsProperties {
 
-    private int aesKeyBytes = 16;
+    private int aesKeyBytes;
 
-    private int segmentDurationSeconds = 6;
+    private int segmentDurationSeconds;
 }

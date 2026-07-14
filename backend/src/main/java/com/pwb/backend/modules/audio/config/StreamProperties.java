@@ -17,31 +17,31 @@ public class StreamProperties {
 
     private String cookieSecret;
 
-    private long cookieTtlSeconds = 1800L;
+    private long cookieTtlSeconds;
 
-    private String cookieName = "pwb_stream_sess";
+    private String cookieName;
 
-    private boolean cookieSecure = true;
+    private boolean cookieSecure;
 
-    private String cookieSameSite = "Strict";
+    private String cookieSameSite;
 
-    private int cidrMaskBitsIpv4 = 24;
+    private int cidrMaskBitsIpv4;
 
-    private int cidrMaskBitsIpv6 = 48;
+    private int cidrMaskBitsIpv6;
 
     private String cookieSecretPrevious;
 
     private String playlistSigningKey;
 
-    private long playlistSignatureTtlSeconds = 600L;
+    private long playlistSignatureTtlSeconds;
 
-    private long playlistCacheTtlSeconds = 30L;
+    private long playlistCacheTtlSeconds;
 
     private String ipHashSalt;
 
     private String cdnOriginVerifySecret;
 
-    private boolean cdnOriginVerifyEnabled = false;
+    private boolean cdnOriginVerifyEnabled;
 
     @PostConstruct
     void validate() {

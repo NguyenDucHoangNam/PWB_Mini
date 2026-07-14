@@ -1,5 +1,7 @@
 package com.pwb.backend.modules.iam.repository;
 
+import com.pwb.backend.modules.iam.enums.UserStatus;
+
 import com.pwb.backend.modules.iam.enums.OauthProvider;
 import com.pwb.backend.modules.iam.model.User;
 import jakarta.persistence.LockModeType;
@@ -44,7 +46,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @Query("""
         select u from User u
-        where u.status = com.pwb.backend.modules.iam.enums.UserStatus.PENDING_DELETION
+        where u.status = UserStatus.PENDING_DELETION
           and u.deletionRequestedAt is not null
           and u.deletionRequestedAt <= :threshold
         order by u.deletionRequestedAt asc
@@ -54,7 +56,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @Query("""
         select count(u) from User u
-        where u.status = com.pwb.backend.modules.iam.enums.UserStatus.PENDING_DELETION
+        where u.status = UserStatus.PENDING_DELETION
           and u.deletionRequestedAt is not null
           and u.deletionRequestedAt <= :threshold
         """)

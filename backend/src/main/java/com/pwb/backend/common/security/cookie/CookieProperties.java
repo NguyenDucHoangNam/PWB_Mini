@@ -9,8 +9,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Setter
 public class CookieProperties {
 
-    private boolean secure = false;
-    private String samesite = "Strict";
-    private String refreshCookieName = "refreshToken";
-    private String path = "/";
+    private boolean secure;
+    private String samesite;
+    private String refreshCookieName;
+    private String path;
 }

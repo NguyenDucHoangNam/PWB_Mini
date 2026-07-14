@@ -1,5 +1,7 @@
 package com.pwb.backend.modules.voice_tag.service.impl;
 
+import org.springframework.dao.DataIntegrityViolationException;
+
 import com.pwb.backend.common.exception.BusinessException;
 import com.pwb.backend.common.storage.ObjectStorageService;
 import com.pwb.backend.common.storage.StorageBucket;
@@ -136,7 +138,7 @@ public class VoiceTagServiceImpl implements VoiceTagService {
         VoiceTag tag = ownershipService.loadActiveOrThrow(tagId, ownerId);
         try {
             txService.setDefaultAtomic(tag.getId(), ownerId);
-        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+        } catch (DataIntegrityViolationException ex) {
             log.warn("VOICE_TAG_DEFAULT_RACE_CONFLICT tagId={} ownerId={}", tag.getId(), ownerId);
             throw new BusinessException(VoiceTagErrorCode.VOICE_TAG_ALREADY_DEFAULT);
         }

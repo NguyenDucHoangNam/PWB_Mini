@@ -1,5 +1,7 @@
 package com.pwb.backend.modules.share.service.impl;
 
+import java.util.List;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -150,7 +152,7 @@ public class SharedStreamServiceImpl implements SharedStreamService {
         }
         try {
             Optional<Map<String, Object>> container = tryParseJsonObject(waveformJson);
-            if (container.isPresent() && container.get().get("peaks") instanceof java.util.List<?> list) {
+            if (container.isPresent() && container.get().get("peaks") instanceof List<?> list) {
                 float[] result = new float[list.size()];
                 for (int i = 0; i < list.size(); i++) {
                     Object item = list.get(i);

@@ -16,18 +16,18 @@ import java.util.List;
 @ConfigurationProperties(prefix = "app.liveroom.webrtc")
 public class WebRtcProperties {
 
-    private String stunServer = "stun:stun.l.google.com:19302";
+    private String stunServer;
 
     private List<String> turnServers = new ArrayList<>();
 
-    private String turnStaticSecret = "";
+    private String turnStaticSecret;
 
     @Min(60)
-    private int credentialTtlSeconds = 86400;
+    private int credentialTtlSeconds;
 
     @Min(1)
-    private int signallingRateLimitPerMinute = 100;
+    private int signallingRateLimitPerMinute;
 
     @NotBlank
-    private String signallingDestinationPattern = "^/app/rooms/[^/]+/signalling$";
+    private String signallingDestinationPattern;
 }

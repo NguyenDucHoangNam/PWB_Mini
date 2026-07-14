@@ -1,5 +1,7 @@
 package com.pwb.backend.modules.liveroom.service;
 
+import com.pwb.backend.modules.liveroom.dto.ws.RoomClosedMessage;
+
 import com.pwb.backend.modules.liveroom.dto.ws.DelegationChangedMessage;
 import com.pwb.backend.modules.liveroom.dto.ws.JoinResultMessage;
 import com.pwb.backend.modules.liveroom.dto.ws.MembersSnapshotMessage;
@@ -65,7 +67,7 @@ public class LiveRoomMembershipNotifier {
         }
     }
 
-    public void notifyRoomClosed(String roomCode, com.pwb.backend.modules.liveroom.dto.ws.RoomClosedMessage payload) {
+    public void notifyRoomClosed(String roomCode, RoomClosedMessage payload) {
         try {
             messagingTemplate.convertAndSend(String.format(PLAYBACK_TOPIC, roomCode), payload);
         } catch (Exception ex) {

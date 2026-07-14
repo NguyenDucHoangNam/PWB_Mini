@@ -1,15 +1,9 @@
 package com.pwb.backend.modules.iam.service.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.pwb.backend.common.kafka.constant.KafkaTopics;
 import com.pwb.backend.common.model.BaseEntity;
-import com.pwb.backend.common.model.OutboxEvent;
+import com.pwb.backend.common.outbox.OutboxService;
 import com.pwb.backend.common.outbox.event.AccountAnonymizedEvent;
-import com.pwb.backend.common.outbox.event.OutboxCreatedEvent;
 import com.pwb.backend.common.outbox.publisher.OutboxEventTypes;
-import com.pwb.backend.common.outbox.publisher.OutboxPayloadCipher;
-import com.pwb.backend.common.outbox.repository.OutboxEventRepository;
 import com.pwb.backend.modules.iam.enums.UserStatus;
 import com.pwb.backend.modules.iam.model.User;
 import com.pwb.backend.modules.iam.repository.UserRepository;
@@ -21,7 +15,6 @@ import com.pwb.backend.modules.iam.service.SessionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -41,10 +34,7 @@ public class AccountAnonymizationServiceImpl implements AccountAnonymizationServ
     private final SessionService sessionService;
     private final LoginAttemptService loginAttemptService;
     private final AvatarUploadService avatarUploadService;
-    private final OutboxEventRepository outboxRepository;
-    private final ApplicationEventPublisher eventPublisher;
-    private final ObjectMapper objectMapper;
-    private final OutboxPayloadCipher outboxCipher;
+    private final OutboxService outboxService;
 
     @Value("${app.iam.account-anonymization.grace-days}")
     private int graceDays;
@@ -115,29 +105,11 @@ public class AccountAnonymizationServiceImpl implements AccountAnonymizationServ
     private void publishAnonymizedEvent(UUID userId, Instant deletionRequestedAt) {
         AccountAnonymizedEvent payload = new AccountAnonymizedEvent(
                 userId, Instant.now(), deletionRequestedAt);
-
-        OutboxEvent row = new OutboxEvent(
-                UUID.randomUUID(),
+        outboxService.publish(
                 OutboxEventTypes.AGGREGATE_USER,
                 userId,
                 OutboxEventTypes.ACCOUNT_ANONYMIZED,
                 userId.toString(),
-                serialize(payload),
-                Instant.now(),
-                null,
-                1);
-        outboxRepository.save(row);
-
-        eventPublisher.publishEvent(new OutboxCreatedEvent(
-                row.getId(), KafkaTopics.IAM_ACCOUNT_EVENTS, OutboxEventTypes.AGGREGATE_USER));
-    }
-
-    private String serialize(Object value) {
-        try {
-            String json = objectMapper.writeValueAsString(value);
-            return outboxCipher.encrypt(json);
-        } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("Failed to serialize outbox payload", ex);
-        }
+                payload);
     }
 }

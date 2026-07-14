@@ -1,5 +1,7 @@
 package com.pwb.backend.modules.iam.service.impl;
 
+import java.time.Instant;
+
 import com.pwb.backend.modules.iam.service.MailService;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
@@ -113,8 +115,8 @@ public class MailServiceImpl implements MailService {
     @Override
     public void sendAccountDeletionRequestedEmail(String toEmail,
                                                   String fullName,
-                                                  java.time.Instant deletionRequestedAt,
-                                                  java.time.Instant scheduledPermanentDeletionAt,
+                                                  Instant deletionRequestedAt,
+                                                  Instant scheduledPermanentDeletionAt,
                                                   int graceDays,
                                                   String loginUrl) {
         try {
