@@ -1,6 +1,7 @@
 package com.pwb.backend.exception;
 
 import com.pwb.backend.dto.response.ApiResponse;
+import com.pwb.backend.dto.response.ErrorDetail;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -43,23 +45,32 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleValidationException(
             MethodArgumentNotValidException ex, HttpServletRequest request) {
 
-        String details = ex.getBindingResult().getFieldErrors().stream()
-                .map(err -> err.getField() + ": " + err.getDefaultMessage())
+        List<ErrorDetail> details = ex.getBindingResult().getFieldErrors().stream()
+                .map(err -> ErrorDetail.builder()
+                        .code(ErrorCode.VALIDATION_FAILED.getCode())
+                        .message(err.getDefaultMessage())
+                        .field(err.getField())
+                        .build())
+                .collect(Collectors.toList());
+
+        String summary = details.stream()
+                .map(d -> d.getField() + ": " + d.getMessage())
                 .collect(Collectors.joining(", "));
 
         String message = messageSource.getMessage(
                 ErrorCode.VALIDATION_FAILED.getMessageCode(),
-                new Object[]{details},
+                new Object[]{summary},
                 "Validation failed",
                 LocaleContextHolder.getLocale());
 
-        log.warn("Validation failed: {}", details);
+        log.warn("Validation failed: {}", summary);
 
-        ApiResponse<Void> response = ApiResponse.error(
+        ApiResponse<Void> response = ApiResponse.errorWithDetails(
                 ErrorCode.VALIDATION_FAILED.getCode(),
                 message,
                 HttpStatus.BAD_REQUEST.value(),
-                request.getRequestURI());
+                request.getRequestURI(),
+                details);
 
         return ResponseEntity.badRequest().body(response);
     }
@@ -68,17 +79,26 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleConstraintViolation(
             ConstraintViolationException ex, HttpServletRequest request) {
 
-        String details = ex.getConstraintViolations().stream()
-                .map(ConstraintViolation::getMessage)
+        List<ErrorDetail> details = ex.getConstraintViolations().stream()
+                .map(cv -> ErrorDetail.builder()
+                        .code(ErrorCode.VALIDATION_FAILED.getCode())
+                        .message(cv.getMessage())
+                        .field(extractField(cv))
+                        .build())
+                .collect(Collectors.toList());
+
+        String summary = details.stream()
+                .map(d -> (d.getField() != null ? d.getField() + ": " : "") + d.getMessage())
                 .collect(Collectors.joining(", "));
 
-        log.warn("Constraint violation: {}", details);
+        log.warn("Constraint violation: {}", summary);
 
-        ApiResponse<Void> response = ApiResponse.error(
+        ApiResponse<Void> response = ApiResponse.errorWithDetails(
                 ErrorCode.VALIDATION_FAILED.getCode(),
-                details,
+                summary,
                 HttpStatus.BAD_REQUEST.value(),
-                request.getRequestURI());
+                request.getRequestURI(),
+                details);
 
         return ResponseEntity.badRequest().body(response);
     }
@@ -123,5 +143,11 @@ public class GlobalExceptionHandler {
                 request.getRequestURI());
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+
+    private static String extractField(ConstraintViolation<?> cv) {
+        String propertyPath = cv.getPropertyPath().toString();
+        int lastDot = propertyPath.lastIndexOf('.');
+        return lastDot >= 0 ? propertyPath.substring(lastDot + 1) : propertyPath;
     }
 }

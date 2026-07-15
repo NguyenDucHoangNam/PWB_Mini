@@ -7,6 +7,7 @@ import lombok.Getter;
 import org.slf4j.MDC;
 
 import java.time.Instant;
+import java.util.List;
 
 @Getter
 @Builder
@@ -16,9 +17,11 @@ public class ApiResponse<T> {
 
     private static final String MDC_CORRELATION_ID = "correlationId";
 
+    private final boolean success;
     private final int status;
     private final String message;
     private final T data;
+    private final List<ErrorDetail> errors;
     private final String errorCode;
     private final String traceId;
     private final Instant timestamp;
@@ -26,6 +29,7 @@ public class ApiResponse<T> {
 
     public static <T> ApiResponse<T> success(T data, String message) {
         return ApiResponse.<T>builder()
+                .success(true)
                 .status(200)
                 .message(message)
                 .data(data)
@@ -36,6 +40,7 @@ public class ApiResponse<T> {
 
     public static <T> ApiResponse<T> created(T data, String message) {
         return ApiResponse.<T>builder()
+                .success(true)
                 .status(201)
                 .message(message)
                 .data(data)
@@ -45,23 +50,26 @@ public class ApiResponse<T> {
     }
 
     public static ApiResponse<Void> error(String errorCode, String message, int status, String path) {
-        return ApiResponse.<Void>builder()
-                .status(status)
-                .errorCode(errorCode)
-                .message(message)
-                .traceId(currentTraceId())
-                .timestamp(Instant.now())
-                .path(path)
-                .build();
+        return errorWithDetails(errorCode, message, status, path,
+                List.of(ErrorDetail.builder().code(errorCode).message(message).build()));
     }
 
     public static ApiResponse<Void> error(String errorCode, String message, int status) {
+        return errorWithDetails(errorCode, message, status, null,
+                List.of(ErrorDetail.builder().code(errorCode).message(message).build()));
+    }
+
+    public static ApiResponse<Void> errorWithDetails(
+            String errorCode, String message, int status, String path, List<ErrorDetail> details) {
         return ApiResponse.<Void>builder()
+                .success(false)
                 .status(status)
                 .errorCode(errorCode)
                 .message(message)
+                .errors(details)
                 .traceId(currentTraceId())
                 .timestamp(Instant.now())
+                .path(path)
                 .build();
     }
 
