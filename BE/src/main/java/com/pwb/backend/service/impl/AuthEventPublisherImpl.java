@@ -76,6 +76,17 @@ public class AuthEventPublisherImpl implements AuthEventPublisher {
                 idempotencyKey("registered-google", userId), payload);
     }
 
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void publishUserLinkedGoogle(UUID userId, String email, String fullName) {
+        Map<String, String> payload = new HashMap<>();
+        payload.put("userId", userId.toString());
+        payload.put("email", email);
+        payload.put("fullName", fullName == null ? "" : fullName);
+        saveOutbox(userId, EVENT_USER_LINKED_GOOGLE,
+                idempotencyKey("linked-google", userId), payload);
+    }
+
     private String idempotencyKey(String prefix, UUID aggregateId) {
         return prefix + ":" + aggregateId + ":" + UUID.randomUUID();
     }

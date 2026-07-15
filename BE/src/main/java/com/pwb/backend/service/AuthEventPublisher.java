@@ -11,6 +11,7 @@ public interface AuthEventPublisher {
     String EVENT_PASSWORD_RESET_REQUESTED = "USER_PASSWORD_RESET_REQUESTED";
     String EVENT_PASSWORD_CHANGED = "USER_PASSWORD_CHANGED";
     String EVENT_USER_REGISTERED_GOOGLE = "USER_REGISTERED_GOOGLE";
+    String EVENT_USER_LINKED_GOOGLE = "USER_LINKED_GOOGLE";
 
     void publishUserRegisteredOtp(UUID userId, String email, String otp);
 
@@ -23,4 +24,6 @@ public interface AuthEventPublisher {
     void publishPasswordChanged(UUID userId, String email);
 
     void publishUserRegisteredGoogle(UUID userId, String email, String fullName);
+
+    void publishUserLinkedGoogle(UUID userId, String email, String fullName);
 }

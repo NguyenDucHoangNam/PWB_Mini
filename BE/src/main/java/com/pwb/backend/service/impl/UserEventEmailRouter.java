@@ -37,6 +37,7 @@ public class UserEventEmailRouter {
                 case AuthEventPublisher.EVENT_PASSWORD_RESET_REQUESTED -> handlePasswordReset(node);
                 case AuthEventPublisher.EVENT_PASSWORD_CHANGED -> handlePasswordChanged(node);
                 case AuthEventPublisher.EVENT_USER_REGISTERED_GOOGLE -> handleWelcomeGoogle(node);
+                case AuthEventPublisher.EVENT_USER_LINKED_GOOGLE -> handleLinkedGoogle(node);
                 case AuthEventPublisher.EVENT_LOGIN_SUCCESS -> log.debug("Skip login success: {}", payload);
                 case AuthEventPublisher.EVENT_LOGOUT -> log.debug("Skip logout event: {}", payload);
                 default -> log.debug("Unhandled event type: {}", eventType);
@@ -110,6 +111,23 @@ public class UserEventEmailRouter {
             return;
         }
         notificationService.sendWelcomeGoogleEmail(
+                UUID.fromString(userIdStr), email, fullName);
+    }
+
+    private void handleLinkedGoogle(JsonNode node) {
+        JsonNode data = node.get("data");
+        if (data == null) {
+            log.warn("Linked Google event missing data: {}", node);
+            return;
+        }
+        String userIdStr = textOrNull(data, "userId");
+        String email = textOrNull(data, "email");
+        String fullName = textOrNull(data, "fullName");
+        if (userIdStr == null || email == null) {
+            log.warn("Linked Google event missing required fields: {}", node);
+            return;
+        }
+        notificationService.sendAccountLinkedGoogleEmail(
                 UUID.fromString(userIdStr), email, fullName);
     }
 

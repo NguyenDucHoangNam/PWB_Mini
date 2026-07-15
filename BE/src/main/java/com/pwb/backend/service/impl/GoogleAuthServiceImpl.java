@@ -23,6 +23,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.UUID;
 
@@ -88,8 +90,29 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
         if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
             user.setStatus(UserStatus.ACTIVE);
         }
-        log.info("Linking existing account with Google: userId={} email={}", user.getId(), user.getEmail());
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        scheduleLinkedGoogleDeliveryAfterCommit(saved);
+        log.info("Linking existing account with Google: userId={} email={}", saved.getId(), saved.getEmail());
+        return saved;
+    }
+
+    private void scheduleLinkedGoogleDeliveryAfterCommit(User user) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    try {
+                        authEventPublisher.publishUserLinkedGoogle(
+                                user.getId(), user.getEmail(), user.getFullName());
+                    } catch (RuntimeException ex) {
+                        log.error("Failed to publish linked Google event after commit: userId={}", user.getId(), ex);
+                    }
+                }
+            });
+        } else {
+            log.warn("No active transaction for linked Google userId={} - publishing inline", user.getId());
+            authEventPublisher.publishUserLinkedGoogle(user.getId(), user.getEmail(), user.getFullName());
+        }
     }
 
     private User createGoogleUser(GoogleIdTokenPayload payload) {

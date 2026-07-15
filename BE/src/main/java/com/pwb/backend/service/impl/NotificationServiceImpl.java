@@ -37,6 +37,10 @@ public class NotificationServiceImpl implements NotificationService {
     private static final String TEXT_WELCOME_GOOGLE = "auth.email.body.welcome_google";
     private static final String TEMPLATE_WELCOME_GOOGLE = "email/welcome-google";
 
+    private static final String SUBJECT_ACCOUNT_LINKED_GOOGLE = "auth.email.subject.account_linked_google";
+    private static final String TEXT_ACCOUNT_LINKED_GOOGLE = "auth.email.body.account_linked_google";
+    private static final String TEMPLATE_ACCOUNT_LINKED_GOOGLE = "email/account-linked-google";
+
     private static final String LAYOUT_TEMPLATE = "email/_layout";
 
     private final MailService mailService;
@@ -94,6 +98,19 @@ public class NotificationServiceImpl implements NotificationService {
 
         mailService.sendHtmlWithLogo(email, subject, htmlBody, bodyText);
         log.info("Welcome Google email dispatched: userId={} email={}", userId, email);
+    }
+
+    @Override
+    public void sendAccountLinkedGoogleEmail(UUID userId, String email, String fullName) {
+        String displayName = (fullName == null || fullName.isBlank()) ? email : fullName;
+        String subject = messageHelper.get(SUBJECT_ACCOUNT_LINKED_GOOGLE);
+        String bodyText = messageHelper.get(TEXT_ACCOUNT_LINKED_GOOGLE);
+        String htmlBody = renderEmail(TEMPLATE_ACCOUNT_LINKED_GOOGLE, subject, bodyText, null, ctx -> {
+            ctx.setVariable("displayName", displayName);
+        });
+
+        mailService.sendHtmlWithLogo(email, subject, htmlBody, bodyText);
+        log.info("Account linked Google email dispatched: userId={} email={}", userId, email);
     }
 
     private String renderEmail(String childTemplate, String title, String bodyText, String footerText,

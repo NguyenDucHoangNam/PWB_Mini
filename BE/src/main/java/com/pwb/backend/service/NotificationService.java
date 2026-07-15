@@ -11,4 +11,6 @@ public interface NotificationService {
     void sendPasswordChangedEmail(UUID userId, String email);
 
     void sendWelcomeGoogleEmail(UUID userId, String email, String fullName);
+
+    void sendAccountLinkedGoogleEmail(UUID userId, String email, String fullName);
 }
