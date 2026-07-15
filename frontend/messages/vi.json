@@ -137,7 +137,8 @@
       "emailLength": "Email không quá 255 ký tự",
       "passwordComplexity": "Mật khẩu phải có 8-128 ký tự và bao gồm chữ hoa, chữ thường, chữ số và ký tự đặc biệt",
       "confirmPasswordRequired": "Vui lòng nhập lại mật khẩu",
-      "rateLimitError": "Bạn đã thử quá nhiều lần. Vui lòng đợi ít phút rồi thử lại."
+      "rateLimitError": "Bạn đã thử quá nhiều lần. Vui lòng đợi ít phút rồi thử lại.",
+      "emailExistsHint": "Email này đã được đăng ký. Vui lòng kiểm tra hòm thư (kể cả spam) hoặc đăng nhập."
     },
     "otp": {
       "title": "XÁC THỰC OTP",

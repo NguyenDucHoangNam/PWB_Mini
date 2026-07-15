@@ -15,6 +15,7 @@ import {
   getOtpResendCooldownSeconds,
 } from "@/lib/config";
 import { decodeJwtExpiry } from "@/lib/jwt-decode";
+import { pendingRegistration } from "../lib/pending-registration";
 import { useExpiryCountdown, useCooldown } from "../hooks/use-otp-countdown";
 
 const OTP_LOCKED_CODE = "AUTH_OTP_LOCKED";
@@ -47,6 +48,17 @@ export function OtpForm() {
   const [otpIssuedAt, setOtpIssuedAt] = useState<number | null>(null);
   const [otpInvalid, setOtpInvalid] = useState(false);
 
+  useEffect(() => {
+    if (!userId) {
+      const fallback = pendingRegistration.get();
+      if (fallback) {
+        router.replace(`/verify-otp?userId=${encodeURIComponent(fallback)}`);
+      } else {
+        router.replace("/register");
+      }
+    }
+  }, [userId, router]);
+
   const otpExpiryTtl = getOtpExpirySeconds();
   const resendCooldownTtl = getOtpResendCooldownSeconds();
 
@@ -62,9 +74,11 @@ export function OtpForm() {
 
   useEffect(() => {
     if (otpIssuedAt === null) {
-      setOtpIssuedAt(Date.now());
+      const now = Date.now();
+      setOtpIssuedAt(now);
+      cooldown.reset();
     }
-  }, [otpIssuedAt]);
+  }, [otpIssuedAt, cooldown]);
 
   const handleVerify = (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +111,7 @@ export function OtpForm() {
               status: data.status,
               oauthProvider: "LOCAL",
             }, expiresAt ?? undefined);
+            pendingRegistration.clear();
             toast.success(t("successToast"));
             if (data.nextStep === "COMPLETE_PROFILE") {
               router.push("/complete-profile");

@@ -18,6 +18,7 @@ import {
   EMAIL_REGEX,
   calculatePasswordStrength,
 } from "../hooks/password-validators";
+import { pendingRegistration } from "../lib/pending-registration";
 import { registerSchema, type RegisterFormValues } from "../schemas/register-schema";
 import { applyFieldErrors } from "@/lib/form-errors";
 
@@ -70,6 +71,7 @@ export function RegisterForm() {
       {
         onSuccess: (response) => {
           if (response.success && response.data?.userId) {
+            pendingRegistration.set(response.data.userId);
             toast.success(t("successToast"));
             router.push(
               `/verify-otp?userId=${encodeURIComponent(response.data.userId)}`,
@@ -83,6 +85,11 @@ export function RegisterForm() {
           if (err.status === 429 || err.errors?.[0]?.code === RATE_LIMIT_CODE) {
             setError("root", { message: t("rateLimitError") });
             toast.error(t("rateLimitError"));
+            return;
+          }
+          const errorCode = err.errors?.[0]?.code;
+          if (errorCode === "USER_EMAIL_EXISTS") {
+            setError("root", { message: t("emailExistsHint") });
             return;
           }
           applyFieldErrors(

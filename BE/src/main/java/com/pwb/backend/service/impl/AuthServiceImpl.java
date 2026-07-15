@@ -32,6 +32,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -58,7 +59,16 @@ public class AuthServiceImpl implements AuthService {
     public AuthMessageResponse register(RegisterRequest request) {
         String email = request.getEmail().trim().toLowerCase();
 
-        if (userRepository.existsByEmailAndDeletedFalse(email)) {
+        Optional<User> existingOpt = userRepository.findByEmailAndDeletedFalse(email);
+
+        if (existingOpt.isPresent()) {
+            User existing = existingOpt.get();
+
+            if (existing.getStatus() == UserStatus.PENDING_VERIFICATION
+                    && existing.getOauthProvider() == OAuthProvider.LOCAL) {
+                return handlePendingRegistration(existing);
+            }
+
             throw new BusinessException(ErrorCode.USER_EMAIL_EXISTS);
         }
 
@@ -80,6 +90,24 @@ public class AuthServiceImpl implements AuthService {
         String message = messageHelper.get(MSG_REGISTER_EMAIL, user.getEmail());
         log.info("User registered pending verification: userId={} email={}", user.getId(), user.getEmail());
         return AuthMessageResponse.of(user.getId(), message);
+    }
+
+    private AuthMessageResponse handlePendingRegistration(User existing) {
+        if (!otpService.canResend(existing.getId(), OTP_PURPOSE)) {
+            throw new BusinessException(ErrorCode.AUTH_OTP_DAILY_LIMIT);
+        }
+
+        Duration cooldown = otpService.resendCooldownRemaining(existing.getId(), OTP_PURPOSE);
+        if (!cooldown.isZero()) {
+            throw new BusinessException(ErrorCode.AUTH_OTP_RATE_LIMIT, cooldown.toSeconds());
+        }
+
+        otpService.invalidate(existing.getId(), OTP_PURPOSE);
+        scheduleOtpDeliveryAfterCommit(existing.getId(), existing.getEmail(), OTP_PURPOSE);
+
+        String message = messageHelper.get(MSG_REGISTER_EMAIL, existing.getEmail());
+        log.info("Register hit pending user, OTP resent: userId={} email={}", existing.getId(), existing.getEmail());
+        return AuthMessageResponse.of(existing.getId(), message);
     }
 
     private static final int PROVISIONAL_USERNAME_RANDOM_LENGTH = 16;

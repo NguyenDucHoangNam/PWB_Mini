@@ -137,7 +137,8 @@
       "emailLength": "Email must not exceed 255 characters",
       "passwordComplexity": "Password must be 8-128 characters and include uppercase, lowercase, digit and special character",
       "confirmPasswordRequired": "Please confirm your password",
-      "rateLimitError": "Too many attempts. Please wait a few minutes before trying again."
+      "rateLimitError": "Too many attempts. Please wait a few minutes before trying again.",
+      "emailExistsHint": "This email is already registered. Please check your inbox (including spam) or sign in."
     },
     "otp": {
       "title": "OTP VERIFICATION",

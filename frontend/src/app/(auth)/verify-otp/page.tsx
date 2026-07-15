@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { OtpForm } from "@/features/auth/components/otp-form";
+import { pendingRegistration } from "@/features/auth/lib/pending-registration";
 
 export async function generateMetadata({
   params,
@@ -21,8 +22,11 @@ export default async function VerifyOtpPage({
 }: {
   searchParams: Promise<{ userId?: string }>;
 }) {
-  const { userId } = await searchParams;
-  if (!userId || userId.trim().length === 0) {
+  const { userId: queryUserId } = await searchParams;
+  const fallbackUserId = pendingRegistration.get();
+  const rawUserId = queryUserId?.trim() || fallbackUserId;
+  const userId = rawUserId && rawUserId.length > 0 ? rawUserId : null;
+  if (!userId) {
     redirect("/register");
   }
 
