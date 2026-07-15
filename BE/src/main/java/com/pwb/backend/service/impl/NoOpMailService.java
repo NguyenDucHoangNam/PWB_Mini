@@ -21,4 +21,10 @@ public class NoOpMailService implements MailService {
         log.warn("[MAIL_DISABLED] app.mail.enabled=false — skip HTML mail to={} subject={} htmlLen={}",
                 to, subject, htmlBody == null ? 0 : htmlBody.length());
     }
+
+    @Override
+    public void sendHtmlWithLogo(String to, String subject, String htmlBody, String textFallback) {
+        log.warn("[MAIL_DISABLED] app.mail.enabled=false — skip HTML mail with logo to={} subject={} htmlLen={}",
+                to, subject, htmlBody == null ? 0 : htmlBody.length());
+    }
 }

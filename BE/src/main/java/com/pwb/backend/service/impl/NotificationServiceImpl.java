@@ -10,7 +10,9 @@ import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
+import java.time.Year;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 @Slf4j
 @Service
@@ -35,6 +37,8 @@ public class NotificationServiceImpl implements NotificationService {
     private static final String TEXT_WELCOME_GOOGLE = "auth.email.body.welcome_google";
     private static final String TEMPLATE_WELCOME_GOOGLE = "email/welcome-google";
 
+    private static final String LAYOUT_TEMPLATE = "email/_layout";
+
     private final MailService mailService;
     private final OtpProperties otpProperties;
     private final MessageHelper messageHelper;
@@ -46,9 +50,12 @@ public class NotificationServiceImpl implements NotificationService {
         String subject = messageHelper.get(SUBJECT_REGISTER);
         String textBody = messageHelper.get(TEXT_REGISTER, otp, ttlMinutes);
         String footerText = messageHelper.get(FOOTER_REGISTER, ttlMinutes);
-        String htmlBody = renderRegisterOtpHtml(subject, textBody, otp, footerText);
+        String htmlBody = renderEmail(TEMPLATE_REGISTER_OTP, subject, textBody, footerText, ctx -> {
+            ctx.setVariable("otp", otp);
+            ctx.setVariable("ttlMinutes", ttlMinutes);
+        });
 
-        mailService.sendHtml(email, subject, htmlBody, textBody);
+        mailService.sendHtmlWithLogo(email, subject, htmlBody, textBody);
         log.info("OTP email dispatched: userId={} email={} ttlMinutes={}", userId, email, ttlMinutes);
     }
 
@@ -57,9 +64,12 @@ public class NotificationServiceImpl implements NotificationService {
         String subject = messageHelper.get(SUBJECT_PASSWORD_RESET);
         String bodyText = messageHelper.get(TEXT_PASSWORD_RESET, ttlMinutes);
         String farewellText = messageHelper.get(FAREWELL_PASSWORD_RESET);
-        String htmlBody = renderPasswordResetHtml(subject, bodyText, resetLink, farewellText, ttlMinutes);
+        String htmlBody = renderEmail(TEMPLATE_PASSWORD_RESET, subject, bodyText, farewellText, ctx -> {
+            ctx.setVariable("resetLink", resetLink);
+            ctx.setVariable("ttlMinutes", ttlMinutes);
+        });
 
-        mailService.sendHtml(email, subject, htmlBody, bodyText);
+        mailService.sendHtmlWithLogo(email, subject, htmlBody, bodyText);
         log.info("Password reset email dispatched: userId={} email={}", userId, email);
     }
 
@@ -67,9 +77,9 @@ public class NotificationServiceImpl implements NotificationService {
     public void sendPasswordChangedEmail(UUID userId, String email) {
         String subject = messageHelper.get(SUBJECT_PASSWORD_CHANGED);
         String bodyText = messageHelper.get(TEXT_PASSWORD_CHANGED);
-        String htmlBody = renderPasswordChangedHtml(subject, bodyText);
+        String htmlBody = renderEmail(TEMPLATE_PASSWORD_CHANGED, subject, bodyText, null, ctx -> { });
 
-        mailService.sendHtml(email, subject, htmlBody, bodyText);
+        mailService.sendHtmlWithLogo(email, subject, htmlBody, bodyText);
         log.info("Password changed email dispatched: userId={} email={}", userId, email);
     }
 
@@ -78,43 +88,23 @@ public class NotificationServiceImpl implements NotificationService {
         String displayName = (fullName == null || fullName.isBlank()) ? email : fullName;
         String subject = messageHelper.get(SUBJECT_WELCOME_GOOGLE);
         String bodyText = messageHelper.get(TEXT_WELCOME_GOOGLE, displayName);
-        String htmlBody = renderWelcomeGoogleHtml(subject, bodyText, displayName);
+        String htmlBody = renderEmail(TEMPLATE_WELCOME_GOOGLE, subject, bodyText, null, ctx -> {
+            ctx.setVariable("displayName", displayName);
+        });
 
-        mailService.sendHtml(email, subject, htmlBody, bodyText);
+        mailService.sendHtmlWithLogo(email, subject, htmlBody, bodyText);
         log.info("Welcome Google email dispatched: userId={} email={}", userId, email);
     }
 
-    private String renderRegisterOtpHtml(String subject, String bodyText, String otp, String footerText) {
+    private String renderEmail(String childTemplate, String title, String bodyText, String footerText,
+                               Consumer<Context> enricher) {
         Context context = new Context();
-        context.setVariable("subject", subject);
+        context.setVariable("title", title);
         context.setVariable("bodyText", bodyText);
-        context.setVariable("otp", otp);
-        context.setVariable("footerText", footerText);
-        return templateEngine.process(TEMPLATE_REGISTER_OTP, context);
-    }
-
-    private String renderPasswordResetHtml(String subject, String bodyText, String resetLink, String farewellText, long ttlMinutes) {
-        Context context = new Context();
-        context.setVariable("subject", subject);
-        context.setVariable("bodyText", bodyText);
-        context.setVariable("resetLink", resetLink);
-        context.setVariable("farewellText", farewellText);
-        context.setVariable("ttlMinutes", ttlMinutes);
-        return templateEngine.process(TEMPLATE_PASSWORD_RESET, context);
-    }
-
-    private String renderPasswordChangedHtml(String subject, String bodyText) {
-        Context context = new Context();
-        context.setVariable("subject", subject);
-        context.setVariable("bodyText", bodyText);
-        return templateEngine.process(TEMPLATE_PASSWORD_CHANGED, context);
-    }
-
-    private String renderWelcomeGoogleHtml(String subject, String bodyText, String displayName) {
-        Context context = new Context();
-        context.setVariable("subject", subject);
-        context.setVariable("bodyText", bodyText);
-        context.setVariable("displayName", displayName);
-        return templateEngine.process(TEMPLATE_WELCOME_GOOGLE, context);
+        context.setVariable("footerText", footerText == null ? "" : footerText);
+        context.setVariable("year", Year.now().getValue());
+        context.setVariable("childTemplate", childTemplate);
+        enricher.accept(context);
+        return templateEngine.process(LAYOUT_TEMPLATE, context);
     }
 }

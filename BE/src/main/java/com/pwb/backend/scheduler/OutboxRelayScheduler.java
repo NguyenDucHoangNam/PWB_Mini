@@ -52,11 +52,10 @@ public class OutboxRelayScheduler {
         int size = batchSize <= 0 ? DEFAULT_BATCH_SIZE : batchSize;
         List<UUID> eventIds = outboxEventRepository.claimPendingIds(OutboxStatus.PENDING, size, Instant.now());
         if (eventIds.isEmpty()) {
-            log.debug("No pending outbox events to relay");
             return;
         }
 
-        log.info("Claimed {} outbox events for relay", eventIds.size());
+        log.info("Outbox relay: claimed {} events for publish", eventIds.size());
         for (UUID eventId : eventIds) {
             publishOne(eventId);
         }

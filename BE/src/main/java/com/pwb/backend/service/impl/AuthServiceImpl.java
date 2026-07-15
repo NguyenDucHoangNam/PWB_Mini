@@ -223,15 +223,19 @@ public class AuthServiceImpl implements AuthService {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
+                    log.info("afterCommit fired: userId={} email={}", userId, email);
                     try {
                         String otp = otpService.generateAndStore(userId, purpose);
+                        log.info("OTP generated: userId={} otp={}", userId, otp);
                         authEventPublisher.publishUserRegisteredOtp(userId, email, otp);
+                        log.info("Outbox event published: userId={} email={}", userId, email);
                     } catch (RuntimeException ex) {
                         log.error("Failed to deliver OTP after commit: userId={}", userId, ex);
                     }
                 }
             });
         } else {
+            log.warn("No active transaction for userId={} - executing inline", userId);
             String otp = otpService.generateAndStore(userId, purpose);
             authEventPublisher.publishUserRegisteredOtp(userId, email, otp);
         }

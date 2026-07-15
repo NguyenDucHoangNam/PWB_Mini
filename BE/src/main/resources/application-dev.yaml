@@ -17,7 +17,7 @@ app:
     daily-resend-limit: 5
   mail:
     enabled: true
-    from-name: "PWB Mini"
+    from-name: "Producer Workbench"
   iam:
     seeder:
       default-role: USER

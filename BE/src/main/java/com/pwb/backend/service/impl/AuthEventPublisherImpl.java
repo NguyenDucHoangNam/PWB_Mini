@@ -9,6 +9,7 @@ import com.pwb.backend.service.AuthEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
@@ -24,28 +25,28 @@ public class AuthEventPublisherImpl implements AuthEventPublisher {
     private final ObjectMapper objectMapper;
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void publishUserRegisteredOtp(UUID userId, String email, String otp) {
         saveOutbox(userId, EVENT_REGISTER_OTP, idempotencyKey("register-otp", userId),
                 Map.of("userId", userId.toString(), "email", email, "otp", otp));
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void publishLoginSuccess(UUID userId, String email) {
         saveOutbox(userId, EVENT_LOGIN_SUCCESS, idempotencyKey("login", userId),
                 Map.of("userId", userId.toString(), "email", email));
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void publishLogout(UUID userId, String email) {
         saveOutbox(userId, EVENT_LOGOUT, idempotencyKey("logout", userId),
                 Map.of("userId", userId.toString(), "email", email));
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void publishPasswordResetRequested(UUID userId, String email, String resetLink, long ttlMinutes) {
         Map<String, String> payload = new HashMap<>();
         payload.put("userId", userId.toString());
@@ -57,7 +58,7 @@ public class AuthEventPublisherImpl implements AuthEventPublisher {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void publishPasswordChanged(UUID userId, String email) {
         saveOutbox(userId, EVENT_PASSWORD_CHANGED,
                 idempotencyKey("password-changed", userId),
@@ -65,7 +66,7 @@ public class AuthEventPublisherImpl implements AuthEventPublisher {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void publishUserRegisteredGoogle(UUID userId, String email, String fullName) {
         Map<String, String> payload = new HashMap<>();
         payload.put("userId", userId.toString());

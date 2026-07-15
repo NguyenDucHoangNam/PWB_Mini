@@ -1,19 +1,33 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <title th:text="${subject}">PWB</title>
-</head>
-<body style="margin:0;padding:24px;background:#f9fafb;font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0"
-       style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:12px;padding:32px;">
-    <tr>
-        <td>
-            <h1 style="margin:0 0 16px 0;color:#2563eb;font-size:20px;" th:text="${subject}">Subject</h1>
-            <p style="margin:0;color:#1f2937;font-size:14px;line-height:1.6;"
-               th:text="${bodyText}">Body</p>
-        </td>
-    </tr>
-</table>
+<body>
+<th:block th:fragment="content">
+
+    <p style="margin:0 0 16px 0;font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#737373;font-weight:700;">
+        Welcome
+    </p>
+
+    <p style="margin:0 0 20px 0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:18px;font-weight:700;color:#0a0a0a;line-height:1.4;">
+        Hi <span th:text="${displayName}">Name</span>,
+    </p>
+
+    <p style="margin:0;"
+       th:text="${bodyText}">Body</p>
+
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0"
+           style="margin:24px 0 0 0;width:100%;">
+        <tr>
+            <td style="background:#0a0a0a;border-radius:12px;padding:16px 18px;">
+                <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.25em;text-transform:uppercase;color:#ffffff;font-weight:700;">
+                    Signed in with Google
+                </p>
+                <p style="margin:6px 0 0 0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.5;color:#d4d4d4;">
+                    Your account is ready. Start exploring Producer Workbench now.
+                </p>
+            </td>
+        </tr>
+    </table>
+
+</th:block>
 </body>
 </html>

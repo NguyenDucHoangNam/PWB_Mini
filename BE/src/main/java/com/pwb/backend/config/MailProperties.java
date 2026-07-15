@@ -13,5 +13,5 @@ public class MailProperties {
 
     private boolean enabled = true;
 
-    private String fromName = "PWB Mini";
+    private String fromName = "Producer Workbench";
 }
