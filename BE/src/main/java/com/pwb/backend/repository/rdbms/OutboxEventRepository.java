@@ -22,11 +22,11 @@ public interface OutboxEventRepository extends BaseRepository<OutboxEvent>, JpaS
              LIMIT :batchSize
              FOR UPDATE SKIP LOCKED
             """, nativeQuery = true)
-    List<OutboxEvent> claimPendingIds(@Param("status") String status,
-                                      @Param("batchSize") int batchSize,
-                                      @Param("now") Instant now);
+    List<UUID> claimPendingIds(@Param("status") String status,
+                               @Param("batchSize") int batchSize,
+                               @Param("now") Instant now);
 
-    default List<OutboxEvent> claimPendingIds(OutboxStatus status, int batchSize, Instant now) {
+    default List<UUID> claimPendingIds(OutboxStatus status, int batchSize, Instant now) {
         return claimPendingIds(status.name(), batchSize, now);
     }
 

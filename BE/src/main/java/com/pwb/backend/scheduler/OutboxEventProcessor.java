@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -24,39 +25,45 @@ public class OutboxEventProcessor {
     private final OutboxEventRepository outboxEventRepository;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Optional<OutboxEvent> fetchPending(UUID eventId) {
+        return outboxEventRepository.findById(eventId)
+                .filter(e -> e.getStatus() == OutboxStatus.PENDING);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markPublished(UUID eventId) {
-        OutboxEvent event = outboxEventRepository.findById(eventId).orElse(null);
-        if (event == null || event.getStatus() != OutboxStatus.PENDING) {
-            return;
-        }
-        event.setStatus(OutboxStatus.PUBLISHED);
-        event.setLastError(null);
-        event.setNextRetryAt(null);
-        outboxEventRepository.save(event);
+        outboxEventRepository.findById(eventId)
+                .filter(e -> e.getStatus() == OutboxStatus.PENDING)
+                .ifPresent(event -> {
+                    event.setStatus(OutboxStatus.PUBLISHED);
+                    event.setLastError(null);
+                    event.setNextRetryAt(null);
+                    outboxEventRepository.save(event);
+                });
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markRetry(UUID eventId, Exception ex) {
-        OutboxEvent event = outboxEventRepository.findById(eventId).orElse(null);
-        if (event == null || event.getStatus() != OutboxStatus.PENDING) {
-            return;
-        }
-        int nextRetry = event.getRetryCount() + 1;
-        event.setRetryCount(nextRetry);
-        event.setLastError(truncate(errorMessage(ex), 500));
+        outboxEventRepository.findById(eventId)
+                .filter(e -> e.getStatus() == OutboxStatus.PENDING)
+                .ifPresent(event -> {
+                    int nextRetry = event.getRetryCount() + 1;
+                    event.setRetryCount(nextRetry);
+                    event.setLastError(truncate(errorMessage(ex), 500));
 
-        if (nextRetry >= MAX_RETRY_ATTEMPTS) {
-            event.setStatus(OutboxStatus.FAILED);
-            event.setNextRetryAt(null);
-            log.error("Outbox event FAILED after {} retries: id={} type={}",
-                    nextRetry, event.getId(), event.getEventType(), ex);
-        } else {
-            Duration backoff = BASE_BACKOFF.multipliedBy(1L << Math.min(nextRetry, 6));
-            event.setNextRetryAt(Instant.now().plus(backoff));
-            log.warn("Outbox event scheduled for retry {}/{}: id={} backoff={}s",
-                    nextRetry, MAX_RETRY_ATTEMPTS, event.getId(), backoff.toSeconds());
-        }
-        outboxEventRepository.save(event);
+                    if (nextRetry >= MAX_RETRY_ATTEMPTS) {
+                        event.setStatus(OutboxStatus.FAILED);
+                        event.setNextRetryAt(null);
+                        log.error("Outbox event FAILED after {} retries: id={} type={}",
+                                nextRetry, event.getId(), event.getEventType(), ex);
+                    } else {
+                        Duration backoff = BASE_BACKOFF.multipliedBy(1L << Math.min(nextRetry, 6));
+                        event.setNextRetryAt(Instant.now().plus(backoff));
+                        log.warn("Outbox event scheduled for retry {}/{}: id={} backoff={}s",
+                                nextRetry, MAX_RETRY_ATTEMPTS, event.getId(), backoff.toSeconds());
+                    }
+                    outboxEventRepository.save(event);
+                });
     }
 
     private String errorMessage(Exception ex) {

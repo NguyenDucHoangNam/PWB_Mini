@@ -43,23 +43,27 @@ public class DataSeeder implements ApplicationRunner {
                 continue;
             }
 
-            RoleName roleName = parseRoleName(seedUser.getRole());
-            Role role = fetchRole(roleName);
+            try {
+                RoleName roleName = parseRoleName(seedUser.getRole());
+                Role role = fetchRole(roleName);
 
-            String username = seedUser.getEmail().split("@")[0];
+                String username = seedUser.getEmail().split("@")[0];
 
-            User user = User.builder()
-                    .email(seedUser.getEmail())
-                    .username(username)
-                    .fullName(seedUser.getFullName())
-                    .password(passwordEncoder.encode(seedUser.getPassword()))
-                    .role(role)
-                    .status(UserStatus.ACTIVE)
-                    .oauthProvider(OAuthProvider.LOCAL)
-                    .build();
+                User user = User.builder()
+                        .email(seedUser.getEmail())
+                        .username(username)
+                        .fullName(seedUser.getFullName())
+                        .password(passwordEncoder.encode(seedUser.getPassword()))
+                        .role(role)
+                        .status(UserStatus.ACTIVE)
+                        .oauthProvider(OAuthProvider.LOCAL)
+                        .build();
 
-            userRepository.save(user);
-            log.info("Seeded user: {} [{}]", seedUser.getEmail(), roleName);
+                userRepository.save(user);
+                log.info("Seeded user: {} [{}]", seedUser.getEmail(), roleName);
+            } catch (SeederException ex) {
+                log.error("Skip seed user {}: {}", seedUser.getEmail(), ex.getMessage());
+            }
         }
 
         log.info("Data seeder completed");
@@ -77,8 +81,13 @@ public class DataSeeder implements ApplicationRunner {
         if (raw == null || raw.isBlank()) {
             throw new SeederException(ErrorCode.SEEDER_ROLE_INVALID, "");
         }
+        String normalized = raw.trim().toUpperCase();
+        if ("ARTIST".equals(normalized)) {
+            log.warn("Legacy role 'ARTIST' detected — mapped to 'PRO' (rename after migration V3)");
+            normalized = "PRO";
+        }
         try {
-            return RoleName.valueOf(raw.trim().toUpperCase());
+            return RoleName.valueOf(normalized);
         } catch (IllegalArgumentException ex) {
             throw new SeederException(ErrorCode.SEEDER_ROLE_INVALID, raw);
         }

@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -39,48 +40,59 @@ public class OutboxRelayScheduler {
     @Value("${app.outbox.enabled:true}")
     private boolean enabled;
 
-    @Scheduled(fixedDelayString = "${app.outbox.poll-interval-ms:5000}")
+    @Scheduled(
+            fixedRateString = "${app.outbox.poll-interval-ms:5000}",
+            initialDelayString = "${app.outbox.poll-initial-delay-ms:5000}"
+    )
     public void relay() {
         if (!enabled) {
             return;
         }
 
         int size = batchSize <= 0 ? DEFAULT_BATCH_SIZE : batchSize;
-        List<OutboxEvent> snapshots = outboxEventRepository.claimPendingIds(OutboxStatus.PENDING, size, Instant.now());
-        if (snapshots.isEmpty()) {
+        List<UUID> eventIds = outboxEventRepository.claimPendingIds(OutboxStatus.PENDING, size, Instant.now());
+        if (eventIds.isEmpty()) {
+            log.debug("No pending outbox events to relay");
             return;
         }
 
-        log.info("Claimed {} outbox events for relay", snapshots.size());
-        for (OutboxEvent snapshot : snapshots) {
-            publishOne(snapshot);
+        log.info("Claimed {} outbox events for relay", eventIds.size());
+        for (UUID eventId : eventIds) {
+            publishOne(eventId);
         }
     }
 
-    private void publishOne(OutboxEvent snapshot) {
+    private void publishOne(UUID eventId) {
+        outboxEventProcessor.fetchPending(eventId).ifPresentOrElse(
+                event -> doPublish(event),
+                () -> log.debug("Outbox event already processed or not found: id={}", eventId)
+        );
+    }
+
+    private void doPublish(OutboxEvent event) {
         String envelope;
         try {
-            envelope = buildEnvelope(snapshot);
+            envelope = buildEnvelope(event);
         } catch (Exception ex) {
-            log.error("Failed to build envelope for outbox event id={}", snapshot.getId(), ex);
-            outboxEventProcessor.markRetry(snapshot.getId(), ex);
+            log.error("Failed to build envelope for outbox event id={}", event.getId(), ex);
+            outboxEventProcessor.markRetry(event.getId(), ex);
             return;
         }
 
         try {
-            kafkaTemplate.send(KafkaTopicConfig.USER_EVENTS, snapshot.getAggregateId(), envelope)
+            kafkaTemplate.send(KafkaTopicConfig.USER_EVENTS, event.getAggregateId(), envelope)
                     .get(KAFKA_SEND_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            outboxEventProcessor.markPublished(snapshot.getId());
-            log.debug("Outbox event published: id={} type={}", snapshot.getId(), snapshot.getEventType());
+            outboxEventProcessor.markPublished(event.getId());
+            log.debug("Outbox event published: id={} type={}", event.getId(), event.getEventType());
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            log.warn("Interrupted while publishing outbox event id={}", snapshot.getId());
+            log.warn("Interrupted while publishing outbox event id={}", event.getId());
         } catch (ExecutionException | TimeoutException | RuntimeException ex) {
-            log.warn("Failed to publish outbox event id={}: {}", snapshot.getId(), ex.getMessage());
-            outboxEventProcessor.markRetry(snapshot.getId(), ex);
+            log.warn("Failed to publish outbox event id={}: {}", event.getId(), ex.getMessage());
+            outboxEventProcessor.markRetry(event.getId(), ex);
         } catch (Exception ex) {
-            log.warn("Unexpected error publishing outbox event id={}: {}", snapshot.getId(), ex.getMessage());
-            outboxEventProcessor.markRetry(snapshot.getId(), ex);
+            log.warn("Unexpected error publishing outbox event id={}: {}", event.getId(), ex.getMessage());
+            outboxEventProcessor.markRetry(event.getId(), ex);
         }
     }
 
