@@ -3,6 +3,8 @@ spring:
     name: pwb-backend
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
+  thymeleaf:
+    enabled: false
   jpa:
     hibernate:
       ddl-auto: validate

@@ -7,8 +7,8 @@ import com.pwb.backend.enums.RoleName;
 import com.pwb.backend.enums.UserStatus;
 import com.pwb.backend.exception.ErrorCode;
 import com.pwb.backend.exception.SeederException;
-import com.pwb.backend.repository.rdbms.RoleRepository;
 import com.pwb.backend.repository.rdbms.UserRepository;
+import com.pwb.backend.service.RoleLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -24,7 +24,7 @@ public class DataSeeder implements ApplicationRunner {
 
     private final SeederProperties seederProperties;
     private final UserRepository userRepository;
-    private final RoleRepository roleRepository;
+    private final RoleLookupService roleLookupService;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -44,9 +44,7 @@ public class DataSeeder implements ApplicationRunner {
             }
 
             RoleName roleName = parseRoleName(seedUser.getRole());
-            Role role = roleRepository.findByNameAndDeletedFalse(roleName.name())
-                    .orElseThrow(() -> new SeederException(
-                            ErrorCode.SEEDER_ROLE_NOT_FOUND, roleName.name()));
+            Role role = fetchRole(roleName);
 
             String username = seedUser.getEmail().split("@")[0];
 
@@ -65,6 +63,14 @@ public class DataSeeder implements ApplicationRunner {
         }
 
         log.info("Data seeder completed");
+    }
+
+    private Role fetchRole(RoleName roleName) {
+        try {
+            return roleLookupService.requireRole(roleName.name());
+        } catch (IllegalStateException ex) {
+            throw new SeederException(ErrorCode.SEEDER_ROLE_NOT_FOUND, roleName.name());
+        }
     }
 
     private RoleName parseRoleName(String raw) {

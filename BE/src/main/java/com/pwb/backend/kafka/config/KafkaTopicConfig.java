@@ -11,10 +11,10 @@ public class KafkaTopicConfig {
     public static final String USER_EVENTS = "pwb.user.events";
     public static final String NOTIFICATION_EVENTS = "pwb.notification.events";
     public static final String AUDIT_EVENTS = "pwb.audit.events";
+    public static final String NOTIFICATION_DLQ = "pwb.notification.events.dlq";
 
     @Bean
     public NewTopic userEventsTopic() {
-        // replicas=1 chỉ dành cho local profile. Production cần replicas=3.
         return TopicBuilder.name(USER_EVENTS)
                 .partitions(3)
                 .replicas(1)
@@ -23,7 +23,6 @@ public class KafkaTopicConfig {
 
     @Bean
     public NewTopic notificationEventsTopic() {
-        // replicas=1 chỉ dành cho local profile. Production cần replicas=3.
         return TopicBuilder.name(NOTIFICATION_EVENTS)
                 .partitions(3)
                 .replicas(1)
@@ -32,9 +31,16 @@ public class KafkaTopicConfig {
 
     @Bean
     public NewTopic auditEventsTopic() {
-        // replicas=1 chỉ dành cho local profile. Production cần replicas=3.
         return TopicBuilder.name(AUDIT_EVENTS)
                 .partitions(3)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic notificationDlqTopic() {
+        return TopicBuilder.name(NOTIFICATION_DLQ)
+                .partitions(1)
                 .replicas(1)
                 .build();
     }

@@ -25,22 +25,26 @@ public class AuthEventPublisherImpl implements AuthEventPublisher {
     @Override
     @Transactional
     public void publishUserRegisteredOtp(UUID userId, String email, String otp) {
-        saveOutbox(userId, EVENT_REGISTER_OTP, "register-otp:" + userId,
+        saveOutbox(userId, EVENT_REGISTER_OTP, idempotencyKey("register-otp", userId),
                 Map.of("userId", userId.toString(), "email", email, "otp", otp));
     }
 
     @Override
     @Transactional
     public void publishLoginSuccess(UUID userId, String email) {
-        saveOutbox(userId, EVENT_LOGIN_SUCCESS, "login:" + userId + ":" + System.currentTimeMillis(),
+        saveOutbox(userId, EVENT_LOGIN_SUCCESS, idempotencyKey("login", userId),
                 Map.of("userId", userId.toString(), "email", email));
     }
 
     @Override
     @Transactional
     public void publishLogout(UUID userId, String email) {
-        saveOutbox(userId, EVENT_LOGOUT, "logout:" + userId + ":" + System.currentTimeMillis(),
+        saveOutbox(userId, EVENT_LOGOUT, idempotencyKey("logout", userId),
                 Map.of("userId", userId.toString(), "email", email));
+    }
+
+    private String idempotencyKey(String prefix, UUID aggregateId) {
+        return prefix + ":" + aggregateId + ":" + UUID.randomUUID();
     }
 
     private void saveOutbox(UUID userId, String eventType, String idempotencyKey, Map<String, String> payload) {
@@ -52,6 +56,7 @@ public class AuthEventPublisherImpl implements AuthEventPublisher {
                     .idempotencyKey(idempotencyKey)
                     .payload(objectMapper.writeValueAsString(payload))
                     .status(OutboxStatus.PENDING)
+                    .retryCount(0)
                     .build();
             outboxEventRepository.save(event);
         } catch (JsonProcessingException ex) {

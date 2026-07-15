@@ -14,6 +14,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.Instant;
+
 @Entity
 @Table(name = "outbox_events")
 @Getter
@@ -41,4 +43,13 @@ public class OutboxEvent extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private OutboxStatus status;
+
+    @Column(name = "retry_count", nullable = false)
+    private int retryCount;
+
+    @Column(name = "last_error", length = 500)
+    private String lastError;
+
+    @Column(name = "next_retry_at")
+    private Instant nextRetryAt;
 }

@@ -5,6 +5,8 @@ import com.pwb.backend.service.OtpService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -12,6 +14,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -24,6 +27,13 @@ public class OtpServiceImpl implements OtpService {
     private static final String DAILY_COUNT_PREFIX = "otp:daily-count:";
     private static final String DELIMITER = ":";
     private static final String ATTEMPTS_SUFFIX = ":attempts";
+    private static final Duration DAILY_WINDOW = Duration.ofHours(24);
+
+    private static final RedisScript<Long> DAILY_INCREMENT_SCRIPT = new DefaultRedisScript<>(
+            "local current = redis.call('INCR', KEYS[1]);"
+            + "if current == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end;"
+            + "return current;",
+            Long.class);
 
     private final OtpProperties otpProperties;
     private final StringRedisTemplate redisTemplate;
@@ -43,9 +53,12 @@ public class OtpServiceImpl implements OtpService {
                 Duration.ofSeconds(otpProperties.getResendCooldownSeconds()));
 
         String dailyKey = DAILY_COUNT_PREFIX + userId + DELIMITER + purpose;
-        Long currentCount = redisTemplate.opsForValue().increment(dailyKey);
-        if (currentCount != null && currentCount == 1L) {
-            redisTemplate.expire(dailyKey, Duration.ofHours(24));
+        Long currentCount = redisTemplate.execute(
+                DAILY_INCREMENT_SCRIPT,
+                List.of(dailyKey),
+                String.valueOf(DAILY_WINDOW.toSeconds()));
+        if (currentCount == null) {
+            redisTemplate.opsForValue().set(dailyKey, "1", DAILY_WINDOW);
         }
 
         return code;

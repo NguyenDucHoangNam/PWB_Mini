@@ -17,18 +17,20 @@ import com.pwb.backend.enums.UserStatus;
 import com.pwb.backend.exception.BusinessException;
 import com.pwb.backend.exception.ErrorCode;
 import com.pwb.backend.mapper.AuthMapper;
-import com.pwb.backend.repository.rdbms.RoleRepository;
 import com.pwb.backend.repository.rdbms.UserRepository;
 import com.pwb.backend.security.CustomUserDetails;
 import com.pwb.backend.security.jwt.JwtTokenProvider;
 import com.pwb.backend.service.AuthEventPublisher;
 import com.pwb.backend.service.AuthService;
 import com.pwb.backend.service.OtpService;
+import com.pwb.backend.service.RoleLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Duration;
 import java.util.UUID;
@@ -44,7 +46,7 @@ public class AuthServiceImpl implements AuthService {
     private static final String OTP_PURPOSE = OtpService.PURPOSE_REGISTER;
 
     private final UserRepository userRepository;
-    private final RoleRepository roleRepository;
+    private final RoleLookupService roleLookupService;
     private final PasswordEncoder passwordEncoder;
     private final OtpService otpService;
     private final JwtTokenProvider jwtTokenProvider;
@@ -74,8 +76,7 @@ public class AuthServiceImpl implements AuthService {
                 .build();
         user = userRepository.save(user);
 
-        String otp = otpService.generateAndStore(user.getId(), OTP_PURPOSE);
-        authEventPublisher.publishUserRegisteredOtp(user.getId(), user.getEmail(), otp);
+        scheduleOtpDeliveryAfterCommit(user.getId(), user.getEmail(), OTP_PURPOSE);
 
         String message = messageHelper.get(MSG_REGISTER_EMAIL, user.getEmail());
         log.info("User registered pending verification: userId={} email={}", user.getId(), user.getEmail());
@@ -202,11 +203,29 @@ public class AuthServiceImpl implements AuthService {
         }
 
         otpService.invalidate(user.getId(), OTP_PURPOSE);
-        String otp = otpService.generateAndStore(user.getId(), OTP_PURPOSE);
-        authEventPublisher.publishUserRegisteredOtp(user.getId(), user.getEmail(), otp);
+        scheduleOtpDeliveryAfterCommit(user.getId(), user.getEmail(), OTP_PURPOSE);
 
         log.info("OTP resent: userId={}", user.getId());
         return AuthMessageResponse.of(user.getId(), messageHelper.get(MSG_RESEND));
+    }
+
+    private void scheduleOtpDeliveryAfterCommit(UUID userId, String email, String purpose) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    try {
+                        String otp = otpService.generateAndStore(userId, purpose);
+                        authEventPublisher.publishUserRegisteredOtp(userId, email, otp);
+                    } catch (RuntimeException ex) {
+                        log.error("Failed to deliver OTP after commit: userId={}", userId, ex);
+                    }
+                }
+            });
+        } else {
+            String otp = otpService.generateAndStore(userId, purpose);
+            authEventPublisher.publishUserRegisteredOtp(userId, email, otp);
+        }
     }
 
     private AuthResponse buildAuthResponse(User user, AuthResponse.NextStep nextStep) {
@@ -218,7 +237,10 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private Role lookupRole(RoleName roleName) {
-        return roleRepository.findByNameAndDeletedFalse(roleName.name())
-                .orElseThrow(() -> new BusinessException(ErrorCode.SEEDER_ROLE_NOT_FOUND, roleName.name()));
+        try {
+            return roleLookupService.requireRole(roleName.name());
+        } catch (IllegalStateException ex) {
+            throw new BusinessException(ErrorCode.SEEDER_ROLE_NOT_FOUND, roleName.name());
+        }
     }
 }
