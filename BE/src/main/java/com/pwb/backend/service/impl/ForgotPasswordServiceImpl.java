@@ -84,6 +84,8 @@ public class ForgotPasswordServiceImpl implements ForgotPasswordService {
         Instant now = Instant.now();
         Instant expiresAt = now.plus(Duration.ofMinutes(passwordResetProperties.getTokenTtlMinutes()));
 
+        passwordResetTokenRepository.invalidateAllForUser(user.getId(), now);
+
         PasswordResetToken token = PasswordResetToken.builder()
                 .userId(user.getId())
                 .tokenHash(tokenHash)
@@ -91,8 +93,6 @@ public class ForgotPasswordServiceImpl implements ForgotPasswordService {
                 .used(false)
                 .build();
         passwordResetTokenRepository.save(token);
-
-        passwordResetTokenRepository.invalidateAllForUser(user.getId(), now);
 
         String resetLink = buildResetLink(rawToken);
 
