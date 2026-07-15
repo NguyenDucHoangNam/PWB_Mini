@@ -25,6 +25,14 @@ public enum ErrorCode {
     AUTH_OTP_DAILY_LIMIT    ("AUTH_009", "error.otp.daily_limit",           HttpStatus.TOO_MANY_REQUESTS),
     AUTH_ACCOUNT_NOT_VERIFIED("AUTH_010", "error.account.not_verified",     HttpStatus.FORBIDDEN),
 
+    AUTH_GOOGLE_TOKEN_INVALID      ("AUTH_011", "error.google.token_invalid",            HttpStatus.UNAUTHORIZED),
+    AUTH_GOOGLE_EMAIL_NOT_VERIFIED ("AUTH_012", "error.google.email_not_verified",       HttpStatus.UNAUTHORIZED),
+    AUTH_OAUTH_USER_NO_PASSWORD    ("AUTH_013", "error.oauth.no_password",               HttpStatus.BAD_REQUEST),
+    AUTH_RESET_TOKEN_INVALID       ("AUTH_014", "error.password_reset.token_invalid",    HttpStatus.BAD_REQUEST),
+    AUTH_INVALID_CURRENT_PASSWORD  ("AUTH_015", "error.password.current_invalid",        HttpStatus.BAD_REQUEST),
+    AUTH_PASSWORD_REUSED           ("AUTH_016", "error.password.reused",                  HttpStatus.BAD_REQUEST),
+    AUTH_PASSWORD_RESET_COOLDOWN   ("AUTH_021", "error.password_reset.cooldown",          HttpStatus.TOO_MANY_REQUESTS),
+
     USER_NOT_FOUND         ("USER_001",  "error.user.not_found",       HttpStatus.NOT_FOUND),
     USER_EMAIL_EXISTS      ("USER_002",  "error.user.email_exists",    HttpStatus.CONFLICT),
     USER_NAME_EXISTS       ("USER_003",  "error.user.name_exists",     HttpStatus.CONFLICT),

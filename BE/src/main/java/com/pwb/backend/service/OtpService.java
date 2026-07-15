@@ -6,6 +6,7 @@ import java.util.UUID;
 public interface OtpService {
 
     String PURPOSE_REGISTER = "register";
+    String PURPOSE_RESET_PASSWORD = "reset_password";
 
     String generateAndStore(UUID userId, String purpose);
 

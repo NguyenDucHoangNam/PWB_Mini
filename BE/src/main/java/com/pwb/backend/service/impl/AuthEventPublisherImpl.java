@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -41,6 +42,37 @@ public class AuthEventPublisherImpl implements AuthEventPublisher {
     public void publishLogout(UUID userId, String email) {
         saveOutbox(userId, EVENT_LOGOUT, idempotencyKey("logout", userId),
                 Map.of("userId", userId.toString(), "email", email));
+    }
+
+    @Override
+    @Transactional
+    public void publishPasswordResetRequested(UUID userId, String email, String resetLink, long ttlMinutes) {
+        Map<String, String> payload = new HashMap<>();
+        payload.put("userId", userId.toString());
+        payload.put("email", email);
+        payload.put("resetLink", resetLink);
+        payload.put("ttlMinutes", Long.toString(ttlMinutes));
+        saveOutbox(userId, EVENT_PASSWORD_RESET_REQUESTED,
+                idempotencyKey("password-reset", userId), payload);
+    }
+
+    @Override
+    @Transactional
+    public void publishPasswordChanged(UUID userId, String email) {
+        saveOutbox(userId, EVENT_PASSWORD_CHANGED,
+                idempotencyKey("password-changed", userId),
+                Map.of("userId", userId.toString(), "email", email));
+    }
+
+    @Override
+    @Transactional
+    public void publishUserRegisteredGoogle(UUID userId, String email, String fullName) {
+        Map<String, String> payload = new HashMap<>();
+        payload.put("userId", userId.toString());
+        payload.put("email", email);
+        payload.put("fullName", fullName == null ? "" : fullName);
+        saveOutbox(userId, EVENT_USER_REGISTERED_GOOGLE,
+                idempotencyKey("registered-google", userId), payload);
     }
 
     private String idempotencyKey(String prefix, UUID aggregateId) {

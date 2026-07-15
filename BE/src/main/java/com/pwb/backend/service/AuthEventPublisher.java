@@ -8,10 +8,19 @@ public interface AuthEventPublisher {
     String EVENT_REGISTER_OTP = "USER_REGISTERED_OTP";
     String EVENT_LOGIN_SUCCESS = "USER_LOGIN_SUCCESS";
     String EVENT_LOGOUT = "USER_LOGGED_OUT";
+    String EVENT_PASSWORD_RESET_REQUESTED = "USER_PASSWORD_RESET_REQUESTED";
+    String EVENT_PASSWORD_CHANGED = "USER_PASSWORD_CHANGED";
+    String EVENT_USER_REGISTERED_GOOGLE = "USER_REGISTERED_GOOGLE";
 
     void publishUserRegisteredOtp(UUID userId, String email, String otp);
 
     void publishLoginSuccess(UUID userId, String email);
 
     void publishLogout(UUID userId, String email);
+
+    void publishPasswordResetRequested(UUID userId, String email, String resetLink, long ttlMinutes);
+
+    void publishPasswordChanged(UUID userId, String email);
+
+    void publishUserRegisteredGoogle(UUID userId, String email, String fullName);
 }

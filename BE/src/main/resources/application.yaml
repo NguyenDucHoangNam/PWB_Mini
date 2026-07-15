@@ -89,4 +89,13 @@ app:
     bucket-name: ${STORAGE_BUCKET_NAME:pwb-media}
     region: ${STORAGE_REGION:ap-southeast-1}
     public-url-prefix: ${STORAGE_PUBLIC_URL_PREFIX:}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
+    clock-skew-seconds: 30
+  auth:
+    password-reset:
+      token-ttl-minutes: 30
+      cooldown-seconds: 60
+      frontend-url: ${FRONTEND_URL:http://localhost:3000}
+      reset-path: /reset-password
 
