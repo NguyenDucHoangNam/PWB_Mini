@@ -41,7 +41,7 @@ export default function ForbiddenPage() {
       </p>
 
       {/* CTA */}
-      <Link href="/dashboard" className="mt-8 w-full">
+      <Link href="/" className="mt-8 w-full">
         <Button variant="default" size="lg" className="w-full h-11 text-sm font-semibold">
           {t("btn")}
         </Button>

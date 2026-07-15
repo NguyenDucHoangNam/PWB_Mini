@@ -10,7 +10,7 @@ import { useRegister } from "../api/register";
 import { useLoginWithGoogle } from "../api/login";
 import { useAuthStore } from "../stores/use-auth-store";
 import { useGoogleIdentity } from "../hooks/use-google-identity";
-import { useCaptureReturnTo, readReturnTo } from "@/hooks/use-return-to";
+import { useCaptureReturnTo } from "@/hooks/use-return-to";
 import { decodeJwtExpiry } from "@/lib/jwt-decode";
 import { asApiError } from "@/lib/api-client";
 import type { AuthUser } from "../types";
@@ -80,12 +80,7 @@ export function RegisterForm() {
         router.push("/complete-profile");
         return;
       }
-      const target = readReturnTo();
-      if (target) {
-        router.push(target);
-      } else {
-        router.push("/dashboard");
-      }
+      router.push("/");
     },
     [router],
   );

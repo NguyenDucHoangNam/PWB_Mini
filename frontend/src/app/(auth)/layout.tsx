@@ -21,13 +21,13 @@ export default function AuthRouteLayout({
 
     const run = async () => {
       if (accessToken) {
-        router.replace("/dashboard");
+        router.replace("/");
         return;
       }
       try {
         await refreshAccessToken();
         if (cancelled) return;
-        router.replace("/dashboard");
+        router.replace("/");
       } catch {
         if (cancelled) return;
         setIsChecking(false);

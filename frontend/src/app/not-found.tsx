@@ -45,7 +45,7 @@ export default function NotFound() {
         </p>
 
         {/* CTA */}
-        <Link href={isAuthenticated ? "/dashboard" : "/"} className="mt-8 w-full">
+        <Link href={isAuthenticated ? "/" : "/"} className="mt-8 w-full">
           <Button variant="default" size="lg" className="w-full h-11 text-sm font-semibold">
             {t("btn")}
           </Button>

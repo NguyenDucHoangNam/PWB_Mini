@@ -116,7 +116,7 @@ export function OtpForm() {
             if (data.nextStep === "COMPLETE_PROFILE") {
               router.push("/complete-profile");
             } else {
-              router.push("/dashboard");
+              router.push("/");
             }
           } else {
             setError(response.message || t("errorToast"));

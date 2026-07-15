@@ -82,7 +82,7 @@ export function CompleteProfileForm() {
               oauthProvider: existingUser?.oauthProvider ?? "LOCAL",
             });
             toast.success(t("successToast"));
-            router.push("/dashboard");
+            router.push("/");
           } else {
             setError(response.message || t("errorToast"));
             toast.error(t("errorToast"));
