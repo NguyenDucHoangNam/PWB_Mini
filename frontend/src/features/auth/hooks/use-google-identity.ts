@@ -2,9 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const GIS_SRC = "https://accounts.google.com/gsi/client";
-const GIS_SCRIPT_ID = "google-gsi-script";
-
 type GoogleAccountsId = {
   initialize: (config: {
     client_id: string;
@@ -34,7 +31,7 @@ function initGis(
   clientId: string,
   onCredential: (idToken: string) => void,
   buttonContainer: HTMLElement,
-) {
+): boolean {
   if (typeof window === "undefined") return false;
   const id = window.google?.accounts?.id;
   if (!id) return false;
@@ -53,16 +50,20 @@ function initGis(
   id.renderButton(buttonContainer, {
     type: "standard",
     size: "large",
-    width: 300,
+    width: 320,
+    text: "continue_with",
+    shape: "rectangular",
+    theme: "outline",
+    locale: "en",
   });
 
   return true;
 }
 
 export function useGoogleIdentity(onCredential: (idToken: string) => void) {
-  const [ready, setReady] = useState(false);
   const callbackRef = useRef(onCredential);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     callbackRef.current = onCredential;
@@ -70,53 +71,33 @@ export function useGoogleIdentity(onCredential: (idToken: string) => void) {
 
   const setContainerRef = useCallback((node: HTMLDivElement | null) => {
     containerRef.current = node;
-  }, []);
-
-  const tryInit = useCallback(() => {
-    if (ready) return;
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      return;
-    }
-    const container = containerRef.current;
-    if (!container) return;
-
-    if (
-      initGis(
+    if (node && !ready) {
+      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+      if (!clientId) return;
+      const ok = initGis(
         clientId,
         (idToken) => callbackRef.current(idToken),
-        container,
-      )
-    ) {
-      setReady(true);
+        node,
+      );
+      if (ok) setReady(true);
     }
   }, [ready]);
 
   useEffect(() => {
-    tryInit();
-  }, [tryInit]);
-
-  const handleLoad = useCallback(() => {
-    tryInit();
-  }, [tryInit]);
-
-  const triggerClick = useCallback(() => {
+    if (ready) return;
     const container = containerRef.current;
-    if (!container) return;
-    const btn =
-      container.querySelector<HTMLElement>('[role="button"]') ??
-      container.querySelector<HTMLElement>("div[tabindex]");
-    if (btn) {
-      btn.click();
-    }
-  }, []);
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!container || !clientId) return;
+    const ok = initGis(
+      clientId,
+      (idToken) => callbackRef.current(idToken),
+      container,
+    );
+    if (ok) setReady(true);
+  }, [ready]);
 
   return {
     ready,
-    handleLoad,
-    triggerClick,
     setContainerRef,
-    scriptSrc: GIS_SRC,
-    scriptId: GIS_SCRIPT_ID,
   };
 }

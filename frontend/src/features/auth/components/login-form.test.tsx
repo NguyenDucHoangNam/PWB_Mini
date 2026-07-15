@@ -8,6 +8,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/login",
 }));
 
+const renderButtonMock = vi.fn();
 Object.defineProperty(window, "google", {
   configurable: true,
   writable: true,
@@ -16,7 +17,7 @@ Object.defineProperty(window, "google", {
       id: {
         initialize: vi.fn(),
         prompt: vi.fn(),
-        renderButton: vi.fn(),
+        renderButton: renderButtonMock,
       },
     },
   },
@@ -58,9 +59,13 @@ function renderForm() {
 }
 
 describe("LoginForm", () => {
-  it("renders the Continue with Google button", () => {
+  it("renders the Google Sign-In button through GIS into a visible container", () => {
     renderForm();
-    expect(screen.getByText(/Continue with Google/i)).toBeInTheDocument();
+    const gisContainer = document.querySelector(
+      '[data-google-button-container], div.flex.justify-center',
+    );
+    expect(gisContainer).toBeInTheDocument();
+    expect(window.google?.accounts?.id?.renderButton).toBeDefined();
   });
 
   it("calls login mutation with email and password", async () => {

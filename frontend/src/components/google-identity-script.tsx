@@ -7,10 +7,9 @@ export function GoogleIdentityScript() {
     <Script
       id="google-gsi"
       src="https://accounts.google.com/gsi/client"
-      strategy="lazyOnload"
-      onLoad={() => {
-        console.log("Google Identity Services loaded");
-      }}
+      strategy="afterInteractive"
+      async
+      defer
     />
   );
 }

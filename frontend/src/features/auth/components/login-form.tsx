@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useLogin, useLoginWithGoogle } from "../api/login";
@@ -26,15 +25,15 @@ export function LoginForm() {
   const { mutate: loginWithGoogleMutate } = useLoginWithGoogle();
   const setAuth = useAuthStore((state) => state.setAuth);
   const emailInputRef = useRef<HTMLInputElement>(null);
-  const handleGoogleCredentialRef = useRef<((idToken: string) => void) | null>(null);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { ready: googleReady, triggerClick: googleTriggerClick, handleLoad: googleHandleLoad, setContainerRef: googleContainerRef, scriptSrc: googleScriptSrc, scriptId: googleScriptId } = useGoogleIdentity(
-    (idToken) => handleGoogleCredentialRef.current?.(idToken),
+  const handleGoogleCredentialRef = useRef<((idToken: string) => void) | null>(null);
+  const { setContainerRef: googleContainerRef } = useGoogleIdentity((idToken) =>
+    handleGoogleCredentialRef.current?.(idToken),
   );
 
   useCaptureReturnTo();
@@ -151,14 +150,6 @@ export function LoginForm() {
     };
   }, [handleGoogleCredential]);
 
-  const handleGoogleLogin = () => {
-    if (!googleReady) {
-      toast.error(t("googleLoginUnavailable"));
-      return;
-    }
-    googleTriggerClick();
-  };
-
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6 font-sans">
       <div className="flex flex-col gap-2 text-center">
@@ -268,34 +259,11 @@ export function LoginForm() {
       </div>
 
       {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
-        <Script
-          id={googleScriptId}
-          src={googleScriptSrc}
-          strategy="afterInteractive"
-          async
-          defer
-          onLoad={googleHandleLoad}
+        <div
+          ref={googleContainerRef}
+          className="flex justify-center w-full [&_iframe]:!visible"
         />
       )}
-      <div
-        ref={googleContainerRef}
-        style={{ position: "absolute", width: 0, height: 0, overflow: "hidden", pointerEvents: "none" }}
-        aria-hidden="true"
-      />
-
-      <Button
-        type="button"
-        variant="outline"
-        size="lg"
-        disabled={isPending || !googleReady}
-        onClick={handleGoogleLogin}
-        className="w-full justify-center gap-2 border-neutral-200 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-900"
-      >
-        <svg className="size-4" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114-3.524 0-6.386-2.862-6.386-6.386 0-3.524 2.862-6.386 6.386-6.386 1.63 0 3.116.618 4.256 1.63l3.056-3.056C19.34 2.502 16.035 1 12.24 1 6.136 1 1.18 5.956 1.18 12.06c0 6.104 4.956 11.06 11.06 11.06 6.368 0 11.06-4.475 11.06-11.06 0-.745-.074-1.463-.207-2.149H12.24z" />
-        </svg>
-        {t("googleBtn")}
-      </Button>
 
       <div className="text-center text-sm text-neutral-500 dark:text-neutral-400">
         {t("noAccount")}{" "}

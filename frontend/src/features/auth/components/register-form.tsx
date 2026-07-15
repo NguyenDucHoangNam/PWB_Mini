@@ -1,11 +1,23 @@
 "use client";
 
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useRegister } from "../api/register";
+import { useLoginWithGoogle } from "../api/login";
+import { useAuthStore } from "../stores/use-auth-store";
+import { useGoogleIdentity } from "../hooks/use-google-identity";
+import { useCaptureReturnTo, readReturnTo } from "@/hooks/use-return-to";
+import { decodeJwtExpiry } from "@/lib/jwt-decode";
+import { asApiError } from "@/lib/api-client";
+import type { AuthUser } from "../types";
+import {
+  EMAIL_REGEX,
+  calculatePasswordStrength,
+} from "../hooks/password-validators";
 import { PasswordInput } from "./password-input";
 import { PasswordStrengthBar } from "./password-strength-bar";
 import { Button } from "@/components/ui/button";
@@ -13,11 +25,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
-import { asApiError } from "@/lib/api-client";
-import {
-  EMAIL_REGEX,
-  calculatePasswordStrength,
-} from "../hooks/password-validators";
 import { pendingRegistration } from "../lib/pending-registration";
 import { registerSchema, type RegisterFormValues } from "../schemas/register-schema";
 import { applyFieldErrors } from "@/lib/form-errors";
@@ -32,6 +39,8 @@ export function RegisterForm() {
   const t = useTranslations("auth.register");
   const router = useRouter();
   const { mutate: registerMutate, isPending } = useRegister();
+  const { mutate: loginWithGoogleMutate } = useLoginWithGoogle();
+  const setAuth = useAuthStore((state) => state.setAuth);
 
   const {
     register,
@@ -57,6 +66,68 @@ export function RegisterForm() {
 
   const showEmailError = !!errors.email || (email.trim().length > 0 && !emailFormatValid);
   const showPasswordError = !!errors.password;
+
+  const handleGoogleCredentialRef = useRef<((idToken: string) => void) | null>(null);
+  const { setContainerRef: googleContainerRef } = useGoogleIdentity((idToken) =>
+    handleGoogleCredentialRef.current?.(idToken),
+  );
+
+  useCaptureReturnTo();
+
+  const redirectAfterLogin = useCallback(
+    (nextStep?: string) => {
+      if (nextStep === "COMPLETE_PROFILE") {
+        router.push("/complete-profile");
+        return;
+      }
+      const target = readReturnTo();
+      if (target) {
+        router.push(target);
+      } else {
+        router.push("/dashboard");
+      }
+    },
+    [router],
+  );
+
+  const handleGoogleCredential = useCallback(
+    (idToken: string) => {
+      loginWithGoogleMutate(
+        { data: { idToken } },
+        {
+          onSuccess: (response) => {
+            if (response.success && response.data) {
+              const data = response.data;
+              const user: AuthUser = {
+                userId: data.userId,
+                email: data.email,
+                username: "",
+                role: data.role,
+                status: data.status,
+                oauthProvider: "GOOGLE",
+              };
+              toast.success(t("successToast"));
+              setAuth(data.accessToken, user, decodeJwtExpiry(data.accessToken) ?? undefined);
+              redirectAfterLogin(data.nextStep);
+            } else {
+              toast.error(response.message || t("errorToast"));
+            }
+          },
+          onError: asApiError((err) => {
+            toast.error(err.message || t("errorToast"));
+          }),
+        },
+      );
+    },
+    [loginWithGoogleMutate, setAuth, redirectAfterLogin, t],
+  );
+
+  useEffect(() => {
+    handleGoogleCredentialRef.current = handleGoogleCredential;
+    return () => {
+      handleGoogleCredentialRef.current = null;
+    };
+  }, [handleGoogleCredential]);
 
   const onSubmit = handleSubmit((values) => {
     setError("root", { message: undefined });
@@ -122,7 +193,7 @@ export function RegisterForm() {
           aria-live="assertive"
           className="rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-600 dark:bg-red-950/20 dark:text-red-400 border border-red-100/50 dark:border-red-950/30"
         >
-          {errors.root.message}
+          <p>{errors.root.message}</p>
         </div>
       )}
 
@@ -197,6 +268,19 @@ export function RegisterForm() {
           t("submit")
         )}
       </Button>
+
+      <div className="relative flex py-2 items-center">
+        <div className="flex-grow border-t border-neutral-200 dark:border-neutral-800" />
+        <span className="flex-shrink mx-4 text-xs text-neutral-400 font-medium">{t("or")}</span>
+        <div className="flex-grow border-t border-neutral-200 dark:border-neutral-800" />
+      </div>
+
+      {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
+        <div
+          ref={googleContainerRef}
+          className="flex justify-center w-full [&_iframe]:!visible"
+        />
+      )}
 
       <div className="text-center text-sm text-neutral-500 dark:text-neutral-400 mt-2">
         {t("hasAccountText")}{" "}
