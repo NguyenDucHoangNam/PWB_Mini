@@ -3,6 +3,7 @@ package com.pwb.backend.config;
 import com.pwb.backend.entity.rdbms.Role;
 import com.pwb.backend.entity.rdbms.User;
 import com.pwb.backend.enums.OAuthProvider;
+import com.pwb.backend.enums.RoleName;
 import com.pwb.backend.enums.UserStatus;
 import com.pwb.backend.exception.ErrorCode;
 import com.pwb.backend.exception.SeederException;
@@ -42,9 +43,10 @@ public class DataSeeder implements ApplicationRunner {
                 continue;
             }
 
-            Role role = roleRepository.findByNameAndDeletedFalse(seedUser.getRole())
+            RoleName roleName = parseRoleName(seedUser.getRole());
+            Role role = roleRepository.findByNameAndDeletedFalse(roleName.name())
                     .orElseThrow(() -> new SeederException(
-                            ErrorCode.SEEDER_ROLE_NOT_FOUND, seedUser.getRole()));
+                            ErrorCode.SEEDER_ROLE_NOT_FOUND, roleName.name()));
 
             String username = seedUser.getEmail().split("@")[0];
 
@@ -59,9 +61,20 @@ public class DataSeeder implements ApplicationRunner {
                     .build();
 
             userRepository.save(user);
-            log.info("Seeded user: {} [{}]", seedUser.getEmail(), seedUser.getRole());
+            log.info("Seeded user: {} [{}]", seedUser.getEmail(), roleName);
         }
 
         log.info("Data seeder completed");
+    }
+
+    private RoleName parseRoleName(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new SeederException(ErrorCode.SEEDER_ROLE_INVALID, "");
+        }
+        try {
+            return RoleName.valueOf(raw.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new SeederException(ErrorCode.SEEDER_ROLE_INVALID, raw);
+        }
     }
 }

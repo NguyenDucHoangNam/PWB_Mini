@@ -1,4 +1,4 @@
-package com.pwb.backend.common.i18n;
+package com.pwb.backend.utils.helper;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;

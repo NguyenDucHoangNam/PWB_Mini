@@ -103,6 +103,10 @@ public class JwtTokenProvider {
         return validateToken(token, refreshTokenKey);
     }
 
+    public long getAccessTokenExpirationSeconds() {
+        return securityProperties.getJwt().getAccessTokenExpiration() / 1000L;
+    }
+
     public UUID extractUserId(String token) {
         Claims claims = extractClaims(token, accessTokenKey);
         return UUID.fromString(claims.getSubject());

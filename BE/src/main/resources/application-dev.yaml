@@ -9,6 +9,33 @@ app:
       - /ws/**
       - /api/v1/seed/**
       - /api/v1/public/**
+  otp:
+    length: 6
+    ttl-seconds: 300
+    max-attempts: 5
+    resend-cooldown-seconds: 60
+    daily-resend-limit: 5
+  mail:
+    enabled: true
+    from-name: "PWB Mini"
+  iam:
+    seeder:
+      default-role: USER
+  outbox:
+    enabled: true
+    batch-size: 100
+    poll-interval-ms: 5000
+
+spring:
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
 
 logging:
   level:

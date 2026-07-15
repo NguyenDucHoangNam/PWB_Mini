@@ -44,7 +44,7 @@ seeder:
       password: ${SEED_USER_PASSWORD:change-me-now}
       fullName: Demo User
       role: USER
-    - email: artist@pwb.local
-      password: ${SEED_ARTIST_PASSWORD:change-me-now}
-      fullName: Demo Artist
-      role: ARTIST
+    - email: pro@pwb.local
+      password: ${SEED_PRO_PASSWORD:change-me-now}
+      fullName: Demo Pro User
+      role: PRO
