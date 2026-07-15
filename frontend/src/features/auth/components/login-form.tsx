@@ -15,7 +15,6 @@ import { PasswordInput } from "./password-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
 export function LoginForm() {
@@ -28,7 +27,6 @@ export function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleGoogleCredentialRef = useRef<((idToken: string) => void) | null>(null);
@@ -64,15 +62,8 @@ export function LoginForm() {
     (accessToken: string, user: AuthUser) => {
       const expiresAt = decodeJwtExpiry(accessToken);
       setAuth(accessToken, user, expiresAt ?? undefined);
-      if (rememberMe && email.trim().length > 0) {
-        localStorage.setItem("login_email", email.trim());
-        localStorage.setItem("login_remember", "true");
-      } else {
-        localStorage.removeItem("login_email");
-        localStorage.removeItem("login_remember");
-      }
     },
-    [rememberMe, email, setAuth],
+    [setAuth],
   );
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -211,29 +202,13 @@ export function LoginForm() {
         />
       </div>
 
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id="rememberMe"
-          checked={rememberMe}
-          onCheckedChange={(checked: boolean) => setRememberMe(!!checked)}
-          disabled={isPending}
-          tabIndex={3}
-        />
-        <Label
-          htmlFor="rememberMe"
-          className="text-sm font-normal text-neutral-600 dark:text-neutral-400 cursor-pointer"
-        >
-          {t("rememberMe")}
-        </Label>
-      </div>
-
       <Button
         type="submit"
         variant="default"
         size="lg"
         disabled={isPending}
         className="w-full justify-center h-10 font-bold"
-        tabIndex={4}
+        tabIndex={3}
       >
         {isPending ? (
           <span className="flex items-center gap-2">

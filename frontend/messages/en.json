@@ -65,7 +65,6 @@
       "emailPlaceholder": "Enter your email address",
       "passwordLabel": "Password *",
       "passwordPlaceholder": "Enter password",
-      "rememberMe": "Remember email",
       "forgotPassword": "Forgot password?",
       "submit": "LOG IN",
       "submitting": "Logging in...",
