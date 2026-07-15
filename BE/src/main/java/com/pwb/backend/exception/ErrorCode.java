@@ -27,7 +27,9 @@ public enum ErrorCode {
     MEDIA_UPLOAD_FAILED ("MEDIA_001", "error.media.upload_failed",  HttpStatus.INTERNAL_SERVER_ERROR),
     MEDIA_FILE_TOO_LARGE("MEDIA_002", "error.media.file_too_large", HttpStatus.BAD_REQUEST),
 
-    RATE_LIMIT_EXCEEDED ("RATE_001",  "error.rate_limit",           HttpStatus.TOO_MANY_REQUESTS);
+    RATE_LIMIT_EXCEEDED ("RATE_001",  "error.rate_limit",           HttpStatus.TOO_MANY_REQUESTS),
+
+    SEEDER_ROLE_NOT_FOUND("SEEDER_001", "error.seeder.role_not_found", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final String code;
     private final String messageCode;

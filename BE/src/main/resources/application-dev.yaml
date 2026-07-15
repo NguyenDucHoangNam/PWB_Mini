@@ -1,0 +1,16 @@
+app:
+  security:
+    public-paths:
+      - /api/v1/auth/**
+      - /actuator/**
+      - /v3/api-docs/**
+      - /swagger-ui/**
+      - /swagger-ui.html
+      - /ws/**
+      - /api/v1/seed/**
+      - /api/v1/public/**
+
+logging:
+  level:
+    com.pwb.backend: DEBUG
+    org.springframework.web: DEBUG

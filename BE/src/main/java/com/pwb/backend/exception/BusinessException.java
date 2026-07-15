@@ -10,13 +10,13 @@ public class BusinessException extends RuntimeException {
     private final transient Object[] args;
 
     public BusinessException(ErrorCode errorCode, Object... args) {
-        super(errorCode.getMessageCode());
+        super(errorCode.getCode());
         this.errorCode = errorCode;
         this.args = args;
     }
 
     public BusinessException(ErrorCode errorCode, Throwable cause, Object... args) {
-        super(errorCode.getMessageCode(), cause);
+        super(errorCode.getCode(), cause);
         this.errorCode = errorCode;
         this.args = args;
     }

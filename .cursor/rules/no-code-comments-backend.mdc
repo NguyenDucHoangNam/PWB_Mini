@@ -1,6 +1,6 @@
 ---
 description: Backend (Java) - Không được thêm comment vào source code
-globs: backend/**/*.java
+globs: BE/**/*.java
 alwaysApply: true
 ---
 

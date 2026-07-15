@@ -14,6 +14,7 @@ public class KafkaTopicConfig {
 
     @Bean
     public NewTopic userEventsTopic() {
+        // replicas=1 chỉ dành cho local profile. Production cần replicas=3.
         return TopicBuilder.name(USER_EVENTS)
                 .partitions(3)
                 .replicas(1)
@@ -22,6 +23,7 @@ public class KafkaTopicConfig {
 
     @Bean
     public NewTopic notificationEventsTopic() {
+        // replicas=1 chỉ dành cho local profile. Production cần replicas=3.
         return TopicBuilder.name(NOTIFICATION_EVENTS)
                 .partitions(3)
                 .replicas(1)
@@ -30,6 +32,7 @@ public class KafkaTopicConfig {
 
     @Bean
     public NewTopic auditEventsTopic() {
+        // replicas=1 chỉ dành cho local profile. Production cần replicas=3.
         return TopicBuilder.name(AUDIT_EVENTS)
                 .partitions(3)
                 .replicas(1)

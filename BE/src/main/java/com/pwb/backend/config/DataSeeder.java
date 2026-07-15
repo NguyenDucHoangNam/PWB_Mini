@@ -4,6 +4,8 @@ import com.pwb.backend.entity.rdbms.Role;
 import com.pwb.backend.entity.rdbms.User;
 import com.pwb.backend.enums.OAuthProvider;
 import com.pwb.backend.enums.UserStatus;
+import com.pwb.backend.exception.ErrorCode;
+import com.pwb.backend.exception.SeederException;
 import com.pwb.backend.repository.rdbms.RoleRepository;
 import com.pwb.backend.repository.rdbms.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -41,8 +43,8 @@ public class DataSeeder implements ApplicationRunner {
             }
 
             Role role = roleRepository.findByNameAndDeletedFalse(seedUser.getRole())
-                    .orElseThrow(() -> new IllegalStateException(
-                            "Role not found: " + seedUser.getRole()));
+                    .orElseThrow(() -> new SeederException(
+                            ErrorCode.SEEDER_ROLE_NOT_FOUND, seedUser.getRole()));
 
             String username = seedUser.getEmail().split("@")[0];
 

@@ -18,6 +18,14 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Base class for all JPA entities in the project.
+ *
+ * <p>Provides audit columns, optimistic locking and soft-delete support. Note that only
+ * {@link Getter} is generated: mutating {@code deleted}, {@code deletedAt} and {@code updatedBy}
+ * must go through {@link #markDeleted(String)} or {@link #markActive()} to preserve the soft-delete
+ * invariants and the audit trail. Do not add {@code @Setter} here.
+ */
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
 @SQLRestriction("deleted = false")

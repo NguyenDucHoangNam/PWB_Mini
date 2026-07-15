@@ -1,0 +1,50 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5433/pwb_db
+    username: pwb_user
+    password: ${POSTGRES_PASSWORD}
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/pwb_db
+    redis:
+      host: localhost
+      port: 6379
+      password: ${REDIS_PASSWORD:}
+  kafka:
+    bootstrap-servers: localhost:9092
+
+server:
+  port: 8080
+
+logging:
+  level:
+    com.pwb.backend: DEBUG
+
+app:
+  cors:
+    allowed-origins:
+      - http://localhost:3000
+      - http://localhost:5173
+  storage:
+    endpoint: http://localhost:9000
+    access-key: ${MINIO_ACCESS_KEY}
+    secret-key: ${MINIO_SECRET_KEY}
+    bucket-name: pwb-media
+    region: us-east-1
+    public-url-prefix: http://localhost:9000/pwb-media
+
+seeder:
+  enabled: true
+  users:
+    - email: admin@pwb.local
+      password: ${SEED_ADMIN_PASSWORD:change-me-now}
+      fullName: System Administrator
+      role: ADMIN
+    - email: user@pwb.local
+      password: ${SEED_USER_PASSWORD:change-me-now}
+      fullName: Demo User
+      role: USER
+    - email: artist@pwb.local
+      password: ${SEED_ARTIST_PASSWORD:change-me-now}
+      fullName: Demo Artist
+      role: ARTIST

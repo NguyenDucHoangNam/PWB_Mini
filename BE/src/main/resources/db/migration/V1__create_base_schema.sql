@@ -1,4 +1,6 @@
 
+-- Flyway tự tạo bảng flyway_schema_history để track migration state.
+
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE roles (

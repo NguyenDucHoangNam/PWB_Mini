@@ -8,6 +8,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.WeakKeyException;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class JwtTokenProvider {
 
+    private static final int MIN_SECRET_BYTES = 32;
+
     private final SecurityProperties securityProperties;
 
     private SecretKey accessTokenKey;
@@ -30,10 +33,34 @@ public class JwtTokenProvider {
 
     @PostConstruct
     void init() {
-        accessTokenKey = Keys.hmacShaKeyFor(
-                securityProperties.getJwt().getSecret().getBytes(StandardCharsets.UTF_8));
-        refreshTokenKey = Keys.hmacShaKeyFor(
-                securityProperties.getJwt().getRefreshSecret().getBytes(StandardCharsets.UTF_8));
+        String accessSecret = securityProperties.getJwt().getSecret();
+        String refreshSecret = securityProperties.getJwt().getRefreshSecret();
+
+        validateSecret(accessSecret, "app.security.jwt.secret");
+        validateSecret(refreshSecret, "app.security.jwt.refresh-secret");
+
+        accessTokenKey = Keys.hmacShaKeyFor(accessSecret.getBytes(StandardCharsets.UTF_8));
+        refreshTokenKey = Keys.hmacShaKeyFor(refreshSecret.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private void validateSecret(String secret, String propertyName) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                    propertyName + " is missing. Generate with: openssl rand -hex 32");
+        }
+        int byteLength = secret.getBytes(StandardCharsets.UTF_8).length;
+        if (byteLength < MIN_SECRET_BYTES) {
+            throw new IllegalStateException(
+                    propertyName + " must be at least " + MIN_SECRET_BYTES
+                            + " bytes for HS256 (got " + byteLength + " bytes). "
+                            + "Generate with: openssl rand -hex 32");
+        }
+        try {
+            Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        } catch (WeakKeyException ex) {
+            throw new IllegalStateException(
+                    propertyName + " is too weak: " + ex.getMessage(), ex);
+        }
     }
 
     public String generateAccessToken(CustomUserDetails userDetails) {

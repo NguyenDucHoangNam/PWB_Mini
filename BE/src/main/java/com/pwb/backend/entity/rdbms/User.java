@@ -1,7 +1,6 @@
 package com.pwb.backend.entity.rdbms;
 
 import com.pwb.backend.entity.BaseEntity;
-
 import com.pwb.backend.enums.OAuthProvider;
 import com.pwb.backend.enums.UserStatus;
 import jakarta.persistence.Column;
@@ -36,7 +35,7 @@ public class User extends BaseEntity {
     @Column(name = "email", nullable = false, unique = true, length = 255)
     private String email;
 
-    @Column(name = "password", length = 255)
+    @Column(name = "password", nullable = false, length = 255)
     private String password;
 
     @Column(name = "full_name", length = 100)

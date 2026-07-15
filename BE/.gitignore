@@ -39,3 +39,5 @@ Desktop.ini
 .env
 .env.local
 *.log
+application-local.yaml
+.mvn/wrapper/maven-wrapper.jar

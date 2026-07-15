@@ -1,7 +1,6 @@
 package com.pwb.backend.entity.rdbms;
 
 import com.pwb.backend.entity.BaseEntity;
-
 import com.pwb.backend.enums.OutboxStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -39,4 +38,3 @@ public class OutboxEvent extends BaseEntity {
     @Column(name = "status", nullable = false)
     private OutboxStatus status;
 }
-
