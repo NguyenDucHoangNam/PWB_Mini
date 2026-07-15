@@ -65,7 +65,6 @@ export const PUBLIC_PREFIX_PATHS: readonly string[] = [
   "/verify-otp",
   "/forgot-password",
   "/reset-password",
-  "/account-recovery",
   "/401",
   "/403",
   "/features",

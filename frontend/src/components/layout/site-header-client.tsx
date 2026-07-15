@@ -104,8 +104,6 @@ export function SiteHeaderClient() {
   ];
 
   const dropdownItems = [
-    { label: t("profile"), href: "/profile" },
-    { label: t("sessions"), href: "/sessions" },
     { label: t("logout"), onSelect: handleLogout },
   ];
 
@@ -139,8 +137,6 @@ export function SiteHeaderClient() {
                 <UserDropdown
                   user={user}
                   labels={{
-                    profile: t("profile"),
-                    sessions: t("sessions"),
                     logout: t("logout"),
                     account: t("account"),
                   }}
@@ -198,8 +194,6 @@ export function SiteHeaderClient() {
                 labels={{
                   dashboard: t("dashboard"),
                   liveRooms: t("liveRooms"),
-                  profile: t("profile"),
-                  sessions: t("sessions"),
                   logout: t("logout"),
                   account: t("account"),
                 }}
@@ -281,8 +275,6 @@ function GuestActions({ loginLabel, registerLabel }: { loginLabel: string; regis
 interface MobileMenuLabels {
   dashboard: string;
   liveRooms: string;
-  profile: string;
-  sessions: string;
   logout: string;
   account: string;
 }
@@ -304,9 +296,8 @@ function MobileAuthenticated({
     <>
       <div className="px-2 py-1">
         <p className="text-sm font-bold text-black dark:text-white truncate">
-          {user?.fullName || labels.account}
+          {user?.email || labels.account}
         </p>
-        <p className="text-xs text-neutral-500 truncate mt-0.5">{user?.email || ""}</p>
       </div>
       <hr className="border-neutral-200 dark:border-neutral-800" />
       <Link href="/dashboard" onClick={onNavigate} className={linkClass}>
@@ -314,13 +305,6 @@ function MobileAuthenticated({
       </Link>
       <Link href="/rooms" onClick={onNavigate} className={linkClass}>
         {labels.liveRooms}
-      </Link>
-      <hr className="border-neutral-200 dark:border-neutral-800" />
-      <Link href="/profile" onClick={onNavigate} className={linkClass}>
-        {labels.profile}
-      </Link>
-      <Link href="/sessions" onClick={onNavigate} className={linkClass}>
-        {labels.sessions}
       </Link>
       <hr className="border-neutral-200 dark:border-neutral-800" />
       <Button onClick={onLogout} variant="default" size="sm" className="w-full justify-center">

@@ -98,4 +98,10 @@ app:
       cooldown-seconds: 60
       frontend-url: ${FRONTEND_URL:http://localhost:3000}
       reset-path: /reset-password
+  cookie:
+    refresh-name: refresh_token
+    secure: ${COOKIE_SECURE:false}
+    same-site: Lax
+    max-age-seconds: 604800
+    path: /
 

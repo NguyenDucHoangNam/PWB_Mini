@@ -12,8 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { asApiError } from "@/lib/api-client";
-import { CaptchaWidget } from "./captcha-widget";
-import { getTurnstileSiteKey } from "@/lib/config";
 
 export function ResetPasswordForm() {
   const t = useTranslations("auth.reset");
@@ -26,8 +24,6 @@ export function ResetPasswordForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const turnstileSiteKey = getTurnstileSiteKey();
 
   const { mutate: resetMutate, isPending } = useResetPassword();
   const strength = usePasswordStrength(newPassword);
@@ -53,9 +49,7 @@ export function ResetPasswordForm() {
     setError(null);
 
     resetMutate(
-      {
-        data: { token, newPassword, confirmPassword, captchaToken: captchaToken ?? undefined },
-      },
+      { data: { token, newPassword } },
       {
         onSuccess: (response) => {
           if (response.success) {
@@ -81,13 +75,7 @@ export function ResetPasswordForm() {
     return (
       <div className="flex flex-col gap-6 text-center font-sans">
         <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200">
-          <svg
-            className="size-8"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
+          <svg className="size-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -126,18 +114,8 @@ export function ResetPasswordForm() {
     return (
       <div className="flex flex-col gap-6 text-center font-sans">
         <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200">
-          <svg
-            className="size-8"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
+          <svg className="size-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
 
@@ -163,13 +141,13 @@ export function ResetPasswordForm() {
       {error && (
         <div
           role="alert"
+          aria-live="assertive"
           className="rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-600 dark:bg-red-950/20 dark:text-red-400 border border-red-100/50 dark:border-red-950/30"
         >
           {error}
         </div>
       )}
 
-      {/* New Password */}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="newPassword">{t("newPasswordLabel")}</Label>
         <PasswordInput
@@ -183,7 +161,6 @@ export function ResetPasswordForm() {
         <PasswordStrengthBar strength={strength} />
       </div>
 
-      {/* Confirm Password */}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="confirmPassword">{t("confirmPasswordLabel")}</Label>
         <PasswordInput
@@ -203,12 +180,6 @@ export function ResetPasswordForm() {
         />
       </div>
 
-      {/* Captcha Widget */}
-      {turnstileSiteKey && (
-        <CaptchaWidget siteKey={turnstileSiteKey} onTokenChange={setCaptchaToken} />
-      )}
-
-      {/* Submit Button */}
       <Button
         type="submit"
         variant="default"
@@ -218,19 +189,8 @@ export function ResetPasswordForm() {
       >
         {isPending ? (
           <span className="flex items-center gap-2">
-            <svg
-              className="animate-spin size-4 text-white dark:text-black"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
+            <svg className="animate-spin size-4 text-white dark:text-black" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path
                 className="opacity-75"
                 fill="currentColor"

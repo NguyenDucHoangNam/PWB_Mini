@@ -1,145 +1,94 @@
 export interface LoginRequest {
-  usernameOrEmail: string;
+  email: string;
   password: string;
-  captchaToken?: string;
 }
 
 export type OAuthProvider = "LOCAL" | "GOOGLE";
 
-export interface LoginUserInfo {
-  username: string;
+export type UserStatus = "PENDING_VERIFICATION" | "ACTIVE" | "BANNED" | "DELETED";
+
+export type AuthNextStep = "NONE" | "COMPLETE_PROFILE";
+
+export interface AuthUser {
+  userId: string;
   email: string;
-  fullName: string;
+  username: string;
   role?: string;
-  status: string;
-  avatarUrl?: string | null;
+  status: UserStatus;
   oauthProvider: OAuthProvider;
 }
 
-export interface LoginResponse {
+export interface AuthResponse {
   accessToken: string;
+  refreshToken: string;
+  tokenType: string;
   expiresIn: number;
-  accessTokenExpiresAt?: string;
-  user: LoginUserInfo;
-  refreshToken?: string;
-  refreshTokenMaxAgeSeconds?: number;
-  redirectTo?: string;
-  redirectEmail?: string;
+  userId: string;
+  email: string;
+  status: UserStatus;
+  role?: string;
+  nextStep: AuthNextStep;
 }
 
-export interface Oauth2LoginRequest {
+export interface OAuth2LoginRequest {
   idToken: string;
-  captchaToken?: string;
 }
 
 export interface RegisterRequest {
   email: string;
   password: string;
-  fullName: string;
-  captchaToken?: string;
-  otp?: string;
 }
 
-export interface RegisterResponse {
-  username: string;
-  email: string;
-  fullName: string;
-  status: string;
+export interface AuthMessageResponse {
+  userId: string;
+  message: string;
 }
 
 export interface VerifyOtpRequest {
-  email: string;
-  otp: string;
-  captchaToken?: string;
+  userId: string;
+  code: string;
 }
 
-export interface VerifyOtpResponse {
-  accessToken: string;
-  expiresIn: number;
-  accessTokenExpiresAt?: string;
-  user: LoginUserInfo;
-}
+export type VerifyOtpResponse = AuthResponse;
 
 export interface ResendOtpRequest {
-  email: string;
-  captchaToken?: string;
+  userId: string;
 }
 
-export interface ResendOtpResponse {
-  email: string;
-  sentAt: string;
+export interface AuthMessageResponseWithTimestamp extends AuthMessageResponse {
+  sentAt?: string;
 }
+
+export type ResendOtpResponse = AuthMessageResponseWithTimestamp;
 
 export interface ForgotPasswordRequest {
   email: string;
-  captchaToken?: string;
 }
 
 export interface ResetPasswordRequest {
   token: string;
   newPassword: string;
-  confirmPassword: string;
-  captchaToken?: string;
-}
-
-export interface CheckUsernameResponse {
-  username: string;
-  available: boolean;
-}
-
-export interface UserProfileResponse {
-  username?: string;
-  email: string;
-  fullName: string;
-  role: string;
-  status: string;
-  avatarUrl: string | null;
-  phone: string | null;
-  oauthProvider?: OAuthProvider;
-  deletionRequestedAt: string | null;
-}
-
-export interface UpdateProfileRequest {
-  fullName: string;
-  phone: string | null;
-  avatarUrl: string | null;
-}
-
-export interface AvatarUploadResponse {
-  avatarUrl: string;
-  sizeBytes?: number;
-  contentType?: string;
 }
 
 export interface ChangePasswordRequest {
-  oldPassword: string;
+  currentPassword: string;
   newPassword: string;
-  confirmPassword: string;
 }
 
-export interface DeleteAccountRequest {
-  password?: string;
-  idToken?: string;
+export interface CompleteProfileRequest {
+  username: string;
+  fullName?: string;
+  newPassword?: string;
 }
 
-export interface ActiveSessionResponse {
-  sessionPublicId: string;
-  ipAddress: string;
-  deviceInfo: string;
-  location: string;
-  createdAt: string;
-  isCurrent: boolean;
-}
-
-export interface RefreshResponse {
+export interface RefreshAccessTokenResponse {
   accessToken: string;
+  refreshToken: string;
+  tokenType: string;
   expiresIn: number;
-  accessTokenExpiresAt?: string;
-  refreshToken?: string;
-  refreshTokenMaxAgeSeconds?: number;
-}
-
-export interface RegistrationInProgressData {
-  redirectTo: string;
+  userId: string;
   email: string;
+  status: UserStatus;
+  role?: string;
+  nextStep: AuthNextStep;
 }

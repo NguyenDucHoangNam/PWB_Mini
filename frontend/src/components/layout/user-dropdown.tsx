@@ -8,8 +8,6 @@ import type { AuthUser } from "@/features/auth/stores/use-auth-store";
 interface UserDropdownProps {
   user: AuthUser | null;
   labels: {
-    profile: string;
-    sessions: string;
     logout: string;
     account: string;
   };
@@ -20,7 +18,7 @@ function UserDropdownImpl({ user, labels, items }: UserDropdownProps) {
   const { isOpen, focusedIndex, triggerRef, containerRef, onKeyDown, toggle, close } =
     useDropdownMenu(items);
 
-  const initials = user?.fullName ? user.fullName.charAt(0).toUpperCase() : "?";
+  const initials = user?.email ? user.email.charAt(0).toUpperCase() : "?";
 
   return (
     <div className="relative" ref={containerRef} onKeyDown={onKeyDown}>
@@ -42,10 +40,7 @@ function UserDropdownImpl({ user, labels, items }: UserDropdownProps) {
           className="absolute right-0 mt-2 w-52 rounded-lg border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-800 dark:bg-neutral-950 animate-in fade-in slide-in-from-top-2 duration-100"
         >
           <div className="px-4 py-2 border-b border-neutral-100 dark:border-neutral-800">
-            <p className="text-xs text-neutral-400 font-bold truncate">
-              {user?.fullName || labels.account}
-            </p>
-            <p className="truncate text-xs text-neutral-500 mt-0.5">{user?.email || ""}</p>
+            <p className="truncate text-xs text-neutral-500 mt-0.5">{user?.email || labels.account}</p>
           </div>
 
           {items.map((item, idx) => {

@@ -2,14 +2,12 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { LoginForm } from "./login-form";
 
-// Mock next/navigation
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
   usePathname: () => "/login",
 }));
 
-// Mock GIS so we never call the real Google script.
 Object.defineProperty(window, "google", {
   configurable: true,
   writable: true,
@@ -24,8 +22,6 @@ Object.defineProperty(window, "google", {
   },
 });
 
-// Mock the UI checkbox used inside LoginForm to avoid the broken base-ui
-// dependency breaking tests.
 vi.mock("@/components/ui/checkbox", () => ({
   Checkbox: ({
     checked,
@@ -44,7 +40,6 @@ vi.mock("@/components/ui/checkbox", () => ({
   ),
 }));
 
-// Mock the API hooks so login submit doesn't make real network calls.
 const loginMutate = vi.fn();
 vi.mock("../api/login", () => ({
   useLogin: () => ({ mutate: loginMutate, isPending: false }),
@@ -68,13 +63,15 @@ describe("LoginForm", () => {
     expect(screen.getByText(/Continue with Google/i)).toBeInTheDocument();
   });
 
-  it("calls login mutation with username and password", async () => {
+  it("calls login mutation with email and password", async () => {
     renderForm();
-    const username = screen.getByLabelText(/Username or Email/i) as HTMLInputElement;
+    const email = document.querySelector(
+      'input[type="email"], input[autocomplete="email"]',
+    ) as HTMLInputElement;
     const password = document.querySelector(
       'input[name="password"], input[type="password"]',
     ) as HTMLInputElement;
-    fireEvent.change(username, { target: { value: "u@x.com" } });
+    fireEvent.change(email, { target: { value: "u@x.com" } });
     fireEvent.change(password, { target: { value: "secret123" } });
     const submit = screen.getByRole("button", { name: /LOG IN/i });
     fireEvent.click(submit);

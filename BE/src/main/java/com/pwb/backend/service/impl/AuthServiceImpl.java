@@ -3,7 +3,6 @@ package com.pwb.backend.service.impl;
 import com.pwb.backend.utils.helper.MessageHelper;
 import com.pwb.backend.dto.request.CompleteProfileRequest;
 import com.pwb.backend.dto.request.LoginRequest;
-import com.pwb.backend.dto.request.RefreshTokenRequest;
 import com.pwb.backend.dto.request.RegisterRequest;
 import com.pwb.backend.dto.request.ResendOtpRequest;
 import com.pwb.backend.dto.request.VerifyOtpRequest;
@@ -64,7 +63,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         Role defaultRole = lookupRole(RoleName.USER);
-        String provisionalUsername = "user_" + UUID.randomUUID().toString().substring(0, 12);
+        String provisionalUsername = generateProvisionalUsername();
 
         User user = User.builder()
                 .email(email)
@@ -81,6 +80,13 @@ public class AuthServiceImpl implements AuthService {
         String message = messageHelper.get(MSG_REGISTER_EMAIL, user.getEmail());
         log.info("User registered pending verification: userId={} email={}", user.getId(), user.getEmail());
         return AuthMessageResponse.of(user.getId(), message);
+    }
+
+    private static final int PROVISIONAL_USERNAME_RANDOM_LENGTH = 16;
+
+    private static String generateProvisionalUsername() {
+        String hex = UUID.randomUUID().toString().replace("-", "");
+        return "user_" + hex.substring(0, PROVISIONAL_USERNAME_RANDOM_LENGTH);
     }
 
     @Override
@@ -157,11 +163,14 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public AuthResponse refresh(RefreshTokenRequest request) {
-        if (!jwtTokenProvider.validateRefreshToken(request.getRefreshToken())) {
+    public AuthResponse refresh(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
             throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
         }
-        UUID userId = jwtTokenProvider.extractUserIdFromRefreshToken(request.getRefreshToken());
+        if (!jwtTokenProvider.validateRefreshToken(refreshToken)) {
+            throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
+        }
+        UUID userId = jwtTokenProvider.extractUserIdFromRefreshToken(refreshToken);
         User user = userRepository.findByIdAndDeletedFalse(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 

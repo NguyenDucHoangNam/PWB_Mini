@@ -15,7 +15,7 @@ export function ChangePasswordForm() {
   const t = useTranslations("profile.changePassword");
   const { mutate: changePasswordMutate, isPending } = useChangePassword();
 
-  const [oldPassword, setOldPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +26,7 @@ export function ChangePasswordForm() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!oldPassword || !newPassword || !confirmPassword) {
+    if (!currentPassword || !newPassword || !confirmPassword) {
       setError(t("fillAll"));
       return;
     }
@@ -36,7 +36,7 @@ export function ChangePasswordForm() {
       return;
     }
 
-    if (newPassword === oldPassword) {
+    if (newPassword === currentPassword) {
       setError(t("reuseError"));
       return;
     }
@@ -49,14 +49,12 @@ export function ChangePasswordForm() {
     setError(null);
 
     changePasswordMutate(
-      {
-        data: { oldPassword, newPassword, confirmPassword },
-      },
+      { data: { currentPassword, newPassword } },
       {
         onSuccess: (response) => {
           if (response.success) {
             toast.success(t("success"));
-            setOldPassword("");
+            setCurrentPassword("");
             setNewPassword("");
             setConfirmPassword("");
           } else {
@@ -65,11 +63,11 @@ export function ChangePasswordForm() {
         },
         onError: asApiError((err) => {
           const apiError = err.errors?.[0];
-          if (apiError?.code === "OAUTH_ONLY_ACCOUNT") {
+          if (apiError?.code === "AUTH_OAUTH_USER_NO_PASSWORD") {
             setIsOauthOnly(true);
-          } else if (apiError?.code === "INVALID_OLD_PASSWORD") {
+          } else if (apiError?.code === "AUTH_INVALID_CURRENT_PASSWORD") {
             setError(t("incorrectOld"));
-          } else if (apiError?.code === "PASSWORD_REUSE_BLOCKED") {
+          } else if (apiError?.code === "AUTH_PASSWORD_REUSED") {
             setError(t("reuseError"));
           } else {
             setError(err.message || t("error"));
@@ -112,20 +110,18 @@ export function ChangePasswordForm() {
       )}
 
       <div className="flex flex-col gap-4">
-        {/* Old Password */}
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="oldPassword">{t("oldPassword")}</Label>
+          <Label htmlFor="currentPassword">{t("oldPassword")}</Label>
           <PasswordInput
-            id="oldPassword"
+            id="currentPassword"
             disabled={isPending}
-            value={oldPassword}
-            onChange={(e) => setOldPassword(e.target.value)}
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
             placeholder={t("oldPasswordPlaceholder")}
             required
           />
         </div>
 
-        {/* New Password */}
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="newPassword">{t("newPassword")}</Label>
           <PasswordInput
@@ -139,7 +135,6 @@ export function ChangePasswordForm() {
           <PasswordStrengthBar strength={strength} />
         </div>
 
-        {/* Confirm Password */}
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="confirmPassword">{t("confirmPassword")}</Label>
           <PasswordInput
@@ -169,19 +164,8 @@ export function ChangePasswordForm() {
       >
         {isPending ? (
           <span className="flex items-center gap-2">
-            <svg
-              className="animate-spin size-4 text-white dark:text-black"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
+            <svg className="animate-spin size-4 text-white dark:text-black" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path
                 className="opacity-75"
                 fill="currentColor"

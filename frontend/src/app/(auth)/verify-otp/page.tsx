@@ -19,10 +19,10 @@ export async function generateMetadata({
 export default async function VerifyOtpPage({
   searchParams,
 }: {
-  searchParams: Promise<{ email?: string }>;
+  searchParams: Promise<{ userId?: string }>;
 }) {
-  const { email } = await searchParams;
-  if (!email || email.trim().length === 0) {
+  const { userId } = await searchParams;
+  if (!userId || userId.trim().length === 0) {
     redirect("/register");
   }
 

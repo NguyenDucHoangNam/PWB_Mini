@@ -3,9 +3,8 @@ import { API_BASE_URL } from "./constants";
 import { useAuthStore, type AuthUser } from "@/features/auth/stores/use-auth-store";
 import { decodeJwtExpiry } from "./jwt-decode";
 import type { ApiResponse } from "@/types/api";
-import type { RefreshResponse, UserProfileResponse } from "@/features/auth/types";
-import { AUTH_CHANNEL, broadcastAuthMessage } from "./broadcast-channel";
-import { withSkipRefresh } from "./request-flags";
+import type { AuthResponse } from "@/features/auth/types";
+import { broadcastAuthMessage, AUTH_CHANNEL } from "./broadcast-channel";
 
 let isRefreshing = false;
 let failedQueue: Array<{
@@ -45,10 +44,7 @@ export const refreshAccessToken = async (): Promise<string> => {
   activeRefreshController = new AbortController();
 
   try {
-    // Refresh relies solely on the httpOnly refresh cookie. Do NOT send
-    // Authorization header here - sending an empty Bearer token is a
-    // common bug and leaks a partial header to the server.
-    const response = await axios.post<ApiResponse<RefreshResponse>>(
+    const response = await axios.post<ApiResponse<AuthResponse>>(
       `${API_BASE_URL}/auth/refresh`,
       {},
       {
@@ -61,52 +57,29 @@ export const refreshAccessToken = async (): Promise<string> => {
       throw new Error(response.data.message || "Failed to refresh token");
     }
 
-    const { accessToken } = response.data.data;
-    const expiresAt = decodeJwtExpiry(accessToken);
-    let user: AuthUser | null = useAuthStore.getState().user;
+    const data = response.data.data;
+    const expiresAt = decodeJwtExpiry(data.accessToken);
+    const existingUser = useAuthStore.getState().user;
 
-    // If we don't have a user in memory yet (e.g. fresh tab refresh), fetch
-    // the profile so other tabs and the rest of the app have valid data.
-    // Use the shared apiClient so we go through interceptors, but mark the
-    // request with skipRefresh so a 401 here can't recurse into refresh.
-    if (!user) {
-      try {
-        const { apiClient } = await import("./api-client");
-        const profileResponse = await apiClient.get<ApiResponse<UserProfileResponse>>(
-          "/auth/me",
-          withSkipRefresh({ headers: { Authorization: `Bearer ${accessToken}` } }),
-        );
-        if (profileResponse.data.success && profileResponse.data.data) {
-          const profile = profileResponse.data.data;
-          // Map BE profile -> AuthUser shape (BE doesn't always include username/oauthProvider).
-          user = {
-            username: profile.username ?? "",
-            email: profile.email,
-            fullName: profile.fullName,
-            role: profile.role,
-            status: profile.status,
-            avatarUrl: profile.avatarUrl,
-            oauthProvider: profile.oauthProvider ?? "LOCAL",
-          };
-        }
-      } catch {
-        // If profile fetch fails we still keep the new token; downstream
-        // requests will surface the error.
-      }
-    }
-
-    if (user) {
-      useAuthStore.getState().setAuth(accessToken, user, expiresAt ?? undefined);
+    let user: AuthUser;
+    if (existingUser) {
+      user = existingUser;
     } else {
-      useAuthStore.setState({ accessToken, accessTokenExpiresAt: expiresAt });
+      user = {
+        userId: data.userId,
+        email: data.email,
+        username: "",
+        role: data.role,
+        status: data.status,
+        oauthProvider: "LOCAL",
+      };
     }
 
-    if (user) {
-      broadcastAuthMessage({ type: "TOKEN_UPDATED", token: accessToken, user });
-    }
+    useAuthStore.getState().setAuth(data.accessToken, user, expiresAt ?? undefined);
+    broadcastAuthMessage({ type: "TOKEN_UPDATED", token: data.accessToken, user });
 
-    processQueue(null, accessToken);
-    return accessToken;
+    processQueue(null, data.accessToken);
+    return data.accessToken;
   } catch (error: unknown) {
     if (
       axios.isAxiosError(error) &&
@@ -126,7 +99,5 @@ export const refreshAccessToken = async (): Promise<string> => {
   }
 };
 
-// Avoid an unused-import warning when broadcastAuthMessage is only referenced
-// via processQueue / abortRefresh by re-exporting it for downstream callers.
 export { broadcastAuthMessage };
 void AUTH_CHANNEL;

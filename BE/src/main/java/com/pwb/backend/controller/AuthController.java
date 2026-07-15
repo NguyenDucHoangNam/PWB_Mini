@@ -5,7 +5,6 @@ import com.pwb.backend.dto.request.CompleteProfileRequest;
 import com.pwb.backend.dto.request.ForgotPasswordRequest;
 import com.pwb.backend.dto.request.GoogleLoginRequest;
 import com.pwb.backend.dto.request.LoginRequest;
-import com.pwb.backend.dto.request.RefreshTokenRequest;
 import com.pwb.backend.dto.request.RegisterRequest;
 import com.pwb.backend.dto.request.ResendOtpRequest;
 import com.pwb.backend.dto.request.ResetPasswordRequest;
@@ -14,17 +13,20 @@ import com.pwb.backend.dto.response.ApiResponse;
 import com.pwb.backend.dto.response.AuthMessageResponse;
 import com.pwb.backend.dto.response.AuthResponse;
 import com.pwb.backend.security.CustomUserDetails;
+import com.pwb.backend.security.RefreshTokenCookieService;
 import com.pwb.backend.service.AuthService;
 import com.pwb.backend.service.ChangePasswordService;
 import com.pwb.backend.service.ForgotPasswordService;
 import com.pwb.backend.service.GoogleAuthService;
 import com.pwb.backend.utils.helper.MessageHelper;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -41,12 +43,14 @@ public class AuthController {
     private static final String MSG_LOGIN = "auth.login.success";
     private static final String MSG_REFRESH = "auth.refresh.success";
     private static final String MSG_GOOGLE_LOGIN = "auth.google_login.success";
+    private static final String REFRESH_COOKIE_NAME = "refresh_token";
 
     private final AuthService authService;
     private final MessageHelper messageHelper;
     private final GoogleAuthService googleAuthService;
     private final ForgotPasswordService forgotPasswordService;
     private final ChangePasswordService changePasswordService;
+    private final RefreshTokenCookieService refreshTokenCookieService;
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<AuthMessageResponse>> register(@Valid @RequestBody RegisterRequest request) {
@@ -56,8 +60,10 @@ public class AuthController {
     }
 
     @PostMapping("/verify-otp")
-    public ResponseEntity<ApiResponse<AuthResponse>> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
+    public ResponseEntity<ApiResponse<AuthResponse>> verifyOtp(@Valid @RequestBody VerifyOtpRequest request,
+                                                               HttpServletResponse response) {
         AuthResponse data = authService.verifyOtp(request);
+        refreshTokenCookieService.setRefreshCookie(response, data.getRefreshToken());
         return ResponseEntity.ok(ApiResponse.success(data, messageHelper.get(MSG_VERIFY)));
     }
 
@@ -68,21 +74,28 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request,
+                                                           HttpServletResponse response) {
         AuthResponse data = authService.login(request);
+        refreshTokenCookieService.setRefreshCookie(response, data.getRefreshToken());
         return ResponseEntity.ok(ApiResponse.success(data, messageHelper.get(MSG_LOGIN)));
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<ApiResponse<AuthResponse>> refresh(@Valid @RequestBody RefreshTokenRequest request) {
-        AuthResponse data = authService.refresh(request);
+    public ResponseEntity<ApiResponse<AuthResponse>> refresh(
+            @CookieValue(name = REFRESH_COOKIE_NAME, required = false) String cookieRefreshToken,
+            HttpServletResponse response) {
+        AuthResponse data = authService.refresh(cookieRefreshToken);
+        refreshTokenCookieService.setRefreshCookie(response, data.getRefreshToken());
         return ResponseEntity.ok(ApiResponse.success(data, messageHelper.get(MSG_REFRESH)));
     }
 
     @PostMapping("/logout")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<AuthMessageResponse>> logout(@AuthenticationPrincipal CustomUserDetails user) {
+    public ResponseEntity<ApiResponse<AuthMessageResponse>> logout(@AuthenticationPrincipal CustomUserDetails user,
+                                                                  HttpServletResponse response) {
         AuthMessageResponse data = authService.logout(user.getId());
+        refreshTokenCookieService.clearRefreshCookie(response);
         return ResponseEntity.ok(ApiResponse.success(data, data.getMessage()));
     }
 
@@ -90,14 +103,18 @@ public class AuthController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<AuthResponse>> completeProfile(
             @AuthenticationPrincipal CustomUserDetails user,
-            @Valid @RequestBody CompleteProfileRequest request) {
+            @Valid @RequestBody CompleteProfileRequest request,
+            HttpServletResponse response) {
         AuthResponse data = authService.completeProfile(user.getId(), request);
+        refreshTokenCookieService.setRefreshCookie(response, data.getRefreshToken());
         return ResponseEntity.ok(ApiResponse.success(data, messageHelper.get(MSG_PROFILE)));
     }
 
     @PostMapping("/google")
-    public ResponseEntity<ApiResponse<AuthResponse>> loginWithGoogle(@Valid @RequestBody GoogleLoginRequest request) {
+    public ResponseEntity<ApiResponse<AuthResponse>> loginWithGoogle(@Valid @RequestBody GoogleLoginRequest request,
+                                                                    HttpServletResponse response) {
         AuthResponse data = googleAuthService.loginWithGoogle(request);
+        refreshTokenCookieService.setRefreshCookie(response, data.getRefreshToken());
         return ResponseEntity.ok(ApiResponse.success(data, messageHelper.get(MSG_GOOGLE_LOGIN)));
     }
 

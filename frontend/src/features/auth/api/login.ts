@@ -1,65 +1,46 @@
 import { useMutation } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
+import type { MutationConfig } from "@/lib/react-query";
 import type { ApiResponse } from "@/types/api";
 import type {
-  LoginRequest,
-  LoginResponse,
-  Oauth2LoginRequest,
-  RegisterRequest,
-  RegisterResponse,
-  ForgotPasswordRequest,
-  ResetPasswordRequest,
+  AuthResponse,
+  OAuth2LoginRequest,
 } from "../types";
 
-export function useLogin() {
-  return useMutation({
-    mutationFn: async ({ data }: { data: LoginRequest }): Promise<ApiResponse<LoginResponse>> => {
-      const res = await apiClient.post<ApiResponse<LoginResponse>>("/auth/login", data);
-      return res.data;
-    },
-  });
-}
+export const login = ({
+  data,
+}: {
+  data: { email: string; password: string };
+}): Promise<ApiResponse<AuthResponse>> => {
+  return apiClient.post<ApiResponse<AuthResponse>>("/auth/login", data).then((res) => res.data);
+};
 
-export function useLoginWithGoogle() {
-  return useMutation({
-    mutationFn: async ({
-      data,
-    }: {
-      data: Oauth2LoginRequest;
-    }): Promise<ApiResponse<LoginResponse>> => {
-      const res = await apiClient.post<ApiResponse<LoginResponse>>("/auth/login/google", data);
-      return res.data;
-    },
-  });
-}
+export const loginWithGoogle = ({
+  data,
+}: {
+  data: OAuth2LoginRequest;
+}): Promise<ApiResponse<AuthResponse>> => {
+  return apiClient.post<ApiResponse<AuthResponse>>("/auth/google", data).then((res) => res.data);
+};
 
-export function useRegister() {
-  return useMutation({
-    mutationFn: async ({
-      data,
-    }: {
-      data: RegisterRequest;
-    }): Promise<ApiResponse<RegisterResponse>> => {
-      const res = await apiClient.post<ApiResponse<RegisterResponse>>("/auth/register", data);
-      return res.data;
-    },
-  });
-}
+type UseLoginOptions = {
+  mutationConfig?: MutationConfig<typeof login>;
+};
 
-export function useForgotPassword() {
+export const useLogin = ({ mutationConfig }: UseLoginOptions = {}) => {
   return useMutation({
-    mutationFn: async ({ data }: { data: ForgotPasswordRequest }) => {
-      const res = await apiClient.post<ApiResponse<unknown>>("/auth/forgot-password", data);
-      return res.data;
-    },
+    ...mutationConfig,
+    mutationFn: login,
   });
-}
+};
 
-export function useResetPassword() {
+type UseLoginWithGoogleOptions = {
+  mutationConfig?: MutationConfig<typeof loginWithGoogle>;
+};
+
+export const useLoginWithGoogle = ({ mutationConfig }: UseLoginWithGoogleOptions = {}) => {
   return useMutation({
-    mutationFn: async ({ data }: { data: ResetPasswordRequest }) => {
-      const res = await apiClient.post<ApiResponse<unknown>>("/auth/reset-password", data);
-      return res.data;
-    },
+    ...mutationConfig,
+    mutationFn: loginWithGoogle,
   });
-}
+};

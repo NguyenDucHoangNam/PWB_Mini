@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useVerifyOtp, useResendOtp } from "../api/verify-otp";
 import { useAuthStore } from "../stores/use-auth-store";
 import { OtpInput } from "./otp-input";
-import { CaptchaWidget } from "./captcha-widget";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
@@ -14,15 +13,15 @@ import { asApiError } from "@/lib/api-client";
 import {
   getOtpExpirySeconds,
   getOtpResendCooldownSeconds,
-  getTurnstileSiteKey,
 } from "@/lib/config";
 import { decodeJwtExpiry } from "@/lib/jwt-decode";
 import { useExpiryCountdown, useCooldown } from "../hooks/use-otp-countdown";
 
-const OTP_LOCKED_CODE = "OTP_LOCKED";
-const OTP_RESEND_COOLDOWN_CODE = "OTP_RESEND_COOLDOWN";
+const OTP_LOCKED_CODE = "AUTH_OTP_LOCKED";
+const OTP_RESEND_COOLDOWN_CODE = "AUTH_OTP_RATE_LIMIT";
 
-function parseRetryAfter(headers: Record<string, string>): number | null {
+function parseRetryAfter(headers: Record<string, string> | undefined): number | null {
+  if (!headers) return null;
   const raw = headers["retry-after"] ?? headers["Retry-After"];
   if (!raw) return null;
   const parsed = Number(raw);
@@ -41,12 +40,10 @@ export function OtpForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const setAuth = useAuthStore((state) => state.setAuth);
-  const turnstileSiteKey = getTurnstileSiteKey();
 
-  const email = searchParams.get("email") || "";
+  const userId = searchParams.get("userId") || "";
   const [otpCode, setOtpCode] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [otpIssuedAt, setOtpIssuedAt] = useState<number | null>(null);
   const [otpInvalid, setOtpInvalid] = useState(false);
 
@@ -63,9 +60,15 @@ export function OtpForm() {
   const { mutate: verifyMutate, isPending: isVerifying } = useVerifyOtp();
   const { mutate: resendMutate, isPending: isResending } = useResendOtp();
 
+  useEffect(() => {
+    if (otpIssuedAt === null) {
+      setOtpIssuedAt(Date.now());
+    }
+  }, [otpIssuedAt]);
+
   const handleVerify = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    if (!userId) return;
     if (otpCode.length !== 6) {
       setError(t("lengthError"));
       setOtpInvalid(true);
@@ -80,20 +83,26 @@ export function OtpForm() {
     setOtpInvalid(false);
 
     verifyMutate(
-      {
-        data: {
-          email,
-          otp: otpCode,
-          ...(captchaToken ? { captchaToken } : {}),
-        },
-      },
+      { data: { userId, code: otpCode } },
       {
         onSuccess: (response) => {
           if (response.success && response.data) {
-            const expiresAt = decodeJwtExpiry(response.data.accessToken);
-            setAuth(response.data.accessToken, response.data.user, expiresAt ?? undefined);
+            const data = response.data;
+            const expiresAt = decodeJwtExpiry(data.accessToken);
+            setAuth(data.accessToken, {
+              userId: data.userId,
+              email: data.email,
+              username: "",
+              role: data.role,
+              status: data.status,
+              oauthProvider: "LOCAL",
+            }, expiresAt ?? undefined);
             toast.success(t("successToast"));
-            router.push("/dashboard");
+            if (data.nextStep === "COMPLETE_PROFILE") {
+              router.push("/complete-profile");
+            } else {
+              router.push("/dashboard");
+            }
           } else {
             setError(response.message || t("errorToast"));
             setOtpInvalid(true);
@@ -118,28 +127,23 @@ export function OtpForm() {
 
   const handleResend = () => {
     if (cooldown.remaining > 0) return;
+    if (!userId) return;
 
     setError(null);
     setOtpInvalid(false);
 
     resendMutate(
-      {
-        data: {
-          email,
-          ...(captchaToken ? { captchaToken } : {}),
-        },
-      },
+      { data: { userId } },
       {
         onSuccess: (response) => {
           toast.success(t("resendSuccess"));
-          const sentAt = parseServerTimestamp(response?.data?.sentAt);
-          setOtpIssuedAt(sentAt ?? Date.now());
+          setOtpIssuedAt(Date.now());
           cooldown.reset();
         },
         onError: asApiError((err) => {
           const errorCode = err.errors?.[0]?.code;
           if (err.status === 429 || errorCode === OTP_RESEND_COOLDOWN_CODE) {
-            const retryAfter = parseRetryAfter(err.headers ?? {});
+            const retryAfter = parseRetryAfter(err.headers ?? undefined);
             cooldown.setFromServer(Date.now(), retryAfter ?? resendCooldownTtl);
           }
           const apiError = err.errors?.[0]?.message;
@@ -150,21 +154,13 @@ export function OtpForm() {
     );
   };
 
-  const maskEmail = (emailStr: string) => {
-    if (!emailStr) return "";
-    const [local, domain] = emailStr.split("@");
-    if (!local || !domain) return emailStr;
-    const localPart = local.length <= 2 ? `${local}**` : `${local.substring(0, 2)}******`;
-    return `${localPart}@***`;
-  };
-
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  if (!email) {
+  if (!userId) {
     return null;
   }
 
@@ -174,10 +170,6 @@ export function OtpForm() {
         <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
           {t("otpTitle")}
         </h1>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">
-          {t("emailSentText")}{" "}
-          <strong className="text-neutral-800 dark:text-neutral-200">{maskEmail(email)}</strong>
-        </p>
         <button
           type="button"
           onClick={() => router.push("/register")}
@@ -193,7 +185,7 @@ export function OtpForm() {
           aria-live="assertive"
           className="rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-600 dark:bg-red-950/20 dark:text-red-400 border border-red-100/50 dark:border-red-950/30"
         >
-          {error}
+          <p>{error}</p>
         </div>
       )}
 
@@ -217,10 +209,6 @@ export function OtpForm() {
           )}
         </div>
       </div>
-
-      {turnstileSiteKey && (
-        <CaptchaWidget siteKey={turnstileSiteKey} onTokenChange={setCaptchaToken} />
-      )}
 
       <Button
         type="submit"

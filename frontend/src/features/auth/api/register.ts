@@ -2,13 +2,13 @@ import { useMutation } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import type { MutationConfig } from "@/lib/react-query";
 import type { ApiResponse } from "@/types/api";
-import type { RegisterRequest, RegisterResponse } from "../types";
+import type { RegisterRequest, AuthMessageResponse } from "../types";
 
 export const register = ({
   data,
 }: {
   data: RegisterRequest;
-}): Promise<ApiResponse<RegisterResponse>> => {
+}): Promise<ApiResponse<AuthMessageResponse>> => {
   return apiClient.post("/auth/register", data).then((res) => res.data);
 };
 

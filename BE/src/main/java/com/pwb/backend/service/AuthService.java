@@ -21,7 +21,7 @@ public interface AuthService {
 
     AuthResponse login(LoginRequest request);
 
-    AuthResponse refresh(RefreshTokenRequest request);
+    AuthResponse refresh(String refreshToken);
 
     AuthMessageResponse logout(UUID userId);
 

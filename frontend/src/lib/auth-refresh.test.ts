@@ -1,7 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 
-// Mock axios at the module level (refreshAccessToken imports `axios` directly).
+const sampleAuthUser = {
+  userId: "u-1",
+  email: "u@x.com",
+  username: "u",
+  role: "USER",
+  status: "ACTIVE" as const,
+  oauthProvider: "LOCAL" as const,
+};
+
 const { postMock, getMock } = vi.hoisted(() => ({
   postMock: vi.fn(),
   getMock: vi.fn(),
@@ -38,52 +46,22 @@ describe("refreshAccessToken", () => {
   });
 
   it("stores the new token on success (with existing user)", async () => {
-    useAuthStore.getState().setAuth("old.token", {
-      username: "u",
-      email: "u@x.com",
-      fullName: "User",
-      status: "ACTIVE",
-      oauthProvider: "LOCAL",
-    });
+    useAuthStore.getState().setAuth("old.token", sampleAuthUser);
 
     vi.mocked(axios.post).mockResolvedValueOnce({
-      data: {
-        success: true,
-        message: "ok",
-        data: { accessToken: "new.token.here", expiresIn: 60 },
-        errors: null,
-        timestamp: "",
-      },
-    } as never);
-
-    const token = await refreshAccessToken();
-    expect(token).toBe("new.token.here");
-    expect(useAuthStore.getState().accessToken).toBe("new.token.here");
-    // User is preserved.
-    expect(useAuthStore.getState().user?.email).toBe("u@x.com");
-  });
-
-  it("fetches profile when user is null", async () => {
-    vi.mocked(axios.post).mockResolvedValueOnce({
-      data: {
-        success: true,
-        message: "ok",
-        data: { accessToken: "new.token.here", expiresIn: 60 },
-        errors: null,
-        timestamp: "",
-      },
-    } as never);
-    vi.mocked(axios.get).mockResolvedValueOnce({
       data: {
         success: true,
         message: "ok",
         data: {
-          username: "u",
+          accessToken: "new.token.here",
+          refreshToken: "rt",
+          tokenType: "Bearer",
+          expiresIn: 60,
+          userId: "u-1",
           email: "u@x.com",
-          fullName: "User",
           status: "ACTIVE",
           role: "USER",
-          oauthProvider: "LOCAL",
+          nextStep: "NONE",
         },
         errors: null,
         timestamp: "",
@@ -93,8 +71,34 @@ describe("refreshAccessToken", () => {
     const token = await refreshAccessToken();
     expect(token).toBe("new.token.here");
     expect(useAuthStore.getState().accessToken).toBe("new.token.here");
-    // After the second call resolves, the user is populated.
     expect(useAuthStore.getState().user?.email).toBe("u@x.com");
-    expect(vi.mocked(axios.get)).toHaveBeenCalledTimes(1);
+  });
+
+  it("synthesizes a user from BE response when no in-memory user exists", async () => {
+    vi.mocked(axios.post).mockResolvedValueOnce({
+      data: {
+        success: true,
+        message: "ok",
+        data: {
+          accessToken: "new.token.here",
+          refreshToken: "rt",
+          tokenType: "Bearer",
+          expiresIn: 60,
+          userId: "u-1",
+          email: "u@x.com",
+          status: "ACTIVE",
+          role: "USER",
+          nextStep: "NONE",
+        },
+        errors: null,
+        timestamp: "",
+      },
+    } as never);
+
+    const token = await refreshAccessToken();
+    expect(token).toBe("new.token.here");
+    expect(useAuthStore.getState().accessToken).toBe("new.token.here");
+    expect(useAuthStore.getState().user?.email).toBe("u@x.com");
+    expect(vi.mocked(axios.get)).not.toHaveBeenCalled();
   });
 });
