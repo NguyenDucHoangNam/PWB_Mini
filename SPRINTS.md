@@ -28,7 +28,7 @@
 | M0.2 | `shared-kernel` + `shared-web`: `ErrorCode` enum (SYS_/ORD_/INV_), cây `BaseBusinessException` abstract + `NotFoundException` + `BadRequestException`, `ErrorResponse` DTO, `GlobalExceptionHandler` (3 handler) | [x] | `mvn -pl shared-kernel,shared-web -am compile` exit 0 |
 | M0.3 | `bootstrap` skeleton lean (`Application.java` + `application.yml` + banner + template, **không** kéo `MessageSource`/`Jackson`/`CorrelationId` ở sprint này) | [x] | `mvn -pl bootstrap -am compile` exit 0; `spring-boot:run` start; `/actuator/health` UP |
 | M1.1 | `iam/api/`: DTO + `IamFacade` interface (M1.1a: Register/Login/AuthResponse + 9 DTO còn lại + 11 method public) | [x] | compile module `iam` |
-| M1.2 | `iam/core/model/`: POJO `User`/`Role`/`EmailAddress`/... | [ ] | core không import Spring |
+| M1.2 | `iam/core/model/`: POJO `User`/`Role`/`EmailAddress`/... | [x] | core không import Spring |
 | M1.3 | `iam/core/service/`: `PasswordPolicyService`, `UserRegistrationService` | [ ] | core test thuần Java |
 | M1.4 | `iam/infrastructure/persistence/`: JPA entity + repo + mapper | [ ] | map được với DB schema cũ |
 | M1.5 | `iam/infrastructure/security/`: `JwtTokenProvider`, `GoogleTokenVerifier`, `SecurityConfig` | [ ] | `/auth/login` trả JWT |
@@ -198,3 +198,4 @@ Cập nhật mỗi lần tick xong micro:
 | 2026-07-17 05:32 | M0.2 | 2 / 25 |
 | 2026-07-17 05:46 | M0.3 | 3 / 25 |
 | 2026-07-17 06:20 | M1.1a (Register/Login facade + DTO) | 4 / 25 |
+| 2026-07-17 06:45 | M1.2 (iam/core/model: POJO + VO + enum) | 5 / 25 |
