@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: pwb-backend
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  lifecycle:
+    timeout-shutdown: 30s
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
+
+logging:
+  level:
+    org.springframework.web: INFO
+    com.pwb.backend: INFO
