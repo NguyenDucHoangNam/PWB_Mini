@@ -16,5 +16,19 @@
     <description>Identity &amp; Access Management: Auth, User, Role, JWT, OAuth</description>
 
     <dependencies>
+        <dependency>
+            <groupId>com.pwb</groupId>
+            <artifactId>shared-kernel</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+        </dependency>
     </dependencies>
 </project>
