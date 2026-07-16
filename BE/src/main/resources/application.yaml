@@ -104,4 +104,20 @@ app:
     same-site: Lax
     max-age-seconds: 604800
     path: /
+  voice-tag:
+    active-limit: 50
+    storage-limit-bytes: 209715200
+    max-text-length: 250
+    max-raw-text-length: 100
+    preview-url-ttl-seconds: 30
+    daily-generation-limit: 30
+    compensation-retry:
+      max-attempts: 5
+      initial-backoff-ms: 1000
+      multiplier: 3.0
+      max-backoff-ms: 60000
+  gcp:
+    tts:
+      credentials-path: ${GCP_TTS_CREDENTIALS_PATH:}
+      project-id: ${GCP_PROJECT_ID:producerworkbench}
 

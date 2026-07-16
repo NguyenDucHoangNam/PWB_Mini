@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -122,6 +123,29 @@ public class GlobalExceptionHandler {
                 request.getRequestURI());
 
         return ResponseEntity.badRequest().body(response);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(
+            DataIntegrityViolationException ex, HttpServletRequest request) {
+
+        Throwable rootCause = ex.getMostSpecificCause();
+        String rootMessage = rootCause != null ? rootCause.getMessage() : ex.getMessage();
+        log.warn("Data integrity violation at {}: {}", request.getRequestURI(), rootMessage);
+
+        String message = messageSource.getMessage(
+                ErrorCode.RESOURCE_DUPLICATE.getMessageCode(),
+                new Object[]{"Voice tag"},
+                "Resource already exists",
+                LocaleContextHolder.getLocale());
+
+        ApiResponse<Void> response = ApiResponse.error(
+                ErrorCode.VOICE_TAG_ALREADY_DEFAULT.getCode(),
+                message,
+                HttpStatus.CONFLICT.value(),
+                request.getRequestURI());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 
     @ExceptionHandler(Exception.class)

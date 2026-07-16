@@ -44,7 +44,21 @@ public enum ErrorCode {
     RATE_LIMIT_EXCEEDED ("RATE_001",  "error.rate_limit",           HttpStatus.TOO_MANY_REQUESTS),
 
     SEEDER_ROLE_NOT_FOUND("SEEDER_001", "error.seeder.role_not_found", HttpStatus.INTERNAL_SERVER_ERROR),
-    SEEDER_ROLE_INVALID  ("SEEDER_002", "error.seeder.role_not_found", HttpStatus.INTERNAL_SERVER_ERROR);
+    SEEDER_ROLE_INVALID  ("SEEDER_002", "error.seeder.role_not_found", HttpStatus.INTERNAL_SERVER_ERROR),
+
+    TTS_TEXT_TOO_LONG        ("VOICE_001", "error.voice_tag.text_too_long",        HttpStatus.BAD_REQUEST),
+    INVALID_LANGUAGE_CODE    ("VOICE_002", "error.voice_tag.invalid_language",      HttpStatus.BAD_REQUEST),
+    INVALID_VOICE_NAME       ("VOICE_003", "error.voice_tag.invalid_voice",         HttpStatus.BAD_REQUEST),
+    VOICE_TAG_LIMIT_EXCEEDED ("VOICE_004", "error.voice_tag.limit_exceeded",        HttpStatus.BAD_REQUEST),
+    VOICE_TAG_STORAGE_EXCEEDED("VOICE_005","error.voice_tag.storage_exceeded",      HttpStatus.BAD_REQUEST),
+    INVALID_SSML_TAG         ("VOICE_006", "error.voice_tag.invalid_ssml",          HttpStatus.BAD_REQUEST),
+    VOICE_TAG_FORBIDDEN      ("VOICE_007", "error.voice_tag.forbidden",             HttpStatus.FORBIDDEN),
+    VOICE_TAG_NOT_FOUND      ("VOICE_008", "error.voice_tag.not_found",             HttpStatus.NOT_FOUND),
+    VOICE_TAG_ALREADY_DEFAULT("VOICE_009", "error.voice_tag.already_default",       HttpStatus.CONFLICT),
+    VOICE_TAG_IN_USE         ("VOICE_010", "error.voice_tag.in_use",                HttpStatus.CONFLICT),
+    VOICE_TAG_RATE_LIMIT     ("VOICE_011", "error.voice_tag.rate_limit",            HttpStatus.TOO_MANY_REQUESTS),
+    TTS_SERVICE_FAILED       ("VOICE_012", "error.voice_tag.tts_failed",            HttpStatus.BAD_GATEWAY),
+    TTS_SERVICE_FAILED_INVALID("VOICE_013","error.voice_tag.tts_invalid",           HttpStatus.BAD_GATEWAY);
 
     private final String code;
     private final String messageCode;
