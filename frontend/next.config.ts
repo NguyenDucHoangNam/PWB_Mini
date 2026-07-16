@@ -60,6 +60,57 @@ const scriptSrc =
     : `script-src 'self' 'unsafe-inline' https://accounts.google.com https://challenges.cloudflare.com`;
 
 /**
+ * Storage origins allowed for audio `<media>` playback and presigned fetches.
+ *
+ * `media-src` is REQUIRED whenever the app plays files from S3 — without it
+ * the browser falls back to `default-src 'self'` and blocks the request.
+ *
+ * Sources:
+ * - `NEXT_PUBLIC_STORAGE_PUBLIC_URL_PREFIX` (preferred in prod — usually a
+ *   CloudFront/CDN domain).
+ * - The S3 regional bucket URL built from `NEXT_PUBLIC_STORAGE_BUCKET_NAME`
+ *   and `NEXT_PUBLIC_STORAGE_REGION`, so dev can hit a local MinIO or
+ *   real AWS without extra config.
+ *
+ * Public prefixes that look host-like (contain a dot) are kept; otherwise we
+ * skip them to avoid polluting the directive with `https:` or garbage.
+ */
+function getStorageOrigins(): string[] {
+  const allowed = new Set<string>();
+  const collect = (value: string | undefined) => {
+    if (!value) return;
+    try {
+      allowed.add(new URL(value).origin);
+    } catch {
+      // ignore malformed URLs
+    }
+  };
+
+  collect(process.env.NEXT_PUBLIC_STORAGE_PUBLIC_URL_PREFIX);
+
+  const bucket = process.env.NEXT_PUBLIC_STORAGE_BUCKET_NAME;
+  const region = process.env.NEXT_PUBLIC_STORAGE_REGION;
+  if (bucket && region) {
+    collect(`https://${bucket}.s3.${region}.amazonaws.com`);
+    collect(`https://s3.${region}.amazonaws.com/${bucket}`);
+  }
+
+  const endpoint = process.env.NEXT_PUBLIC_STORAGE_ENDPOINT;
+  if (endpoint) {
+    try {
+      const origin = new URL(endpoint).origin;
+      if (origin) allowed.add(origin);
+    } catch {
+      // ignore malformed URLs
+    }
+  }
+
+  return Array.from(allowed);
+}
+
+const storageOrigins = getStorageOrigins();
+
+/**
  * Content-Security-Policy. Intentionally permissive in development so HMR
  * and dev-time eval work; production locks it down to known origins only.
  */
@@ -69,7 +120,8 @@ const csp = [
   "style-src 'self' 'unsafe-inline' https://accounts.google.com",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  `connect-src ${connectSrc}`,
+  `connect-src ${connectSrc}${storageOrigins.length ? " " + storageOrigins.join(" ") : ""}`,
+  `media-src 'self'${storageOrigins.length ? " " + storageOrigins.join(" ") : ""}`,
   "frame-src https://accounts.google.com https://challenges.cloudflare.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
