@@ -30,7 +30,7 @@
 | M1.1 | `iam/api/`: DTO + `IamFacade` interface (M1.1a: Register/Login/AuthResponse + 9 DTO còn lại + 11 method public) | [x] | compile module `iam` |
 | M1.2 | `iam/core/model/`: POJO `User`/`Role`/`EmailAddress`/... | [x] | core không import Spring |
 | M1.3 | `iam/core/service/`: `PasswordPolicyService`, `UserRegistrationService` | [x] | core test thuần Java |
-| M1.4 | `iam/infrastructure/persistence/`: JPA entity + repo + mapper | [ ] | map được với DB schema cũ |
+| M1.4 | `iam/infrastructure/persistence/`: JPA entity + repo + mapper | [x] | `mvn -pl modules/iam -am clean compile` exit 0; 0 file có `jakarta.persistence` trong `core/`/`api/` |
 | M1.5 | `iam/infrastructure/security/`: `JwtTokenProvider`, `GoogleTokenVerifier`, `SecurityConfig` | [ ] | `/auth/login` trả JWT |
 | M1.6 | `iam/infrastructure/web/`: `AuthController` + `IamFacadeImpl` | [ ] | register/login E2E |
 | M2.1 | `iam/core`: `OtpIssued/VerifiedDomainEvent` + `OtpService` interface | [ ] | compile |
@@ -200,3 +200,4 @@ Cập nhật mỗi lần tick xong micro:
 | 2026-07-17 06:20 | M1.1a (Register/Login facade + DTO) | 4 / 25 |
 | 2026-07-17 06:45 | M1.2 (iam/core/model: POJO + VO + enum) | 5 / 25 |
 | 2026-07-17 07:18 | M1.3 (iam/core/service: PasswordPolicy + UserRegistration, Argon2id) | 6 / 25 |
+| 2026-07-17 07:40 | M1.4 (iam/infrastructure/persistence: 3 entity + 4 repo + 3 mapper MapStruct) | 7 / 25 |

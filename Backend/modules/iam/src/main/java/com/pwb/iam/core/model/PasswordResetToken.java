@@ -8,7 +8,7 @@ import java.util.UUID;
 @Getter
 public final class PasswordResetToken extends BaseEntity {
 
-    private final UUID tokenId;
+    private UUID tokenId;
     private final UUID userId;
     private String tokenHash;
     private Instant expiresAt;
@@ -30,6 +30,21 @@ public final class PasswordResetToken extends BaseEntity {
 
     public static PasswordResetToken create(UUID userId, String tokenHash, Instant expiresAt) {
         return new PasswordResetToken(userId, tokenHash, expiresAt);
+    }
+
+    public static PasswordResetToken rehydrate(
+            UUID tokenId,
+            UUID userId,
+            String tokenHash,
+            Instant expiresAt,
+            boolean used,
+            Instant usedAt
+    ) {
+        PasswordResetToken token = new PasswordResetToken(userId, tokenHash, expiresAt);
+        token.tokenId = tokenId;
+        token.used = used;
+        token.usedAt = usedAt;
+        return token;
     }
 
     public boolean isExpired(Instant now) {

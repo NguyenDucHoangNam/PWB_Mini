@@ -94,6 +94,37 @@ public final class User extends BaseEntity {
         );
     }
 
+    public static User rehydrate(
+            UUID userId,
+            String username,
+            EmailAddress email,
+            String passwordHash,
+            String fullName,
+            String avatarUrl,
+            String phone,
+            UserStatus status,
+            Role role,
+            OAuthProvider oauthProvider,
+            String oauthId,
+            Instant deletionRequestedAt
+    ) {
+        Password password = passwordHash == null ? null : Password.fromHash(passwordHash);
+        return new User(
+                userId,
+                username,
+                email,
+                password,
+                fullName,
+                avatarUrl,
+                phone,
+                status,
+                role,
+                oauthProvider,
+                oauthId,
+                deletionRequestedAt
+        );
+    }
+
     public void markActive() {
         this.status = UserStatus.ACTIVE;
         touch();
