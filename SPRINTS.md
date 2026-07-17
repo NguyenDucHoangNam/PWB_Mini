@@ -31,8 +31,8 @@
 | M1.2 | `iam/core/model/`: POJO `User`/`Role`/`EmailAddress`/... | [x] | core không import Spring |
 | M1.3 | `iam/core/service/`: `PasswordPolicyService`, `UserRegistrationService` | [x] | core test thuần Java |
 | M1.4 | `iam/infrastructure/persistence/`: JPA entity + repo + mapper | [x] | `mvn -pl modules/iam -am clean compile` exit 0; 0 file có `jakarta.persistence` trong `core/`/`api/` |
-| M1.5 | `iam/infrastructure/security/`: `JwtTokenProvider`, `GoogleTokenVerifier`, `SecurityConfig` | [ ] | `/auth/login` trả JWT |
-| M1.6 | `iam/infrastructure/web/`: `AuthController` + `IamFacadeImpl` | [ ] | register/login E2E |
+| M1.5 | `iam/infrastructure/security/`: `JwtTokenProvider`, `GoogleTokenVerifier`, `SecurityConfig` | [x] | compile pass, runtime chạy với dummy JWT secret |
+| M1.6 | `iam/infrastructure/web/`: `AuthController` + `IamFacadeImpl` (11 method) + filter chain (`JwtAuthenticationFilter` + `CustomUserDetails` + `AuthEntryPoint` + `AccessDeniedHandlerImpl` + `RefreshTokenCookieService` + `CookieProperties`). Fix bug M1.1 (`loginWithGoogle` return `AuthMessageResponse` → `AuthResponse`) + bug M1.3 (`UserRegistrationServiceImpl` thiếu `@Component`). Thêm `ApiResponse` ở `shared-web`, `RoleLookupService`, `AuthSupportService`, `LoggingAuthEventPublisher` (no-op, M4.4 sẽ wire outbox) | [x] | `register/login/refresh/logout/forgotPassword/resetPassword/changePassword` E2E pass; `verifyOtp/resendOtp` throw TODO chờ M2.3 |
 | M2.1 | `iam/core`: `OtpIssued/VerifiedDomainEvent` + `OtpService` interface | [ ] | compile |
 | M2.2 | `iam/infrastructure`: `OtpJpaEntity` + repo + `OtpServiceImpl` | [ ] | DB có bảng `otp_codes` |
 | M2.3 | Wire OTP vào flow `register` + `CompleteProfileRequest` | [ ] | register → verify → active |
@@ -201,3 +201,5 @@ Cập nhật mỗi lần tick xong micro:
 | 2026-07-17 06:45 | M1.2 (iam/core/model: POJO + VO + enum) | 5 / 25 |
 | 2026-07-17 07:18 | M1.3 (iam/core/service: PasswordPolicy + UserRegistration, Argon2id) | 6 / 25 |
 | 2026-07-17 07:40 | M1.4 (iam/infrastructure/persistence: 3 entity + 4 repo + 3 mapper MapStruct) | 7 / 25 |
+| 2026-07-17 07:55 | M1.5 (iam/infrastructure/security: JwtTokenProvider + GoogleTokenVerifier + SecurityConfig) | 8 / 25 |
+| 2026-07-17 08:25 | M1.6 (iam/infrastructure/web: AuthController + IamFacadeImpl + filter chain + 11 endpoint E2E) | 9 / 25 |

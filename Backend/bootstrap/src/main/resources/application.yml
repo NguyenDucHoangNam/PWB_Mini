@@ -23,3 +23,34 @@ logging:
   level:
     org.springframework.web: INFO
     com.pwb.backend: INFO
+
+app:
+  security:
+    jwt:
+      secret: ${APP_JWT_SECRET:01234567890123456789012345678901}
+      refresh-secret: ${APP_JWT_REFRESH_SECRET:abcdefghijklmnopqrstuvwxyz123456}
+      access-token-expiration: 900000
+      refresh-token-expiration: 604800000
+    public-paths:
+      - /api/v1/auth/**
+      - /actuator/health
+      - /v3/api-docs/**
+      - /swagger-ui/**
+  google:
+    client-id: ${APP_GOOGLE_CLIENT_ID:}
+    clock-skew-seconds: 30
+  cookie:
+    refresh-name: refresh_token
+    secure: ${APP_COOKIE_SECURE:false}
+    same-site: Lax
+    max-age-seconds: 604800
+    path: /
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000}
+  password-reset:
+    token-ttl-minutes: 30
+    cooldown-seconds: 60
+    frontend-url: ${APP_FRONTEND_URL:http://localhost:3000}
+    reset-path: /auth/reset-password
+  role:
+    cache-ttl-seconds: 300

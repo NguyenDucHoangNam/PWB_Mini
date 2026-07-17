@@ -167,4 +167,25 @@ public final class User extends BaseEntity {
         this.avatarUrl = avatarUrl;
         touch();
     }
+
+    public void changeUsername(String username) {
+        this.username = username;
+        touch();
+    }
+
+    public void changeFullName(String fullName) {
+        this.fullName = fullName;
+        touch();
+    }
+
+    public void changeAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
+        touch();
+    }
+
+    public void linkOAuth(OAuthProvider provider, String oauthId) {
+        this.oauthProvider = provider;
+        this.oauthId = oauthId;
+        touch();
+    }
 }

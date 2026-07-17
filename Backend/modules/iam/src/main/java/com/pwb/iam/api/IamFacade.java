@@ -26,7 +26,7 @@ public interface IamFacade {
 
     AuthResponse login(LoginRequest request);
 
-    AuthMessageResponse loginWithGoogle(GoogleLoginRequest request);
+    AuthResponse loginWithGoogle(GoogleLoginRequest request);
 
     AuthResponse refresh(RefreshTokenRequest request);
 

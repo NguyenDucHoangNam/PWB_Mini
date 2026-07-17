@@ -36,4 +36,9 @@ public class PasswordResetTokenJpaEntity extends IamJpaBaseEntity {
 
     @Column(name = "used_at")
     private Instant usedAt;
+
+    public void markUsed(Instant now) {
+        this.used = true;
+        this.usedAt = now;
+    }
 }

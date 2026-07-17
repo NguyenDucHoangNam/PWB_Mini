@@ -13,6 +13,11 @@ import java.util.UUID;
 @AllArgsConstructor
 public class AuthResponse {
 
+    public enum NextStep {
+        NONE,
+        COMPLETE_PROFILE
+    }
+
     private String accessToken;
 
     private String refreshToken;
@@ -28,4 +33,6 @@ public class AuthResponse {
     private String status;
 
     private String role;
+
+    private NextStep nextStep;
 }

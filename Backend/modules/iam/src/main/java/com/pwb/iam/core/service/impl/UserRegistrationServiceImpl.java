@@ -7,16 +7,16 @@ import com.pwb.iam.core.model.User;
 import com.pwb.iam.core.service.PasswordPolicyService;
 import com.pwb.iam.core.service.RegisterCommand;
 import com.pwb.iam.core.service.UserRegistrationService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 @Slf4j
+@Component
+@RequiredArgsConstructor
 public class UserRegistrationServiceImpl implements UserRegistrationService {
 
     private final PasswordPolicyService passwordPolicyService;
-
-    public UserRegistrationServiceImpl(PasswordPolicyService passwordPolicyService) {
-        this.passwordPolicyService = passwordPolicyService;
-    }
 
     @Override
     public User register(RegisterCommand command) {
