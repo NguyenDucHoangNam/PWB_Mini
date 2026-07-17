@@ -29,7 +29,7 @@
 | M0.3 | `bootstrap` skeleton lean (`Application.java` + `application.yml` + banner + template, **không** kéo `MessageSource`/`Jackson`/`CorrelationId` ở sprint này) | [x] | `mvn -pl bootstrap -am compile` exit 0; `spring-boot:run` start; `/actuator/health` UP |
 | M1.1 | `iam/api/`: DTO + `IamFacade` interface (M1.1a: Register/Login/AuthResponse + 9 DTO còn lại + 11 method public) | [x] | compile module `iam` |
 | M1.2 | `iam/core/model/`: POJO `User`/`Role`/`EmailAddress`/... | [x] | core không import Spring |
-| M1.3 | `iam/core/service/`: `PasswordPolicyService`, `UserRegistrationService` | [ ] | core test thuần Java |
+| M1.3 | `iam/core/service/`: `PasswordPolicyService`, `UserRegistrationService` | [x] | core test thuần Java |
 | M1.4 | `iam/infrastructure/persistence/`: JPA entity + repo + mapper | [ ] | map được với DB schema cũ |
 | M1.5 | `iam/infrastructure/security/`: `JwtTokenProvider`, `GoogleTokenVerifier`, `SecurityConfig` | [ ] | `/auth/login` trả JWT |
 | M1.6 | `iam/infrastructure/web/`: `AuthController` + `IamFacadeImpl` | [ ] | register/login E2E |
@@ -74,7 +74,7 @@
 |----|----------|-------------------|
 | **M1.1** | `iam/api/dto/`: copy 8 request (`RegisterRequest`, `LoginRequest`, `GoogleLoginRequest`, `RefreshTokenRequest`, `ForgotPasswordRequest`, `ResetPasswordRequest`, `ChangePasswordRequest`, `CompleteProfileRequest`) + 3 response (`AuthResponse`, `AuthMessageResponse`, `GoogleIdTokenPayload`). Tạo `IamFacade` interface với signature của tất cả method public | compile pass, không thiếu import |
 | **M1.2** | `iam/core/model/`: `User.java`, `Role.java`, `RoleName.java` (enum), `EmailAddress.java` (Value Object validate regex), `Password.java` (Value Object áp dụng `PasswordPolicyService`), `PasswordResetToken.java`, `OAuthProvider.java` (enum), `BaseEntity.java` (`createdAt`, `updatedAt`) — tất cả POJO thuần, không `@Entity` | `javac` thuần pass, không có `org.springframework.*` trong classpath |
-| **M1.3** | `iam/core/service/`: `PasswordPolicyService` (validate độ mạnh MK), `UserRegistrationService.register(...)` — chỉ xử lý logic thuần (validate, hash MK), KHÔNG gọi DB | test thủ công gọi hàm `register(user)` với input fake |
+| **M1.3** | `iam/core/service/`: `PasswordPolicyService` (validate độ mạnh MK — Argon2id + modern-strict: ≥12 chars, upper/lower/digit/special, no whitespace), `UserRegistrationService.register(...)` — chỉ xử lý logic thuần (validate, hash MK bằng Argon2id 3 iter/64MB), KHÔNG gọi DB. `PasswordPolicyServiceImpl`, `UserRegistrationServiceImpl`, `PasswordPolicyResult`, `PasswordPolicyViolation`, `WeakPasswordException` (IAM_002), `RegisterCommand`. Added `de.mkammerer:argon2-jvm` 2.12 + `slf4j-api` vào `iam/pom.xml` | `mvn -pl modules/iam -am clean compile` exit 0; PasswordPolicyService.validate() và UserRegistrationService.register() sẵn sàng cho IamFacadeImpl (M1.6) compose |
 | **M1.4** | `iam/infrastructure/persistence/`: `UserJpaEntity`, `RoleJpaEntity`, `PasswordResetTokenJpaEntity` (annotation JPA đầy đủ); `UserRepository`, `RoleRepository`, `PasswordResetTokenRepository` extends `JpaRepository`; mapper JPA↔domain (có thể dùng MapStruct nếu parent POM có) | boot app với profile `dev` không lỗi JPA mapping |
 | **M1.5** | `iam/infrastructure/security/`: `JwtTokenProvider` (chuyển từ `BE/security/jwt/`), `CustomUserDetails`, `GoogleTokenVerifier`, `SecurityConfig` (`@EnableWebSecurity`, filter chain), `AuthEntryPoint`, `AccessDeniedHandlerImpl`. Lưu secret qua `${app.jwt.secret}` | POST `/auth/login` → 200 + JWT body |
 | **M1.6** | `iam/infrastructure/web/AuthController.java` (chuyển từ `BE/controller/`), `IamFacadeImpl.java` (inject các core service, gọi infrastructure), `IamModuleConfig.java` (`@ComponentScan("com.pwb.iam")`). Xóa code IAM cũ trong `BE/` | full flow register → login → refresh chạy end-to-end qua Postman/curl |
@@ -199,3 +199,4 @@ Cập nhật mỗi lần tick xong micro:
 | 2026-07-17 05:46 | M0.3 | 3 / 25 |
 | 2026-07-17 06:20 | M1.1a (Register/Login facade + DTO) | 4 / 25 |
 | 2026-07-17 06:45 | M1.2 (iam/core/model: POJO + VO + enum) | 5 / 25 |
+| 2026-07-17 07:18 | M1.3 (iam/core/service: PasswordPolicy + UserRegistration, Argon2id) | 6 / 25 |

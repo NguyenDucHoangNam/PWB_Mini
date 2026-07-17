@@ -44,6 +44,7 @@
         <aws-sdk.version>2.31.3</aws-sdk.version>
         <gcp-tts.version>2.50.0</gcp-tts.version>
         <google-api-client.version>2.7.1</google-api-client.version>
+        <argon2-jvm.version>2.12</argon2-jvm.version>
     </properties>
 
     <dependencyManagement>
@@ -121,6 +122,12 @@
             <dependency>
                 <groupId>software.amazon.awssdk</groupId>
                 <artifactId>s3</artifactId>
+            </dependency>
+
+            <dependency>
+                <groupId>de.mkammerer</groupId>
+                <artifactId>argon2-jvm</artifactId>
+                <version>${argon2-jvm.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
