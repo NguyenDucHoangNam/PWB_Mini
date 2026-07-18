@@ -7,11 +7,13 @@ import com.pwb.iam.core.service.PasswordPolicyViolation;
 import de.mkammerer.argon2.Argon2;
 import de.mkammerer.argon2.Argon2Factory;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
+@Service
 public class PasswordPolicyServiceImpl implements PasswordPolicyService {
 
     private static final int MIN_LENGTH = 12;

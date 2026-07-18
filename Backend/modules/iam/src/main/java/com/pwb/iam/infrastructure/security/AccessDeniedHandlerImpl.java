@@ -1,6 +1,6 @@
 package com.pwb.iam.infrastructure.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.pwb.backend.exception.ErrorCode;
 import com.pwb.backend.web.ApiResponse;
 import com.pwb.backend.web.MessageResolver;
