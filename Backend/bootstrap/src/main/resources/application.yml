@@ -108,6 +108,7 @@ app:
     cooldown-seconds: 60
     frontend-url: ${APP_FRONTEND_URL:http://localhost:3000}
     reset-path: /auth/reset-password
+    token-secret: ${APP_PASSWORD_RESET_TOKEN_SECRET:}
   role:
     cache-ttl-seconds: 300
   outbox:

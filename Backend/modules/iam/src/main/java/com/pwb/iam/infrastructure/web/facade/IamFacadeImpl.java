@@ -40,6 +40,7 @@ import com.pwb.iam.infrastructure.security.service.LoginAttemptService;
 import com.pwb.iam.infrastructure.security.service.RefreshTokenStore;
 import com.pwb.iam.infrastructure.security.util.ClientIpResolver;
 import com.pwb.iam.infrastructure.service.AuthSupportService;
+import com.pwb.iam.infrastructure.service.PasswordResetTokenService;
 import com.pwb.iam.infrastructure.service.RoleLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,13 +50,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -65,7 +61,6 @@ import java.util.UUID;
 public class IamFacadeImpl implements IamFacade {
 
     private static final String COOLDOWN_PREFIX = "password-reset:cooldown:";
-    private static final int TOKEN_BYTES = 32;
     private static final int PROVISIONAL_USERNAME_RANDOM_LENGTH = 16;
 
     private static final String MSG_REGISTER = "AUTH_REGISTER_MESSAGE";
@@ -91,7 +86,7 @@ public class IamFacadeImpl implements IamFacade {
     private final RefreshTokenStore refreshTokenStore;
     private final RefreshTokenProperties refreshTokenProperties;
     private final LoginAttemptService loginAttemptService;
-    private final SecureRandom secureRandom = new SecureRandom();
+    private final PasswordResetTokenService passwordResetTokenService;
 
     @Autowired(required = false)
     private StringRedisTemplate stringRedisTemplate;
@@ -378,8 +373,9 @@ public class IamFacadeImpl implements IamFacade {
             throw new BusinessException(ErrorCode.AUTH_OAUTH_USER_NO_PASSWORD);
         }
 
-        String rawToken = generateSecureToken();
-        String tokenHash = sha256(rawToken);
+        String signedToken = passwordResetTokenService.generateSignedToken();
+        String rawToken = passwordResetTokenService.extractRawToken(signedToken);
+        String tokenHash = passwordResetTokenService.hashForStorage(rawToken);
 
         Instant now = Instant.now();
         Instant expiresAt = now.plus(Duration.ofMinutes(passwordResetProperties.getTokenTtlMinutes()));
@@ -392,7 +388,7 @@ public class IamFacadeImpl implements IamFacade {
                 .used(false)
                 .build());
 
-        String resetLink = buildResetLink(rawToken);
+        String resetLink = passwordResetTokenService.buildResetLink(rawToken);
         authEventPublisher.publishPasswordResetRequested(
                 user.getUserId(), user.getEmail().value(), resetLink,
                 passwordResetProperties.getTokenTtlMinutes());
@@ -405,7 +401,16 @@ public class IamFacadeImpl implements IamFacade {
     @Override
     @Transactional
     public AuthMessageResponse resetPassword(ResetPasswordRequest request) {
-        String tokenHash = sha256(request.getToken());
+        if (!passwordResetTokenService.verifySignature(request.getToken())) {
+            throw new BusinessException(ErrorCode.AUTH_RESET_TOKEN_INVALID);
+        }
+
+        String rawToken = passwordResetTokenService.extractRawToken(request.getToken());
+        if (rawToken == null || rawToken.isBlank()) {
+            throw new BusinessException(ErrorCode.AUTH_RESET_TOKEN_INVALID);
+        }
+
+        String tokenHash = passwordResetTokenService.hashForStorage(rawToken);
         Instant now = Instant.now();
 
         PasswordResetTokenJpaEntity tokenEntity = passwordResetTokenJpaRepository
@@ -519,38 +524,6 @@ public class IamFacadeImpl implements IamFacade {
                 key, "1", Duration.ofSeconds(passwordResetProperties.getCooldownSeconds()));
         if (Boolean.FALSE.equals(acquired)) {
             throw new BusinessException(ErrorCode.PASSWORD_RESET_COOLDOWN);
-        }
-    }
-
-    private String buildResetLink(String rawToken) {
-        String base = passwordResetProperties.getFrontendUrl();
-        String path = passwordResetProperties.getResetPath();
-        if (base.endsWith("/")) {
-            base = base.substring(0, base.length() - 1);
-        }
-        if (!path.startsWith("/")) {
-            path = "/" + path;
-        }
-        return base + path + "?token=" + rawToken;
-    }
-
-    private String generateSecureToken() {
-        byte[] bytes = new byte[TOKEN_BYTES];
-        secureRandom.nextBytes(bytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    }
-
-    private String sha256(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            StringBuilder hex = new StringBuilder(hash.length * 2);
-            for (byte b : hash) {
-                hex.append(String.format("%02x", b));
-            }
-            return hex.toString();
-        } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException("SHA-256 not available", ex);
         }
     }
 }

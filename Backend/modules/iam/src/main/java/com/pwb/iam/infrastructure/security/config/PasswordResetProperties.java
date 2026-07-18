@@ -18,4 +18,6 @@ public class PasswordResetProperties {
     private String frontendUrl = "http://localhost:3000";
 
     private String resetPath = "/auth/reset-password";
+
+    private String tokenSecret;
 }
