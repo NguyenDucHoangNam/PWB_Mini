@@ -87,7 +87,7 @@
 
 | ID | Nội dung | Output kiểm chứng |
 |----|----------|-------------------|
-| **M2.1** | `iam/core/events/OtpIssuedDomainEvent.java`, `OtpVerifiedDomainEvent.java`. `iam/api/OtpService` interface (`requestOtp(email)`, `verifyOtp(email, code)`) | compile |
+| **M2.1** | `iam/core/events/OtpIssuedDomainEvent.java`, `OtpVerifiedDomainEvent.java`. `iam/core/model/OtpPurpose.java`. `iam/api/dto/response/OtpPolicyResult.java`, `OtpVerificationOutcome.java`. `iam/api/OtpService` interface (`requestOtp(email, purpose)`, `verifyOtp(email, purpose, rawCode)`) | compile |
 | **M2.2** | `iam/infrastructure/persistence/OtpJpaEntity.java` + repo. `iam/infrastructure/service/impl/OtpServiceImpl.java` — generate code 6 số, TTL 5 phút, rate limit (cấu hình qua `OtpProperties`) | Flyway migration mới tạo `otp_codes` |
 | **M2.3** | `IamFacadeImpl.register(...)` gọi `otpService.requestOtp(...)` thay vì active luôn. Endpoint mới `POST /auth/verify-otp`, `POST /auth/resend-otp`, `POST /auth/complete-profile`. Verify success → update user status ACTIVE | flow: register (status=PENDING_OTP) → verify-otp (status=ACTIVE) → login OK |
 | **M2.4** | Copy 3 file `messages*.properties` từ `BE/src/main/resources/i18n/` → `bootstrap/src/main/resources/i18n/`. Inject `MessageSource` vào `AuthController` và `IamFacadeImpl`. Validation annotation dùng key `{validation.email.required}` | thay đổi `Accept-Language: vi` → message trả về tiếng Việt |
@@ -203,3 +203,4 @@ Cập nhật mỗi lần tick xong micro:
 | 2026-07-17 07:40 | M1.4 (iam/infrastructure/persistence: 3 entity + 4 repo + 3 mapper MapStruct) | 7 / 25 |
 | 2026-07-17 07:55 | M1.5 (iam/infrastructure/security: JwtTokenProvider + GoogleTokenVerifier + SecurityConfig) | 8 / 25 |
 | 2026-07-17 08:25 | M1.6 (iam/infrastructure/web: AuthController + IamFacadeImpl + filter chain + 11 endpoint E2E) | 9 / 25 |
+| 2026-07-18 08:14 | M2.1 (iam/core/events + iam/api/OtpService + 2 value object) | 10 / 25 |
