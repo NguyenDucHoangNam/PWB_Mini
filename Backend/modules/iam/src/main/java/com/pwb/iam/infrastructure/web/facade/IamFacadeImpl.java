@@ -26,6 +26,7 @@ import com.pwb.iam.core.model.Password;
 import com.pwb.iam.core.model.RoleName;
 import com.pwb.iam.core.model.User;
 import com.pwb.iam.core.model.UserStatus;
+import com.pwb.iam.core.events.AuthSuccessEvent;
 import com.pwb.iam.infrastructure.persistence.entity.PasswordResetTokenJpaEntity;
 import com.pwb.iam.infrastructure.persistence.entity.UserJpaEntity;
 import com.pwb.iam.infrastructure.persistence.mapper.UserMapper;
@@ -45,6 +46,7 @@ import com.pwb.iam.infrastructure.service.RoleLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -87,6 +89,7 @@ public class IamFacadeImpl implements IamFacade {
     private final RefreshTokenProperties refreshTokenProperties;
     private final LoginAttemptService loginAttemptService;
     private final PasswordResetTokenService passwordResetTokenService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Autowired(required = false)
     private StringRedisTemplate stringRedisTemplate;
@@ -498,15 +501,7 @@ public class IamFacadeImpl implements IamFacade {
     private AuthResponse buildAuthResponseWithRotation(User user, AuthResponse.NextStep nextStep) {
         AuthResponse response = authSupportService.buildAuthResponse(user, nextStep);
         String refreshToken = response.getRefreshToken();
-        try {
-            String jti = jwtTokenProvider.extractJtiFromRefreshToken(refreshToken);
-            if (jti != null && !jti.isBlank()) {
-                refreshTokenStore.store(jti, user.getUserId(), refreshTokenProperties.getTtlSeconds());
-            }
-        } catch (Exception ex) {
-            log.warn("Failed to track refresh JTI for rotation: userId={} reason={}",
-                    user.getUserId(), ex.getMessage());
-        }
+        eventPublisher.publishEvent(AuthSuccessEvent.of(user.getUserId(), user.getEmail().value(), refreshToken));
         return response;
     }
 
