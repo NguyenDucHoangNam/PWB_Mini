@@ -44,4 +44,9 @@ public class LoggingAuthEventPublisher implements AuthEventPublisher {
     public void publishUserLinkedGoogle(UUID userId, String email, String fullName) {
         log.info("EVENT user-linked-google: userId={} email={} fullName={}", userId, email, fullName);
     }
+
+    @Override
+    public void publishUserVerifiedEmail(UUID userId, String email) {
+        log.info("EVENT user-verified-email: userId={} email={}", userId, email);
+    }
 }

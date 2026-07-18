@@ -35,7 +35,7 @@
 | M1.6 | `iam/infrastructure/web/`: `AuthController` + `IamFacadeImpl` (11 method) + filter chain (`JwtAuthenticationFilter` + `CustomUserDetails` + `AuthEntryPoint` + `AccessDeniedHandlerImpl` + `RefreshTokenCookieService` + `CookieProperties`). Fix bug M1.1 (`loginWithGoogle` return `AuthMessageResponse` → `AuthResponse`) + bug M1.3 (`UserRegistrationServiceImpl` thiếu `@Component`). Thêm `ApiResponse` ở `shared-web`, `RoleLookupService`, `AuthSupportService`, `LoggingAuthEventPublisher` (no-op, M4.4 sẽ wire outbox) | [x] | `register/login/refresh/logout/forgotPassword/resetPassword/changePassword` E2E pass; `verifyOtp/resendOtp` throw TODO chờ M2.3 |
 | M2.1 | `iam/core`: `OtpIssued/VerifiedDomainEvent` + `OtpService` interface | [x] | compile |
 | M2.2 | `iam/infrastructure`: `OtpCodeJpaEntity` + `OtpCodeJpaRepository` + `OtpCodeMapper` (MapStruct) + `OtpCode` domain + `OtpProperties` + `OtpServiceImpl` (Redis SHA-256 hash + salt, daily counter Lua). Thêm Flyway (`spring-boot-starter-flyway` + `flyway-mysql`) vào `bootstrap` + V1__create_otp_codes.sql | [x] | `mvn -pl modules/iam -am compile` + `mvn -pl bootstrap -am compile` exit 0; Flyway tree chứa `flyway-mysql:12.4.0`; ReadLints sạch |
-| M2.3 | Wire OTP vào flow `register` + `CompleteProfileRequest` | [ ] | register → verify → active |
+| M2.3 | Wire OTP vào flow `register` + `CompleteProfileRequest` | [x] | register → verify → active |
 | M2.4 | i18n resource (3 file properties) + inject `MessageSource` vào controller | [ ] | `Accept-Language` hoạt động |
 | M3.1 | `voice/api/`: DTO + `VoiceFacade` interface | [ ] | compile module `voice` |
 | M3.2 | `voice/core/model/`: POJO `VoiceTag` + `VoiceQuota` value object | [ ] | core thuần Java |
@@ -205,3 +205,4 @@ Cập nhật mỗi lần tick xong micro:
 | 2026-07-17 08:25 | M1.6 (iam/infrastructure/web: AuthController + IamFacadeImpl + filter chain + 11 endpoint E2E) | 9 / 25 |
 | 2026-07-18 08:14 | M2.1 (iam/core/events + iam/api/OtpService + 2 value object) | 10 / 25 |
 | 2026-07-18 08:35 | M2.2 (iam/infrastructure: OtpCodeJpaEntity + Repo + Mapper + OtpCode domain + OtpProperties + OtpServiceImpl Redis-backed + Flyway V1__create_otp_codes.sql) | 11 / 25 |
+| 2026-07-18 08:44 | M2.3 (IamFacadeImpl.register wire OTP + verifyOtp + resendOtp; OtpService.verifyOtpByUserId + ResendOtpRequest.purpose + AuthEventPublisher.publishUserVerifiedEmail + ErrorCode AUTH_OTP_INVALID/EXPIRED/LOCKED) | 12 / 25 |

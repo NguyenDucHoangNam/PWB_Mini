@@ -17,4 +17,6 @@ public interface AuthEventPublisher {
     void publishUserRegisteredGoogle(UUID userId, String email, String fullName);
 
     void publishUserLinkedGoogle(UUID userId, String email, String fullName);
+
+    void publishUserVerifiedEmail(UUID userId, String email);
 }

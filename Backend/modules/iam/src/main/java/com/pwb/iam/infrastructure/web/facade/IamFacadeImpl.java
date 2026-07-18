@@ -3,6 +3,7 @@ package com.pwb.iam.infrastructure.web.facade;
 import com.pwb.backend.exception.BusinessException;
 import com.pwb.backend.exception.ErrorCode;
 import com.pwb.iam.api.IamFacade;
+import com.pwb.iam.api.OtpService;
 import com.pwb.iam.api.dto.GoogleIdTokenPayload;
 import com.pwb.iam.api.dto.request.ChangePasswordRequest;
 import com.pwb.iam.api.dto.request.CompleteProfileRequest;
@@ -16,7 +17,10 @@ import com.pwb.iam.api.dto.request.ResetPasswordRequest;
 import com.pwb.iam.api.dto.request.VerifyOtpRequest;
 import com.pwb.iam.api.dto.response.AuthMessageResponse;
 import com.pwb.iam.api.dto.response.AuthResponse;
+import com.pwb.iam.api.dto.response.OtpPolicyResult;
+import com.pwb.iam.api.dto.response.OtpVerificationOutcome;
 import com.pwb.iam.core.model.EmailAddress;
+import com.pwb.iam.core.model.OtpPurpose;
 import com.pwb.iam.core.model.Password;
 import com.pwb.iam.core.model.RoleName;
 import com.pwb.iam.core.model.User;
@@ -67,6 +71,7 @@ public class IamFacadeImpl implements IamFacade {
     private final GoogleTokenVerifier googleTokenVerifier;
     private final AuthEventPublisher authEventPublisher;
     private final PasswordResetProperties passwordResetProperties;
+    private final OtpService otpService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Autowired(required = false)
@@ -98,6 +103,14 @@ public class IamFacadeImpl implements IamFacade {
 
         log.info("User registered pending verification: userId={} email={}",
                 savedDomain.getUserId(), savedDomain.getEmail().value());
+
+        OtpPolicyResult policy = otpService.requestOtp(
+                savedDomain.getEmail().value(), OtpPurpose.REGISTER);
+        if (!policy.allowed()) {
+            log.warn("OTP throttled right after register: userId={} cooldown={}",
+                    savedDomain.getUserId(), policy.cooldownRemaining());
+        }
+
         return AuthMessageResponse.of(
                 savedDomain.getUserId(),
                 "Đăng ký thành công. Vui lòng kiểm tra email để xác minh.");
@@ -106,8 +119,32 @@ public class IamFacadeImpl implements IamFacade {
     @Override
     @Transactional
     public AuthResponse verifyOtp(VerifyOtpRequest request) {
-        throw new UnsupportedOperationException(
-                "verifyOtp chưa được implement; sẽ có ở M2.3 (OTP wire)");
+        OtpVerificationOutcome outcome = otpService.verifyOtpByUserId(
+                request.getUserId(), OtpPurpose.REGISTER, request.getCode());
+
+        switch (outcome.outcome()) {
+            case INVALID -> throw new BusinessException(ErrorCode.AUTH_OTP_INVALID);
+            case EXPIRED_OR_MISSING -> throw new BusinessException(ErrorCode.AUTH_OTP_EXPIRED);
+            case LOCKED -> throw new BusinessException(ErrorCode.AUTH_OTP_LOCKED);
+            case OK -> { }
+        }
+
+        UserJpaEntity entity = userJpaRepository.findByIdAndDeletedFalse(request.getUserId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userMapper.toDomain(entity);
+
+        if (user.getStatus() != UserStatus.PENDING_VERIFICATION) {
+            log.warn("User already verified or invalid status: userId={} status={}",
+                    user.getUserId(), user.getStatus());
+        }
+        user.markActive();
+        UserJpaEntity saved = userJpaRepository.save(userMapper.toEntity(user));
+
+        authEventPublisher.publishUserVerifiedEmail(saved.getId(), saved.getEmail());
+
+        log.info("User OTP verified: userId={}", saved.getId());
+        return authSupportService.buildAuthResponse(
+                userMapper.toDomain(saved), AuthResponse.NextStep.COMPLETE_PROFILE);
     }
 
     @Override
@@ -369,8 +406,17 @@ public class IamFacadeImpl implements IamFacade {
     @Override
     @Transactional
     public AuthMessageResponse resendOtp(ResendOtpRequest request) {
-        throw new UnsupportedOperationException(
-                "resendOtp chưa được implement; sẽ có ở M2.3 (OTP wire)");
+        UserJpaEntity entity = userJpaRepository.findByIdAndDeletedFalse(request.getUserId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        OtpPolicyResult policy = otpService.requestOtp(entity.getEmail(), request.getPurpose());
+        if (policy.allowed()) {
+            return AuthMessageResponse.of(entity.getId(),
+                    "OTP đã được gửi lại. Vui lòng kiểm tra email.");
+        }
+        String seconds = String.valueOf(policy.cooldownRemaining().toSeconds());
+        return AuthMessageResponse.of(entity.getId(),
+                "Vui lòng chờ " + seconds + " giây trước khi yêu cầu OTP mới.");
     }
 
     @Override
@@ -400,8 +446,6 @@ public class IamFacadeImpl implements IamFacade {
         Boolean acquired = stringRedisTemplate.opsForValue().setIfAbsent(
                 key, "1", Duration.ofSeconds(passwordResetProperties.getCooldownSeconds()));
         if (Boolean.FALSE.equals(acquired)) {
-            Long ttl = stringRedisTemplate.getExpire(key);
-            long seconds = (ttl == null || ttl <= 0) ? passwordResetProperties.getCooldownSeconds() : ttl;
             throw new BusinessException(ErrorCode.PASSWORD_RESET_COOLDOWN);
         }
     }

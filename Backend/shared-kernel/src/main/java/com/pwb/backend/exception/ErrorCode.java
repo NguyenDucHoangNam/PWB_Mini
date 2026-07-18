@@ -26,6 +26,9 @@ public enum ErrorCode {
     SEEDER_ROLE_NOT_FOUND          ("IAM_018", "Role mặc định không tồn tại trong DB.", 500),
     USER_NAME_EXISTS               ("IAM_019", "Username đã được sử dụng.", 409),
     EMAIL_ALREADY_REGISTERED_AUTH  ("IAM_020", "Email đã được đăng ký.", 409),
+    AUTH_OTP_INVALID               ("IAM_021", "Mã OTP không đúng.", 400),
+    AUTH_OTP_EXPIRED               ("IAM_022", "Mã OTP đã hết hạn hoặc không tồn tại.", 400),
+    AUTH_OTP_LOCKED                ("IAM_023", "Tài khoản tạm thời bị khóa do nhập sai OTP quá nhiều lần.", 429),
 
     UNAUTHORIZED ("SYS_002", "Cần xác thực.", 401),
     FORBIDDEN    ("SYS_003", "Không có quyền truy cập.", 403),

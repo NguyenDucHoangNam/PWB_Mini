@@ -1,5 +1,6 @@
 package com.pwb.iam.api.dto.request;
 
+import com.pwb.iam.core.model.OtpPurpose;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,4 +17,7 @@ public class ResendOtpRequest {
 
     @NotNull
     private UUID userId;
+
+    @NotNull
+    private OtpPurpose purpose;
 }

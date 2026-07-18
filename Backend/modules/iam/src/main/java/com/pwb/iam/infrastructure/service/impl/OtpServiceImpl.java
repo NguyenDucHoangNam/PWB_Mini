@@ -168,6 +168,13 @@ public class OtpServiceImpl implements OtpService {
         return OtpVerificationOutcome.ok(userId, email, purpose, now);
     }
 
+    @Override
+    public OtpVerificationOutcome verifyOtpByUserId(UUID userId, OtpPurpose purpose, String rawCode) {
+        UserJpaEntity user = userRepository.findByIdAndDeletedFalse(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        return verifyOtp(user.getEmail(), purpose, rawCode);
+    }
+
     private void invalidate(UUID userId, OtpPurpose purpose) {
         String redisKey = buildHashKey(userId, purpose);
         redisTemplate.delete(redisKey);
