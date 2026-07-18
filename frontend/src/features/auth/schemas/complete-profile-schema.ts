@@ -8,7 +8,6 @@ export const completeProfileSchema = z.object({
     .min(3, "usernameRequired")
     .max(50, "usernameLength")
     .regex(/^[a-zA-Z0-9_]+$/, "usernameInvalid"),
-  fullName: z.string().trim().max(100, "fullNameLength").optional().or(z.literal("")),
   newPassword: z
     .string()
     .max(128, "maxPassword")

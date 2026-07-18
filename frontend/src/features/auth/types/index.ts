@@ -51,8 +51,11 @@ export interface VerifyOtpRequest {
 
 export type VerifyOtpResponse = AuthResponse;
 
+export type OtpPurpose = "EMAIL_VERIFICATION" | "PASSWORD_RESET";
+
 export interface ResendOtpRequest {
   userId: string;
+  purpose: OtpPurpose;
 }
 
 export interface AuthMessageResponseWithTimestamp extends AuthMessageResponse {

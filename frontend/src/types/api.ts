@@ -1,9 +1,12 @@
 export interface ApiResponse<T> {
   success: boolean;
+  status?: number;
   message: string;
   data: T | null;
   errors: ErrorDetail[] | null;
+  code?: string;
   timestamp: string;
+  traceId?: string | null;
 }
 
 export interface ErrorDetail {

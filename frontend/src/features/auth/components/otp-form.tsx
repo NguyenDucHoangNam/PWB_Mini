@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useVerifyOtp, useResendOtp } from "../api/verify-otp";
+import { useVerifyOtp } from "../api/verify-otp";
+import { useResendOtp } from "../api/resend-otp";
 import { useAuthStore } from "../stores/use-auth-store";
 import { OtpInput } from "./otp-input";
 import { Button } from "@/components/ui/button";
@@ -148,7 +149,7 @@ export function OtpForm() {
     setOtpInvalid(false);
 
     resendMutate(
-      { data: { userId } },
+      { data: { userId, purpose: "EMAIL_VERIFICATION" as const } },
       {
         onSuccess: (response) => {
           toast.success(t("resendSuccess"));
