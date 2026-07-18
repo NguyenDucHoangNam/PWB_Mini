@@ -77,3 +77,18 @@ app:
     reset-path: /auth/reset-password
   role:
     cache-ttl-seconds: 300
+  outbox:
+    relay:
+      enabled: true
+    poll-interval-ms: 5000
+
+spring.kafka:
+  bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  producer:
+    key-serializer: org.apache.kafka.common.serialization.StringSerializer
+    value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    acks: all
+    retries: 3
+    properties:
+      delivery.timeout.ms: 10000
+      request.timeout.ms: 5000
