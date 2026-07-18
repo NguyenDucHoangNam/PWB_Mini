@@ -1,6 +1,8 @@
 package com.pwb.backend.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -8,16 +10,23 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.List;
+import java.util.Locale;
 
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private final MessageSource messageSource;
+
+    public GlobalExceptionHandler(MessageSource messageSource) {
+        this.messageSource = messageSource;
+    }
+
     @ExceptionHandler(BaseBusinessException.class)
     public ResponseEntity<ErrorResponse> handleBaseBusiness(BaseBusinessException ex) {
         ErrorCode ec = ex.getErrorCode();
         return ResponseEntity.status(HttpStatus.valueOf(ec.getHttpStatus()))
-                .body(ErrorResponse.of(ec, ec.getMessage()));
+                .body(ErrorResponse.of(ec, resolveMessage(ec)));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -31,7 +40,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest()
                 .body(ErrorResponse.of(
                         ErrorCode.INVALID_INPUT,
-                        ErrorCode.INVALID_INPUT.getMessage(),
+                        resolveMessage(ErrorCode.INVALID_INPUT),
                         details));
     }
 
@@ -41,6 +50,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ErrorResponse.of(
                         ErrorCode.INTERNAL_SERVER_ERROR,
-                        ErrorCode.INTERNAL_SERVER_ERROR.getMessage()));
+                        resolveMessage(ErrorCode.INTERNAL_SERVER_ERROR)));
+    }
+
+    private String resolveMessage(ErrorCode ec) {
+        Locale locale = LocaleContextHolder.getLocale();
+        try {
+            return messageSource.getMessage(ec.getCode(), null, ec.getMessage(), locale);
+        } catch (Exception ex) {
+            return ec.getMessage();
+        }
     }
 }

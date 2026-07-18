@@ -3,6 +3,7 @@ package com.pwb.iam.infrastructure.web.facade;
 import com.pwb.backend.exception.BusinessException;
 import com.pwb.backend.exception.ErrorCode;
 import com.pwb.iam.api.IamFacade;
+import com.pwb.backend.web.MessageResolver;
 import com.pwb.iam.api.OtpService;
 import com.pwb.iam.api.dto.GoogleIdTokenPayload;
 import com.pwb.iam.api.dto.request.ChangePasswordRequest;
@@ -62,6 +63,14 @@ public class IamFacadeImpl implements IamFacade {
     private static final int TOKEN_BYTES = 32;
     private static final int PROVISIONAL_USERNAME_RANDOM_LENGTH = 16;
 
+    private static final String MSG_REGISTER = "AUTH_REGISTER_MESSAGE";
+    private static final String MSG_FORGOT_PASSWORD = "AUTH_FORGOT_PASSWORD_SENT";
+    private static final String MSG_PASSWORD_RESET = "AUTH_PASSWORD_RESET_SUCCESSFUL";
+    private static final String MSG_PASSWORD_CHANGED = "AUTH_PASSWORD_CHANGED_SUCCESSFUL";
+    private static final String MSG_LOGOUT = "AUTH_LOGOUT_SUCCESSFUL";
+    private static final String MSG_OTP_RESENT = "AUTH_OTP_RESENT";
+    private static final String MSG_OTP_COOLDOWN = "AUTH_OTP_COOLDOWN";
+
     private final UserJpaRepository userJpaRepository;
     private final PasswordResetTokenJpaRepository passwordResetTokenJpaRepository;
     private final UserMapper userMapper;
@@ -72,6 +81,7 @@ public class IamFacadeImpl implements IamFacade {
     private final AuthEventPublisher authEventPublisher;
     private final PasswordResetProperties passwordResetProperties;
     private final OtpService otpService;
+    private final MessageResolver messageResolver;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Autowired(required = false)
@@ -113,7 +123,7 @@ public class IamFacadeImpl implements IamFacade {
 
         return AuthMessageResponse.of(
                 savedDomain.getUserId(),
-                "Đăng ký thành công. Vui lòng kiểm tra email để xác minh.");
+                messageResolver.get(MSG_REGISTER));
     }
 
     @Override
@@ -305,19 +315,18 @@ public class IamFacadeImpl implements IamFacade {
         String email = normalizeEmail(request.getEmail());
         enforceResetCooldown(email);
 
+        String sentMessage = messageResolver.get(MSG_FORGOT_PASSWORD);
         Optional<UserJpaEntity> userOpt = userJpaRepository.findByEmailAndDeletedFalse(email);
         if (userOpt.isEmpty()) {
             log.info("Password reset requested for unknown email (silent)");
-            return AuthMessageResponse.of(null,
-                    "Nếu email tồn tại trong hệ thống, liên kết đặt lại đã được gửi.");
+            return AuthMessageResponse.of(null, sentMessage);
         }
         User user = userMapper.toDomain(userOpt.get());
 
         if (user.getStatus() != UserStatus.ACTIVE) {
             log.info("Password reset skipped for non-active user: userId={} status={}",
                     user.getUserId(), user.getStatus());
-            return AuthMessageResponse.of(null,
-                    "Nếu email tồn tại trong hệ thống, liên kết đặt lại đã được gửi.");
+            return AuthMessageResponse.of(null, sentMessage);
         }
         if (user.getOauthProvider() != com.pwb.iam.core.model.OAuthProvider.LOCAL) {
             throw new BusinessException(ErrorCode.AUTH_OAUTH_USER_NO_PASSWORD);
@@ -344,8 +353,7 @@ public class IamFacadeImpl implements IamFacade {
 
         log.info("Password reset requested: userId={} email={}",
                 user.getUserId(), user.getEmail().value());
-        return AuthMessageResponse.of(user.getUserId(),
-                "Nếu email tồn tại trong hệ thống, liên kết đặt lại đã được gửi.");
+        return AuthMessageResponse.of(user.getUserId(), sentMessage);
     }
 
     @Override
@@ -375,7 +383,7 @@ public class IamFacadeImpl implements IamFacade {
         authEventPublisher.publishPasswordChanged(savedUser.getId(), savedUser.getEmail());
 
         log.info("Password reset completed: userId={}", savedUser.getId());
-        return AuthMessageResponse.of(savedUser.getId(), "Đặt lại mật khẩu thành công.");
+        return AuthMessageResponse.of(savedUser.getId(), messageResolver.get(MSG_PASSWORD_RESET));
     }
 
     @Override
@@ -400,7 +408,7 @@ public class IamFacadeImpl implements IamFacade {
         authEventPublisher.publishPasswordChanged(saved.getId(), saved.getEmail());
 
         log.info("Password changed: userId={}", saved.getId());
-        return AuthMessageResponse.of(saved.getId(), "Đổi mật khẩu thành công.");
+        return AuthMessageResponse.of(saved.getId(), messageResolver.get(MSG_PASSWORD_CHANGED));
     }
 
     @Override
@@ -411,12 +419,11 @@ public class IamFacadeImpl implements IamFacade {
 
         OtpPolicyResult policy = otpService.requestOtp(entity.getEmail(), request.getPurpose());
         if (policy.allowed()) {
-            return AuthMessageResponse.of(entity.getId(),
-                    "OTP đã được gửi lại. Vui lòng kiểm tra email.");
+            return AuthMessageResponse.of(entity.getId(), messageResolver.get(MSG_OTP_RESENT));
         }
-        String seconds = String.valueOf(policy.cooldownRemaining().toSeconds());
+        long seconds = policy.cooldownRemaining().toSeconds();
         return AuthMessageResponse.of(entity.getId(),
-                "Vui lòng chờ " + seconds + " giây trước khi yêu cầu OTP mới.");
+                messageResolver.get(MSG_OTP_COOLDOWN, seconds));
     }
 
     @Override
@@ -426,7 +433,7 @@ public class IamFacadeImpl implements IamFacade {
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         authEventPublisher.publishLogout(entity.getId(), entity.getEmail());
         log.info("User logged out: userId={}", entity.getId());
-        return AuthMessageResponse.of(entity.getId(), "Đăng xuất thành công.");
+        return AuthMessageResponse.of(entity.getId(), messageResolver.get(MSG_LOGOUT));
     }
 
     private String normalizeEmail(String raw) {

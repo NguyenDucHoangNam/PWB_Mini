@@ -1,6 +1,7 @@
 package com.pwb.iam.infrastructure.web.controller;
 
 import com.pwb.backend.web.ApiResponse;
+import com.pwb.backend.web.MessageResolver;
 import com.pwb.iam.api.IamFacade;
 import com.pwb.iam.api.dto.request.ChangePasswordRequest;
 import com.pwb.iam.api.dto.request.CompleteProfileRequest;
@@ -29,21 +30,28 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.UUID;
-
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
+    private static final String MSG_REGISTER_SUCCESSFUL = "AUTH_REGISTER_SUCCESSFUL";
+    private static final String MSG_LOGIN_SUCCESSFUL = "AUTH_LOGIN_SUCCESSFUL";
+    private static final String MSG_GOOGLE_LOGIN_SUCCESSFUL = "AUTH_GOOGLE_LOGIN_SUCCESSFUL";
+    private static final String MSG_REFRESH_TOKEN_SUCCESSFUL = "AUTH_REFRESH_TOKEN_SUCCESSFUL";
+    private static final String MSG_LOGOUT_SUCCESSFUL = "AUTH_LOGOUT_SUCCESSFUL";
+    private static final String MSG_VERIFY_OTP_SUCCESSFUL = "AUTH_VERIFY_OTP_SUCCESSFUL";
+    private static final String MSG_COMPLETE_PROFILE_SUCCESSFUL = "AUTH_COMPLETE_PROFILE_SUCCESSFUL";
+
     private final IamFacade iamFacade;
     private final RefreshTokenCookieService refreshTokenCookieService;
+    private final MessageResolver messageResolver;
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<AuthMessageResponse>> register(@Valid @RequestBody RegisterRequest request) {
         AuthMessageResponse data = iamFacade.register(request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.created(data, "Đăng ký thành công."));
+                .body(ApiResponse.created(data, messageResolver.get(MSG_REGISTER_SUCCESSFUL)));
     }
 
     @PostMapping("/login")
@@ -51,7 +59,7 @@ public class AuthController {
                                                            HttpServletResponse response) {
         AuthResponse data = iamFacade.login(request);
         refreshTokenCookieService.setRefreshCookie(response, data.getRefreshToken());
-        return ResponseEntity.ok(ApiResponse.success(data, "Đăng nhập thành công."));
+        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_LOGIN_SUCCESSFUL)));
     }
 
     @PostMapping("/google")
@@ -59,7 +67,7 @@ public class AuthController {
                                                                     HttpServletResponse response) {
         AuthResponse data = iamFacade.loginWithGoogle(request);
         refreshTokenCookieService.setRefreshCookie(response, data.getRefreshToken());
-        return ResponseEntity.ok(ApiResponse.success(data, "Đăng nhập Google thành công."));
+        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_GOOGLE_LOGIN_SUCCESSFUL)));
     }
 
     @PostMapping("/refresh")
@@ -72,7 +80,7 @@ public class AuthController {
                 : (body != null ? body.getRefreshToken() : null);
         AuthResponse data = iamFacade.refresh(RefreshTokenRequest.builder().refreshToken(token).build());
         refreshTokenCookieService.setRefreshCookie(response, data.getRefreshToken());
-        return ResponseEntity.ok(ApiResponse.success(data, "Làm mới token thành công."));
+        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_REFRESH_TOKEN_SUCCESSFUL)));
     }
 
     @PostMapping("/logout")
@@ -81,7 +89,7 @@ public class AuthController {
                                                                   HttpServletResponse response) {
         refreshTokenCookieService.clearRefreshCookie(response);
         AuthMessageResponse data = iamFacade.logout(user.getId());
-        return ResponseEntity.ok(ApiResponse.success(data, "Đăng xuất thành công."));
+        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_LOGOUT_SUCCESSFUL)));
     }
 
     @PostMapping("/verify-otp")
@@ -89,7 +97,7 @@ public class AuthController {
                                                                HttpServletResponse response) {
         AuthResponse data = iamFacade.verifyOtp(request);
         refreshTokenCookieService.setRefreshCookie(response, data.getRefreshToken());
-        return ResponseEntity.ok(ApiResponse.success(data, "Xác minh OTP thành công."));
+        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_VERIFY_OTP_SUCCESSFUL)));
     }
 
     @PostMapping("/resend-otp")
@@ -106,7 +114,7 @@ public class AuthController {
             HttpServletResponse response) {
         AuthResponse data = iamFacade.completeProfile(user.getId(), request);
         refreshTokenCookieService.setRefreshCookie(response, data.getRefreshToken());
-        return ResponseEntity.ok(ApiResponse.success(data, "Hoàn thiện hồ sơ thành công."));
+        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_COMPLETE_PROFILE_SUCCESSFUL)));
     }
 
     @PostMapping("/forgot-password")

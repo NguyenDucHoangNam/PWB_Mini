@@ -3,6 +3,7 @@ package com.pwb.iam.infrastructure.security;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.backend.exception.ErrorCode;
 import com.pwb.backend.web.ApiResponse;
+import com.pwb.backend.web.MessageResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +18,10 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class AuthEntryPoint implements AuthenticationEntryPoint {
 
+    private static final String MSG_UNAUTHORIZED = "AUTH_UNAUTHORIZED";
+
     private final ObjectMapper objectMapper;
+    private final MessageResolver messageResolver;
 
     @Override
     public void commence(HttpServletRequest request,
@@ -26,7 +30,8 @@ public class AuthEntryPoint implements AuthenticationEntryPoint {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        ApiResponse<Void> body = ApiResponse.error(ErrorCode.UNAUTHORIZED, "Yêu cầu cần xác thực.");
+        ApiResponse<Void> body = ApiResponse.error(
+                ErrorCode.UNAUTHORIZED, messageResolver.get(MSG_UNAUTHORIZED));
         objectMapper.writeValue(response.getWriter(), body);
     }
 }
