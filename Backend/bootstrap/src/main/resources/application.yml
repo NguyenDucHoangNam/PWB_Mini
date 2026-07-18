@@ -67,8 +67,8 @@ logging:
 app:
   security:
     jwt:
-      secret: ${APP_JWT_SECRET:01234567890123456789012345678901}
-      refresh-secret: ${APP_JWT_REFRESH_SECRET:abcdefghijklmnopqrstuvwxyz123456}
+      secret: ${APP_JWT_SECRET:}
+      refresh-secret: ${APP_JWT_REFRESH_SECRET:}
       access-token-expiration: 900000
       refresh-token-expiration: 604800000
     public-paths:
@@ -117,40 +117,32 @@ app:
     retry:
       max-attempts: 3
       backoff-seconds: [1, 5, 30]
-  mail:
-    host: ${SPRING_MAIL_HOST:smtp.gmail.com}
-    port: ${SPRING_MAIL_PORT:587}
-    username: ${SPRING_MAIL_USERNAME:}
-    password: ${SPRING_MAIL_PASSWORD:}
-    default-from: ${APP_MAIL_FROM:noreply@pwb.app}
-    auth-enabled: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:true}
-    starttls-enabled: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:true}
   iam:
     seeder:
       enabled: ${APP_IAM_SEEDER_ENABLED:true}
       users:
         - email: pwb.user01@gmail.com
-          password: "@NamHoang511"
+          password: ${APP_SEED_USER_PASSWORD:}
           fullName: User One
           role: USER
         - email: pwb.user02@gmail.com
-          password: "@NamHoang511"
+          password: ${APP_SEED_USER_PASSWORD:}
           fullName: User Two
           role: USER
         - email: pwb.pro01@gmail.com
-          password: "@NamHoang511"
+          password: ${APP_SEED_USER_PASSWORD:}
           fullName: Pro One
           role: PRO
         - email: pwb.pro02@gmail.com
-          password: "@NamHoang511"
+          password: ${APP_SEED_USER_PASSWORD:}
           fullName: Pro Two
           role: PRO
         - email: pwb.admin01@gmail.com
-          password: "@NamHoang511"
+          password: ${APP_SEED_ADMIN_PASSWORD:}
           fullName: Admin One
           role: ADMIN
         - email: pwb.admin02@gmail.com
-          password: "@NamHoang511"
+          password: ${APP_SEED_ADMIN_PASSWORD:}
           fullName: Admin Two
           role: ADMIN
 

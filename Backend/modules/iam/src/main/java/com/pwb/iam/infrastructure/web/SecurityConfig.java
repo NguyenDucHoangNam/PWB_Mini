@@ -5,6 +5,7 @@ import com.pwb.iam.infrastructure.security.AuthEntryPoint;
 import com.pwb.iam.infrastructure.security.config.SecurityProperties;
 import com.pwb.iam.infrastructure.security.filter.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -37,7 +38,7 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                   CorsConfigurationSource corsConfigurationSource) throws Exception {
+                                                   @Qualifier("iamCorsConfigurationSource") CorsConfigurationSource corsConfigurationSource) throws Exception {
         String[] publicPaths = securityProperties.getPublicPaths().toArray(String[]::new);
 
         return http
@@ -60,7 +61,7 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    @Bean
+    @Bean("iamCorsConfigurationSource")
     public CorsConfigurationSource corsConfigurationSource(
             @Value("${app.cors.allowed-origins:http://localhost:3000}") String[] allowedOrigins) {
 

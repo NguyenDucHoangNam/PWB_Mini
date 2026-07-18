@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.persistence.autoconfigure.EntityScan;
 
 @SpringBootApplication(scanBasePackages = "com.pwb")
-@EntityScan(basePackages = {"com.pwb.iam.infrastructure.persistence.entity", "com.pwb.outbox.infrastructure.persistence.entity"})
+@EntityScan(basePackages = "com.pwb")
 public class BackendApplication {
 
     public static void main(String[] args) {
