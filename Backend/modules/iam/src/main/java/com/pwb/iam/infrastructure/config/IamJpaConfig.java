@@ -1,6 +1,5 @@
 package com.pwb.iam.infrastructure.config;
 
-import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.AuditorAware;
@@ -11,7 +10,6 @@ import java.util.Optional;
 
 @Configuration
 @EnableJpaRepositories(basePackages = "com.pwb.iam")
-@EntityScan(basePackages = "com.pwb.iam")
 @EnableJpaAuditing
 public class IamJpaConfig {
 
