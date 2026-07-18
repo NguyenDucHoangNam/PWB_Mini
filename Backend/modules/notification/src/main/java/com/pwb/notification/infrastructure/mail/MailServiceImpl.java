@@ -4,6 +4,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -11,7 +12,8 @@ import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
-@Profile("prod")
+@Primary
+@Profile("!test")
 @RequiredArgsConstructor
 public class MailServiceImpl implements MailService {
 

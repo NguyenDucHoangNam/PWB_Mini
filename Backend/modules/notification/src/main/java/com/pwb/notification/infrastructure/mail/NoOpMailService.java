@@ -6,7 +6,7 @@ import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
-@Profile({"dev", "test", "local"})
+@Profile("test")
 public class NoOpMailService implements MailService {
 
     @Override
