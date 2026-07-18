@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
@@ -22,8 +23,9 @@ public class RedisRateLimitService implements RateLimitService {
 
     private final RateLimitProperties rateLimitProperties;
 
-    @Autowired(required = false)
-    private StringRedisTemplate stringRedisTemplate;
+    @Nullable
+    @Autowired
+    private final StringRedisTemplate stringRedisTemplate;
 
     @Override
     public RateLimitDecision check(String endpoint, String clientKey) {

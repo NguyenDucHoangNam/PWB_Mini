@@ -52,6 +52,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.annotation.Nullable;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
@@ -59,7 +60,6 @@ import java.util.UUID;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class IamFacadeImpl implements IamFacade {
 
     private static final String COOLDOWN_PREFIX = "password-reset:cooldown:";
@@ -91,8 +91,49 @@ public class IamFacadeImpl implements IamFacade {
     private final PasswordResetTokenService passwordResetTokenService;
     private final ApplicationEventPublisher eventPublisher;
 
-    @Autowired(required = false)
+    @Nullable
+    @Autowired
     private StringRedisTemplate stringRedisTemplate;
+
+    @Autowired
+    public IamFacadeImpl(
+            UserJpaRepository userJpaRepository,
+            PasswordResetTokenJpaRepository passwordResetTokenJpaRepository,
+            UserMapper userMapper,
+            PasswordEncoder passwordEncoder,
+            RoleLookupService roleLookupService,
+            AuthSupportService authSupportService,
+            GoogleTokenVerifier googleTokenVerifier,
+            AuthEventPublisher authEventPublisher,
+            PasswordResetProperties passwordResetProperties,
+            OtpService otpService,
+            MessageResolver messageResolver,
+            JwtTokenProvider jwtTokenProvider,
+            RefreshTokenStore refreshTokenStore,
+            RefreshTokenProperties refreshTokenProperties,
+            LoginAttemptService loginAttemptService,
+            PasswordResetTokenService passwordResetTokenService,
+            ApplicationEventPublisher eventPublisher,
+            @Nullable StringRedisTemplate stringRedisTemplate) {
+        this.userJpaRepository = userJpaRepository;
+        this.passwordResetTokenJpaRepository = passwordResetTokenJpaRepository;
+        this.userMapper = userMapper;
+        this.passwordEncoder = passwordEncoder;
+        this.roleLookupService = roleLookupService;
+        this.authSupportService = authSupportService;
+        this.googleTokenVerifier = googleTokenVerifier;
+        this.authEventPublisher = authEventPublisher;
+        this.passwordResetProperties = passwordResetProperties;
+        this.otpService = otpService;
+        this.messageResolver = messageResolver;
+        this.jwtTokenProvider = jwtTokenProvider;
+        this.refreshTokenStore = refreshTokenStore;
+        this.refreshTokenProperties = refreshTokenProperties;
+        this.loginAttemptService = loginAttemptService;
+        this.passwordResetTokenService = passwordResetTokenService;
+        this.eventPublisher = eventPublisher;
+        this.stringRedisTemplate = stringRedisTemplate;
+    }
 
     @Override
     @Transactional

@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
@@ -24,8 +25,9 @@ public class RedisLoginAttemptService implements LoginAttemptService {
 
     private final LoginPolicyProperties loginPolicyProperties;
 
-    @Autowired(required = false)
-    private StringRedisTemplate stringRedisTemplate;
+    @Nullable
+    @Autowired
+    private final StringRedisTemplate stringRedisTemplate;
 
     @Override
     public void recordFailure(String email, String ip) {
