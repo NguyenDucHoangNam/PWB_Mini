@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+  <div th:replace="~{email/_layout :: layout(~{::section})}">
+    <section>
+      <h2 style="margin:0 0 16px 0;font-size:18px;color:#111827;"
+          th:text="${#messages.msg('email.linked.google.title')}">Title</h2>
+      <p style="margin:0;color:#374151;line-height:1.5;"
+         th:text="${#messages.msg('email.linked.google.body', email)}">Body</p>
+    </section>
+  </div>
+</body>
+</html>
