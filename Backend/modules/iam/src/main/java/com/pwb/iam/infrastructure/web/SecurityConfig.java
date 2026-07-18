@@ -31,13 +31,13 @@ import java.util.List;
 public class SecurityConfig {
 
     private final SecurityProperties securityProperties;
-    private final CorsConfigurationSource corsConfigurationSource;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final AuthEntryPoint authEntryPoint;
     private final AccessDeniedHandlerImpl accessDeniedHandler;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                   CorsConfigurationSource corsConfigurationSource) throws Exception {
         String[] publicPaths = securityProperties.getPublicPaths().toArray(String[]::new);
 
         return http

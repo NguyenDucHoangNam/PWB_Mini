@@ -17,7 +17,7 @@ public class ThymeleafConfig {
     public SpringTemplateEngine emailTemplateEngine(MessageSource messageSource) {
         SpringTemplateEngine engine = new SpringTemplateEngine();
         ClassLoaderTemplateResolver resolver = new ClassLoaderTemplateResolver();
-        resolver.setPrefix("classpath:/templates/email/");
+        resolver.setPrefix("templates/email/");
         resolver.setSuffix(".html");
         resolver.setTemplateMode(TemplateMode.HTML);
         resolver.setCharacterEncoding("UTF-8");

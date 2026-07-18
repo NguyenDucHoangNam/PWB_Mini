@@ -12,7 +12,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 public class OutboxEnqueueListener {
     private final OutboxWriter outboxWriter;
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
     public void handle(OutboxEnqueueRequested event) {
         outboxWriter.enqueue(event.topic(), event.key(), event.payload(), event.headers());
     }
