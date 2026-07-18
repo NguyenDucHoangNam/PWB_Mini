@@ -96,6 +96,10 @@ public class JwtTokenProvider {
         return UUID.fromString(extractClaims(token, refreshTokenKey).getSubject());
     }
 
+    public String extractJtiFromRefreshToken(String token) {
+        return extractClaims(token, refreshTokenKey).getId();
+    }
+
     private void validateSecret(String secret, String propertyName) {
         if (secret == null || secret.isBlank()) {
             throw new IllegalStateException(

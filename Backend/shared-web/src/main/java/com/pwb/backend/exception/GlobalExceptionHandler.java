@@ -26,7 +26,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleBaseBusiness(BaseBusinessException ex) {
         ErrorCode ec = ex.getErrorCode();
         return ResponseEntity.status(HttpStatus.valueOf(ec.getHttpStatus()))
-                .body(ErrorResponse.of(ec, resolveMessage(ec)));
+                .body(ErrorResponse.of(ec, resolveMessage(ec, extractArgs(ex))));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -40,7 +40,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest()
                 .body(ErrorResponse.of(
                         ErrorCode.INVALID_INPUT,
-                        resolveMessage(ErrorCode.INVALID_INPUT),
+                        resolveMessage(ErrorCode.INVALID_INPUT, null),
                         details));
     }
 
@@ -50,15 +50,23 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ErrorResponse.of(
                         ErrorCode.INTERNAL_SERVER_ERROR,
-                        resolveMessage(ErrorCode.INTERNAL_SERVER_ERROR)));
+                        resolveMessage(ErrorCode.INTERNAL_SERVER_ERROR, null)));
     }
 
-    private String resolveMessage(ErrorCode ec) {
+    private String resolveMessage(ErrorCode ec, Object[] args) {
         Locale locale = LocaleContextHolder.getLocale();
         try {
-            return messageSource.getMessage(ec.getCode(), null, ec.getMessage(), locale);
+            return messageSource.getMessage(ec.getCode(), args, ec.getMessage(), locale);
         } catch (Exception ex) {
             return ec.getMessage();
         }
+    }
+
+    private Object[] extractArgs(BaseBusinessException ex) {
+        if (ex instanceof BusinessException be) {
+            Object[] args = be.getArgs();
+            return args == null || args.length == 0 ? null : args;
+        }
+        return null;
     }
 }

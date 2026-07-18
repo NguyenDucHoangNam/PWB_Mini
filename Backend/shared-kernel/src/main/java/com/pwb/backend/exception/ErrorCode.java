@@ -29,6 +29,9 @@ public enum ErrorCode {
     AUTH_OTP_INVALID               ("IAM_021", "Mã OTP không đúng.", 400),
     AUTH_OTP_EXPIRED               ("IAM_022", "Mã OTP đã hết hạn hoặc không tồn tại.", 400),
     AUTH_OTP_LOCKED                ("IAM_023", "Tài khoản tạm thời bị khóa do nhập sai OTP quá nhiều lần.", 429),
+    AUTH_ACCOUNT_LOCKED            ("IAM_024", "Tài khoản tạm thời bị khóa do đăng nhập sai quá nhiều lần.", 429),
+    AUTH_IP_LOCKED                 ("IAM_025", "IP tạm thời bị chặn do đăng nhập sai quá nhiều lần.", 429),
+    AUTH_RATE_LIMIT_EXCEEDED       ("IAM_026", "Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau {0} giây.", 429),
 
     UNAUTHORIZED ("SYS_002", "Cần xác thực.", 401),
     FORBIDDEN    ("SYS_003", "Không có quyền truy cập.", 403),

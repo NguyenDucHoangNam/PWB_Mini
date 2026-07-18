@@ -32,8 +32,13 @@ import com.pwb.iam.infrastructure.persistence.mapper.UserMapper;
 import com.pwb.iam.infrastructure.persistence.repository.PasswordResetTokenJpaRepository;
 import com.pwb.iam.infrastructure.persistence.repository.UserJpaRepository;
 import com.pwb.iam.infrastructure.security.config.PasswordResetProperties;
+import com.pwb.iam.infrastructure.security.config.RefreshTokenProperties;
 import com.pwb.iam.infrastructure.security.event.AuthEventPublisher;
 import com.pwb.iam.infrastructure.security.jwt.GoogleTokenVerifier;
+import com.pwb.iam.infrastructure.security.jwt.JwtTokenProvider;
+import com.pwb.iam.infrastructure.security.service.LoginAttemptService;
+import com.pwb.iam.infrastructure.security.service.RefreshTokenStore;
+import com.pwb.iam.infrastructure.security.util.ClientIpResolver;
 import com.pwb.iam.infrastructure.service.AuthSupportService;
 import com.pwb.iam.infrastructure.service.RoleLookupService;
 import lombok.RequiredArgsConstructor;
@@ -82,6 +87,10 @@ public class IamFacadeImpl implements IamFacade {
     private final PasswordResetProperties passwordResetProperties;
     private final OtpService otpService;
     private final MessageResolver messageResolver;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final RefreshTokenStore refreshTokenStore;
+    private final RefreshTokenProperties refreshTokenProperties;
+    private final LoginAttemptService loginAttemptService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Autowired(required = false)
@@ -153,7 +162,7 @@ public class IamFacadeImpl implements IamFacade {
         authEventPublisher.publishUserVerifiedEmail(saved.getId(), saved.getEmail());
 
         log.info("User OTP verified: userId={}", saved.getId());
-        return authSupportService.buildAuthResponse(
+        return buildAuthResponseWithRotation(
                 userMapper.toDomain(saved), AuthResponse.NextStep.COMPLETE_PROFILE);
     }
 
@@ -180,7 +189,7 @@ public class IamFacadeImpl implements IamFacade {
         UserJpaEntity saved = userJpaRepository.save(userMapper.toEntity(user));
         log.info("Profile completed: userId={} username={}",
                 saved.getId(), saved.getUsername());
-        return authSupportService.buildAuthResponse(
+        return buildAuthResponseWithRotation(
                 userMapper.toDomain(saved), AuthResponse.NextStep.NONE);
     }
 
@@ -188,24 +197,45 @@ public class IamFacadeImpl implements IamFacade {
     @Transactional
     public AuthResponse login(LoginRequest request) {
         String email = normalizeEmail(request.getEmail());
-        UserJpaEntity entity = userJpaRepository.findByEmailAndDeletedFalse(email)
-                .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_LOGIN_FAILED));
+        String clientIp = ClientIpResolver.getClientIp();
+
+        if (loginAttemptService.isEmailLocked(email)) {
+            throw new BusinessException(ErrorCode.AUTH_ACCOUNT_LOCKED);
+        }
+        if (loginAttemptService.isIpLocked(clientIp)) {
+            throw new BusinessException(ErrorCode.AUTH_IP_LOCKED);
+        }
+
+        UserJpaEntity entity = userJpaRepository.findByEmailAndDeletedFalse(email).orElse(null);
+        if (entity == null) {
+            loginAttemptService.recordFailure(email, clientIp);
+            throw new BusinessException(ErrorCode.AUTH_LOGIN_FAILED);
+        }
         User user = userMapper.toDomain(entity);
 
         if (user.getStatus() != UserStatus.ACTIVE) {
             if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
                 throw new BusinessException(ErrorCode.AUTH_ACCOUNT_NOT_VERIFIED);
             }
+            loginAttemptService.recordFailure(email, clientIp);
             throw new BusinessException(ErrorCode.AUTH_LOGIN_FAILED);
         }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword().getHash())) {
+            loginAttemptService.recordFailure(email, clientIp);
+            if (loginAttemptService.isEmailLocked(email)) {
+                throw new BusinessException(ErrorCode.AUTH_ACCOUNT_LOCKED);
+            }
+            if (loginAttemptService.isIpLocked(clientIp)) {
+                throw new BusinessException(ErrorCode.AUTH_IP_LOCKED);
+            }
             throw new BusinessException(ErrorCode.AUTH_LOGIN_FAILED);
         }
 
+        loginAttemptService.recordSuccess(email, clientIp);
         authEventPublisher.publishLoginSuccess(user.getUserId(), user.getEmail().value());
         log.info("User login success: userId={}", user.getUserId());
-        return authSupportService.buildAuthResponse(user, AuthResponse.NextStep.NONE);
+        return buildAuthResponseWithRotation(user, AuthResponse.NextStep.NONE);
     }
 
     @Override
@@ -281,7 +311,7 @@ public class IamFacadeImpl implements IamFacade {
                 ? AuthResponse.NextStep.COMPLETE_PROFILE
                 : AuthResponse.NextStep.NONE;
 
-        return authSupportService.buildAuthResponse(user, nextStep);
+        return buildAuthResponseWithRotation(user, nextStep);
     }
 
     @Override
@@ -296,7 +326,21 @@ public class IamFacadeImpl implements IamFacade {
             throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
         }
 
-        UUID userId = authSupportService.extractUserIdFromRefreshToken(token);
+        String jti;
+        try {
+            jti = jwtTokenProvider.extractJtiFromRefreshToken(token);
+        } catch (Exception ex) {
+            throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
+        }
+        if (jti == null || jti.isBlank()) {
+            throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
+        }
+
+        UUID userId = refreshTokenStore.findUserId(jti).orElse(null);
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
+        }
+
         UserJpaEntity entity = userJpaRepository.findByIdAndDeletedFalse(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         User user = userMapper.toDomain(entity);
@@ -305,8 +349,10 @@ public class IamFacadeImpl implements IamFacade {
             throw new BusinessException(ErrorCode.AUTH_ACCOUNT_NOT_VERIFIED);
         }
 
+        refreshTokenStore.revoke(jti);
+
         log.info("Token refreshed: userId={}", user.getUserId());
-        return authSupportService.buildAuthResponse(user, AuthResponse.NextStep.NONE);
+        return buildAuthResponseWithRotation(user, AuthResponse.NextStep.NONE);
     }
 
     @Override
@@ -380,6 +426,8 @@ public class IamFacadeImpl implements IamFacade {
         tokenEntity.markUsed(now);
         passwordResetTokenJpaRepository.save(tokenEntity);
 
+        refreshTokenStore.revokeAllForUser(savedUser.getId());
+
         authEventPublisher.publishPasswordChanged(savedUser.getId(), savedUser.getEmail());
 
         log.info("Password reset completed: userId={}", savedUser.getId());
@@ -405,6 +453,7 @@ public class IamFacadeImpl implements IamFacade {
 
         user.changePassword(Password.fromHash(passwordEncoder.encode(request.getNewPassword())));
         UserJpaEntity saved = userJpaRepository.save(userMapper.toEntity(user));
+        refreshTokenStore.revokeAllForUser(saved.getId());
         authEventPublisher.publishPasswordChanged(saved.getId(), saved.getEmail());
 
         log.info("Password changed: userId={}", saved.getId());
@@ -431,6 +480,7 @@ public class IamFacadeImpl implements IamFacade {
     public AuthMessageResponse logout(UUID userId) {
         UserJpaEntity entity = userJpaRepository.findByIdAndDeletedFalse(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        refreshTokenStore.revokeAllForUser(entity.getId());
         authEventPublisher.publishLogout(entity.getId(), entity.getEmail());
         log.info("User logged out: userId={}", entity.getId());
         return AuthMessageResponse.of(entity.getId(), messageResolver.get(MSG_LOGOUT));
@@ -438,6 +488,21 @@ public class IamFacadeImpl implements IamFacade {
 
     private String normalizeEmail(String raw) {
         return raw.trim().toLowerCase();
+    }
+
+    private AuthResponse buildAuthResponseWithRotation(User user, AuthResponse.NextStep nextStep) {
+        AuthResponse response = authSupportService.buildAuthResponse(user, nextStep);
+        String refreshToken = response.getRefreshToken();
+        try {
+            String jti = jwtTokenProvider.extractJtiFromRefreshToken(refreshToken);
+            if (jti != null && !jti.isBlank()) {
+                refreshTokenStore.store(jti, user.getUserId(), refreshTokenProperties.getTtlSeconds());
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to track refresh JTI for rotation: userId={} reason={}",
+                    user.getUserId(), ex.getMessage());
+        }
+        return response;
     }
 
     private String generateProvisionalUsername() {

@@ -17,6 +17,7 @@ import com.pwb.iam.api.dto.response.AuthMessageResponse;
 import com.pwb.iam.api.dto.response.AuthResponse;
 import com.pwb.iam.infrastructure.security.CustomUserDetails;
 import com.pwb.iam.infrastructure.security.RefreshTokenCookieService;
+import com.pwb.iam.infrastructure.security.annotation.RateLimited;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +49,7 @@ public class AuthController {
     private final MessageResolver messageResolver;
 
     @PostMapping("/register")
+    @RateLimited(endpoint = "auth.register")
     public ResponseEntity<ApiResponse<AuthMessageResponse>> register(@Valid @RequestBody RegisterRequest request) {
         AuthMessageResponse data = iamFacade.register(request);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -101,6 +103,7 @@ public class AuthController {
     }
 
     @PostMapping("/resend-otp")
+    @RateLimited(endpoint = "auth.resend-otp")
     public ResponseEntity<ApiResponse<AuthMessageResponse>> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
         AuthMessageResponse data = iamFacade.resendOtp(request);
         return ResponseEntity.ok(ApiResponse.success(data, data.getMessage()));
@@ -118,12 +121,14 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
+    @RateLimited(endpoint = "auth.forgot-password")
     public ResponseEntity<ApiResponse<AuthMessageResponse>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         AuthMessageResponse data = iamFacade.forgotPassword(request);
         return ResponseEntity.ok(ApiResponse.success(data, data.getMessage()));
     }
 
     @PostMapping("/reset-password")
+    @RateLimited(endpoint = "auth.reset-password")
     public ResponseEntity<ApiResponse<AuthMessageResponse>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         AuthMessageResponse data = iamFacade.resetPassword(request);
         return ResponseEntity.ok(ApiResponse.success(data, data.getMessage()));
