@@ -28,9 +28,11 @@ import com.pwb.iam.core.model.User;
 import com.pwb.iam.core.model.UserStatus;
 import com.pwb.iam.core.events.AuthSuccessEvent;
 import com.pwb.iam.infrastructure.persistence.entity.PasswordResetTokenJpaEntity;
+import com.pwb.iam.infrastructure.persistence.entity.RoleJpaEntity;
 import com.pwb.iam.infrastructure.persistence.entity.UserJpaEntity;
 import com.pwb.iam.infrastructure.persistence.mapper.UserMapper;
 import com.pwb.iam.infrastructure.persistence.repository.PasswordResetTokenJpaRepository;
+import com.pwb.iam.infrastructure.persistence.repository.RoleJpaRepository;
 import com.pwb.iam.infrastructure.persistence.repository.UserJpaRepository;
 import com.pwb.iam.infrastructure.security.config.PasswordResetProperties;
 import com.pwb.iam.infrastructure.security.config.RefreshTokenProperties;
@@ -75,6 +77,7 @@ public class IamFacadeImpl implements IamFacade {
 
     private final UserJpaRepository userJpaRepository;
     private final PasswordResetTokenJpaRepository passwordResetTokenJpaRepository;
+    private final RoleJpaRepository roleJpaRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final RoleLookupService roleLookupService;
@@ -99,6 +102,7 @@ public class IamFacadeImpl implements IamFacade {
     public IamFacadeImpl(
             UserJpaRepository userJpaRepository,
             PasswordResetTokenJpaRepository passwordResetTokenJpaRepository,
+            RoleJpaRepository roleJpaRepository,
             UserMapper userMapper,
             PasswordEncoder passwordEncoder,
             RoleLookupService roleLookupService,
@@ -117,6 +121,7 @@ public class IamFacadeImpl implements IamFacade {
             @Nullable StringRedisTemplate stringRedisTemplate) {
         this.userJpaRepository = userJpaRepository;
         this.passwordResetTokenJpaRepository = passwordResetTokenJpaRepository;
+        this.roleJpaRepository = roleJpaRepository;
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.roleLookupService = roleLookupService;
@@ -156,7 +161,12 @@ public class IamFacadeImpl implements IamFacade {
 
         domain.assignRole(roleLookupService.requireRole(RoleName.USER));
 
-        UserJpaEntity saved = userJpaRepository.save(userMapper.toEntity(domain));
+        UserJpaEntity entity = userMapper.toEntity(domain);
+        RoleJpaEntity roleEntity = roleJpaRepository.findByNameAndDeletedFalse(RoleName.USER.name())
+                .orElseThrow(() -> new BusinessException(ErrorCode.SEEDER_ROLE_NOT_FOUND));
+        entity.setRole(roleEntity);
+
+        UserJpaEntity saved = userJpaRepository.save(entity);
         User savedDomain = userMapper.toDomain(saved);
 
         log.info("User registered pending verification: userId={} email={}",
@@ -189,6 +199,7 @@ public class IamFacadeImpl implements IamFacade {
 
         UserJpaEntity entity = userJpaRepository.findByIdAndDeletedFalse(request.getUserId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        RoleJpaEntity originalRole = entity.getRole();
         User user = userMapper.toDomain(entity);
 
         if (user.getStatus() != UserStatus.PENDING_VERIFICATION) {
@@ -196,7 +207,9 @@ public class IamFacadeImpl implements IamFacade {
                     user.getUserId(), user.getStatus());
         }
         user.markActive();
-        UserJpaEntity saved = userJpaRepository.save(userMapper.toEntity(user));
+        UserJpaEntity toSave = userMapper.toEntity(user);
+        toSave.setRole(originalRole);
+        UserJpaEntity saved = userJpaRepository.save(toSave);
 
         authEventPublisher.publishUserVerifiedEmail(saved.getId(), saved.getEmail());
 
@@ -210,6 +223,7 @@ public class IamFacadeImpl implements IamFacade {
     public AuthResponse completeProfile(UUID userId, CompleteProfileRequest request) {
         UserJpaEntity entity = userJpaRepository.findByIdAndDeletedFalse(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        RoleJpaEntity originalRole = entity.getRole();
         User user = userMapper.toDomain(entity);
 
         String newUsername = request.getUsername().trim();
@@ -225,7 +239,9 @@ public class IamFacadeImpl implements IamFacade {
             user.changePassword(Password.fromHash(passwordEncoder.encode(request.getNewPassword())));
         }
 
-        UserJpaEntity saved = userJpaRepository.save(userMapper.toEntity(user));
+        UserJpaEntity toSave = userMapper.toEntity(user);
+        toSave.setRole(originalRole);
+        UserJpaEntity saved = userJpaRepository.save(toSave);
         log.info("Profile completed: userId={} username={}",
                 saved.getId(), saved.getUsername());
         return buildAuthResponseWithRotation(
@@ -316,13 +332,18 @@ public class IamFacadeImpl implements IamFacade {
                         payload.picture());
                 fresh.assignRole(roleLookupService.requireRole(RoleName.USER));
                 fresh.markActive();
-                UserJpaEntity saved = userJpaRepository.save(userMapper.toEntity(fresh));
+                UserJpaEntity freshEntity = userMapper.toEntity(fresh);
+                RoleJpaEntity roleEntity = roleJpaRepository.findByNameAndDeletedFalse(RoleName.USER.name())
+                        .orElseThrow(() -> new BusinessException(ErrorCode.SEEDER_ROLE_NOT_FOUND));
+                freshEntity.setRole(roleEntity);
+                UserJpaEntity saved = userJpaRepository.save(freshEntity);
                 user = userMapper.toDomain(saved);
                 authEventPublisher.publishUserRegisteredGoogle(
                         user.getUserId(), user.getEmail().value(), user.getFullName());
             }
         } else {
             user = userMapper.toDomain(entity);
+            RoleJpaEntity originalRole = entity.getRole();
             boolean dirty = false;
             if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
                 user.markActive();
@@ -334,7 +355,9 @@ public class IamFacadeImpl implements IamFacade {
                 dirty = true;
             }
             if (dirty) {
-                UserJpaEntity saved = userJpaRepository.save(userMapper.toEntity(user));
+                UserJpaEntity updatedEntity = userMapper.toEntity(user);
+                updatedEntity.setRole(originalRole);
+                UserJpaEntity saved = userJpaRepository.save(updatedEntity);
                 user = userMapper.toDomain(saved);
             }
         }
@@ -463,6 +486,7 @@ public class IamFacadeImpl implements IamFacade {
 
         UserJpaEntity entity = userJpaRepository.findByIdAndDeletedFalse(tokenEntity.getUserId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        RoleJpaEntity originalRole = entity.getRole();
         User user = userMapper.toDomain(entity);
 
         if (user.getOauthProvider() != com.pwb.iam.core.model.OAuthProvider.LOCAL) {
@@ -470,7 +494,9 @@ public class IamFacadeImpl implements IamFacade {
         }
 
         user.changePassword(Password.fromHash(passwordEncoder.encode(request.getNewPassword())));
-        UserJpaEntity savedUser = userJpaRepository.save(userMapper.toEntity(user));
+        UserJpaEntity toSave = userMapper.toEntity(user);
+        toSave.setRole(originalRole);
+        UserJpaEntity savedUser = userJpaRepository.save(toSave);
 
         tokenEntity.markUsed(now);
         passwordResetTokenJpaRepository.save(tokenEntity);
@@ -488,6 +514,7 @@ public class IamFacadeImpl implements IamFacade {
     public AuthMessageResponse changePassword(UUID userId, ChangePasswordRequest request) {
         UserJpaEntity entity = userJpaRepository.findByIdAndDeletedFalse(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        RoleJpaEntity originalRole = entity.getRole();
         User user = userMapper.toDomain(entity);
 
         if (user.getOauthProvider() != com.pwb.iam.core.model.OAuthProvider.LOCAL) {
@@ -501,7 +528,9 @@ public class IamFacadeImpl implements IamFacade {
         }
 
         user.changePassword(Password.fromHash(passwordEncoder.encode(request.getNewPassword())));
-        UserJpaEntity saved = userJpaRepository.save(userMapper.toEntity(user));
+        UserJpaEntity toSave = userMapper.toEntity(user);
+        toSave.setRole(originalRole);
+        UserJpaEntity saved = userJpaRepository.save(toSave);
         refreshTokenStore.revokeAllForUser(saved.getId());
         authEventPublisher.publishPasswordChanged(saved.getId(), saved.getEmail());
 
