@@ -43,11 +43,106 @@ public class OtpServiceImpl implements OtpService {
     private static final String DAILY_COUNT_PREFIX = "otp:daily-count:";
     private static final Duration DAILY_WINDOW = Duration.ofHours(24);
 
-    private static final RedisScript<Long> DAILY_INCREMENT_SCRIPT = new DefaultRedisScript<>(
-            "local current = redis.call('INCR', KEYS[1]);"
-            + "if current == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end;"
-            + "return current;",
-            Long.class);
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
+    private static final RedisScript<Long> OTP_REQUEST_SCRIPT = new DefaultRedisScript<>(buildOtpRequestScript(), Long.class);
+
+    private static final RedisScript<String> OTP_VERIFY_SCRIPT = new DefaultRedisScript<>(buildOtpVerifyScript(), String.class);
+
+    private static String buildOtpRequestScript() {
+        return """
+            local otpKey = KEYS[1]
+            local attemptsKey = KEYS[2]
+            local cooldownKey = KEYS[3]
+            local dailyKey = KEYS[4]
+            local otpValue = ARGV[1]
+            local ttlSeconds = tonumber(ARGV[2])
+            local cooldownSeconds = tonumber(ARGV[3])
+            local dailyWindowSeconds = tonumber(ARGV[4])
+            local dailyLimit = tonumber(ARGV[5])
+
+            -- Check cooldown first (atomic) - return -1 if active
+            local cooldownTtl = redis.call('TTL', cooldownKey)
+            if cooldownTtl > 0 then
+                return -1
+            end
+
+            -- Check daily limit - return -2 if exceeded
+            local dailyCount = redis.call('GET', dailyKey)
+            if dailyCount then
+                local count = tonumber(dailyCount)
+                if count >= dailyLimit then
+                    return -2
+                end
+            end
+
+            -- Atomic set OTP key with TTL
+            redis.call('SET', otpKey, otpValue, 'EX', ttlSeconds)
+
+            -- Atomic set attempts key with TTL (initialize to 0)
+            redis.call('SET', attemptsKey, '0', 'EX', ttlSeconds)
+
+            -- Atomic set cooldown key with TTL
+            redis.call('SET', cooldownKey, '1', 'EX', cooldownSeconds)
+
+            -- Increment and set TTL for daily counter
+            local newCount = redis.call('INCR', dailyKey)
+            if newCount == 1 then
+                redis.call('EXPIRE', dailyKey, dailyWindowSeconds)
+            end
+
+            -- Return current daily count (>= 0 means success)
+            return newCount
+            """;
+    }
+
+    private static String buildOtpVerifyScript() {
+        return """
+            local otpKey = KEYS[1]
+            local attemptsKey = KEYS[2]
+            local maxAttempts = tonumber(ARGV[1])
+            local ttlSeconds = tonumber(ARGV[2])
+            local providedHash = ARGV[3]
+
+            -- Get stored OTP value
+            local stored = redis.call('GET', otpKey)
+            if not stored or stored == '' then
+                return 'EXPIRED'
+            end
+
+            -- Increment attempts atomically
+            local attempts = redis.call('INCR', attemptsKey)
+            if attempts == 1 then
+                redis.call('EXPIRE', attemptsKey, ttlSeconds)
+            end
+
+            -- Check if max attempts exceeded
+            if attempts > maxAttempts then
+                -- Delete OTP and attempts keys
+                redis.call('DEL', otpKey, attemptsKey)
+                return 'LOCKED'
+            end
+
+            -- Parse stored value (format: salt:hash)
+            local colonPos = string.find(stored, ':')
+            if not colonPos then
+                redis.call('DEL', otpKey, attemptsKey)
+                return 'EXPIRED'
+            end
+
+            local storedSalt = string.sub(stored, 1, colonPos - 1)
+            local storedHash = string.sub(stored, colonPos + 1)
+
+            -- Constant-time comparison
+            if storedHash ~= providedHash then
+                return 'INVALID'
+            end
+
+            -- Success - delete OTP and return attempts count
+            redis.call('DEL', otpKey, attemptsKey)
+            return 'OK'
+            """;
+    }
 
     private final OtpProperties otpProperties;
     private final StringRedisTemplate redisTemplate;
@@ -61,39 +156,50 @@ public class OtpServiceImpl implements OtpService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         UUID userId = user.getId();
-
-        Duration cooldown = resendCooldownRemaining(userId, purpose);
-        if (!cooldown.isZero()) {
-            return OtpPolicyResult.throttled(cooldown);
-        }
-
-        if (!canResend(userId, purpose)) {
-            return OtpPolicyResult.throttled(Duration.ZERO);
-        }
+        String otpKey = buildHashKey(userId, purpose);
+        String attemptsKey = otpKey + ATTEMPTS_SUFFIX;
+        String cooldownKey = COOLDOWN_PREFIX + userId + ":" + purpose.name();
+        String dailyKey = DAILY_COUNT_PREFIX + userId + ":" + purpose.name();
 
         String code = generateNumericCode(otpProperties.getCodeLength());
         String salt = generateSalt();
         String hashed = sha256(salt + code);
+        String otpValue = salt + ":" + hashed;
 
-        String redisKey = buildHashKey(userId, purpose);
-        String attemptsKey = redisKey + ATTEMPTS_SUFFIX;
-        Duration ttl = Duration.ofSeconds(otpProperties.getTtlSeconds());
+        String ttlSeconds = String.valueOf(otpProperties.getTtlSeconds());
+        String cooldownSeconds = String.valueOf(otpProperties.getResendCooldownSeconds());
+        String dailyWindowSeconds = String.valueOf(DAILY_WINDOW.toSeconds());
+        String dailyLimit = String.valueOf(otpProperties.getDailyResendLimit());
 
-        redisTemplate.opsForValue().set(redisKey, salt + ":" + hashed, ttl);
-        redisTemplate.opsForValue().set(attemptsKey, "0", ttl);
-        redisTemplate.opsForValue().set(
-                COOLDOWN_PREFIX + userId + ":" + purpose.name(),
-                "1",
-                Duration.ofSeconds(otpProperties.getResendCooldownSeconds()));
+        Long result = redisTemplate.execute(
+                OTP_REQUEST_SCRIPT,
+                List.of(otpKey, attemptsKey, cooldownKey, dailyKey),
+                otpValue,
+                ttlSeconds,
+                cooldownSeconds,
+                dailyWindowSeconds,
+                dailyLimit
+        );
 
-        String dailyKey = DAILY_COUNT_PREFIX + userId + ":" + purpose.name();
-        Long currentCount = redisTemplate.execute(
-                DAILY_INCREMENT_SCRIPT,
-                List.of(dailyKey),
-                String.valueOf(DAILY_WINDOW.toSeconds()));
+        if (result == null) {
+            log.error("OTP request script returned null: userId={}", userId);
+            return OtpPolicyResult.throttled(Duration.ZERO);
+        }
+
+        if (result < 0) {
+            if (result == -1) {
+                Duration cooldown = Duration.ofSeconds(otpProperties.getResendCooldownSeconds());
+                log.info("OTP request throttled by cooldown: userId={}", userId);
+                return OtpPolicyResult.throttled(cooldown);
+            }
+            if (result == -2) {
+                log.info("OTP request throttled by daily limit: userId={}", userId);
+                return OtpPolicyResult.throttled(Duration.ZERO);
+            }
+        }
 
         Instant now = Instant.now();
-        Instant expiresAt = now.plus(ttl);
+        Instant expiresAt = now.plus(Duration.ofSeconds(otpProperties.getTtlSeconds()));
         OtpCodeJpaEntity entity = OtpCodeJpaEntity.builder()
                 .userId(userId)
                 .purpose(purpose)
@@ -105,9 +211,8 @@ public class OtpServiceImpl implements OtpService {
 
         eventPublisher.publishEvent(new OtpIssuedDomainEvent(userId, email, code, purpose, now));
 
-        long dailyRemaining = otpProperties.getDailyResendLimit()
-                - (currentCount == null ? 0 : currentCount);
-        return OtpPolicyResult.allowed(Math.max(0L, dailyRemaining));
+        long dailyRemaining = Math.max(0L, otpProperties.getDailyResendLimit() - result);
+        return OtpPolicyResult.allowed(dailyRemaining);
     }
 
     @Override
@@ -119,53 +224,47 @@ public class OtpServiceImpl implements OtpService {
         String redisKey = buildHashKey(userId, purpose);
         String attemptsKey = redisKey + ATTEMPTS_SUFFIX;
 
-        String stored = redisTemplate.opsForValue().get(redisKey);
-        if (stored == null || stored.isBlank()) {
+        String codeHash = sha256(rawCode);
+
+        String resultStr = redisTemplate.execute(
+                OTP_VERIFY_SCRIPT,
+                List.of(redisKey, attemptsKey),
+                String.valueOf(otpProperties.getMaxAttempts()),
+                String.valueOf(otpProperties.getTtlSeconds()),
+                codeHash
+        );
+
+        if (resultStr == null) {
+            log.error("OTP verify script returned null: userId={}", userId);
             return OtpVerificationOutcome.expiredOrMissing(userId, email, purpose);
         }
 
-        Long attempts = redisTemplate.opsForValue().increment(attemptsKey);
-        int currentAttempts = attempts == null ? 1 : attempts.intValue();
+        OtpVerifyResult result = OtpVerifyResult.valueOf(resultStr);
 
-        if (currentAttempts > otpProperties.getMaxAttempts()) {
-            invalidate(userId, purpose);
-            otpCodeRepository.findLatestByUserIdAndPurposeAndStatus(userId, purpose, OtpStatus.PENDING)
-                    .ifPresent(e -> otpCodeRepository.markLocked(
-                            e.getId(), currentAttempts, Instant.now()));
-            return OtpVerificationOutcome.locked(userId, email, purpose);
-        }
-
-        String[] parts = stored.split(":", 2);
-        if (parts.length != 2) {
-            invalidate(userId, purpose);
-            return OtpVerificationOutcome.expiredOrMissing(userId, email, purpose);
-        }
-        String salt = parts[0];
-        String hash = parts[1];
-        boolean matched = MessageDigest.isEqual(
-                sha256(salt + rawCode).getBytes(StandardCharsets.UTF_8),
-                hash.getBytes(StandardCharsets.UTF_8));
-
-        if (!matched) {
-            if (currentAttempts >= otpProperties.getMaxAttempts()) {
-                invalidate(userId, purpose);
+        switch (result) {
+            case EXPIRED -> {
+                return OtpVerificationOutcome.expiredOrMissing(userId, email, purpose);
+            }
+            case LOCKED -> {
                 otpCodeRepository.findLatestByUserIdAndPurposeAndStatus(userId, purpose, OtpStatus.PENDING)
                         .ifPresent(e -> otpCodeRepository.markLocked(
-                                e.getId(), currentAttempts, Instant.now()));
+                                e.getId(), otpProperties.getMaxAttempts() + 1, Instant.now()));
                 return OtpVerificationOutcome.locked(userId, email, purpose);
             }
-            return OtpVerificationOutcome.invalid(userId, email, purpose);
+            case INVALID -> {
+                return OtpVerificationOutcome.invalid(userId, email, purpose);
+            }
+            case OK -> {
+                otpCodeRepository.findLatestByUserIdAndPurposeAndStatus(userId, purpose, OtpStatus.PENDING)
+                        .ifPresent(e -> otpCodeRepository.markVerified(
+                                e.getId(), OtpStatus.VERIFIED, Instant.now()));
+                Instant now = Instant.now();
+                eventPublisher.publishEvent(new OtpVerifiedDomainEvent(userId, email, purpose, now));
+                return OtpVerificationOutcome.ok(userId, email, purpose, now);
+            }
         }
 
-        invalidate(userId, purpose);
-        otpCodeRepository.findLatestByUserIdAndPurposeAndStatus(userId, purpose, OtpStatus.PENDING)
-                .ifPresent(e -> otpCodeRepository.markVerified(
-                        e.getId(), OtpStatus.VERIFIED, Instant.now()));
-
-        Instant now = Instant.now();
-        eventPublisher.publishEvent(new OtpVerifiedDomainEvent(userId, email, purpose, now));
-
-        return OtpVerificationOutcome.ok(userId, email, purpose, now);
+        return OtpVerificationOutcome.expiredOrMissing(userId, email, purpose);
     }
 
     @Override
@@ -175,46 +274,21 @@ public class OtpServiceImpl implements OtpService {
         return verifyOtp(user.getEmail(), purpose, rawCode);
     }
 
-    private void invalidate(UUID userId, OtpPurpose purpose) {
-        String redisKey = buildHashKey(userId, purpose);
-        redisTemplate.delete(redisKey);
-        redisTemplate.delete(redisKey + ATTEMPTS_SUFFIX);
-    }
-
-    private Duration resendCooldownRemaining(UUID userId, OtpPurpose purpose) {
-        String key = COOLDOWN_PREFIX + userId + ":" + purpose.name();
-        Long ttl = redisTemplate.getExpire(key);
-        if (ttl == null || ttl <= 0) return Duration.ZERO;
-        return Duration.ofSeconds(ttl);
-    }
-
-    private boolean canResend(UUID userId, OtpPurpose purpose) {
-        String dailyKey = DAILY_COUNT_PREFIX + userId + ":" + purpose.name();
-        String current = redisTemplate.opsForValue().get(dailyKey);
-        if (current == null) return true;
-        try {
-            return Long.parseLong(current) < otpProperties.getDailyResendLimit();
-        } catch (NumberFormatException e) {
-            return true;
-        }
-    }
-
     private String buildHashKey(UUID userId, OtpPurpose purpose) {
         return KEY_PREFIX + userId + ":" + purpose.name();
     }
 
     private String generateNumericCode(int length) {
-        SecureRandom random = new SecureRandom();
         StringBuilder sb = new StringBuilder(length);
         for (int i = 0; i < length; i++) {
-            sb.append(random.nextInt(10));
+            sb.append(SECURE_RANDOM.nextInt(10));
         }
         return sb.toString();
     }
 
     private String generateSalt() {
         byte[] saltBytes = new byte[16];
-        new SecureRandom().nextBytes(saltBytes);
+        SECURE_RANDOM.nextBytes(saltBytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(saltBytes);
     }
 
@@ -228,5 +302,12 @@ public class OtpServiceImpl implements OtpService {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 not available", e);
         }
+    }
+
+    public enum OtpVerifyResult {
+        OK,
+        INVALID,
+        EXPIRED,
+        LOCKED
     }
 }
