@@ -4,16 +4,15 @@ import java.time.Duration;
 
 public record OtpPolicyResult(
         boolean allowed,
-        String code,
         Duration cooldownRemaining,
         long dailyRemaining
 ) {
 
     public static OtpPolicyResult allowed(long dailyRemaining) {
-        return new OtpPolicyResult(true, null, Duration.ZERO, dailyRemaining);
+        return new OtpPolicyResult(true, Duration.ZERO, dailyRemaining);
     }
 
-    public static OtpPolicyResult throttled(String code, Duration cooldownRemaining) {
-        return new OtpPolicyResult(false, code, cooldownRemaining, 0L);
+    public static OtpPolicyResult throttled(Duration cooldownRemaining) {
+        return new OtpPolicyResult(false, cooldownRemaining, 0L);
     }
 }
