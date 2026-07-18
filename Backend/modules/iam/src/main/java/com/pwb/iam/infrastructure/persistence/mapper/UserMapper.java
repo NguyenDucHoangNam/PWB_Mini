@@ -36,6 +36,23 @@ public interface UserMapper {
                 .build();
     }
 
+    default UserJpaEntity toEntity(User domain, UserJpaEntity existing) {
+        if (domain == null) {
+            return null;
+        }
+        existing.setUsername(domain.getUsername());
+        existing.setEmail(domain.getEmail() == null ? null : domain.getEmail().value());
+        existing.setPassword(domain.getPassword() == null ? null : domain.getPassword().getHash());
+        existing.setFullName(domain.getFullName());
+        existing.setAvatarUrl(domain.getAvatarUrl());
+        existing.setPhone(domain.getPhone());
+        existing.setStatus(domain.getStatus());
+        existing.setOauthProvider(domain.getOauthProvider());
+        existing.setOauthId(domain.getOauthId());
+        existing.setDeletionRequestedAt(domain.getDeletionRequestedAt());
+        return existing;
+    }
+
     default User toDomain(UserJpaEntity entity) {
         if (entity == null) {
             return null;

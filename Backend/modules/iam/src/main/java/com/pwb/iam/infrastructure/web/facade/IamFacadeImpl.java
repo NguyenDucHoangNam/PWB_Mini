@@ -199,7 +199,6 @@ public class IamFacadeImpl implements IamFacade {
 
         UserJpaEntity entity = userJpaRepository.findByIdAndDeletedFalse(request.getUserId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        RoleJpaEntity originalRole = entity.getRole();
         User user = userMapper.toDomain(entity);
 
         if (user.getStatus() != UserStatus.PENDING_VERIFICATION) {
@@ -207,8 +206,7 @@ public class IamFacadeImpl implements IamFacade {
                     user.getUserId(), user.getStatus());
         }
         user.markActive();
-        UserJpaEntity toSave = userMapper.toEntity(user);
-        toSave.setRole(originalRole);
+        UserJpaEntity toSave = userMapper.toEntity(user, entity);
         UserJpaEntity saved = userJpaRepository.save(toSave);
 
         authEventPublisher.publishUserVerifiedEmail(saved.getId(), saved.getEmail());

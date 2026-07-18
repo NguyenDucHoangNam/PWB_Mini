@@ -1,17 +1,35 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<body>
-  <div th:replace="~{email/_layout :: layout(~{::section})}">
-    <section>
-      <h2 style="margin:0 0 16px 0;font-size:18px;color:#111827;"
-          th:text="${#messages.msg('email.register.otp.title')}">Title</h2>
-      <p style="margin:0 0 16px 0;color:#374151;line-height:1.5;"
-         th:text="${#messages.msg('email.register.otp.body', email)}">Body greeting</p>
-      <p style="margin:0 0 24px 0;color:#374151;line-height:1.5;font-size:32px;font-weight:700;letter-spacing:6px;text-align:center;color:#1f2937;"
-         th:text="${otp}">000000</p>
-      <p style="margin:0;color:#6b7280;font-size:13px;line-height:1.5;"
-         th:text="${#messages.msg('email.register.otp.expiry')}">Expiry</p>
-    </section>
-  </div>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title th:text="#{email.register.otp.title}">Email</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f4;">
+  <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f4f4f4;padding:24px;font-family:Arial,Helvetica,sans-serif;">
+    <tr>
+      <td align="center">
+        <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;">
+          <tr>
+            <td style="padding:24px 32px;background-color:#1f2937;color:#ffffff;">
+              <h1 style="margin:0;font-size:20px;font-weight:600;letter-spacing:0.5px;">PWB</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px;">
+              <h2 style="margin:0 0 16px 0;font-size:18px;color:#111827;" th:text="#{email.register.otp.title}">Title</h2>
+              <p style="margin:0 0 16px 0;color:#374151;line-height:1.5;" th:text="#{email.register.otp.body(${email}, ${otp})}">Body</p>
+              <p style="margin:0;color:#6b7280;font-size:13px;line-height:1.5;" th:text="#{email.register.otp.expiry}">Expiry</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 32px;background-color:#f9fafb;color:#6b7280;font-size:12px;text-align:center;">
+              <p style="margin:0;" th:text="#{email.footer}">Footer</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>

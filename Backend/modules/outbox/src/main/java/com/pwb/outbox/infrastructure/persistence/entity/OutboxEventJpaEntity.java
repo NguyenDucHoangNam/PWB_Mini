@@ -16,6 +16,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -48,6 +50,7 @@ public class OutboxEventJpaEntity {
     @Column(name = "payload_key", length = 128)
     private String payloadKey;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "payload", columnDefinition = "jsonb", nullable = false)
     private String payload;
 

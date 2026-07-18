@@ -90,8 +90,8 @@ app:
       max-fail-attempts: 5
       lock-duration-minutes: 15
     rate-limit:
-      enabled: true
-      requests-per-hour: 3
+      enabled: ${APP_RATE_LIMIT_ENABLED:true}
+      requests-per-hour: ${APP_RATE_LIMIT_PER_HOUR:100}
   google:
     client-id: ${APP_GOOGLE_CLIENT_ID:}
     clock-skew-seconds: 30

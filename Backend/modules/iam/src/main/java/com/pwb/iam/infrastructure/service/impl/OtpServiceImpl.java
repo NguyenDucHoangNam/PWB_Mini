@@ -224,47 +224,50 @@ public class OtpServiceImpl implements OtpService {
         String redisKey = buildHashKey(userId, purpose);
         String attemptsKey = redisKey + ATTEMPTS_SUFFIX;
 
-        String codeHash = sha256(rawCode);
-
-        String resultStr = redisTemplate.execute(
-                OTP_VERIFY_SCRIPT,
-                List.of(redisKey, attemptsKey),
-                String.valueOf(otpProperties.getMaxAttempts()),
-                String.valueOf(otpProperties.getTtlSeconds()),
-                codeHash
-        );
-
-        if (resultStr == null) {
-            log.error("OTP verify script returned null: userId={}", userId);
+        String storedValue = redisTemplate.opsForValue().get(redisKey);
+        if (storedValue == null || storedValue.isBlank()) {
             return OtpVerificationOutcome.expiredOrMissing(userId, email, purpose);
         }
 
-        OtpVerifyResult result = OtpVerifyResult.valueOf(resultStr);
-
-        switch (result) {
-            case EXPIRED -> {
-                return OtpVerificationOutcome.expiredOrMissing(userId, email, purpose);
-            }
-            case LOCKED -> {
-                otpCodeRepository.findLatestByUserIdAndPurposeAndStatus(userId, purpose, OtpStatus.PENDING)
-                        .ifPresent(e -> otpCodeRepository.markLocked(
-                                e.getId(), otpProperties.getMaxAttempts() + 1, Instant.now()));
-                return OtpVerificationOutcome.locked(userId, email, purpose);
-            }
-            case INVALID -> {
-                return OtpVerificationOutcome.invalid(userId, email, purpose);
-            }
-            case OK -> {
-                otpCodeRepository.findLatestByUserIdAndPurposeAndStatus(userId, purpose, OtpStatus.PENDING)
-                        .ifPresent(e -> otpCodeRepository.markVerified(
-                                e.getId(), OtpStatus.VERIFIED, Instant.now()));
-                Instant now = Instant.now();
-                eventPublisher.publishEvent(new OtpVerifiedDomainEvent(userId, email, purpose, now));
-                return OtpVerificationOutcome.ok(userId, email, purpose, now);
-            }
+        int colonPos = storedValue.indexOf(':');
+        if (colonPos < 0) {
+            redisTemplate.delete(redisKey);
+            return OtpVerificationOutcome.expiredOrMissing(userId, email, purpose);
         }
 
-        return OtpVerificationOutcome.expiredOrMissing(userId, email, purpose);
+        String storedSalt = storedValue.substring(0, colonPos);
+        String storedHash = storedValue.substring(colonPos + 1);
+
+        String codeHash = sha256(storedSalt + rawCode);
+        boolean matches = MessageDigest.isEqual(
+                storedHash.getBytes(StandardCharsets.UTF_8),
+                codeHash.getBytes(StandardCharsets.UTF_8)
+        );
+
+        Long attempts = redisTemplate.opsForValue().increment(attemptsKey);
+        if (attempts != null && attempts == 1) {
+            redisTemplate.expire(attemptsKey, Duration.ofSeconds(otpProperties.getTtlSeconds()));
+        }
+
+        if (attempts != null && attempts > otpProperties.getMaxAttempts()) {
+            redisTemplate.delete(List.of(redisKey, attemptsKey));
+            otpCodeRepository.findLatestByUserIdAndPurposeAndStatus(userId, purpose, OtpStatus.PENDING)
+                    .ifPresent(e -> otpCodeRepository.markLocked(
+                            e.getId(), otpProperties.getMaxAttempts() + 1, Instant.now()));
+            return OtpVerificationOutcome.locked(userId, email, purpose);
+        }
+
+        if (!matches) {
+            return OtpVerificationOutcome.invalid(userId, email, purpose);
+        }
+
+        redisTemplate.delete(List.of(redisKey, attemptsKey));
+        otpCodeRepository.findLatestByUserIdAndPurposeAndStatus(userId, purpose, OtpStatus.PENDING)
+                .ifPresent(e -> otpCodeRepository.markVerified(
+                        e.getId(), OtpStatus.VERIFIED, Instant.now()));
+        Instant now = Instant.now();
+        eventPublisher.publishEvent(new OtpVerifiedDomainEvent(userId, email, purpose, now));
+        return OtpVerificationOutcome.ok(userId, email, purpose, now);
     }
 
     @Override
@@ -304,10 +307,4 @@ public class OtpServiceImpl implements OtpService {
         }
     }
 
-    public enum OtpVerifyResult {
-        OK,
-        INVALID,
-        EXPIRED,
-        LOCKED
-    }
 }
