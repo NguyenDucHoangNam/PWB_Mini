@@ -83,8 +83,8 @@
 | **I1.7** | Wire IAM: thay `LoggingAuthEventPublisher` → `OutboxAuthEventPublisher` (gọi `outboxWriter.enqueue("notification.email.v1", userId, payloadMap)` trong `@Transactional` callback). 9 event IAM giờ gửi qua outbox | [x] | E2E: register → OTP mail đến, forgot-password → reset link mail đến, Google login → welcome mail đến |
 | **I1.8** | docker-compose.yml bổ sung: service `mailhog` (SMTP :1025, UI :8025) + service `kafka` (KRaft mode, 1 broker, port :9092 cho host). **Thực tế:** bỏ MailHog, dùng Gmail SMTP thật (`.env` đã có credentials), tạo `OutboxJpaWriter` để persist event vào DB thay vì chỉ log | [x] | Gmail SMTP thật: register → OTP mail đến inbox, forgot-password → reset link mail đến |
 | **I1.9** | Outbox retry policy: 3 lần với backoff `1s` / `5s` / `30s`, sau 3 lần mark `FAILED`. Test bằng cách stop Kafka → event mark retry → restart → event SENT | [x] | Sim Kafka down/up đều pass |
-| **I3.1** | OpenAPI spec (`springdoc-openapi-starter-webmvc-ui`) cho `/auth/**` + Swagger UI | [ ] | Truy cập `/swagger-ui.html` thấy 9 endpoint auth |
-| **I3.2** | Update `README.md` + `STRUCTURE.md`: thêm `modules/outbox`, `modules/notification` với boundary rõ | [ ] | Doc mới phản ánh cấu trúc thật |
+| **I3.1** | OpenAPI spec (`springdoc-openapi-starter-webmvc-ui`) cho `/auth/**` + Swagger UI | [x] | Truy cập `/swagger-ui.html` thấy 11 endpoint auth |
+| **I3.2** | Update `README.md` + `STRUCTURE.md`: thêm `modules/outbox`, `modules/notification` với boundary rõ | [x] | Doc mới phản ánh cấu trúc thật |
 | **I3.3** | Xóa folder `BE/` nếu đã migrate 100% sang `Backend/` + update `docker-compose.yml` root + kiểm tra `mvn clean install` pass | [ ] | `mvn clean install` exit 0, repo không còn `BE/` |
 
 ---
@@ -197,8 +197,8 @@ bootstrap ──depends──► tất cả module
 
 | ID | Nội dung | Output kiểm chứng |
 |----|----------|-------------------|
-| **I3.1** | Thêm `springdoc-openapi-starter-webmvc-ui:2.6.0` vào `bootstrap/pom.xml`. Config trong `application.yml`: `springdoc.swagger-ui.path=/swagger-ui.html`, `springdoc.api-docs.path=/v3/api-docs`. Thêm `@Operation`, `@ApiResponse`, `@Schema` annotations cho 9 endpoint trong `AuthController.java` | Truy cập `localhost:8080/swagger-ui.html` thấy đầy đủ 9 endpoint auth với mô tả |
-| **I3.2** | Update `Backend/README.md`: thêm dòng `\| modules/outbox \| Transactional outbox + Kafka relay \|` và `\| modules/notification \| Email consumer (Thymeleaf + SMTP) \|`. Update `Backend/STRUCTURE.md` (nếu có) thêm sơ đồ dependency mới: iam → outbox → kafka → notification. Thêm `docs/auth-endpoint-matrix.md` (output của I0.4) | README mới phản ánh đúng 5 module: `shared-kernel`, `shared-web`, `bootstrap`, `modules/iam`, `modules/outbox`, `modules/notification` |
+| **I3.1** | Thêm `springdoc-openapi-starter-webmvc-ui:2.6.0` vào `bootstrap/pom.xml`. Config `springdoc.*` trong `application.yml`. Tạo `OpenApiConfig` bean trong `shared-web`. Thêm `@Tag`, `@Operation`, `@ApiResponses` cho 11 endpoint trong `AuthController`. | Truy cập `localhost:8080/swagger-ui.html` thấy đầy đủ 11 endpoint auth với mô tả |
+| **I3.2** | Update `Backend/README.md`: `modules/outbox` ✅, Gmail SMTP tech stack, reference `docs/auth-endpoint-matrix.md`. Update `Backend/STRUCTURE.md`: thêm section 8 — actual dependency graph (`iam → outbox → kafka → notification`). | README + STRUCTURE.md phản ánh đúng cấu trúc 5 module: `shared-kernel`, `shared-web`, `bootstrap`, `modules/iam`, `modules/outbox`, `modules/notification` |
 | **I3.3** | Verify 0 file trong `Backend/BE/` còn reference code cũ. Sau đó `rm -rf Backend/BE/`. Update root `docker-compose.yml` (nếu có) trỏ vào `Backend/`. Chạy `mvn clean install` từ root | `mvn clean install` exit 0. Repo không còn `BE/` |
 
 ---
@@ -301,6 +301,8 @@ Cập nhật mỗi lần tick xong micro:
 
 > **Tổng cập nhật 2026-07-18 11:05**: Sprint I-1 hoàn thành **3/3 micro về code**. E2E verification (`mvn clean install` + restart + `/auth/forgot-password` + `/auth/reset-password`) pending theo yêu cầu sếp. Tổng code xong: **16 / 35** (S0=3 + S1=6 + S2=4 + I-1=3). Còn lại: **19 micro** (I0=4, I1=9, I3=3).
 
+> **Tổng cập nhật 2026-07-18 17:35**: **I1.8 + I1.9 + I3.1 + I3.2 HOÀN THÀNH**. Code xong: **20 / 35** (S0=3 + S1=6 + S2=4 + I-1=3 + I1=7 + I3=2). Còn lại: **15 micro** (I0=4, I1.4, I1.5, I3.3).
+
 ---
 
 ## 8. Lịch sử thay đổi plan
@@ -317,3 +319,5 @@ Cập nhật mỗi lần tick xong micro:
 | 2026-07-18 09:10 | Đánh lại số V migration: V1=otp, V2/V3/V4=IAM backfill, V5=refresh-token revocation, V6=outbox events | Tránh đụng số V khi các sprint sau chạy đồng thời |
 | 2026-07-18 09:35 | **I-1.1 HOÀN THÀNH**: V1 đã fix MySQL→PostgreSQL, V2/V3/V4 chạy thành công, 3 roles (USER/PRO/ADMIN) đã seed. Dùng V4 cho seed (không dùng data.sql vì Spring Boot khuyến cáo) → I-1.2 phải đổi từ V4 sang V5 | Spring Boot không support `data.sql` + Flyway cùng lúc; cách chuẩn là seed bằng migration SQL |
 | 2026-07-18 11:05 | **I-1.2 + I-1.3 HOÀN THÀNH (code)**: V5 `iam_password_reset_tokens` tạo + apply với token_hash VARCHAR(64) UNIQUE + FK→iam_users + 2 index; `application.yml` đổi `ddl-auto: validate` + `create_schemas: false`. PasswordResetTokenJpaEntity extends IamJpaBaseEntity match schema. **E2E pending** theo yêu cầu sếp | Schema validation sẽ bảo vệ các sprint sau (I0.1 cần ALTER refresh-token; I1.2 cần tạo outbox). Nếu thiếu cột → fail ngay ở startup |
+| 2026-07-18 17:35 | **I1.8 + I1.9 HOÀN THÀNH**: `OutboxJpaWriter` persist event vào DB; `OutboxRetryConfig` (max=3, backoff=[1,5,30]); `OutboxRelayScheduler` mark FAILED khi hết retry; `application.yml` Gmail SMTP config (smtp.gmail.com:587, TLS). |
+| 2026-07-18 17:35 | **I3.1 + I3.2 HOÀN THÀNH**: `springdoc-openapi-starter-webmvc-ui:2.6.0` dependency + config; `OpenApiConfig` bean với JWT security scheme; `@Tag/@Operation/@ApiResponses` cho 11 endpoint trong `AuthController`; `Backend/README.md` cập nhật outbox ✅, tech stack, reference matrix; `Backend/STRUCTURE.md` thêm section 8 — actual dependency graph. |

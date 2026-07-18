@@ -18,6 +18,11 @@ import com.pwb.iam.api.dto.response.AuthResponse;
 import com.pwb.iam.infrastructure.security.CustomUserDetails;
 import com.pwb.iam.infrastructure.security.RefreshTokenCookieService;
 import com.pwb.iam.infrastructure.security.annotation.RateLimited;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +36,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Tag(name = "Auth", description = "Authentication & Authorization endpoints")
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
@@ -48,6 +54,12 @@ public class AuthController {
     private final RefreshTokenCookieService refreshTokenCookieService;
     private final MessageResolver messageResolver;
 
+    @Operation(summary = "Register new user", description = "Creates a new user account and sends OTP via email")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Registration successful, OTP sent to email"),
+        @ApiResponse(responseCode = "400", description = "Validation error / Email already exists"),
+        @ApiResponse(responseCode = "429", description = "Rate limit exceeded")
+    })
     @PostMapping("/register")
     @RateLimited(endpoint = "auth.register")
     public ResponseEntity<ApiResponse<AuthMessageResponse>> register(@Valid @RequestBody RegisterRequest request) {
@@ -56,6 +68,12 @@ public class AuthController {
                 .body(ApiResponse.created(data, messageResolver.get(MSG_REGISTER_SUCCESSFUL)));
     }
 
+    @Operation(summary = "Login with email and password", description = "Authenticates user and returns access token + refresh cookie")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Login successful"),
+        @ApiResponse(responseCode = "401", description = "Invalid credentials / Account locked"),
+        @ApiResponse(responseCode = "403", description = "Account not verified")
+    })
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request,
                                                            HttpServletResponse response) {
@@ -64,6 +82,12 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_LOGIN_SUCCESSFUL)));
     }
 
+    @Operation(summary = "Login with Google ID token", description = "Authenticates or registers user via Google OAuth2 and returns tokens")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Google login successful"),
+        @ApiResponse(responseCode = "401", description = "Invalid Google token / Email not verified"),
+        @ApiResponse(responseCode = "409", description = "OAuth user has no password set")
+    })
     @PostMapping("/google")
     public ResponseEntity<ApiResponse<AuthResponse>> loginWithGoogle(@Valid @RequestBody GoogleLoginRequest request,
                                                                     HttpServletResponse response) {
@@ -72,6 +96,11 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_GOOGLE_LOGIN_SUCCESSFUL)));
     }
 
+    @Operation(summary = "Refresh access token", description = "Uses refresh token (cookie or body) to issue new access + refresh tokens")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Token refreshed successfully"),
+        @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token")
+    })
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<AuthResponse>> refresh(
             @CookieValue(name = "refresh_token", required = false) String cookieRefreshToken,
@@ -85,6 +114,12 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_REFRESH_TOKEN_SUCCESSFUL)));
     }
 
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Logout", description = "Clears refresh cookie and invalidates session")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Logout successful"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
     @PostMapping("/logout")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<AuthMessageResponse>> logout(@AuthenticationPrincipal CustomUserDetails user,
@@ -94,6 +129,11 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_LOGOUT_SUCCESSFUL)));
     }
 
+    @Operation(summary = "Verify OTP", description = "Verifies the OTP code sent to user email and activates the account")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "OTP verified, tokens issued"),
+        @ApiResponse(responseCode = "400", description = "Invalid / Expired / Locked OTP")
+    })
     @PostMapping("/verify-otp")
     public ResponseEntity<ApiResponse<AuthResponse>> verifyOtp(@Valid @RequestBody VerifyOtpRequest request,
                                                                HttpServletResponse response) {
@@ -102,6 +142,11 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_VERIFY_OTP_SUCCESSFUL)));
     }
 
+    @Operation(summary = "Resend OTP", description = "Resends the OTP code to the user's email (cooldown: 60 seconds)")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "OTP resent successfully"),
+        @ApiResponse(responseCode = "429", description = "Rate limit / Cooldown not elapsed")
+    })
     @PostMapping("/resend-otp")
     @RateLimited(endpoint = "auth.resend-otp")
     public ResponseEntity<ApiResponse<AuthMessageResponse>> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
@@ -109,6 +154,13 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(data, data.getMessage()));
     }
 
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Complete user profile", description = "Sets username and optional password for OAuth users after first login")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Profile completed successfully"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(responseCode = "409", description = "Username already taken")
+    })
     @PostMapping("/complete-profile")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<AuthResponse>> completeProfile(
@@ -120,6 +172,11 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_COMPLETE_PROFILE_SUCCESSFUL)));
     }
 
+    @Operation(summary = "Request password reset", description = "Sends a password reset link to the user's email (cooldown: 60 seconds)")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Reset link sent if email exists"),
+        @ApiResponse(responseCode = "429", description = "Rate limit / Cooldown not elapsed")
+    })
     @PostMapping("/forgot-password")
     @RateLimited(endpoint = "auth.forgot-password")
     public ResponseEntity<ApiResponse<AuthMessageResponse>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
@@ -127,6 +184,11 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(data, data.getMessage()));
     }
 
+    @Operation(summary = "Reset password with token", description = "Sets a new password using a valid reset token from email link")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Password reset successful"),
+        @ApiResponse(responseCode = "400", description = "Invalid / Expired reset token")
+    })
     @PostMapping("/reset-password")
     @RateLimited(endpoint = "auth.reset-password")
     public ResponseEntity<ApiResponse<AuthMessageResponse>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
@@ -134,6 +196,13 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(data, data.getMessage()));
     }
 
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Change password", description = "Changes the user's current password (requires current password verification)")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Password changed successfully"),
+        @ApiResponse(responseCode = "401", description = "Invalid current password"),
+        @ApiResponse(responseCode = "400", description = "Weak / Reused password")
+    })
     @PostMapping("/change-password")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<AuthMessageResponse>> changePassword(

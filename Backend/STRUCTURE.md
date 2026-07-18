@@ -234,3 +234,16 @@ Có dùng annotation Spring (@RestControllerAdvice, @Component, @Configuration)?
 | Thêm config chung | `src/main/resources/application.yml` hoặc `bootstrap/src/main/resources/` |
 | Chia sẻ util / constant / exception / enum | `shared-kernel/` |
 | Chia sẻ Spring handler / filter / config dùng chung | `shared-web/` |
+
+---
+
+## 8. Actual Dependency Graph (as of Sprint I1)
+
+```
+iam (module)
+  └── outbox (module)  [publishes to Kafka topic notification.email.v1]
+       └── kafka
+            └── notification (module)  [Kafka consumer → Thymeleaf + Gmail SMTP]
+
+Modules: shared-kernel → shared-web → bootstrap
+```

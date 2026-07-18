@@ -119,3 +119,11 @@ spring.kafka:
     properties:
       delivery.timeout.ms: 10000
       request.timeout.ms: 5000
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+  api-docs:
+    path: /v3/api-docs
+  show-actuator: false

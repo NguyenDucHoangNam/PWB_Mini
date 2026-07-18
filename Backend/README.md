@@ -10,7 +10,7 @@ Producer Workbench Backend — re-architecture dưới dạng **Modular Monolith
 | `shared-web` | Web layer chung: `ApiResponse`, `MessageResolver`, `GlobalExceptionHandler` | ✅ |
 | `bootstrap` | Spring Boot main class, application config | ✅ |
 | `modules/iam` | Identity & Access (Auth, User, Role, OAuth, JWT, OTP) | ✅ |
-| `modules/outbox` | Transactional outbox + Kafka relay (module dùng chung) | [ ] |
+| `modules/outbox` | Transactional outbox + Kafka relay (module dùng chung) | ✅ |
 | `modules/notification` | Email consumer (Thymeleaf + SMTP, listen Kafka) | [ ] |
 | `modules/voice` | Voice Tag (TTS, quota, storage) | [-] **REVOKED — redesign từ đầu** |
 
@@ -26,7 +26,12 @@ Producer Workbench Backend — re-architecture dưới dạng **Modular Monolith
 - PostgreSQL (multi-schema)
 - Redis (OTP rate-limit, brute-force lockout, rate-limit token-bucket)
 - Kafka KRaft mode (outbox relay từ I1.3)
-- MailHog local (SMTP :1025 + UI :8025, từ I1.8)
+- Gmail SMTP (App Password, từ I1.8)
+- Swagger UI (`/swagger-ui.html`, từ I3.1)
+
+## Documentation
+
+- [Auth Endpoint Matrix](docs/auth-endpoint-matrix.md) — chi tiết 11 endpoint auth (auth required, rate-limit, lockout, i18n keys)
 
 ## Quy tắc dependency
 
