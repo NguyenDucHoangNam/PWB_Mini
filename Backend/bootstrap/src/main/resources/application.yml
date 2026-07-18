@@ -81,20 +81,33 @@ app:
     relay:
       enabled: true
     poll-interval-ms: 5000
+    retry:
+      max-attempts: 3
+      backoff-seconds: [1, 5, 30]
   mail:
-    host: ${SPRING_MAIL_HOST:localhost}
-    port: ${SPRING_MAIL_PORT:1025}
+    host: ${SPRING_MAIL_HOST:smtp.gmail.com}
+    port: ${SPRING_MAIL_PORT:587}
     username: ${SPRING_MAIL_USERNAME:}
     password: ${SPRING_MAIL_PASSWORD:}
-    default-from: ${APP_MAIL_FROM:no-reply@pwb.local}
-    auth-enabled: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:false}
-    starttls-enabled: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:false}
+    default-from: ${APP_MAIL_FROM:noreply@pwb.app}
+    auth-enabled: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:true}
+    starttls-enabled: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:true}
 
 spring.mail:
-  host: ${SPRING_MAIL_HOST:localhost}
-  port: ${SPRING_MAIL_PORT:1025}
+  host: ${SPRING_MAIL_HOST:smtp.gmail.com}
+  port: ${SPRING_MAIL_PORT:587}
   username: ${SPRING_MAIL_USERNAME:}
   password: ${SPRING_MAIL_PASSWORD:}
+  properties:
+    mail:
+      smtp:
+        auth: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:true}
+        starttls:
+          enable: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:true}
+          required: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_REQUIRED:true}
+        connectiontimeout: 5000
+        timeout: 5000
+        writetimeout: 5000
 
 spring.kafka:
   bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}

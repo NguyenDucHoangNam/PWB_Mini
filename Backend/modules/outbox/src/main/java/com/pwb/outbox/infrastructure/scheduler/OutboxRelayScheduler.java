@@ -1,6 +1,7 @@
 package com.pwb.outbox.infrastructure.scheduler;
 
 import com.pwb.outbox.core.model.OutboxStatus;
+import com.pwb.outbox.infrastructure.config.OutboxRetryConfig;
 import com.pwb.outbox.infrastructure.persistence.entity.OutboxEventJpaEntity;
 import com.pwb.outbox.infrastructure.persistence.repository.OutboxEventJpaRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class OutboxRelayScheduler {
 
     private final OutboxEventJpaRepository repository;
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private final OutboxRetryConfig retryConfig;
 
     @Scheduled(fixedDelayString = "${app.outbox.poll-interval-ms:5000}")
     @Transactional
@@ -50,13 +52,22 @@ public class OutboxRelayScheduler {
             event.setSentAt(Instant.now());
             event.setLastError(null);
         } catch (Exception ex) {
-            event.setRetryCount(event.getRetryCount() + 1);
+            int currentRetry = event.getRetryCount();
+            event.setRetryCount(currentRetry + 1);
             event.setLastError(ex.getMessage());
-            long backoffSeconds = (long) Math.pow(5, event.getRetryCount());
-            event.setNextAttemptAt(Instant.now().plusSeconds(backoffSeconds));
-            event.setStatus(OutboxStatus.PENDING);
-            log.warn("OUTBOX.publish failed: id={} retry={} backoff={}s error={}",
-                event.getId(), event.getRetryCount(), backoffSeconds, ex.getMessage());
+
+            if (currentRetry + 1 >= retryConfig.getMaxAttempts()) {
+                event.setStatus(OutboxStatus.FAILED);
+                event.setNextAttemptAt(null);
+                log.error("OUTBOX.publish permanently failed: id={} retries={} error={}",
+                    event.getId(), event.getRetryCount(), ex.getMessage());
+            } else {
+                long backoffSeconds = retryConfig.getBackoffForAttempt(currentRetry);
+                event.setNextAttemptAt(Instant.now().plusSeconds(backoffSeconds));
+                event.setStatus(OutboxStatus.PENDING);
+                log.warn("OUTBOX.publish failed: id={} retry={} backoff={}s error={}",
+                    event.getId(), event.getRetryCount(), backoffSeconds, ex.getMessage());
+            }
         }
     }
 }
