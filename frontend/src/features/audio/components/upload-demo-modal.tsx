@@ -18,7 +18,6 @@ import { Spinner } from "@/components/ui/spinner";
 import {
   confirmUpload,
   requestPresignedUrl,
-  useVoiceTags,
 } from "@/features/audio";
 import type { PresignedUrlResponse } from "@/features/audio/types";
 const ALLOWED_CONTENT_TYPES = [
@@ -47,23 +46,16 @@ export function UploadDemoModal({ open, onOpenChange, onSuccess }: UploadDemoMod
   const [step, setStep] = useState<UploadStep>("form");
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
-  const [voiceTagId, setVoiceTagId] = useState<string>("");
   const [watermarkInterval, setWatermarkInterval] = useState<string>("");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [presigned, setPresigned] = useState<PresignedUrlResponse | null>(null);
-
-  const { data: voiceTagsRes } = useVoiceTags({
-    queryConfig: { enabled: open },
-  });
-  const voiceTags = voiceTagsRes?.success ? voiceTagsRes.data ?? [] : [];
 
   useEffect(() => {
     if (!open) {
       setStep("form");
       setFile(null);
       setTitle("");
-      setVoiceTagId("");
       setWatermarkInterval("");
       setProgress(0);
       setError(null);
@@ -161,7 +153,6 @@ export function UploadDemoModal({ open, onOpenChange, onSuccess }: UploadDemoMod
         data: {
           s3Key: presigned.s3Key,
           title: title.trim(),
-          voiceTagId: voiceTagId || null,
           watermarkInterval: watermarkInterval ? Number(watermarkInterval) : null,
         },
       });
@@ -230,23 +221,6 @@ export function UploadDemoModal({ open, onOpenChange, onSuccess }: UploadDemoMod
                   placeholder={t("uploadTitleLabel")}
                   maxLength={100}
                 />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="upload-voice-tag">{t("uploadVoiceTagLabel")}</Label>
-                <select
-                  id="upload-voice-tag"
-                  value={voiceTagId}
-                  onChange={(e) => setVoiceTagId(e.target.value)}
-                  className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-                >
-                  <option value="">{t("uploadVoiceTagNone")}</option>
-                  {voiceTags.map((tag) => (
-                    <option key={tag.id} value={tag.id}>
-                      {tag.textContent.slice(0, 40)} ({tag.languageCode})
-                    </option>
-                  ))}
-                </select>
               </div>
 
               <div className="flex flex-col gap-2">

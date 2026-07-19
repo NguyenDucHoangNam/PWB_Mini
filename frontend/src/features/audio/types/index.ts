@@ -69,35 +69,6 @@ export interface RotateKeyResponse {
   messageKey: string;
 }
 
-export interface VoiceTagResponse {
-  id: string;
-  textContent: string;
-  languageCode: string;
-  voiceName: string;
-  isDefault: boolean;
-  createdAt: string;
-}
-
-export interface CreateVoiceTagRequest {
-  textContent: string;
-  languageCode: string;
-  voiceName: string;
-}
-
-export interface VoiceTagPreviewResponse {
-  preSignedUrl: string;
-}
-
-export interface VoiceOption {
-  voiceName: string;
-  gender: string;
-}
-
-export interface VoiceWhitelistResponse {
-  languageCode: string;
-  voices: VoiceOption[];
-}
-
 export interface DistributionListItem {
   distributionId: string;
   threadId: string;

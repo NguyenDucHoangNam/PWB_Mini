@@ -9,7 +9,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import {
   useDemos,
-  useVoiceTags,
   UploadDemoModal,
   DistributeDemoModal,
 } from "@/features/audio";
@@ -78,10 +77,6 @@ export default function DemosPage() {
     page,
     size: DEFAULT_PAGE_SIZE,
   });
-
-  const { data: voiceTagsRes } = useVoiceTags();
-  const voiceTags = voiceTagsRes?.success ? voiceTagsRes.data ?? [] : [];
-  const tagNameById = new Map(voiceTags.map((tag) => [tag.id, tag.textContent]));
 
   const allDemos: DemoListItem[] = demosRes?.success && demosRes.data ? demosRes.data.content : [];
   const totalPages = demosRes?.success && demosRes.data ? demosRes.data.totalPages : 0;
@@ -162,11 +157,6 @@ export default function DemosPage() {
                   >
                     <td className="px-4 py-3">
                       <div className="font-medium text-black dark:text-white">{demo.title}</div>
-                      {demo.voiceTagId && (
-                        <div className="text-xs text-neutral-500">
-                          {tagNameById.get(demo.voiceTagId)?.slice(0, 32) ?? demo.voiceTagId.slice(0, 8)}
-                        </div>
-                      )}
                       {demo.errorMessage && (
                         <div className="mt-1 text-xs text-red-600 dark:text-red-400">
                           {demo.errorMessage}
