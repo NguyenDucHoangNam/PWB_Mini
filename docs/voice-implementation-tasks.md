@@ -2,7 +2,7 @@
 
 > **Ngày tạo**: 2026-07-19
 > **Dựa trên**: [voice-module-plan.md](./voice-module-plan.md)
-> **Trạng thái**: TASK 0-9 Done · TASK 10+ Pending
+> **Trạng thái**: TASK 0-13 Done · TASK 14+ Pending
 > **Quy ước đánh dấu**: `[ ]` chưa làm · `[x]` đã xong · `[~]` đang làm
 
 ---
@@ -52,7 +52,10 @@ Backend/
 - ✅ TASK 7 — Google TTS service + Redis cache
 - ✅ TASK 8 — Service + Facade + AudioFileValidator + FFprobe wrapper
 - ✅ TASK 9 — Voice tag REST controller (PRO role check + shared-web `@CurrentUser` abstraction)
-- ⏳ TASK 10 — Song domain + DTOs + repository (next)
+- ✅ TASK 10 — Song domain models + repositories (9 files)
+- ✅ TASK 11 — Song DTOs + i18n validation keys (7 files + 14 keys × 3 locales)
+- ✅ TASK 12 — Song service + facade (4 files)
+- ✅ TASK 13 — Song REST controller (13 endpoints, HTTP 302 streaming redirect)
 
 ---
 
@@ -560,21 +563,21 @@ Trước TASK 9, voice module KHÔNG có cách nào access SecurityContext user.
 
 ---
 
-## TASK 10: Song Domain Models & Repository
+## ✅ [x] TASK 10: Song Domain Models & Repository
 
 **Mục tiêu**: Domain entities + JPA entities + mappers + repositories cho Song và SongTagConfig.
 
 ### Files cần tạo
 
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/api/enums/SongStatus.java` (UPLOADED, PROCESSING, PROCESSED, FAILED)
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/core/model/Song.java`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/core/model/SongTagConfig.java`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/persistence/entity/SongJpaEntity.java`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/persistence/entity/SongTagConfigJpaEntity.java`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/persistence/mapper/SongMapper.java`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/persistence/mapper/SongTagConfigMapper.java`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/persistence/repository/SongJpaRepository.java`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/persistence/repository/SongTagConfigJpaRepository.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/api/enums/SongStatus.java` (UPLOADED, PROCESSING, PROCESSED, FAILED)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/core/model/Song.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/core/model/SongTagConfig.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/persistence/entity/SongJpaEntity.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/persistence/entity/SongTagConfigJpaEntity.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/persistence/mapper/SongMapper.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/persistence/mapper/SongTagConfigMapper.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/persistence/repository/SongJpaRepository.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/persistence/repository/SongTagConfigJpaRepository.java`
 
 ### Repository methods bắt buộc
 
@@ -601,30 +604,30 @@ public interface SongTagConfigJpaRepository extends JpaRepository<SongTagConfigJ
 
 ---
 
-## TASK 11: Song DTOs
+## ✅ [x] TASK 11: Song DTOs
 
 ### Files cần tạo
 
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/request/UploadSongRequest.java` (multipart)
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/request/UpdateSongRequest.java`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/request/ConfigureVoiceTagRequest.java`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/response/SongResponse.java`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/response/SongDetailResponse.java`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/response/VoiceTagConfigResponse.java`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/response/ProcessingStatusResponse.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/request/UploadSongRequest.java` (multipart)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/request/UpdateSongRequest.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/request/ConfigureVoiceTagRequest.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/response/SongResponse.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/response/SongDetailResponse.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/response/VoiceTagConfigResponse.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/response/ProcessingStatusResponse.java`
 
 ---
 
-## TASK 12: Song Service & Facade
+## ✅ [x] TASK 12: Song Service & Facade
 
 **Mục tiêu**: Business logic + facade cho Song.
 
 ### Files cần tạo
 
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/api/SongFacade.java`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/core/service/SongService.java`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/core/service/SongFacadeImpl.java`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/core/service/SongServiceImpl.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/api/SongFacade.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/core/service/SongService.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/core/service/SongFacadeImpl.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/core/service/SongServiceImpl.java`
 
 ### Use case methods (SongFacade)
 
@@ -654,11 +657,11 @@ public interface SongFacade {
 
 ---
 
-## TASK 13: Song Controller
+## ✅ [x] TASK 13: Song Controller
 
 ### Files cần tạo
 
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/web/SongController.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/web/SongController.java`
 
 ### Endpoints
 
@@ -931,8 +934,7 @@ Week 5:
 - [x] TASK 7 — Google TTS service + cache
 - [x] TASK 8 — Voice tag service + facade + audio validator + FFprobe
 - [x] TASK 9 — Voice tag REST controller (with shared-web `@CurrentUser` abstraction)
-- [ ] TASK 10-11 — Song domain + DTOs
-- [ ] TASK 12-13 — Song service + facade + controller
+- [x] TASK 10-13 — Song domain + DTOs + service + controller
 - [ ] TASK 14 — FFmpeg audio processing service
 - [ ] TASK 15 — Kafka async processor
 - [ ] TASK 16 — Song processing trigger
