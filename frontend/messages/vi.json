@@ -238,7 +238,7 @@
       "errorToast": "Không thể hoàn tất hồ sơ",
       "usernameRequired": "Username phải có ít nhất 3 ký tự",
       "usernameLength": "Username không được vượt quá 50 ký tự",
-      "usernameInvalid": "Chỉ cho phép chữ cái, chữ số và dấu gạch dưới",
+      "usernameInvalid": "Chỉ cho phép chữ cái, chữ số, dấu gạch dưới và dấu gạch ngang",
       "fullNameLength": "Họ tên không được vượt quá 100 ký tự",
       "passwordComplexity": "Mật khẩu phải có 8-128 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt"
     },

@@ -41,6 +41,7 @@ export function CompleteProfileForm() {
     mode: "onChange",
     defaultValues: {
       username: "",
+      fullName: "",
       newPassword: "",
     },
   });
@@ -54,6 +55,7 @@ export function CompleteProfileForm() {
       {
         data: {
           username: values.username.trim(),
+          fullName: values.fullName?.trim() || undefined,
           newPassword: values.newPassword || undefined,
         },
       },
@@ -133,6 +135,23 @@ export function CompleteProfileForm() {
         {errors.username?.message && (
           <span className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
             {t(errors.username.message as never)}
+          </span>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="fullName">{t("fullNameLabel")}</Label>
+        <Input
+          id="fullName"
+          type="text"
+          disabled={isPending}
+          aria-invalid={!!errors.fullName}
+          {...register("fullName")}
+          placeholder={t("fullNamePlaceholder")}
+        />
+        {errors.fullName?.message && (
+          <span className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
+            {t(errors.fullName.message as never)}
           </span>
         )}
       </div>

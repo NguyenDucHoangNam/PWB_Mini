@@ -149,7 +149,7 @@ export function OtpForm() {
     setOtpInvalid(false);
 
     resendMutate(
-      { data: { userId, purpose: "EMAIL_VERIFICATION" as const } },
+      { data: { userId, purpose: "REGISTER" as const } },
       {
         onSuccess: (response) => {
           toast.success(t("resendSuccess"));

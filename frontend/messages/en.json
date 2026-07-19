@@ -238,7 +238,7 @@
       "errorToast": "Could not complete profile",
       "usernameRequired": "Username must be at least 3 characters",
       "usernameLength": "Username must not exceed 50 characters",
-      "usernameInvalid": "Only letters, digits and underscores are allowed",
+      "usernameInvalid": "Only letters, digits, underscores and hyphens are allowed",
       "fullNameLength": "Full name must not exceed 100 characters",
       "passwordComplexity": "Password must be 8-128 characters with uppercase, lowercase, digit and special character"
     },

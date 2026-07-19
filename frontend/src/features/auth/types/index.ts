@@ -5,7 +5,12 @@ export interface LoginRequest {
 
 export type OAuthProvider = "LOCAL" | "GOOGLE";
 
-export type UserStatus = "PENDING_VERIFICATION" | "ACTIVE" | "BANNED" | "DELETED";
+export type UserStatus =
+  | "PENDING_VERIFICATION"
+  | "ACTIVE"
+  | "PENDING_DELETION"
+  | "BANNED"
+  | "DELETED";
 
 export type AuthNextStep = "NONE" | "COMPLETE_PROFILE";
 
@@ -51,7 +56,7 @@ export interface VerifyOtpRequest {
 
 export type VerifyOtpResponse = AuthResponse;
 
-export type OtpPurpose = "EMAIL_VERIFICATION" | "PASSWORD_RESET";
+export type OtpPurpose = "REGISTER" | "RESET_PASSWORD";
 
 export interface ResendOtpRequest {
   userId: string;
