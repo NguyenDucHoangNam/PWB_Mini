@@ -45,6 +45,18 @@ spring:
       properties:
         delivery.timeout.ms: 10000
         request.timeout.ms: 5000
+    consumer:
+      group-id: voice-processor
+      auto-offset-reset: earliest
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB
+  cache:
+    type: redis
+    redis:
+      time-to-live: 604800000
+      cache-null-values: false
 
 server:
   port: ${SERVER_PORT:8080}
@@ -181,20 +193,6 @@ app:
       songs-processed-prefix: songs/processed
       key-template: "{prefix}/{userId}/{id}.{format}"
 
-spring:
-  servlet:
-    multipart:
-      max-file-size: 500MB
-      max-request-size: 500MB
-  cache:
-    type: redis
-    redis:
-      time-to-live: 604800000
-      cache-null-values: false
-  kafka:
-    consumer:
-      group-id: voice-processor
-      auto-offset-reset: earliest
 
 springdoc:
   swagger-ui:

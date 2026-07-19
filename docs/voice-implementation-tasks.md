@@ -155,23 +155,23 @@ STORAGE_INVALID_KEY      ("STORAGE_006", "Invalid storage key format.",     400)
 
 ---
 
-## TASK 3: Create Database Migrations
+## ✅ [x] TASK 3: Create Database Migrations
 
 **Mục tiêu**: Tạo bảng `voice_voice_tags`, `voice_songs`, `voice_song_tag_configs` + indexes.
 
 ### Files cần tạo
 
-- [ ] `Backend/bootstrap/src/main/resources/db/migration/V8__create_voice_tables.sql`
+- [x] `Backend/bootstrap/src/main/resources/db/migration/V8__create_voice_tables.sql`
 
 ### SQL content
 
 Xem chi tiết schema trong `voice-module-plan.md` §9.1. Tóm tắt:
 
-- 3 tables với audit fields (`created_at`, `updated_at`, `created_by`, `updated_by`, `deleted`, `deleted_at`, `version`)
-- FK constraints (`ON DELETE RESTRICT` cho user_id, `ON DELETE CASCADE` cho song_id trong config)
-- UNIQUE constraints (`(user_id, name)` cho tags, `(song_id)` cho config)
-- CHECK constraints (interval > 0, volume 0-100, fade >= 0)
-- 6 indexes
+- [x] 3 tables với audit fields (`created_at`, `updated_at`, `created_by`, `updated_by`, `deleted`, `deleted_at`, `version`)
+- [x] FK constraints (`ON DELETE RESTRICT` cho user_id, `ON DELETE CASCADE` cho song_id trong config)
+- [x] UNIQUE constraints (`(user_id, name)` cho tags, `(song_id)` cho config)
+- [x] CHECK constraints (interval > 0, volume 0-100, fade >= 0)
+- [x] 6 indexes
 
 ### Implementation notes
 
