@@ -129,24 +129,24 @@ STORAGE_INVALID_KEY      ("STORAGE_006", "Invalid storage key format.",     400)
 
 ---
 
-## TASK 2: Setup Voice Module Structure
+## ✅ [x] TASK 2: Setup Voice Module Structure
 
 **Mục tiêu**: Tạo voice module với dependencies, config, security, packaging.
 
 ### Files cần tạo
 
-- [ ] `Backend/modules/voice/pom.xml` (deps: shared-kernel, shared-web, shared-storage, iam, outbox, starter-web, starter-data-jpa, starter-cache, starter-validation, spring-kafka, google-cloud-texttospeech, jaffree, lombok, mapstruct)
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/config/VoiceJpaConfig.java`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/config/VoiceProperties.java`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/config/TtsProperties.java`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/config/AudioProcessingProperties.java`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/config/VoiceSecurityConfig.java` (`@EnableMethodSecurity`)
+- [x] `Backend/modules/voice/pom.xml` (deps: shared-kernel, shared-web, shared-storage, iam, outbox, starter-web, starter-data-jpa, starter-cache, starter-validation, spring-kafka, google-cloud-texttospeech, jaffree, lombok, mapstruct)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/config/VoiceJpaConfig.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/config/VoiceProperties.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/config/TtsProperties.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/config/AudioProcessingProperties.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/config/VoiceSecurityConfig.java` (`@EnableMethodSecurity`)
 
 ### Files cần update
 
-- [ ] `Backend/pom.xml` (parent) — đảm bảo `<module>modules/voice</module>` đã có (skeleton)
-- [ ] `Backend/bootstrap/pom.xml` — thêm dependency `voice`
-- [ ] `Backend/bootstrap/src/main/resources/application.yml` — section `app.voice.*` (xem plan §10.1)
+- [x] `Backend/pom.xml` (parent) — đảm bảo `<module>modules/voice</module>` đã có (skeleton)
+- [x] `Backend/bootstrap/pom.xml` — thêm dependency `voice`
+- [x] `Backend/bootstrap/src/main/resources/application.yml` — section `app.voice.*` (xem plan §10.1)
 
 ### Implementation notes
 

@@ -160,6 +160,41 @@ app:
       multipart-upload-threshold-bytes: 26214400
     local:
       base-path: ${STORAGE_LOCAL_BASE_PATH:/tmp/pwb-storage}
+  voice:
+    tts:
+      credentials-path: ${GCP_TTS_CREDENTIALS_PATH:}
+      default-language: en-US
+      default-voice-name: en-US-Standard-A
+      speaking-rate: 1.0
+      pitch: 0.0
+      cache-ttl-hours: 168
+      cache-key-prefix: "voice:tts:"
+    audio:
+      temp-dir: ${VOICE_TEMP_DIR:/tmp/voice-processing}
+      processing-timeout-minutes: 30
+      max-duration-seconds: 600
+      max-file-size-bytes: 524288000
+      allowed-formats: MP3,WAV,FLAC
+    storage:
+      voice-tags-prefix: voice-tags
+      songs-original-prefix: songs/original
+      songs-processed-prefix: songs/processed
+      key-template: "{prefix}/{userId}/{id}.{format}"
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB
+  cache:
+    type: redis
+    redis:
+      time-to-live: 604800000
+      cache-null-values: false
+  kafka:
+    consumer:
+      group-id: voice-processor
+      auto-offset-reset: earliest
 
 springdoc:
   swagger-ui:

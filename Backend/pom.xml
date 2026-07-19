@@ -48,6 +48,7 @@
         <google-api-client.version>2.7.1</google-api-client.version>
         <argon2-jvm.version>2.12</argon2-jvm.version>
         <spring-retry.version>2.0.13</spring-retry.version>
+        <jaffree.version>2024.08.29</jaffree.version>
     </properties>
 
     <dependencyManagement>
@@ -137,6 +138,12 @@
                 <groupId>org.springframework.retry</groupId>
                 <artifactId>spring-retry</artifactId>
                 <version>${spring-retry.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.github.kokorin.jaffree</groupId>
+                <artifactId>jaffree</artifactId>
+                <version>${jaffree.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
