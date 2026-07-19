@@ -77,6 +77,11 @@ public class FFmpegAudioProcessingService implements AudioProcessingService {
             }
             Files.deleteIfExists(output);
 
+            if (insertionPoints == 0) {
+                Files.copy(original, output);
+                return output;
+            }
+
             StringBuilder filterComplex = new StringBuilder();
             List<String> mixInputs = new ArrayList<>();
             mixInputs.add("[0:a]");
@@ -88,12 +93,12 @@ public class FFmpegAudioProcessingService implements AudioProcessingService {
                 chain.append("[1:a]").append(FILTER_VOLUME).append("=").append(volumeFactor(config)).append(",");
                 if (config.getFadeInDurationMs() != null && config.getFadeInDurationMs() > 0) {
                     chain.append(FILTER_AFADE).append("=t=in:st=0:d=")
-                            .append(config.getFadeInDurationMs()).append("ms,");
+                            .append(config.getFadeInDurationMs() / 1000.0).append(",");
                 }
                 chain.append(FILTER_DELAY).append("=").append(delayMs).append("|").append(delayMs);
                 if (config.getFadeOutDurationMs() != null && config.getFadeOutDurationMs() > 0) {
                     chain.append(",").append(FILTER_AFADE).append("=t=out:st=0:d=")
-                            .append(config.getFadeOutDurationMs()).append("ms");
+                            .append(config.getFadeOutDurationMs() / 1000.0);
                 }
                 chain.append(label);
                 filterComplex.append(chain).append(";");
@@ -108,6 +113,10 @@ public class FFmpegAudioProcessingService implements AudioProcessingService {
                     .append("[out]");
 
             String fullFilter = filterComplex.toString() + mixExpression;
+
+            log.info("FFmpeg filter: insertionPoints={}, totalDuration={}, interval={}, startOffset={}, fadeIn={}, fadeOut={}, volume={}, filter={}",
+                    insertionPoints, totalDuration, intervalSeconds, startOffset,
+                    config.getFadeInDurationMs(), config.getFadeOutDurationMs(), config.getVolumePercentage(), fullFilter);
 
             FFmpeg.atPath()
                     .addInput(UrlInput.fromPath(original))
