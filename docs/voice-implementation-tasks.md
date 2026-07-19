@@ -231,19 +231,32 @@ VOICE_PROCESSING_STARTED=Voice tag processing started.
 
 ---
 
-## TASK 5: Voice Tag Domain Models
+## ✅ [x] TASK 5: Voice Tag Domain Models
 
 **Mục tiêu**: Tạo domain entities + JPA entities + mappers + repositories cho Voice Tag.
 
 ### Files cần tạo
 
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/api/enums/VoiceTagType.java` (TTS, UPLOADED)
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/api/enums/AudioFormat.java` (MP3, WAV, FLAC) — share với Song
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/core/model/BaseEntity.java` (auditable base, copy pattern từ `IamJpaBaseEntity`)
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/core/model/VoiceTag.java` (immutable domain object với factory methods)
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/persistence/entity/VoiceTagJpaEntity.java`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/persistence/mapper/VoiceTagMapper.java` (MapStruct)
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/persistence/repository/VoiceTagJpaRepository.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/api/enums/VoiceTagType.java` (TTS, UPLOADED)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/persistence/entity/BaseEntity.java` (auditable base, copy pattern từ `IamJpaBaseEntity`)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/core/model/VoiceTag.java` (immutable domain object với factory methods)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/persistence/entity/VoiceTagJpaEntity.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/persistence/mapper/VoiceTagMapper.java` (MapStruct)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/persistence/repository/VoiceTagJpaRepository.java`
+
+> **Note điều chỉnh scope**: Plan `voice-module-plan.md` §9.1 + plan TASK 5 ban đầu định nghĩa `voice_voice_tags` có thêm 4 columns (`format`, `voice_name`, `speaking_rate`, `pitch`). Tuy nhiên **SQL V8 (TASK 3) KHÔNG tạo 4 columns này** → lúc chạy runtime Hibernate schema validation fail với `missing column [format]`. Em đã chọn **Hướng A: sửa code cho khớp SQL** (DB là source of truth, an toàn cho MVP, không vi phạm Flyway best practice). Hậu quả:
+> - Enum `AudioFormat` (3 values MP3/WAV/FLAC) → xóa (không còn field reference trong DB).
+> - Domain `VoiceTag`: bỏ 4 fields (`voiceName`, `speakingRate`, `pitch`); `format` cũng không bao giờ có trong domain (đã fix bug "AudioFormatPlaceholder" của plan).
+> - TTS custom params (`voiceName`/`speakingRate`/`pitch`) sẽ dùng default từ `TtsProperties` (TASK 7) — không cho user override ở MVP.
+> - DB schema đơn giản hơn: 13 columns thay vì 17.
+
+### Implementation notes (final)
+
+- BaseEntity: 8 fields (id, createdAt, updatedAt, createdBy, updatedBy, deleted, deletedAt, version) + `markDeleted(deletedBy)` + `markActive()` — copy y nguyên pattern `IamJpaBaseEntity`.
+- VoiceTag domain: 12 fields (id, userId, name, description, tagType, sourceText, languageCode, s3Key, durationSeconds, fileSizeBytes, isDefault + readonly getters), 3 factory methods (`createTtsTag`, `createUploadedTag`, `rehydrate`) + 4 update methods (`updateMetadata`, `updateTtsParams`, `markDefault`, `unmarkDefault`).
+- VoiceTagJpaEntity: 10 fields riêng + extends BaseEntity (8 audit fields), table `voice_voice_tags`, 2 indexes + 1 unique constraint.
+- VoiceTagMapper: 3 default methods (`toEntity(domain)`, `toEntity(domain, existing)`, `toDomain(entity)`).
+- VoiceTagJpaRepository: 6 methods (findByIdAndDeletedFalse, findByUserId paginated, findByUserIdAndTagType, existsByUserIdAndName, existsByIdAndUserId, countByUserId).
 
 ### Repository method bắt buộc (ownership check)
 
@@ -267,13 +280,13 @@ public interface VoiceTagJpaRepository extends JpaRepository<VoiceTagJpaEntity, 
 
 ---
 
-## TASK 6: Voice Tag DTOs
+## ✅ [x] TASK 6: Voice Tag DTOs
 
 **Mục tiêu**: Tạo request/response DTOs.
 
 ### Files cần tạo
 
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/request/CreateTtsVoiceTagRequest.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/request/CreateTtsVoiceTagRequest.java`
 
 ```java
 public class CreateTtsVoiceTagRequest {
@@ -281,20 +294,29 @@ public class CreateTtsVoiceTagRequest {
     @Size(max = 512) private String description;
     @NotBlank @Size(max = 4000) private String text;
     @NotBlank @Pattern(regexp = "^[a-z]{2}-[A-Z]{2}$") private String languageCode;
-    private String voiceName;
-    private Double speakingRate;
-    private Double pitch;
 }
 ```
 
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/request/UpdateVoiceTagRequest.java`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/request/UploadVoiceTagRequest.java` (multipart form)
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/response/VoiceTagResponse.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/request/UpdateVoiceTagRequest.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/request/UploadVoiceTagRequest.java` (metadata-only: name + description — file upload qua `@RequestParam` ở controller)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/response/VoiceTagResponse.java`
 
 ### Validation
 
-- Dùng key i18n: `{validation.name.required}`, `{validation.text.maxlength}`, etc. (xem TASK 4 để add keys).
+- Dùng key i18n: `{validation.name.required}`, `{validation.text.maxlength}`, etc.
 - KHÔNG hardcode message trong annotation.
+
+### Implementation notes (final)
+
+- Validation keys (7 keys) đã được add vào cả 3 file `messages*.properties`:
+  - `validation.name.required`, `validation.name.maxlength`, `validation.description.maxlength`
+  - `validation.text.required`, `validation.text.maxlength`
+  - `validation.languagecode.required`, `validation.languagecode.pattern`
+- `UploadVoiceTagRequest` chỉ có 2 metadata fields (name + description) — file multipart upload qua `@RequestParam("file") MultipartFile` parameter riêng ở controller (TASK 9). Audio format được validate qua extension whitelist ở service layer (TASK 8) thay vì DTO.
+- `VoiceTagResponse` KHÔNG có `s3Key` field (sensitive — chỉ trả presigned URL qua endpoint riêng). Cũng không có 4 fields TTS custom (`voiceName`, `speakingRate`, `pitch`, `format`) vì DB schema V8 không lưu.
+- Tất cả DTO dùng `@Data + @Builder + @NoArgsConstructor + @AllArgsConstructor` (Lombok convention).
+- `mvn -pl modules/voice -am clean compile` → BUILD SUCCESS.
+- `mvn -pl bootstrap -am clean compile` → BUILD SUCCESS.
 
 ---
 
