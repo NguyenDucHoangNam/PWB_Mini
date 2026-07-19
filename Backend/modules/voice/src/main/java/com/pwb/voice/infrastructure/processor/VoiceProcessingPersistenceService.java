@@ -1,5 +1,6 @@
 package com.pwb.voice.infrastructure.processor;
 
+import com.pwb.voice.api.enums.SongStatus;
 import com.pwb.voice.core.model.Song;
 import com.pwb.voice.infrastructure.persistence.entity.SongJpaEntity;
 import com.pwb.voice.infrastructure.persistence.mapper.SongMapper;
@@ -34,6 +35,18 @@ public class VoiceProcessingPersistenceService {
             Song song = songMapper.toDomain(entity);
             song.markFailed(errorMessage == null ? "VOICE_006" : errorMessage);
             SongJpaEntity merged = songMapper.toEntity(song, entity);
+            return songRepository.save(merged);
+        });
+    }
+
+    @Transactional
+    public Optional<SongJpaEntity> markSkippedNoConfig(UUID songId) {
+        return songRepository.findById(songId).map(entity -> {
+            Song song = songMapper.toDomain(entity);
+            song.markProcessed(null, song.getDurationSeconds());
+            SongJpaEntity merged = songMapper.toEntity(song, entity);
+            log.info("Song marked as processed (no active voice tag config): songId={}, status={}",
+                    songId, SongStatus.PROCESSED);
             return songRepository.save(merged);
         });
     }

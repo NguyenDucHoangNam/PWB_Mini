@@ -280,16 +280,12 @@ public Song triggerProcessing(UUID userId, UUID songId) {
                 .findByIdAndUserIdForUpdate(songId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SONG_NOT_FOUND));
 
-        SongStatus current = entity.getStatus();
-        if (current == SongStatus.PROCESSED) {
-            throw new BusinessException(ErrorCode.SONG_ALREADY_PROCESSED);
-        }
-        if (current == SongStatus.PROCESSING) {
+        Song domain = songMapper.toDomain(entity);
+        try {
+            domain.markProcessing();
+        } catch (IllegalStateException ex) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
-
-        Song domain = songMapper.toDomain(entity);
-        domain.markProcessing();
 
         SongJpaEntity merged = songMapper.toEntity(domain, entity);
         SongJpaEntity saved = songJpaRepository.save(merged);
@@ -340,10 +336,7 @@ public Song triggerProcessing(UUID userId, UUID songId) {
                 .findByIdAndUserIdAndDeletedFalse(songId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SONG_NOT_FOUND));
 
-        String key = entity.getProcessedS3Key() != null
-                ? entity.getProcessedS3Key()
-                : entity.getOriginalS3Key();
-
+        String key = entity.getProcessedS3Key();
         if (key == null) {
             throw new BusinessException(ErrorCode.SONG_NOT_READY);
         }

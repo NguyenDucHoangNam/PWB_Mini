@@ -118,8 +118,12 @@ public final class Song {
     }
 
     public void markProcessing() {
-        this.status = SongStatus.PROCESSING;
+        if (status == SongStatus.PROCESSING) {
+            throw new IllegalStateException("Song is already processing");
+        }
+        this.processedS3Key = null;
         this.lastError = null;
+        this.status = SongStatus.PROCESSING;
     }
 
     public void markProcessed(String processedS3Key, Integer durationSeconds) {

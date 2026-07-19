@@ -1,5 +1,6 @@
 package com.pwb.voice.api.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.pwb.voice.api.enums.VoiceTagType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,6 +25,7 @@ public class VoiceTagResponse {
     private String languageCode;
     private Integer durationSeconds;
     private Long fileSizeBytes;
+    @JsonProperty("isDefault")
     private boolean isDefault;
     private Long version;
     private Instant createdAt;

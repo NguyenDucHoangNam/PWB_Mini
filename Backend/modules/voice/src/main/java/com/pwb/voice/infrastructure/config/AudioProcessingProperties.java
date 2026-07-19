@@ -14,6 +14,6 @@ public class AudioProcessingProperties {
     private String tempDir = "/tmp/voice-processing";
     private int processingTimeoutMinutes = 30;
     private int maxDurationSeconds = 600;
-    private long maxFileSizeBytes = 524288000L;
+    private long maxFileSizeBytes = 104857600L;
     private String allowedFormats = "MP3,WAV,FLAC";
 }

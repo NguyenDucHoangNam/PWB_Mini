@@ -8,6 +8,7 @@ import com.pwb.voice.api.SongFacade;
 import com.pwb.voice.api.dto.request.ConfigureVoiceTagRequest;
 import com.pwb.voice.api.dto.request.UpdateSongRequest;
 import com.pwb.voice.api.dto.request.UploadSongRequest;
+import com.pwb.voice.api.dto.response.AudioUrlResponse;
 import com.pwb.voice.api.dto.response.ProcessingStatusResponse;
 import com.pwb.voice.api.dto.response.SongDetailResponse;
 import com.pwb.voice.api.dto.response.SongResponse;
@@ -18,7 +19,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -37,6 +37,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URL;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
 
 @RestController
@@ -143,22 +144,26 @@ public class SongController {
     }
 
     @GetMapping("/{id}/stream")
-    public ResponseEntity<Void> stream(
+    public ApiResponse<AudioUrlResponse> stream(
             @CurrentUser AuthenticatedUser user,
             @PathVariable UUID id) {
         URL presignedUrl = songFacade.getStreamPresignedUrl(user.getId(), id, PRESIGNED_URL_TTL);
-        return ResponseEntity.status(HttpStatus.FOUND)
-                .header(HttpHeaders.LOCATION, presignedUrl.toString())
+        AudioUrlResponse data = AudioUrlResponse.builder()
+                .url(presignedUrl)
+                .expiresAt(Instant.now().plus(PRESIGNED_URL_TTL))
                 .build();
+        return ApiResponse.success(data, null);
     }
 
     @GetMapping("/{id}/original")
-    public ResponseEntity<Void> original(
+    public ApiResponse<AudioUrlResponse> original(
             @CurrentUser AuthenticatedUser user,
             @PathVariable UUID id) {
         URL presignedUrl = songFacade.getOriginalPresignedUrl(user.getId(), id, PRESIGNED_URL_TTL);
-        return ResponseEntity.status(HttpStatus.FOUND)
-                .header(HttpHeaders.LOCATION, presignedUrl.toString())
+        AudioUrlResponse data = AudioUrlResponse.builder()
+                .url(presignedUrl)
+                .expiresAt(Instant.now().plus(PRESIGNED_URL_TTL))
                 .build();
+        return ApiResponse.success(data, null);
     }
 }

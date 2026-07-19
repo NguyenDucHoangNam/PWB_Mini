@@ -50,8 +50,8 @@ spring:
       auto-offset-reset: earliest
   servlet:
     multipart:
-      max-file-size: 500MB
-      max-request-size: 500MB
+      max-file-size: 100MB
+      max-request-size: 110MB
   cache:
     type: redis
     redis:
@@ -185,7 +185,7 @@ app:
       temp-dir: ${VOICE_TEMP_DIR:/tmp/voice-processing}
       processing-timeout-minutes: 30
       max-duration-seconds: 600
-      max-file-size-bytes: 524288000
+      max-file-size-bytes: 104857600
       allowed-formats: MP3,WAV,FLAC
     storage:
       voice-tags-prefix: voice-tags

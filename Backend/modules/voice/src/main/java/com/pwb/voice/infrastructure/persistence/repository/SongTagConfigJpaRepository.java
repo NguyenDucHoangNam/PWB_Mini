@@ -13,4 +13,6 @@ public interface SongTagConfigJpaRepository
     Optional<SongTagConfigJpaEntity> findBySongIdAndDeletedFalse(UUID songId);
 
     boolean existsBySongIdAndDeletedFalse(UUID songId);
+
+    boolean existsByVoiceTagIdAndDeletedFalse(UUID voiceTagId);
 }

@@ -162,7 +162,8 @@ public class SongFacadeImpl implements SongFacade {
         return ProcessingStatusResponse.builder()
                 .songId(domain.getId())
                 .status(domain.getStatus())
-                .processedS3KeyExists(domain.getProcessedS3Key() != null)
+                .processedS3Key(domain.getProcessedS3Key())
+                .durationSeconds(domain.getDurationSeconds())
                 .lastError(domain.getLastError())
                 .message(messageKey)
                 .build();

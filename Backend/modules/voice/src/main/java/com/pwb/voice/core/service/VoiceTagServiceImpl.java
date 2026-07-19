@@ -10,6 +10,7 @@ import com.pwb.voice.core.model.VoiceTag;
 import com.pwb.voice.infrastructure.config.VoiceProperties;
 import com.pwb.voice.infrastructure.persistence.entity.VoiceTagJpaEntity;
 import com.pwb.voice.infrastructure.persistence.mapper.VoiceTagMapper;
+import com.pwb.voice.infrastructure.persistence.repository.SongTagConfigJpaRepository;
 import com.pwb.voice.infrastructure.persistence.repository.VoiceTagJpaRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,7 @@ public class VoiceTagServiceImpl implements VoiceTagService {
     private static final String DELETED_BY_SYSTEM = "system";
 
     private final VoiceTagJpaRepository voiceTagJpaRepository;
+    private final SongTagConfigJpaRepository songTagConfigJpaRepository;
     private final VoiceTagMapper voiceTagMapper;
     private final StorageService storageService;
     private final TextToSpeechService textToSpeechService;
@@ -156,6 +158,11 @@ public class VoiceTagServiceImpl implements VoiceTagService {
         VoiceTagJpaEntity entity = voiceTagJpaRepository
                 .findByIdAndUserIdAndDeletedFalse(tagId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_TAG_NOT_FOUND));
+
+        if (songTagConfigJpaRepository.existsByVoiceTagIdAndDeletedFalse(tagId)) {
+            log.warn("Cannot delete voice tag in use: userId={}, tagId={}", userId, tagId);
+            throw new BusinessException(ErrorCode.VOICE_TAG_IN_USE);
+        }
 
         entity.markDeleted(DELETED_BY_SYSTEM);
         voiceTagJpaRepository.save(entity);

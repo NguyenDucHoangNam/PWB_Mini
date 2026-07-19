@@ -64,7 +64,14 @@ public class VoiceTagInsertionProcessor {
 
             SongTagConfigJpaEntity configEntity = configRepository
                     .findBySongIdAndDeletedFalse(songId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT));
+                    .orElse(null);
+
+            if (configEntity == null || !configEntity.isEnabled()) {
+                log.info("Skip voice processing (no active config): songId={}, hasConfig={}, enabled={}",
+                        songId, configEntity != null, configEntity != null && configEntity.isEnabled());
+                persistenceService.markSkippedNoConfig(songId);
+                return;
+            }
 
             VoiceTagJpaEntity tagEntity = voiceTagRepository
                     .findByIdAndUserIdAndDeletedFalse(configEntity.getVoiceTagId(), userId)

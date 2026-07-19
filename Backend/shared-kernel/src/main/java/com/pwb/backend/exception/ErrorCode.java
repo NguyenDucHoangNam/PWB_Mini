@@ -54,12 +54,11 @@ public enum ErrorCode {
     AUDIO_PROCESSING_FAILED  ("VOICE_006", "Audio processing failed.",             500),
     INVALID_INTERVAL         ("VOICE_007", "Invalid interval value.",              400),
     DUPLICATE_VOICE_TAG_NAME ("VOICE_008", "Voice tag name already exists.",       409),
-    SONG_NOT_READY           ("VOICE_009", "Song is not ready for streaming.",     400),
+    SONG_NOT_READY           ("VOICE_009", "Song is not ready for streaming.",     409),
     ACCESS_DENIED_PRO_ONLY   ("VOICE_010", "This feature is available for PRO only.", 403),
     VOICE_TAG_IN_USE         ("VOICE_011", "Voice tag is currently in use.",       409),
     SONG_ALREADY_PROCESSED   ("VOICE_012", "Song has already been processed.",     409),
-    INVALID_AUDIO_DURATION   ("VOICE_013", "Audio duration exceeds maximum.",      400),
-    SONG_STREAM_NOT_READY    ("VOICE_014", "Song is not ready for streaming.",     409);
+    INVALID_AUDIO_DURATION   ("VOICE_013", "Audio duration exceeds maximum.",      400);
 
     private final String code;
     private final String message;
