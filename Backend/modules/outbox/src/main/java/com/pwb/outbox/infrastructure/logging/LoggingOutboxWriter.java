@@ -13,8 +13,8 @@ import java.util.Map;
 @Profile("test")
 public class LoggingOutboxWriter implements OutboxWriter {
     @Override
-    public void enqueue(String topic, String key, OutboxEventPayload payload, Map<String, String> headers) {
-        log.info("OUTBOX.enqueue: topic={} key={} schemaVersion={} bodyLen={}",
-            topic, key, payload.schemaVersion(), payload.body().length());
+    public void enqueue(String topic, String key, String aggregateType, OutboxEventPayload payload, Map<String, String> headers) {
+        log.info("OUTBOX.enqueue: topic={} key={} aggregateType={} schemaVersion={} bodyLen={}",
+            topic, key, aggregateType, payload.schemaVersion(), payload.body().length());
     }
 }

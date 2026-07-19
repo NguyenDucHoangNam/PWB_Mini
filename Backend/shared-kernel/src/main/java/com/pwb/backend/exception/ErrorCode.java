@@ -58,7 +58,8 @@ public enum ErrorCode {
     ACCESS_DENIED_PRO_ONLY   ("VOICE_010", "This feature is available for PRO only.", 403),
     VOICE_TAG_IN_USE         ("VOICE_011", "Voice tag is currently in use.",       409),
     SONG_ALREADY_PROCESSED   ("VOICE_012", "Song has already been processed.",     409),
-    INVALID_AUDIO_DURATION   ("VOICE_013", "Audio duration exceeds maximum.",      400);
+    INVALID_AUDIO_DURATION   ("VOICE_013", "Audio duration exceeds maximum.",      400),
+    SONG_STREAM_NOT_READY    ("VOICE_014", "Song is not ready for streaming.",     409);
 
     private final String code;
     private final String message;

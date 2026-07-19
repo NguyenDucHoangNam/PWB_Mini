@@ -14,6 +14,6 @@ public class OutboxEnqueueListener {
 
     @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
     public void handle(OutboxEnqueueRequested event) {
-        outboxWriter.enqueue(event.topic(), event.key(), event.payload(), event.headers());
+        outboxWriter.enqueue(event.topic(), event.key(), event.aggregateType(), event.payload(), event.headers());
     }
 }

@@ -694,10 +694,10 @@ public interface SongFacade {
 
 ### Files cần tạo
 
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/core/service/AudioProcessingService.java` (interface)
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/core/service/AudioMetadata.java` (record: duration, format, bitrate, sampleRate)
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/audio/FFmpegAudioProcessingService.java` (`@Service`)
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/audio/AudioMetadataExtractor.java` (FFprobe wrapper)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/core/service/AudioProcessingService.java` (interface)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/core/service/AudioMetadata.java` (record: duration, format, bitrate, sampleRate)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/audio/FFmpegAudioProcessingService.java` (`@Service`)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/audio/AudioMetadataExtractor.java` (FFprobe wrapper — retained cho validator; FFmpeg impl có probe internal)
 
 ### Methods
 
@@ -730,9 +730,12 @@ public interface AudioProcessingService {
 
 ### Files cần tạo
 
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/api/event/VoiceProcessingRequestedIntegrationEvent.java` (record: eventId, songId, userId, occurredAt)
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/processor/VoiceTagInsertionProcessor.java` (`@KafkaListener`)
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/config/VoiceProcessingConfig.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/api/event/VoiceProcessingRequestedIntegrationEvent.java` (record: eventId, songId, userId, occurredAt)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/processor/VoiceTagInsertionProcessor.java` (`@KafkaListener`)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/messaging/VoiceKafkaConsumerConfig.java` (consumer config + listener container factory)
+- [x] `Backend/modules/outbox/src/main/java/com/pwb/outbox/api/OutboxWriter.java` (refactor: thêm `aggregateType`)
+- [x] `Backend/modules/outbox/src/main/java/com/pwb/outbox/api/OutboxEnqueueRequested.java` (refactor: thêm `aggregateType`)
+- [x] `Backend/modules/outbox/src/main/java/com/pwb/outbox/infrastructure/messaging/OutboxKafkaConfig.java` (thêm bean `voiceProcessingTopic`)
 
 ### Flow
 
@@ -767,8 +770,9 @@ public interface AudioProcessingService {
 
 ### Files cần update
 
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/api/SongFacade.java` — thêm method `triggerProcessing(userId, songId)`
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/web/SongController.java` — endpoint `POST /api/v1/songs/{songId}/process`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/api/SongFacade.java` — thêm method `triggerProcessing(userId, songId)` (đã có từ TASK 12)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/web/SongController.java` — endpoint `POST /api/v1/songs/{songId}/process` (đã có từ TASK 13)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/core/service/SongServiceImpl.java` — `triggerProcessing()` publish `VoiceProcessingRequestedIntegrationEvent` qua OutboxWriter
 
 ### Response
 
@@ -795,11 +799,14 @@ public interface AudioProcessingService {
 - KHÔNG check ở service layer — controller là đủ (defense in depth chỉ khi thực sự cần).
 - IAM module KHÔNG cần thay đổi — authority `ROLE_PRO` đã có sẵn từ `CustomUserDetails`.
 
-### Test
+### Manual smoke test (không viết test file theo rule `no-auto-create-tests-backend.mdc`)
 
-- [ ] User role=USER gọi `/api/v1/voice-tags` → 403.
-- [ ] User role=PRO gọi thành công.
-- [ ] User role=ADMIN → 403 (vì plan chỉ cho PRO, không cho ADMIN — nếu muốn ADMIN cũng dùng được: đổi thành `hasAnyRole('PRO', 'ADMIN')`).
+- [x] `VoiceTagController` có `@PreAuthorize("hasRole('PRO')")` class-level (line 43).
+- [x] `SongController` có `@PreAuthorize("hasRole('PRO')")` class-level (line 45).
+- [x] `CustomUserDetails.getAuthorities()` build `ROLE_<NAME>` từ `user.getRole().getName()` — verified.
+- [ ] User role=USER gọi `/api/v1/voice-tags` → 403 (cần manual test runtime).
+- [ ] User role=PRO gọi thành công (cần manual test runtime).
+- [ ] User role=ADMIN → 403 (cần manual test runtime).
 
 ---
 
@@ -809,17 +816,20 @@ public interface AudioProcessingService {
 
 ### Files cần update
 
-- [ ] `Backend/shared-web/src/main/resources/messages/messages.properties` — thêm tất cả `VOICE_*` success messages (xem TASK 4)
-- [ ] `Backend/shared-web/src/main/resources/messages/messages_en.properties` — same
-- [ ] `Backend/shared-web/src/main/resources/messages/messages_vi.properties` — Vietnamese translation (đúng dấu, tự nhiên)
+- [x] `Backend/shared-web/src/main/resources/messages/messages.properties` — thêm tất cả `VOICE_*` success messages (xem TASK 4)
+- [x] `Backend/shared-web/src/main/resources/messages/messages_en.properties` — same
+- [x] `Backend/shared-web/src/main/resources/messages/messages_vi.properties` — Vietnamese translation (đúng dấu, tự nhiên)
+- [x] `Backend/shared-kernel/src/main/java/com/pwb/backend/exception/ErrorCode.java` — thêm `SONG_STREAM_NOT_READY (VOICE_014)`
 
 ### Checklist messages
 
-- [ ] `VOICE_TAG_CREATED`, `VOICE_TAG_UPDATED`, `VOICE_TAG_DELETED`
-- [ ] `SONG_UPLOADED`, `SONG_UPDATED`, `SONG_DELETED`
-- [ ] `VOICE_TAG_CONFIGURED`, `VOICE_PROCESSING_STARTED`
-- [ ] `ACCESS_DENIED_PRO_ONLY`
-- [ ] Tất cả validation messages: `{validation.name.required}`, `{validation.text.maxlength}`, ...
+- [x] `VOICE_TAG_CREATED`, `VOICE_TAG_UPDATED`, `VOICE_TAG_DELETED`
+- [x] `SONG_UPLOADED`, `SONG_UPDATED`, `SONG_DELETED`
+- [x] `VOICE_TAG_CONFIGURED`, `VOICE_PROCESSING_STARTED`
+- [x] `VOICE_PROCESSING_QUEUED`, `VOICE_PROCESSING_FAILED` (mới TASK 14-15)
+- [x] `VOICE_014` (mới TASK 18.2)
+- [x] `ACCESS_DENIED_PRO_ONLY`
+- [x] Tất cả validation messages: `{validation.name.required}`, `{validation.text.maxlength}`, ...
 
 ### Lưu ý
 
@@ -935,11 +945,11 @@ Week 5:
 - [x] TASK 8 — Voice tag service + facade + audio validator + FFprobe
 - [x] TASK 9 — Voice tag REST controller (with shared-web `@CurrentUser` abstraction)
 - [x] TASK 10-13 — Song domain + DTOs + service + controller
-- [ ] TASK 14 — FFmpeg audio processing service
-- [ ] TASK 15 — Kafka async processor
-- [ ] TASK 16 — Song processing trigger
-- [ ] TASK 17 — PRO role integration
-- [ ] TASK 18 — Error handling + i18n polish
+- [x] TASK 14 — FFmpeg audio processing service
+- [x] TASK 15 — Kafka async processor
+- [x] TASK 16 — Song processing trigger
+- [x] TASK 17 — PRO role integration
+- [x] TASK 18 — Error handling + i18n polish
 - [ ] TASK 19 — Integration + E2E smoke test
 - [ ] `mvn clean install` pass với 0 error
 - [ ] E2E smoke test pass

@@ -1,0 +1,162 @@
+package com.pwb.voice.infrastructure.processor;
+
+import com.pwb.backend.exception.BusinessException;
+import com.pwb.backend.exception.ErrorCode;
+import com.pwb.outbox.infrastructure.messaging.OutboxKafkaConfig;
+import com.pwb.storage.api.StorageService;
+import com.pwb.voice.api.event.VoiceProcessingRequestedIntegrationEvent;
+import com.pwb.voice.core.model.Song;
+import com.pwb.voice.core.model.SongTagConfig;
+import com.pwb.voice.core.service.AudioProcessingService;
+import com.pwb.voice.infrastructure.config.AudioProcessingProperties;
+import com.pwb.voice.infrastructure.config.VoiceProperties;
+import com.pwb.voice.infrastructure.persistence.entity.SongJpaEntity;
+import com.pwb.voice.infrastructure.persistence.entity.SongTagConfigJpaEntity;
+import com.pwb.voice.infrastructure.persistence.entity.VoiceTagJpaEntity;
+import com.pwb.voice.infrastructure.persistence.mapper.SongMapper;
+import com.pwb.voice.infrastructure.persistence.mapper.SongTagConfigMapper;
+import com.pwb.voice.infrastructure.persistence.repository.SongJpaRepository;
+import com.pwb.voice.infrastructure.persistence.repository.SongTagConfigJpaRepository;
+import com.pwb.voice.infrastructure.persistence.repository.VoiceTagJpaRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.UUID;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class VoiceTagInsertionProcessor {
+
+    private static final String DOT = ".";
+    private static final String KEY_DELIMITER = "/";
+
+    private final SongJpaRepository songRepository;
+    private final SongTagConfigJpaRepository configRepository;
+    private final VoiceTagJpaRepository voiceTagRepository;
+    private final StorageService storageService;
+    private final AudioProcessingService audioProcessingService;
+    private final SongMapper songMapper;
+    private final SongTagConfigMapper songTagConfigMapper;
+    private final VoiceProperties voiceProperties;
+    private final AudioProcessingProperties audioProcessingProperties;
+
+    @KafkaListener(
+        topics = OutboxKafkaConfig.TOPIC_VOICE_PROCESSING,
+        groupId = "voice-processor",
+        containerFactory = "voiceKafkaListenerContainerFactory"
+    )
+    public void consume(VoiceProcessingRequestedIntegrationEvent event) {
+        UUID songId = event.songId();
+        UUID userId = event.userId();
+        Path originalPath = null;
+        Path tagPath = null;
+        Path outputPath = null;
+
+        try {
+            SongJpaEntity songEntity = songRepository
+                    .findByIdAndUserIdAndDeletedFalse(songId, userId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.SONG_NOT_FOUND));
+
+            SongTagConfigJpaEntity configEntity = configRepository
+                    .findBySongIdAndDeletedFalse(songId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT));
+
+            VoiceTagJpaEntity tagEntity = voiceTagRepository
+                    .findByIdAndUserIdAndDeletedFalse(configEntity.getVoiceTagId(), userId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_TAG_NOT_FOUND));
+
+            Files.createDirectories(Path.of(audioProcessingProperties.getTempDir()));
+            String extension = songEntity.getFormat() == null ? "mp3" : songEntity.getFormat();
+            originalPath = Files.createTempFile(Path.of(audioProcessingProperties.getTempDir()),
+                    "voice-original-" + songId + "-", DOT + extension);
+            tagPath = Files.createTempFile(Path.of(audioProcessingProperties.getTempDir()),
+                    "voice-tag-" + tagEntity.getId() + "-", DOT + extension);
+            outputPath = Files.createTempFile(Path.of(audioProcessingProperties.getTempDir()),
+                    "voice-processed-" + songId + "-", DOT + extension);
+
+            try (InputStream originalStream = storageService.download(songEntity.getOriginalS3Key())) {
+                Files.copy(originalStream, originalPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+            try (InputStream tagStream = storageService.download(tagEntity.getS3Key())) {
+                Files.copy(tagStream, tagPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            SongTagConfig config = songTagConfigMapper.toDomain(configEntity);
+            audioProcessingService.insertVoiceTagAtInterval(originalPath, tagPath, outputPath, config);
+
+            String processedKey = buildProcessedS3Key(userId, songId, extension);
+            storageService.upload(processedKey, Files.newInputStream(outputPath), Files.size(outputPath),
+                    resolveContentType(extension));
+
+            markProcessed(songEntity, processedKey);
+            log.info("Voice processing completed: songId={}, processedKey={}", songId, processedKey);
+
+        } catch (BusinessException ex) {
+            markFailed(songId, ex.getMessage());
+            throw new RuntimeException("Voice processing failed: " + ex.getMessage(), ex);
+        } catch (Exception ex) {
+            log.error("Voice processing failed: songId={}", songId, ex);
+            markFailed(songId, ex.getMessage());
+            throw new RuntimeException("Voice processing failed: " + ex.getMessage(), ex);
+        } finally {
+            deleteQuietly(originalPath);
+            deleteQuietly(tagPath);
+            deleteQuietly(outputPath);
+        }
+    }
+
+    @Transactional
+    protected void markProcessed(SongJpaEntity songEntity, String processedKey) {
+        Song song = songMapper.toDomain(songEntity);
+        song.markProcessed(processedKey, songEntity.getDurationSeconds());
+        SongJpaEntity merged = songMapper.toEntity(song, songEntity);
+        songRepository.save(merged);
+    }
+
+    @Transactional
+    protected void markFailed(UUID songId, String errorMessage) {
+        songRepository.findById(songId).ifPresent(entity -> {
+            Song song = songMapper.toDomain(entity);
+            song.markFailed(errorMessage == null ? "Unknown error" : errorMessage);
+            SongJpaEntity merged = songMapper.toEntity(song, entity);
+            songRepository.save(merged);
+        });
+    }
+
+    private String buildProcessedS3Key(UUID userId, UUID songId, String extension) {
+        String prefix = voiceProperties.getStorage().getSongsProcessedPrefix();
+        return prefix + KEY_DELIMITER + userId + KEY_DELIMITER + songId + DOT + extension;
+    }
+
+    private String resolveContentType(String extension) {
+        switch (extension.toLowerCase()) {
+            case "mp3":
+                return "audio/mpeg";
+            case "wav":
+                return "audio/wav";
+            case "flac":
+                return "audio/flac";
+            default:
+                return "application/octet-stream";
+        }
+    }
+
+    private void deleteQuietly(Path path) {
+        if (path == null) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(path);
+        } catch (Exception ex) {
+            log.warn("Failed to delete temp file: path={}", path, ex);
+        }
+    }
+}

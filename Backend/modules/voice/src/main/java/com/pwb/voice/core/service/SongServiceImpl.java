@@ -2,11 +2,16 @@ package com.pwb.voice.core.service;
 
 import com.pwb.backend.exception.BusinessException;
 import com.pwb.backend.exception.ErrorCode;
+import com.pwb.outbox.api.OutboxEnqueueRequested;
+import com.pwb.outbox.api.OutboxEventPayload;
+import com.pwb.outbox.api.OutboxWriter;
+import com.pwb.outbox.infrastructure.messaging.OutboxKafkaConfig;
 import com.pwb.storage.api.StorageService;
 import com.pwb.voice.api.dto.request.ConfigureVoiceTagRequest;
 import com.pwb.voice.api.dto.request.UpdateSongRequest;
 import com.pwb.voice.api.dto.request.UploadSongRequest;
 import com.pwb.voice.api.enums.SongStatus;
+import com.pwb.voice.api.event.VoiceProcessingRequestedIntegrationEvent;
 import com.pwb.voice.core.model.Song;
 import com.pwb.voice.core.model.SongTagConfig;
 import com.pwb.voice.infrastructure.config.VoiceProperties;
@@ -18,8 +23,11 @@ import com.pwb.voice.infrastructure.persistence.mapper.SongTagConfigMapper;
 import com.pwb.voice.infrastructure.persistence.repository.SongJpaRepository;
 import com.pwb.voice.infrastructure.persistence.repository.SongTagConfigJpaRepository;
 import com.pwb.voice.infrastructure.persistence.repository.VoiceTagJpaRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -27,7 +35,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -51,6 +61,8 @@ public class SongServiceImpl implements SongService {
     private final StorageService storageService;
     private final AudioFileValidator audioFileValidator;
     private final VoiceProperties voiceProperties;
+    private final ApplicationEventPublisher applicationEventPublisher;
+    private final ObjectMapper objectMapper;
 
     @Override
     public Song uploadSong(UUID userId, MultipartFile file, UploadSongRequest request) {
@@ -275,9 +287,36 @@ public class SongServiceImpl implements SongService {
         SongJpaEntity merged = songMapper.toEntity(domain, entity);
         SongJpaEntity saved = songJpaRepository.save(merged);
 
+        publishProcessingEvent(songId, userId);
+
         log.info("Song processing triggered: userId={}, songId={}, status={}", userId, saved.getId(), saved.getStatus());
 
         return songMapper.toDomain(saved);
+    }
+
+    private void publishProcessingEvent(UUID songId, UUID userId) {
+        VoiceProcessingRequestedIntegrationEvent event = new VoiceProcessingRequestedIntegrationEvent(
+                UUID.randomUUID().toString(),
+                songId,
+                userId,
+                Instant.now()
+        );
+        try {
+            String body = objectMapper.writeValueAsString(event);
+            OutboxEventPayload payload = OutboxEventPayload.of(body);
+            applicationEventPublisher.publishEvent(
+                    new OutboxEnqueueRequested(
+                            OutboxKafkaConfig.TOPIC_VOICE_PROCESSING,
+                            songId.toString(),
+                            "Song",
+                            payload,
+                            Map.of()
+                    )
+            );
+        } catch (JsonProcessingException ex) {
+            log.error("Failed to serialize voice processing event: songId={}", songId, ex);
+            throw new BusinessException(ErrorCode.AUDIO_PROCESSING_FAILED);
+        }
     }
 
     @Override

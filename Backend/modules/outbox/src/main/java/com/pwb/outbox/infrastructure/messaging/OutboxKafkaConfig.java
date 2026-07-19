@@ -19,6 +19,7 @@ import java.util.Map;
 public class OutboxKafkaConfig {
 
     public static final String TOPIC_EMAIL = "notification.email.v1";
+    public static final String TOPIC_VOICE_PROCESSING = "voice.processing.v1";
 
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
@@ -26,6 +27,14 @@ public class OutboxKafkaConfig {
     @Bean
     public NewTopic emailTopic() {
         return TopicBuilder.name(TOPIC_EMAIL)
+            .partitions(3)
+            .replicas(1)
+            .build();
+    }
+
+    @Bean
+    public NewTopic voiceProcessingTopic() {
+        return TopicBuilder.name(TOPIC_VOICE_PROCESSING)
             .partitions(3)
             .replicas(1)
             .build();

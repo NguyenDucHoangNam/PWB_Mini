@@ -110,7 +110,7 @@ public class OutboxAuthEventPublisher implements AuthEventPublisher {
             String body = objectMapper.writeValueAsString(event);
             OutboxEventPayload payload = OutboxEventPayload.of(body);
             applicationEventPublisher.publishEvent(
-                    new OutboxEnqueueRequested(OutboxKafkaConfig.TOPIC_EMAIL, key, payload, Map.of())
+                    new OutboxEnqueueRequested(OutboxKafkaConfig.TOPIC_EMAIL, key, "User", payload, Map.of())
             );
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize EmailRequestedIntegrationEvent: eventId={}", event.eventId(), e);

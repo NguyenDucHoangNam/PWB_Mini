@@ -15,6 +15,7 @@ import org.springframework.context.annotation.Configuration;
 public class VoiceProperties {
 
     private Storage storage;
+    private Audio audio;
 
     @Data
     @AllArgsConstructor
@@ -25,5 +26,17 @@ public class VoiceProperties {
         private String songsOriginalPrefix;
         private String songsProcessedPrefix;
         private String keyTemplate;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class Audio {
+
+        private String tempDir;
+        private int processingTimeoutMinutes;
+        private int maxDurationSeconds;
+        private long maxFileSizeBytes;
+        private String allowedFormats;
     }
 }

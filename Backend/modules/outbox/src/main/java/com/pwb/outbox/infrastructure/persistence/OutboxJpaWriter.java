@@ -22,9 +22,9 @@ public class OutboxJpaWriter implements OutboxWriter {
     private final OutboxEventJpaRepository repository;
 
     @Override
-    public void enqueue(String topic, String key, OutboxEventPayload payload, Map<String, String> headers) {
+    public void enqueue(String topic, String key, String aggregateType, OutboxEventPayload payload, Map<String, String> headers) {
         OutboxEventJpaEntity entity = OutboxEventJpaEntity.builder()
-            .aggregateType("User")
+            .aggregateType(aggregateType == null || aggregateType.isBlank() ? "User" : aggregateType)
             .aggregateId(key)
             .topic(topic)
             .payloadKey(key)
