@@ -578,7 +578,6 @@
       },
       "form": {
         "nameLabel": "Name",
-        "descriptionLabel": "Description",
         "textLabel": "Text to convert",
         "languageLabel": "Language",
         "submitButton": "Create voice tag",

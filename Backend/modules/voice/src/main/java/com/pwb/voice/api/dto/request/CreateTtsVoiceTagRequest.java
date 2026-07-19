@@ -18,9 +18,6 @@ public class CreateTtsVoiceTagRequest {
     @Size(max = 128, message = "{validation.name.maxlength}")
     private String name;
 
-    @Size(max = 512, message = "{validation.description.maxlength}")
-    private String description;
-
     @NotBlank(message = "{validation.text.required}")
     @Size(max = 4000, message = "{validation.text.maxlength}")
     private String text;

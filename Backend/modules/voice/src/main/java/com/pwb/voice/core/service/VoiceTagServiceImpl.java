@@ -58,7 +58,6 @@ public class VoiceTagServiceImpl implements VoiceTagService {
         VoiceTag domain = VoiceTag.createTtsTag(
                 userId,
                 request.getName(),
-                request.getDescription(),
                 request.getText(),
                 request.getLanguageCode(),
                 s3Key,
@@ -113,7 +112,6 @@ public class VoiceTagServiceImpl implements VoiceTagService {
         VoiceTag domain = VoiceTag.createUploadedTag(
                 userId,
                 request.getName(),
-                request.getDescription(),
                 s3Key,
                 metadata.durationSeconds(),
                 file.getSize()
@@ -141,7 +139,7 @@ public class VoiceTagServiceImpl implements VoiceTagService {
         }
 
         VoiceTag domain = voiceTagMapper.toDomain(existing);
-        domain.updateMetadata(request.getName(), request.getDescription());
+        domain.updateMetadata(request.getName());
 
         VoiceTagJpaEntity merged = voiceTagMapper.toEntity(domain, existing);
         VoiceTagJpaEntity saved = voiceTagJpaRepository.save(merged);

@@ -16,7 +16,4 @@ public class UploadVoiceTagRequest {
     @NotBlank(message = "{validation.name.required}")
     @Size(max = 128, message = "{validation.name.maxlength}")
     private String name;
-
-    @Size(max = 512, message = "{validation.description.maxlength}")
-    private String description;
 }

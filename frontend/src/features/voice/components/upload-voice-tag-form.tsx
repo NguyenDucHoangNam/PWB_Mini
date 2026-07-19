@@ -39,7 +39,7 @@ export function UploadVoiceTagForm({ onCancel, onSuccess }: UploadVoiceTagFormPr
     formState: { errors },
   } = useForm<UploadVoiceTagFormValues>({
     resolver: zodResolver(uploadVoiceTagFormSchema),
-    defaultValues: { name: "", description: "" },
+    defaultValues: { name: "" },
   });
 
   const { mutate: upload, isPending } = useUploadVoiceTag({
@@ -83,7 +83,7 @@ export function UploadVoiceTagForm({ onCancel, onSuccess }: UploadVoiceTagFormPr
     formData.append("file", file);
     formData.append(
       "metadata",
-      new Blob([JSON.stringify({ name: values.name, description: values.description || undefined })], {
+      new Blob([JSON.stringify({ name: values.name })], {
         type: "application/json",
       })
     );
@@ -115,16 +115,6 @@ export function UploadVoiceTagForm({ onCancel, onSuccess }: UploadVoiceTagFormPr
         {errors.name && (
           <p className="text-xs text-red-600 dark:text-red-400">
             {tValidation(errors.name.message as never)}
-          </p>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="upload-description">{t("descriptionLabel")}</Label>
-        <Input id="upload-description" {...register("description")} maxLength={512} />
-        {errors.description && (
-          <p className="text-xs text-red-600 dark:text-red-400">
-            {tValidation(errors.description.message as never)}
           </p>
         )}
       </div>

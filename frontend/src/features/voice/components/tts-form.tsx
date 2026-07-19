@@ -34,7 +34,6 @@ export function TtsForm({ onCancel, onSuccess }: TtsFormProps) {
     resolver: zodResolver(ttsFormSchema),
     defaultValues: {
       name: "",
-      description: "",
       text: "",
       languageCode: "en-US",
     },
@@ -60,18 +59,16 @@ export function TtsForm({ onCancel, onSuccess }: TtsFormProps) {
     createTts({
       data: {
         name: values.name,
-        description: values.description || undefined,
         text: values.text,
         languageCode: values.languageCode,
       },
     });
   });
 
-  const renderError = (fieldKey: "name" | "description" | "text" | "languagecode") => {
+  const renderError = (fieldKey: "name" | "text" | "languagecode") => {
     const map: Record<string, keyof TtsFormValues> = {
       "validation.name.required": "name",
       "validation.name.maxlength": "name",
-      "validation.description.maxlength": "description",
       "validation.text.required": "text",
       "validation.text.maxlength": "text",
       "validation.languagecode.required": "languageCode",
@@ -90,14 +87,6 @@ export function TtsForm({ onCancel, onSuccess }: TtsFormProps) {
         <Label htmlFor="tts-name">{t("nameLabel")}</Label>
         <Input id="tts-name" {...register("name")} maxLength={128} />
         {errors.name && <p className="text-xs text-red-600 dark:text-red-400">{renderError("name")}</p>}
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="tts-description">{t("descriptionLabel")}</Label>
-        <Input id="tts-description" {...register("description")} maxLength={512} />
-        {errors.description && (
-          <p className="text-xs text-red-600 dark:text-red-400">{renderError("description")}</p>
-        )}
       </div>
 
       <div className="flex flex-col gap-2">

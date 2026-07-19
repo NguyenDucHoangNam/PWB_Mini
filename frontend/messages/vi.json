@@ -578,7 +578,6 @@
       },
       "form": {
         "nameLabel": "Tên",
-        "descriptionLabel": "Mô tả",
         "textLabel": "Văn bản cần chuyển đổi",
         "languageLabel": "Ngôn ngữ",
         "submitButton": "Tạo voice tag",

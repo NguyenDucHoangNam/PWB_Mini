@@ -6,7 +6,6 @@ export interface VoiceTag {
   id: string;
   userId: string;
   name: string;
-  description: string | null;
   tagType: VoiceTagType;
   sourceText: string | null;
   languageCode: string | null;
@@ -69,19 +68,18 @@ export interface AudioUrl {
 
 export interface CreateTtsVoiceTagRequest {
   name: string;
-  description?: string;
   text: string;
   languageCode: string;
 }
 
 export interface UploadVoiceTagRequest {
   name: string;
-  description?: string;
 }
 
 export interface UpdateVoiceTagRequest {
   name?: string;
-  description?: string;
+  text?: string;
+  languageCode?: string;
 }
 
 export interface UploadSongRequest {

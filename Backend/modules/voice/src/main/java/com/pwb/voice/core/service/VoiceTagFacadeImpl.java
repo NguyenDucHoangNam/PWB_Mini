@@ -91,7 +91,6 @@ public class VoiceTagFacadeImpl implements VoiceTagFacade {
                 .id(domain.getId())
                 .userId(domain.getUserId())
                 .name(domain.getName())
-                .description(domain.getDescription())
                 .tagType(domain.getTagType())
                 .sourceText(domain.getSourceText())
                 .languageCode(domain.getLanguageCode())

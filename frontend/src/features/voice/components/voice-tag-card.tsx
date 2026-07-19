@@ -45,12 +45,6 @@ export function VoiceTagCard({ voiceTag }: VoiceTagCardProps) {
         </div>
       </div>
 
-      {voiceTag.description && (
-        <p className="line-clamp-2 text-sm text-neutral-600 dark:text-neutral-400">
-          {voiceTag.description}
-        </p>
-      )}
-
       <VoiceTagPreviewInline voiceTagId={voiceTag.id} />
 
       <VoiceTagDeleteDialog

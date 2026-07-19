@@ -5,11 +5,6 @@ export const ttsFormSchema = z.object({
     .string()
     .min(1, { message: "validation.name.required" })
     .max(128, { message: "validation.name.maxlength" }),
-  description: z
-    .string()
-    .max(512, { message: "validation.description.maxlength" })
-    .optional()
-    .or(z.literal("")),
   text: z
     .string()
     .min(1, { message: "validation.text.required" })
@@ -29,11 +24,6 @@ export const uploadVoiceTagFormSchema = z.object({
     .string()
     .min(1, { message: "validation.name.required" })
     .max(128, { message: "validation.name.maxlength" }),
-  description: z
-    .string()
-    .max(512, { message: "validation.description.maxlength" })
-    .optional()
-    .or(z.literal("")),
 });
 
 export type UploadVoiceTagFormValues = z.infer<typeof uploadVoiceTagFormSchema>;

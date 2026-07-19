@@ -41,9 +41,6 @@ public class VoiceTagJpaEntity extends BaseEntity {
     @Column(name = "name", nullable = false, length = 128)
     private String name;
 
-    @Column(name = "description", length = 512)
-    private String description;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "tag_type", nullable = false, length = 32)
     private VoiceTagType tagType;

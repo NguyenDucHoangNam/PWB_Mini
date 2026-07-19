@@ -63,11 +63,6 @@ export default function VoiceTagDetailPage() {
             <span>{t("duration", { seconds: tag.durationSeconds })}</span>
             {tag.languageCode && <span>{tag.languageCode}</span>}
           </div>
-          {tag.description && (
-            <p className="max-w-2xl text-sm text-neutral-600 dark:text-neutral-400">
-              {tag.description}
-            </p>
-          )}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => router.push("/dashboard/voice-tags")}>

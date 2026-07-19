@@ -18,7 +18,6 @@ public interface VoiceTagMapper {
         return VoiceTagJpaEntity.builder()
                 .userId(domain.getUserId())
                 .name(domain.getName())
-                .description(domain.getDescription())
                 .tagType(domain.getTagType())
                 .sourceText(domain.getSourceText())
                 .languageCode(domain.getLanguageCode())
@@ -35,7 +34,6 @@ public interface VoiceTagMapper {
         }
         existing.setUserId(domain.getUserId());
         existing.setName(domain.getName());
-        existing.setDescription(domain.getDescription());
         existing.setTagType(domain.getTagType());
         existing.setSourceText(domain.getSourceText());
         existing.setLanguageCode(domain.getLanguageCode());
@@ -54,7 +52,6 @@ public interface VoiceTagMapper {
                 entity.getId(),
                 entity.getUserId(),
                 entity.getName(),
-                entity.getDescription(),
                 entity.getTagType(),
                 entity.getSourceText(),
                 entity.getLanguageCode(),

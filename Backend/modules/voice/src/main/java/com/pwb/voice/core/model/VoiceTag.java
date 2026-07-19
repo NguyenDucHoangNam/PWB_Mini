@@ -11,7 +11,6 @@ public final class VoiceTag {
     private final UUID id;
     private final UUID userId;
     private String name;
-    private String description;
     private VoiceTagType tagType;
     private String sourceText;
     private String languageCode;
@@ -24,7 +23,6 @@ public final class VoiceTag {
             UUID id,
             UUID userId,
             String name,
-            String description,
             VoiceTagType tagType,
             String sourceText,
             String languageCode,
@@ -36,7 +34,6 @@ public final class VoiceTag {
         this.id = id;
         this.userId = userId;
         this.name = name;
-        this.description = description;
         this.tagType = tagType;
         this.sourceText = sourceText;
         this.languageCode = languageCode;
@@ -49,7 +46,6 @@ public final class VoiceTag {
     public static VoiceTag createTtsTag(
             UUID userId,
             String name,
-            String description,
             String sourceText,
             String languageCode,
             String s3Key,
@@ -60,7 +56,6 @@ public final class VoiceTag {
                 UUID.randomUUID(),
                 userId,
                 name,
-                description,
                 VoiceTagType.TTS,
                 sourceText,
                 languageCode,
@@ -74,7 +69,6 @@ public final class VoiceTag {
     public static VoiceTag createUploadedTag(
             UUID userId,
             String name,
-            String description,
             String s3Key,
             Integer durationSeconds,
             Long fileSizeBytes
@@ -83,7 +77,6 @@ public final class VoiceTag {
                 UUID.randomUUID(),
                 userId,
                 name,
-                description,
                 VoiceTagType.UPLOADED,
                 null,
                 null,
@@ -98,7 +91,6 @@ public final class VoiceTag {
             UUID id,
             UUID userId,
             String name,
-            String description,
             VoiceTagType tagType,
             String sourceText,
             String languageCode,
@@ -111,7 +103,6 @@ public final class VoiceTag {
                 id,
                 userId,
                 name,
-                description,
                 tagType,
                 sourceText,
                 languageCode,
@@ -122,9 +113,8 @@ public final class VoiceTag {
         );
     }
 
-    public void updateMetadata(String name, String description) {
+    public void updateMetadata(String name) {
         if (name != null) this.name = name;
-        if (description != null) this.description = description;
     }
 
     public void updateTtsParams(String sourceText, String languageCode) {
