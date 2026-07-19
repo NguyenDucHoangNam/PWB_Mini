@@ -3,16 +3,12 @@ package com.pwb.iam.infrastructure.persistence.mapper;
 import com.pwb.iam.core.model.Role;
 import com.pwb.iam.core.model.RoleName;
 import com.pwb.iam.infrastructure.persistence.entity.RoleJpaEntity;
-import org.mapstruct.Mapper;
-import org.mapstruct.ReportingPolicy;
+import org.springframework.stereotype.Component;
 
-@Mapper(
-        componentModel = "spring",
-        unmappedTargetPolicy = ReportingPolicy.IGNORE
-)
-public interface RoleMapper {
+@Component
+public class RoleMapper {
 
-    default Role toDomain(RoleJpaEntity entity) {
+    public Role toDomain(RoleJpaEntity entity) {
         if (entity == null || entity.getName() == null) {
             return null;
         }
@@ -25,7 +21,7 @@ public interface RoleMapper {
         return Role.of(roleName, entity.getDescription());
     }
 
-    default RoleJpaEntity toEntity(Role domain) {
+    public RoleJpaEntity toEntity(Role domain) {
         if (domain == null || domain.getRoleId() == null) {
             return null;
         }

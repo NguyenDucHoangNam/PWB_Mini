@@ -21,6 +21,8 @@ public interface VoiceTagJpaRepository
 
     boolean existsByUserIdAndNameAndDeletedFalse(UUID userId, String name);
 
+    boolean existsByUserIdAndNameAndIdNotAndDeletedFalse(UUID userId, String name, UUID id);
+
     boolean existsByIdAndUserIdAndDeletedFalse(UUID id, UUID userId);
 
     long countByUserIdAndDeletedFalse(UUID userId);

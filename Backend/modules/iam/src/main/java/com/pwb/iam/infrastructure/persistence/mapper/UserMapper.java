@@ -6,17 +6,12 @@ import com.pwb.iam.core.model.RoleName;
 import com.pwb.iam.core.model.User;
 import com.pwb.iam.infrastructure.persistence.entity.RoleJpaEntity;
 import com.pwb.iam.infrastructure.persistence.entity.UserJpaEntity;
-import org.mapstruct.Mapper;
-import org.mapstruct.ReportingPolicy;
+import org.springframework.stereotype.Component;
 
-@Mapper(
-        componentModel = "spring",
-        unmappedTargetPolicy = ReportingPolicy.IGNORE,
-        uses = { RoleMapper.class }
-)
-public interface UserMapper {
+@Component
+public abstract class UserMapper {
 
-    default UserJpaEntity toEntity(User domain) {
+    public UserJpaEntity toEntity(User domain) {
         if (domain == null) {
             return null;
         }
@@ -36,7 +31,7 @@ public interface UserMapper {
                 .build();
     }
 
-    default UserJpaEntity toEntity(User domain, UserJpaEntity existing) {
+    public UserJpaEntity toEntity(User domain, UserJpaEntity existing) {
         if (domain == null) {
             return null;
         }
@@ -53,7 +48,7 @@ public interface UserMapper {
         return existing;
     }
 
-    default User toDomain(UserJpaEntity entity) {
+    public User toDomain(UserJpaEntity entity) {
         if (entity == null) {
             return null;
         }
@@ -75,7 +70,7 @@ public interface UserMapper {
         );
     }
 
-    default Role mapRole(RoleJpaEntity entity) {
+    private Role mapRole(RoleJpaEntity entity) {
         if (entity == null || entity.getName() == null) {
             return null;
         }
@@ -88,7 +83,7 @@ public interface UserMapper {
         return Role.of(roleName, entity.getDescription());
     }
 
-    default RoleJpaEntity mapRoleToEntity(Role domain) {
+    private RoleJpaEntity mapRoleToEntity(Role domain) {
         if (domain == null || domain.getRoleId() == null) {
             return null;
         }
@@ -96,5 +91,9 @@ public interface UserMapper {
                 .name(domain.getRoleId().name())
                 .description(domain.getDescription())
                 .build();
+    }
+
+    @Component
+    public static class UserMapperImpl extends UserMapper {
     }
 }

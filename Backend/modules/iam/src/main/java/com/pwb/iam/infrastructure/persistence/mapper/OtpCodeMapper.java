@@ -2,16 +2,12 @@ package com.pwb.iam.infrastructure.persistence.mapper;
 
 import com.pwb.iam.core.model.OtpCode;
 import com.pwb.iam.infrastructure.persistence.entity.OtpCodeJpaEntity;
-import org.mapstruct.Mapper;
-import org.mapstruct.ReportingPolicy;
+import org.springframework.stereotype.Component;
 
-@Mapper(
-        componentModel = "spring",
-        unmappedTargetPolicy = ReportingPolicy.IGNORE
-)
-public interface OtpCodeMapper {
+@Component
+public class OtpCodeMapper {
 
-    default OtpCodeJpaEntity toEntity(OtpCode domain) {
+    public OtpCodeJpaEntity toEntity(OtpCode domain) {
         if (domain == null) return null;
         return OtpCodeJpaEntity.builder()
                 .userId(domain.getUserId())
@@ -24,7 +20,7 @@ public interface OtpCodeMapper {
                 .build();
     }
 
-    default OtpCode toDomain(OtpCodeJpaEntity entity) {
+    public OtpCode toDomain(OtpCodeJpaEntity entity) {
         if (entity == null) return null;
         return OtpCode.rehydrate(
                 entity.getId(),

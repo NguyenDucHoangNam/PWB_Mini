@@ -2,16 +2,12 @@ package com.pwb.iam.infrastructure.persistence.mapper;
 
 import com.pwb.iam.core.model.PasswordResetToken;
 import com.pwb.iam.infrastructure.persistence.entity.PasswordResetTokenJpaEntity;
-import org.mapstruct.Mapper;
-import org.mapstruct.ReportingPolicy;
+import org.springframework.stereotype.Component;
 
-@Mapper(
-        componentModel = "spring",
-        unmappedTargetPolicy = ReportingPolicy.IGNORE
-)
-public interface PasswordResetTokenMapper {
+@Component
+public class PasswordResetTokenMapper {
 
-    default PasswordResetTokenJpaEntity toEntity(PasswordResetToken domain) {
+    public PasswordResetTokenJpaEntity toEntity(PasswordResetToken domain) {
         if (domain == null) {
             return null;
         }
@@ -24,7 +20,7 @@ public interface PasswordResetTokenMapper {
                 .build();
     }
 
-    default PasswordResetToken toDomain(PasswordResetTokenJpaEntity entity) {
+    public PasswordResetToken toDomain(PasswordResetTokenJpaEntity entity) {
         if (entity == null) {
             return null;
         }

@@ -2,7 +2,7 @@
 
 > **Ngày tạo**: 2026-07-19
 > **Dựa trên**: [voice-module-plan.md](./voice-module-plan.md)
-> **Trạng thái**: Ready for Implementation
+> **Trạng thái**: TASK 0-8 Done · TASK 9+ Pending
 > **Quy ước đánh dấu**: `[ ]` chưa làm · `[x]` đã xong · `[~]` đang làm
 
 ---
@@ -34,14 +34,24 @@
 Backend/
 ├── shared-kernel/        # ✅ Đã có
 ├── shared-web/           # ✅ Đã có
-├── shared-storage/       # 📋 TASK 1 (NEW)
+├── shared-storage/       # ✅ TASK 1 Done
 ├── bootstrap/            # ✅ Đã có
 └── modules/
-    ├── iam/              # ✅ Đã có (cần update JwtAuthenticationFilter — TASK 0)
+    ├── iam/              # ✅ Đã có (TASK 0 Done - JwtFilter fix)
     ├── notification/     # ✅ Đã có
-    ├── outbox/           # ✅ Đã có (cần refactor aggregateType)
-    └── voice/            # 📋 TASKS 2-19 (đã có skeleton REVOKED)
+    ├── outbox/           # ✅ Đã có (refactor aggregateType)
+    └── voice/            # 🔄 TASK 2-8 Done · TASK 9+ Pending
 ```
+
+**Voice module progress**:
+- ✅ TASK 2 — Module skeleton
+- ✅ TASK 3 — DB migrations (V8)
+- ✅ TASK 4 — Error codes + i18n
+- ✅ TASK 5 — Domain models (VoiceTag, JPA entity, mapper, repository)
+- ✅ TASK 6 — DTOs (CreateTts / Upload / Update requests + Response)
+- ✅ TASK 7 — Google TTS service + Redis cache
+- ✅ TASK 8 — Service + Facade + AudioFileValidator + FFprobe wrapper
+- ⏳ TASK 9 — REST controller (next)
 
 ---
 
@@ -362,16 +372,23 @@ public class CreateTtsVoiceTagRequest {
 
 ---
 
-## TASK 8: Voice Tag Service & Facade
+## ✅ [x] TASK 8: Voice Tag Service & Facade — DONE (2026-07-19)
 
 **Mục tiêu**: Business logic + facade layer cho Voice Tag (Facade impl đặt ở `core/service/`, KHÔNG ở `infrastructure/web/`).
 
 ### Files cần tạo
 
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/api/VoiceTagFacade.java` (interface — entry point)
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/core/service/VoiceTagService.java` (business logic)
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/core/service/VoiceTagFacadeImpl.java` (orchestrate các use case, delegate xuống service)
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/core/service/VoiceTagServiceImpl.java` (implement business logic)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/api/VoiceTagFacade.java` (interface — entry point)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/core/service/VoiceTagService.java` (business logic interface, 4 methods)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/core/service/VoiceTagFacadeImpl.java` (orchestrate các use case, delegate xuống service)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/core/service/VoiceTagServiceImpl.java` (implement business logic)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/core/service/AudioFileValidator.java` (`@Component` — extension + magic byte + size + duration)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/core/service/AudioMetadata.java` (record: durationSeconds, format, bitrate, sampleRate)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/audio/AudioMetadataExtractor.java` (FFprobe wrapper — Jaffree)
+
+### Files cần update
+
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/persistence/repository/VoiceTagJpaRepository.java` — thêm method `existsByUserIdAndNameAndIdNotAndDeletedFalse` để exclude-self khi update.
 
 ### Use case methods (VoiceTagFacade)
 
@@ -389,17 +406,78 @@ public interface VoiceTagFacade {
 
 ### Business logic (VoiceTagServiceImpl)
 
-- `createTtsTag`: validate → cache check → GoogleTts → S3 upload → DB save
-- `uploadTag`: validate (extension + magic byte + size + duration) → S3 upload → DB save
-- `updateTag`: chỉ update metadata (name, description) — KHÔNG cho đổi audio content
-- `deleteTag`: soft delete + async S3 delete (qua outbox event để tránh block request)
-- `getAudioPresignedUrl`: validate ownership → presigned URL expiration 1h
+- `createTtsTag`: check duplicate name → generate UUID → `textToSpeechService.synthesize()` (Redis cache hits) → build `VoiceTag.createTtsTag(...)` với estimated duration (1MB ≈ 8s cho MP3 @128kbps) → `storageService.upload(s3Key, bytes, audio/mpeg)` → `voiceTagJpaRepository.save(...)`.
+- `uploadTag`: extract extension → validate (extension, magic byte, size, duration qua FFprobe) → check duplicate name → generate UUID → `storageService.upload(InputStream, size, contentType)` → save entity.
+- `updateTag`: ownership check (`findByIdAndUserIdAndDeletedFalse` → 404 `VOICE_TAG_NOT_FOUND`) → nếu `name` đổi, check duplicate (exclude-self) → `domain.updateMetadata(name, description)` → save.
+- `deleteTag`: ownership check → `entity.markDeleted("system")` → save → best-effort sync `storageService.delete(s3Key)` (WARN log nếu fail, không fail request).
+- `getAudioPresignedUrl` (ở facade): ownership check → `storageService.generatePresignedUrl(s3Key, expiration).getUrl()`.
+
+### Validation chain (AudioFileValidator)
+
+- `validateExtension`: check extension ∈ `MP3, WAV, FLAC` (parse từ `app.voice.audio.allowed-formats` ở `@PostConstruct`).
+- `validateMagicBytes`: đọc 12-byte head → delegate `MediaTypeUtils.detectFromBytes()` → so khớp với extension.
+- `validateSize`: `sizeBytes <= 0` hoặc `> app.voice.audio.max-file-size-bytes` → `FILE_TOO_LARGE`.
+- `validateDuration`: `AudioMetadataExtractor.extract(InputStream, extension)` → FFprobe qua Jaffree (temp file ở `Files.createTempFile`, cleanup qua `Files.deleteIfExists` trong finally) → so với `max-duration-seconds` → throw `INVALID_AUDIO_DURATION`. Probe fail → `AUDIO_PROCESSING_FAILED`.
 
 ### Implementation notes
 
-- Facade chỉ delegate/compose, không chứa business logic (tránh "god service" như `IamFacadeImpl`).
-- File upload validate: extension ∈ {mp3, wav, flac}, magic byte check (3 bytes đầu), size ≤ 500MB, duration ≤ 10 min (dùng FFprobe).
-- Magic byte: `ID3` (MP3), `RIFF` (WAV), `fLaC` (FLAC).
+- **Facade impl ở `core/service/`** (theo plan) — KHÔNG ở `infrastructure/web/facade/` như IAM — tránh god service (IAM Facade đã 593 dòng).
+- **`VoiceTagFacade` interface trả raw DTO** (không wrap `ApiResponse`) — controller (TASK 9) sẽ lo phần wrapping.
+- **`VoiceTagService` interface chỉ trả `VoiceTag` domain** cho write use case — facade chịu trách nhiệm map domain → response.
+- **`VoiceTagServiceImpl` không dùng `@Transactional`** ở method level vì upload S3 + TTS tốn thời gian, không nên giữ DB connection. Tuy nhiên việc save entity vẫn có `@Transactional` ngầm qua JpaRepository.
+- **`MultipartFile.getInputStream()` mỗi lần gọi trả InputStream mới** — em re-open 3 lần: validate magic byte, validate duration (FFprobe), upload S3. Plan yêu cầu caller re-open sau khi validator consume stream.
+- **S3 cleanup** là best-effort sync — nếu fail chỉ WARN log, KHÔNG fail request (DB đã soft-delete). TASK 15 sẽ replace bằng Outbox-driven async cleanup.
+- **Estimated duration cho TTS tag**: `bytes / 1_000_000 * 8` (≈ 128kbps MP3). Đây là ước lượng thô; giá trị chính xác sẽ được FFprobe ghi đè trong TASK 14 (FFmpeg pipeline re-probe tất cả tag khi cần).
+- **i18n**: KHÔNG thêm key mới — toàn bộ error codes VOICE_001..013 + success messages đã có sẵn trong 3 file `messages*.properties` từ TASK 4.
+- **KHÔNG thêm `@PreAuthorize`** — chỉ controller (TASK 9) mới handle role check.
+- **KHÔNG thêm VOICE_TAG_IN_USE check** — deferred sang TASK 12 (SongTagConfig).
+- **Update sang `updateMetadata` chỉ apply name + description** — KHÔNG đổi audio content (plan yêu cầu).
+- **Audio processing timeout**: FFprobe qua Jaffree auto-download native binaries ở first call — có thể chậm 2-3s lần đầu. Acceptable cho MVP.
+
+### Audit notes (2026-07-19)
+
+- [x] 7 files tạo mới, 1 file update (VoiceTagJpaRepository — thêm method exclude-self cho update).
+- [x] `mvn -pl modules/voice -am clean compile` → BUILD SUCCESS (25 source files, 0 ERROR, 0 WARNING).
+- [x] `mvn -pl bootstrap -am clean compile` → BUILD SUCCESS (9 modules: shared-kernel, shared-web, shared-storage, outbox, notification, iam, voice, bootstrap).
+- [x] Tuân thủ: Lombok `@RequiredArgsConstructor` cho DI, `@Slf4j` cho logging, `@Data` + `@Builder` cho DTOs/record.
+- [x] Không code comment (theo `no-code-comments-backend.mdc`).
+- [x] Không hardcode user-facing string — toàn bộ error qua `BusinessException(ErrorCode)`, GlobalExceptionHandler resolve i18n.
+- [x] Không tạo test file (theo `no-auto-create-tests-backend.mdc`).
+- [x] Không commit git (theo `no-auto-commit-push-backend.mdc` — đợi sếp confirm).
+
+### Bug fix ngẫu nhiên — IAM Mapper Refactor (2026-07-19)
+
+Sếp report lỗi khi start app:
+
+```
+APPLICATION FAILED TO START
+Description: Parameter 1 of constructor in com.pwb.iam.infrastructure.security.CustomUserDetailsService required a bean of type 'com.pwb.iam.infrastructure.persistence.mapper.UserMapper' that could not be found.
+```
+
+**Root cause** (KHÔNG do TASK 8 gây ra — bug có sẵn từ trước):
+
+- Cả 4 mapper IAM (`UserMapper`, `RoleMapper`, `OtpCodeMapper`, `PasswordResetTokenMapper`) dùng MapStruct `@Mapper(componentModel=spring)` nhưng chỉ có `default` methods (không abstract method nào).
+- MapStruct khi đó **không generate implementation class** → Spring không tạo bean.
+- Bug này ngăn app start được từ trước TASK 8 (em không touch file IAM nào trong TASK 8).
+
+**Fix strategy** (sếp chọn: `remove-mapstruct-add-component`):
+
+- Convert 4 mapper từ interface+MapStruct → concrete class hoặc abstract class với `@Component`.
+- Bỏ `@Mapper(...)` MapStruct annotation + 2 `import org.mapstruct.*`.
+- Giữ nguyên logic (`default` methods → public/private methods).
+- `UserMapper` thành `abstract class @Component` (vì cần `private` helper `mapRole`/`mapRoleToEntity`) + nested `@Component static class UserMapperImpl extends UserMapper` để Spring tạo được bean.
+- `RoleMapper`, `OtpCodeMapper`, `PasswordResetTokenMapper` thành concrete class.
+- Caller (`IamFacadeImpl`, `CustomUserDetailsService`, `RoleLookupServiceImpl`) không thay đổi — Spring tự inject bean theo type.
+
+**Files changed**:
+- [x] `Backend/modules/iam/src/main/java/com/pwb/iam/infrastructure/persistence/mapper/UserMapper.java` — interface → abstract class `@Component`
+- [x] `Backend/modules/iam/src/main/java/com/pwb/iam/infrastructure/persistence/mapper/RoleMapper.java` — interface → concrete class `@Component`
+- [x] `Backend/modules/iam/src/main/java/com/pwb/iam/infrastructure/persistence/mapper/OtpCodeMapper.java` — interface → concrete class `@Component`
+- [x] `Backend/modules/iam/src/main/java/com/pwb/iam/infrastructure/persistence/mapper/PasswordResetTokenMapper.java` — interface → concrete class `@Component`
+
+**Verify**: `mvn -pl bootstrap -am clean compile` → BUILD SUCCESS toàn project.
+
+> **Note quan trọng**: Bug này có từ commit `1af9fd7` (Jul 19) — mapper refactor trước đó. Sếp nên check git blame / commit history để hiểu tại sao các mapper trước đó chỉ có default methods. Có thể ban đầu MapStruct config khác (e.g. `spring.componentModel` đúng chỗ), hoặc có plan ban đầu muốn viết abstract method sau.
 
 ---
 
@@ -798,7 +876,24 @@ Week 5:
 
 ## Definition of Done (toàn sprint)
 
-- [ ] Tất cả TASK 0-19 done
+- [x] TASK 0 — JwtFilter UserStatus enforcement
+- [x] TASK 1 — shared-storage module
+- [x] TASK 2 — Voice module skeleton
+- [x] TASK 3 — DB migrations
+- [x] TASK 4 — Error codes + i18n keys
+- [x] TASK 5 — Voice tag domain models
+- [x] TASK 6 — Voice tag DTOs
+- [x] TASK 7 — Google TTS service + cache
+- [x] TASK 8 — Voice tag service + facade + audio validator + FFprobe
+- [ ] TASK 9 — Voice tag REST controller
+- [ ] TASK 10-11 — Song domain + DTOs
+- [ ] TASK 12-13 — Song service + facade + controller
+- [ ] TASK 14 — FFmpeg audio processing service
+- [ ] TASK 15 — Kafka async processor
+- [ ] TASK 16 — Song processing trigger
+- [ ] TASK 17 — PRO role integration
+- [ ] TASK 18 — Error handling + i18n polish
+- [ ] TASK 19 — Integration + E2E smoke test
 - [ ] `mvn clean install` pass với 0 error
 - [ ] E2E smoke test pass
 - [ ] i18n EN + VI đầy đủ
