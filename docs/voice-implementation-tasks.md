@@ -180,13 +180,13 @@ Xem chi tiết schema trong `voice-module-plan.md` §9.1. Tóm tắt:
 
 ---
 
-## TASK 4: Voice Error Codes & Messages
+## ✅ [x] TASK 4: Voice Error Codes & Messages
 
 **Mục tiêu**: Thêm error codes cho voice module vào enum tập trung + i18n.
 
 ### Files cần update
 
-- [ ] `Backend/shared-kernel/src/main/java/com/pwb/backend/exception/ErrorCode.java` — thêm 13 codes sau:
+- [x] `Backend/shared-kernel/src/main/java/com/pwb/backend/exception/ErrorCode.java` — thêm 13 codes sau:
 
 ```java
 // Voice Module (prefix: VOICE_)
@@ -207,9 +207,9 @@ INVALID_AUDIO_DURATION    ("VOICE_013", "Audio duration exceeds maximum.",      
 
 ### Files cần update (i18n)
 
-- [ ] `Backend/shared-web/src/main/resources/messages/messages.properties` — add `VOICE_001..013` + success messages
-- [ ] `Backend/shared-web/src/main/resources/messages/messages_en.properties` — same
-- [ ] `Backend/shared-web/src/main/resources/messages/messages_vi.properties` — Vietnamese translation
+- [x] `Backend/shared-web/src/main/resources/messages/messages.properties` — add `VOICE_001..013` + success messages
+- [x] `Backend/shared-web/src/main/resources/messages/messages_en.properties` — same
+- [x] `Backend/shared-web/src/main/resources/messages/messages_vi.properties` — Vietnamese translation
 
 ### Success messages cần thêm
 
