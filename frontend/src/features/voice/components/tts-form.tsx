@@ -46,7 +46,7 @@ export function TtsForm({ onCancel, onSuccess }: TtsFormProps) {
         if (response.success) {
           toast.success(t("createSuccess"));
           onSuccess?.();
-          router.push("/voice-tags");
+          router.push("/dashboard");
         }
       },
       onError: asApiError((err) => {

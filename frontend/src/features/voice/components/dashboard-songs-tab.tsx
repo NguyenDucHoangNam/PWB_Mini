@@ -6,8 +6,6 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
-import { useProGuard } from "@/features/auth/hooks/use-pro-guard";
-import { ProUpgradePrompt } from "@/features/voice/components/pro-upgrade-prompt";
 import { SongCard } from "@/features/voice/components/song-card";
 import { SongDeleteDialog } from "@/features/voice/components/song-delete-dialog";
 import { useListSongs } from "@/features/voice/api/songs";
@@ -15,8 +13,7 @@ import type { Song, SongStatus } from "@/features/voice/types";
 
 type StatusFilter = "ALL" | SongStatus;
 
-export default function SongsPage() {
-  const { isPro } = useProGuard();
+export function DashboardSongsTab() {
   const t = useTranslations("voice.songs");
   const tStatus = useTranslations("voice.status");
   const tActions = useTranslations("voice.actions");
@@ -32,10 +29,6 @@ export default function SongsPage() {
     status: filter === "ALL" ? undefined : filter,
   });
 
-  if (!isPro) {
-    return <ProUpgradePrompt />;
-  }
-
   const items = data?.success && data.data ? data.data.content : [];
   const totalPages = data?.success && data.data ? data.data.totalPages : 0;
 
@@ -48,19 +41,7 @@ export default function SongsPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-6 font-sans">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
-            {t("title")}
-          </h1>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("subtitle")}</p>
-        </div>
-        <Link href="/songs/new">
-          <Button className="self-start sm:self-auto">{t("upload")}</Button>
-        </Link>
-      </div>
-
+    <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-2">
         {filters.map((opt) => (
           <button
@@ -95,7 +76,7 @@ export default function SongsPage() {
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center gap-3 p-12 text-center">
             <h2 className="text-lg font-semibold text-black dark:text-white">{t("noSongs")}</h2>
-            <Link href="/songs/new">
+            <Link href="/dashboard/songs/new">
               <Button className="mt-2">{t("upload")}</Button>
             </Link>
           </div>

@@ -413,6 +413,14 @@
       "statusRevoked": "Revoked",
       "statusDeleted": "Deleted"
     },
+    "voiceLibrary": {
+      "tabs": {
+        "songs": "Songs",
+        "voiceTags": "Voice Tags"
+      },
+      "uploadBtn": "Upload song",
+      "createBtn": "Create voice tag"
+    },
     "demoDetail": {
       "back": "Back to library",
       "waveformPlaceholder": "Waveform will appear here once processing is complete.",

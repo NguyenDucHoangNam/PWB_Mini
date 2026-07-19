@@ -41,7 +41,7 @@ export function SongCard({ song, onDelete }: SongCardProps) {
           )}
         </div>
         <div className="flex shrink-0 gap-2">
-          <Link href={`/songs/${song.id}`}>
+          <Link href={`/dashboard/songs/${song.id}`}>
             <Button variant="outline" size="sm">
               {tActions("edit")}
             </Button>

@@ -53,7 +53,7 @@ export default function SongDetailPage() {
     return (
       <div className="flex flex-col items-center gap-3 p-12 text-center">
         <p className="text-sm text-red-600 dark:text-red-400">{tVoiceErrors("songNotFound")}</p>
-        <Button variant="outline" onClick={() => router.push("/songs")}>
+        <Button variant="outline" onClick={() => router.push("/dashboard")}>
           {tActions("back")}
         </Button>
       </div>
@@ -90,7 +90,7 @@ export default function SongDetailPage() {
           )}
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => router.push("/songs")}>
+          <Button variant="outline" onClick={() => router.push("/dashboard")}>
             {tActions("back")}
           </Button>
           <Button variant="destructive" onClick={() => setDeleteOpen(true)}>

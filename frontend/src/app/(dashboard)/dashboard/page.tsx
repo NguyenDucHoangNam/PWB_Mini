@@ -1,9 +1,17 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { ProUpgradePrompt } from "@/features/voice/components/pro-upgrade-prompt";
+import { DashboardTabs } from "@/features/voice/components/dashboard-tabs";
+import { useProGuard } from "@/features/auth/hooks/use-pro-guard";
 
 export default function DashboardPage() {
+  const { isPro } = useProGuard();
   const tDashboard = useTranslations("dashboard");
+
+  if (!isPro) {
+    return <ProUpgradePrompt />;
+  }
 
   return (
     <div className="flex flex-col gap-6 font-sans">
@@ -15,6 +23,7 @@ export default function DashboardPage() {
           {tDashboard("subtitle")}
         </p>
       </div>
+      <DashboardTabs />
     </div>
   );
 }

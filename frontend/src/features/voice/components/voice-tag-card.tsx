@@ -34,7 +34,7 @@ export function VoiceTagCard({ voiceTag }: VoiceTagCardProps) {
           </div>
         </div>
         <div className="flex shrink-0 gap-2">
-          <Link href={`/voice-tags/${voiceTag.id}`}>
+          <Link href={`/dashboard/voice-tags/${voiceTag.id}`}>
             <Button variant="outline" size="sm">
               {tActions("edit")}
             </Button>

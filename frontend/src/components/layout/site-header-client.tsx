@@ -10,7 +10,6 @@ import { UserDropdown } from "./user-dropdown";
 import { LocaleSwitcher } from "./locale-switcher";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
-import { useProGuard } from "@/features/auth/hooks/use-pro-guard";
 import { useLogout } from "@/features/auth/api/account";
 import { abortRefresh } from "@/lib/auth-refresh";
 import { useAuthChannelSync, broadcastAuthMessage } from "@/lib/use-auth-channel";
@@ -45,7 +44,6 @@ export function SiteHeaderClient() {
 
   const { mutate: logoutMutate } = useLogout();
   const queryClient = useQueryClient();
-  const { isPro } = useProGuard();
 
   useAuthChannelSync();
 
@@ -105,11 +103,6 @@ export function SiteHeaderClient() {
     { label: t("liveRooms"), href: "/rooms" },
   ];
 
-  const proItems: NavItem[] = [
-    { label: t("voiceTags"), href: "/voice-tags" },
-    { label: t("songs"), href: "/songs" },
-  ];
-
   const dropdownItems = [
     { label: t("logout"), onSelect: handleLogout },
   ];
@@ -135,7 +128,6 @@ export function SiteHeaderClient() {
             {isMounted && isLoggedIn && (
               <nav className="flex items-center gap-6 mr-4">
                 <DesktopNav items={loggedInItems} pathname={pathname} />
-                {isPro && <DesktopNav items={proItems} pathname={pathname} />}
               </nav>
             )}
             <ThemeToggle />
@@ -199,11 +191,6 @@ export function SiteHeaderClient() {
             isLoggedIn ? (
               <MobileAuthenticated
                 user={user}
-                isPro={isPro}
-                proLabels={{
-                  voiceTags: t("voiceTags"),
-                  songs: t("songs"),
-                }}
                 labels={{
                   dashboard: t("dashboard"),
                   liveRooms: t("liveRooms"),
@@ -292,22 +279,13 @@ interface MobileMenuLabels {
   account: string;
 }
 
-interface ProLabels {
-  voiceTags: string;
-  songs: string;
-}
-
 function MobileAuthenticated({
   user,
-  isPro,
-  proLabels,
   labels,
   onLogout,
   onNavigate,
 }: {
   user: ReturnType<typeof useAuthStore.getState>["user"];
-  isPro: boolean;
-  proLabels: ProLabels;
   labels: MobileMenuLabels;
   onLogout: () => void;
   onNavigate: () => void;
@@ -328,16 +306,6 @@ function MobileAuthenticated({
       <Link href="/rooms" onClick={onNavigate} className={linkClass}>
         {labels.liveRooms}
       </Link>
-      {isPro && (
-        <>
-          <Link href="/voice-tags" onClick={onNavigate} className={linkClass}>
-            {proLabels.voiceTags}
-          </Link>
-          <Link href="/songs" onClick={onNavigate} className={linkClass}>
-            {proLabels.songs}
-          </Link>
-        </>
-      )}
       <hr className="border-neutral-200 dark:border-neutral-800" />
       <Button onClick={onLogout} variant="default" size="sm" className="w-full justify-center">
         {labels.logout}

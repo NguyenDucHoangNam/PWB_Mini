@@ -413,6 +413,14 @@
       "statusRevoked": "Revoked",
       "statusDeleted": "Deleted"
     },
+    "voiceLibrary": {
+      "tabs": {
+        "songs": "Bài hát",
+        "voiceTags": "Voice Tag"
+      },
+      "uploadBtn": "Upload bài hát",
+      "createBtn": "Tạo Voice Tag"
+    },
     "demoDetail": {
       "back": "Back to library",
       "waveformPlaceholder": "Waveform will appear here once processing is complete.",

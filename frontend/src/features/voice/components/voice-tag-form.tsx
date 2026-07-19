@@ -47,7 +47,7 @@ export function VoiceTagForm() {
         </button>
       </div>
       <div className="flex justify-end">
-        <Button type="button" variant="ghost" onClick={() => router.push("/voice-tags")}>
+        <Button type="button" variant="ghost" onClick={() => router.push("/dashboard")}>
           {tActions("cancel")}
         </Button>
       </div>
