@@ -326,22 +326,39 @@ public class CreateTtsVoiceTagRequest {
 
 ### Files cần tạo
 
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/core/service/TextToSpeechService.java` (interface)
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/tts/GoogleTtsServiceImpl.java` (`@Service`, `@Cacheable`)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/core/service/TextToSpeechService.java` (interface)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/tts/GoogleTtsServiceImpl.java` (`@Service`, `@Cacheable`)
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/config/TextToSpeechClientConfig.java` (bean `TextToSpeechClient`)
+
+### Files cần update
+
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/config/VoiceSecurityConfig.java` — thêm `@EnableCaching`
 
 ### Features
 
-- `synthesize(text, languageCode, voiceName, speakingRate, pitch) → byte[]`
-- Cache qua `@Cacheable(value = "ttsCache", key = "#root.target.cacheKey(...)")`
-- Cache key: `SHA-256(text + "|" + languageCode + "|" + voiceName + "|" + speakingRate + "|" + pitch)`
-- TTL: 7 days (config trong `app.voice.tts.cache-ttl-hours`)
-- Default values: `languageCode=en-US`, `voiceName=en-US-Standard-A`, `speakingRate=1.0`, `pitch=0.0`
+- `synthesize(text, languageCode) → byte[]` — chỉ 2 params (theo điều chỉnh scope Hướng A, TTS custom params không expose cho user ở MVP; voiceName/speakingRate/pitch dùng default từ `TtsProperties`).
+- Cache qua `@Cacheable(value = "ttsCache", key = "#root.target.cacheKey(#text, #languageCode)")`.
+- Cache key: `SHA-256(text + "|" + languageCode + "|" + defaultVoiceName + "|" + speakingRate + "|" + pitch)` — encode hex (64 chars), an toàn cho UTF-8.
+- TTL: 7 days (global `spring.cache.redis.time-to-live=604800000ms` = 168h, match `ttsProperties.cacheTtlHours=168`).
+- Default values (từ `TtsProperties`): `languageCode=en-US`, `voiceName=en-US-Standard-A`, `speakingRate=1.0`, `pitch=0.0`.
+- AudioEncoding: `MP3` (hardcode, chưa cần configurable).
 
 ### Implementation notes
 
-- Inject `TextToSpeechClient` (Google SDK) qua Spring `@Configuration`.
-- `@EnableCaching` ở `VoiceSecurityConfig` hoặc config riêng.
-- Cache config dùng Redis (`spring.cache.type=redis`).
+- Inject `TextToSpeechClient` qua Spring `@Configuration` (`TextToSpeechClientConfig`).
+- Credentials: dùng **file path env** (`app.voice.tts.credentials-path` → `GCP_TTS_CREDENTIALS_PATH`). KHÔNG dùng inline JSON hay ADC auto-detect.
+- Fail-fast: nếu `credentialsPath` rỗng → throw `IllegalStateException` ở startup (rõ ràng hơn lazy error).
+- SHA-256 dùng `java.security.MessageDigest` (JDK native, không cần `commons-codec` dependency).
+- Khi Google SDK ném exception → throw `BusinessException(TTS_GENERATION_FAILED, cause)`.
+- Log context: `textLength`, `languageCode`, `audioBytes`, `durationMs`. KHÔNG log raw text (PII) hoặc credentials path (sensitive).
+- Retry policy: KHÔNG thêm ở TASK 7 — fail → bubble up, exception handler xử lý. Có thể add `@Retryable` ở TASK 19 (polish).
+- `@EnableCaching` gộp vào `VoiceSecurityConfig` (cùng với `@EnableMethodSecurity`) — tránh tạo config riêng cho 1 annotation.
+
+### Audit notes (2026-07-19)
+
+- [x] Interface chỉ có 1 method (đơn giản hóa). Sau này nếu cần public API cho user custom voice params → mở rộng interface.
+- [x] `VoiceTagJpaRepository` đã được FIX ở TASK 5 audit turn này (bỏ `@NoRepositoryBean`/generic, thêm `AndDeletedFalse` cho 6 methods, có ownership check).
+- [x] SsmlVoiceGender dùng package `v1` (không phải `v1beta1`) — fix lỗi compile đầu tiên.
 
 ---
 
