@@ -157,6 +157,7 @@
                     <version>3.13.0</version>
                     <configuration>
                         <useModulePath>false</useModulePath>
+                        <parameters>true</parameters>
                         <annotationProcessorPaths>
                             <path>
                                 <groupId>org.projectlombok</groupId>

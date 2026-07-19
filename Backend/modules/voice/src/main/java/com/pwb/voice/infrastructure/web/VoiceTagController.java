@@ -73,7 +73,7 @@ public class VoiceTagController {
     @GetMapping
     public ApiResponse<Page<VoiceTagResponse>> list(
             @CurrentUser AuthenticatedUser user,
-            @RequestParam(required = false) VoiceTagType type,
+            @RequestParam(name = "type", required = false) VoiceTagType type,
             @PageableDefault(size = 20) Pageable pageable) {
         Page<VoiceTagResponse> data = voiceTagFacade.listTags(user.getId(), type, pageable);
         return ApiResponse.success(data, null);

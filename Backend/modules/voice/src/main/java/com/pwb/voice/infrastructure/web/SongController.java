@@ -69,7 +69,7 @@ public class SongController {
     @GetMapping
     public ApiResponse<Page<SongResponse>> list(
             @CurrentUser AuthenticatedUser user,
-            @RequestParam(required = false) SongStatus status,
+            @RequestParam(name = "status", required = false) SongStatus status,
             @PageableDefault(size = 20) Pageable pageable) {
         Page<SongResponse> data = songFacade.listSongs(user.getId(), status, pageable);
         return ApiResponse.success(data, null);
