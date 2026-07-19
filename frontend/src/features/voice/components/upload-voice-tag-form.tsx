@@ -48,7 +48,7 @@ export function UploadVoiceTagForm({ onCancel, onSuccess }: UploadVoiceTagFormPr
         if (response.success) {
           toast.success(t("uploadSuccess"));
           onSuccess?.();
-          router.push("/dashboard");
+          router.push("/dashboard/voice-tags");
         }
       },
       onError: asApiError((err) => {

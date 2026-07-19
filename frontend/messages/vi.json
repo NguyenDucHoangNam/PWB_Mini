@@ -362,8 +362,14 @@
     }
   },
   "dashboard": {
-    "title": "Audio Workspace",
-    "subtitle": "Upload, manage and share your audio demos.",
+    "title": {
+      "songs": "Bài hát",
+      "voiceTags": "Voice Tag"
+    },
+    "subtitle": {
+      "songs": "Quản lý các bài hát đã upload của bạn.",
+      "voiceTags": "Quản lý các voice tag của bạn."
+    },
     "demosCardTitle": "Demo Library",
     "demosCardDesc": "Upload audio files, monitor processing, manage encryption keys.",
     "demosTotalLabel": "Total demos",

@@ -49,7 +49,7 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
         if (response.success) {
           toast.success(t("uploadSuccess"));
           onSuccess?.();
-          router.push("/dashboard");
+          router.push("/dashboard/songs");
         }
       },
       onError: asApiError((err) => {

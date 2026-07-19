@@ -14,7 +14,7 @@ export function ProUpgradePrompt() {
       <p className="max-w-md text-sm text-neutral-500 dark:text-neutral-400">
         {tActions("configure")}
       </p>
-      <Link href="/dashboard">
+      <Link href="/dashboard/songs">
         <Button variant="outline">{tActions("back")}</Button>
       </Link>
     </div>

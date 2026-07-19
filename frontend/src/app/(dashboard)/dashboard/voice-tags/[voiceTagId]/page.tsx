@@ -40,7 +40,7 @@ export default function VoiceTagDetailPage() {
     return (
       <div className="flex flex-col items-center gap-3 p-12 text-center">
         <p className="text-sm text-red-600 dark:text-red-400">{tVoiceErrors("voiceTagNotFound")}</p>
-        <Button variant="outline" onClick={() => router.push("/dashboard")}>
+        <Button variant="outline" onClick={() => router.push("/dashboard/voice-tags")}>
           {tActions("back")}
         </Button>
       </div>
@@ -70,7 +70,7 @@ export default function VoiceTagDetailPage() {
           )}
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => router.push("/dashboard")}>
+          <Button variant="outline" onClick={() => router.push("/dashboard/voice-tags")}>
             {tActions("back")}
           </Button>
           <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
@@ -89,7 +89,7 @@ export default function VoiceTagDetailPage() {
         voiceTagName={tag.name}
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        onSuccess={() => router.push("/dashboard")}
+        onSuccess={() => router.push("/dashboard/voice-tags")}
       />
     </div>
   );

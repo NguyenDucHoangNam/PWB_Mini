@@ -99,7 +99,7 @@ export function SiteHeaderClient() {
   ];
 
   const loggedInItems: NavItem[] = [
-    { label: t("dashboard"), href: "/dashboard" },
+    { label: t("dashboard"), href: "/dashboard/songs" },
     { label: t("liveRooms"), href: "/rooms" },
   ];
 
@@ -300,7 +300,7 @@ function MobileAuthenticated({
         </p>
       </div>
       <hr className="border-neutral-200 dark:border-neutral-800" />
-      <Link href="/dashboard" onClick={onNavigate} className={linkClass}>
+      <Link href="/dashboard/songs" onClick={onNavigate} className={linkClass}>
         {labels.dashboard}
       </Link>
       <Link href="/rooms" onClick={onNavigate} className={linkClass}>

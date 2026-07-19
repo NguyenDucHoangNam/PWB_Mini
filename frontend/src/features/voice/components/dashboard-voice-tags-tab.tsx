@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -12,13 +13,44 @@ import type { VoiceTagType } from "@/features/voice/types";
 
 type TypeFilter = "ALL" | VoiceTagType;
 
+const ALLOWED_TYPES: ReadonlySet<VoiceTagType> = new Set(["TTS", "UPLOADED"]);
+
+function parseTypeFilter(value: string | null): TypeFilter {
+  if (value && ALLOWED_TYPES.has(value as VoiceTagType)) {
+    return value as TypeFilter;
+  }
+  return "ALL";
+}
+
+function parsePage(value: string | null): number {
+  const parsed = Number(value ?? "0");
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 0;
+}
+
 export function DashboardVoiceTagsTab() {
   const t = useTranslations("voice.voiceTags");
   const tActions = useTranslations("voice.actions");
   const tList = useTranslations("voice.list");
 
-  const [page, setPage] = useState(0);
-  const [filter, setFilter] = useState<TypeFilter>("ALL");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const filter = useMemo(
+    () => parseTypeFilter(searchParams.get("type")),
+    [searchParams],
+  );
+  const page = useMemo(() => parsePage(searchParams.get("page")), [searchParams]);
+
+  const updateQuery = (next: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(next)) {
+      if (value === null || value === "") params.delete(key);
+      else params.set(key, value);
+    }
+    const query = params.toString();
+    router.push(query ? `${pathname}?${query}` : pathname);
+  };
 
   const { data, isLoading, isFetching, isError } = useListVoiceTags({
     page,
@@ -29,23 +61,28 @@ export function DashboardVoiceTagsTab() {
   const items = data?.success && data.data ? data.data.content : [];
   const totalPages = data?.success && data.data ? data.data.totalPages : 0;
 
+  const filters: { value: TypeFilter; label: string }[] = [
+    { value: "ALL", label: tList("all") },
+    { value: "TTS", label: t("type.TTS") },
+    { value: "UPLOADED", label: t("type.UPLOADED") },
+  ];
+
+  const setFilter = (value: TypeFilter) => {
+    updateQuery({ type: value === "ALL" ? null : value, page: null });
+  };
+
+  const setPage = (newPage: number) => {
+    updateQuery({ page: newPage === 0 ? null : String(newPage) });
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-2">
-        {(
-          [
-            { value: "ALL" as TypeFilter, label: tList("all") },
-            { value: "TTS" as TypeFilter, label: t("type.TTS") },
-            { value: "UPLOADED" as TypeFilter, label: t("type.UPLOADED") },
-          ]
-        ).map((opt) => (
+        {filters.map((opt) => (
           <button
             key={opt.value}
             type="button"
-            onClick={() => {
-              setFilter(opt.value);
-              setPage(0);
-            }}
+            onClick={() => setFilter(opt.value)}
             aria-pressed={filter === opt.value}
             className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
               filter === opt.value
@@ -93,7 +130,7 @@ export function DashboardVoiceTagsTab() {
             variant="outline"
             size="sm"
             disabled={page === 0}
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            onClick={() => setPage(Math.max(0, page - 1))}
           >
             {tList("prev")}
           </Button>
@@ -104,7 +141,7 @@ export function DashboardVoiceTagsTab() {
             variant="outline"
             size="sm"
             disabled={page + 1 >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
+            onClick={() => setPage(page + 1)}
           >
             {tList("next")}
           </Button>

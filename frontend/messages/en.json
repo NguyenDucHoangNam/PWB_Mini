@@ -362,8 +362,14 @@
     }
   },
   "dashboard": {
-    "title": "Audio Workspace",
-    "subtitle": "Upload, manage and share your audio demos.",
+    "title": {
+      "songs": "Songs",
+      "voiceTags": "Voice Tags"
+    },
+    "subtitle": {
+      "songs": "Manage your uploaded songs.",
+      "voiceTags": "Manage your voice tags."
+    },
     "demosCardTitle": "Demo Library",
     "demosCardDesc": "Upload audio files, monitor processing, manage encryption keys.",
     "demosTotalLabel": "Total demos",
