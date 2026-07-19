@@ -10,7 +10,9 @@
     "success": "Success",
     "error": "Error",
     "showPassword": "Show password",
-    "hidePassword": "Hide password"
+    "hidePassword": "Hide password",
+    "yes": "Yes",
+    "no": "No"
   },
   "header": {
     "home": "Home",
@@ -25,6 +27,8 @@
     "account": "User",
     "login": "Log In",
     "register": "Register",
+    "voiceTags": "Voice Tags",
+    "songs": "Songs",
     "sessionExpired": "Session expired on another tab",
     "logoutSuccess": "Logged out successfully",
     "logoutError": "Logout failed but session was cleaned up"
@@ -527,5 +531,206 @@
   },
   "network": {
     "offline": "Network connection lost. Please check your connection!"
+  },
+  "voice": {
+    "nav": {
+      "voiceTags": "Voice Tags",
+      "songs": "Songs"
+    },
+    "status": {
+      "uploaded": "Ready",
+      "processing": "Processing",
+      "processed": "Processed",
+      "failed": "Failed"
+    },
+    "list": {
+      "prev": "Prev",
+      "next": "Next",
+      "all": "All",
+      "loading": "Loading..."
+    },
+    "voiceTags": {
+      "title": "Voice Tags",
+      "subtitle": "Create audio tags to brand your songs",
+      "empty": "You haven't created any voice tags yet",
+      "createTts": "Generate with AI (TTS)",
+      "uploadFile": "Upload audio file",
+      "preview": "Preview",
+      "duration": "{seconds}s",
+      "languageCode": "Language",
+      "type": {
+        "TTS": "Text-to-Speech",
+        "UPLOADED": "Uploaded"
+      },
+      "form": {
+        "nameLabel": "Name",
+        "descriptionLabel": "Description",
+        "textLabel": "Text to convert",
+        "languageLabel": "Language",
+        "submitButton": "Create voice tag",
+        "cancelButton": "Cancel",
+        "fileLabel": "Audio file",
+        "createSuccess": "Voice tag created successfully",
+        "uploadSuccess": "Voice tag uploaded successfully"
+      },
+      "delete": {
+        "confirmTitle": "Delete voice tag?",
+        "confirmMessage": "This action cannot be undone.",
+        "confirmButton": "Delete"
+      },
+      "wizard": {
+        "selectMethod": "Choose how to create your voice tag",
+        "methodTts": "Generate from text (TTS)",
+        "methodTtsDesc": "Use AI to convert text into spoken audio",
+        "methodUpload": "Upload audio file",
+        "methodUploadDesc": "Use your own pre-recorded audio clip"
+      }
+    },
+    "songs": {
+      "title": "Songs",
+      "subtitle": "Upload songs and mix in your voice tag",
+      "upload": "Upload song",
+      "selectFile": "Select audio file",
+      "noSongs": "You haven't uploaded any songs yet",
+      "originalStream": "Play original",
+      "processedStream": "Play with voice tag",
+      "download": "Download",
+      "form": {
+        "titleLabel": "Title",
+        "artistLabel": "Artist",
+        "albumLabel": "Album",
+        "submitButton": "Upload song",
+        "cancelButton": "Cancel",
+        "fileLabel": "Audio file",
+        "fileRequired": "Please select an audio file",
+        "uploadingProgress": "Uploading...",
+        "uploadSuccess": "Song uploaded successfully"
+      },
+      "delete": {
+        "confirmTitle": "Delete song?",
+        "confirmMessage": "This will permanently remove the song and all processed versions.",
+        "confirmButton": "Delete"
+      }
+    },
+    "config": {
+      "title": "Voice Tag Configuration",
+      "noConfig": "No voice tag configured",
+      "selectVoiceTag": "Select voice tag",
+      "selectVoiceTagPlaceholder": "Select a voice tag",
+      "voiceTag": "Voice tag",
+      "intervalSeconds": "Interval (seconds)",
+      "intervalHint": "Insert voice tag every N seconds",
+      "volumePercentage": "Volume",
+      "volumeHint": "How loud the voice tag plays (0-100%)",
+      "fadeInMs": "Fade in (ms)",
+      "fadeInHint": "Gradually fade in the voice tag",
+      "fadeOutMs": "Fade out (ms)",
+      "fadeOutHint": "Gradually fade out the voice tag",
+      "startOffsetSeconds": "Start offset (seconds)",
+      "startOffsetHint": "Skip this many seconds before first insertion",
+      "enabled": "Enabled",
+      "saveButton": "Save configuration",
+      "saveSuccess": "Configuration saved successfully",
+      "removeButton": "Remove configuration",
+      "removeSuccess": "Configuration removed successfully"
+    },
+    "processing": {
+      "trigger": "Process song",
+      "retrigger": "Re-process",
+      "retry": "Try again",
+      "queued": "Queued for processing...",
+      "pollingHint": "This usually takes 5-15 seconds",
+      "backgroundProcessing": "Processing in background. Click refresh to update.",
+      "manualRefresh": "Refresh status",
+      "successToast": "Song processed successfully!",
+      "failedToast": "Processing failed. Please try again.",
+      "noConfigToast": "Configure a voice tag before processing."
+    },
+    "player": {
+      "expiryWarning": "Audio URL expires soon, refreshing...",
+      "loadError": "Failed to load audio",
+      "originalLabel": "Original version",
+      "processedLabel": "Voice tag mixed version",
+      "notReady": "Processed version not available yet"
+    },
+    "errors": {
+      "fileTooLarge": "File exceeds 100MB limit",
+      "unsupportedFormat": "Only MP3, WAV, and FLAC files are supported",
+      "processingFailed": "Failed to process audio. Please try again.",
+      "songNotFound": "Song not found",
+      "voiceTagNotFound": "Voice tag not found",
+      "alreadyProcessed": "Song is already processed. Modify config to re-process.",
+      "streamNotReady": "Processed version not ready yet",
+      "processingInProgress": "Song is already being processed",
+      "proOnly": "Voice tag feature is available for PRO users only",
+      "voiceTagInUse": "Voice tag is currently in use. Remove it from songs before deleting.",
+      "titleRequired": "Title is required",
+      "intervalInvalid": "Interval must be between 1 and 60 seconds",
+      "volumeRange": "Volume must be between 0 and 100",
+      "textTooLong": "Text must not exceed 4000 characters",
+      "invalidLanguageCode": "Invalid language code format (e.g. en-US)",
+      "genericError": "Something went wrong. Please try again.",
+      "fileRequired": "Please select an audio file"
+    },
+    "actions": {
+      "create": "Create new",
+      "save": "Save",
+      "edit": "Edit",
+      "delete": "Delete",
+      "cancel": "Cancel",
+      "back": "Back",
+      "play": "Play",
+      "configure": "Configure"
+    }
+  },
+  "validation": {
+    "name": {
+      "required": "Name is required",
+      "maxlength": "Name must not exceed {max} characters"
+    },
+    "description": {
+      "maxlength": "Description must not exceed {max} characters"
+    },
+    "text": {
+      "required": "Text is required",
+      "maxlength": "Text must not exceed {max} characters"
+    },
+    "languagecode": {
+      "required": "Please select a language",
+      "pattern": "Invalid language code format"
+    },
+    "title": {
+      "required": "Title is required",
+      "maxlength": "Title must not exceed {max} characters"
+    },
+    "artist": {
+      "maxlength": "Artist name must not exceed {max} characters"
+    },
+    "album": {
+      "maxlength": "Album name must not exceed {max} characters"
+    },
+    "song": {
+      "required": "Song is required"
+    },
+    "interval": {
+      "required": "Interval is required",
+      "max": "Interval cannot exceed song duration"
+    },
+    "volume": {
+      "min": "Volume must be at least {min}",
+      "max": "Volume must not exceed {max}"
+    },
+    "fadeIn": {
+      "min": "Fade in must be at least {min}ms",
+      "max": "Fade in must not exceed {max}ms"
+    },
+    "fadeOut": {
+      "min": "Fade out must be at least {min}ms",
+      "max": "Fade out must not exceed {max}ms"
+    },
+    "startOffset": {
+      "min": "Start offset must be at least {min}",
+      "max": "Start offset must not exceed {max}"
+    }
   }
 }

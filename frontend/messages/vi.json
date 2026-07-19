@@ -10,7 +10,9 @@
     "success": "Thành công",
     "error": "Lỗi",
     "showPassword": "Hiển thị mật khẩu",
-    "hidePassword": "Ẩn mật khẩu"
+    "hidePassword": "Ẩn mật khẩu",
+    "yes": "Có",
+    "no": "Không"
   },
   "header": {
     "home": "Trang chủ",
@@ -25,6 +27,8 @@
     "account": "Người dùng",
     "login": "Đăng nhập",
     "register": "Đăng ký",
+    "voiceTags": "Voice Tag",
+    "songs": "Bài hát",
     "sessionExpired": "Phiên đăng nhập đã hết hạn trên tab khác",
     "logoutSuccess": "Đăng xuất thành công",
     "logoutError": "Đăng xuất thất bại nhưng phiên đã được dọn dẹp"
@@ -527,5 +531,206 @@
   },
   "network": {
     "offline": "Mất kết nối mạng, vui lòng kiểm tra lại!"
+  },
+  "voice": {
+    "nav": {
+      "voiceTags": "Voice Tag",
+      "songs": "Bài hát"
+    },
+    "status": {
+      "uploaded": "Sẵn sàng",
+      "processing": "Đang xử lý",
+      "processed": "Đã xử lý",
+      "failed": "Lỗi"
+    },
+    "list": {
+      "prev": "Trước",
+      "next": "Sau",
+      "all": "Tất cả",
+      "loading": "Đang tải..."
+    },
+    "voiceTags": {
+      "title": "Voice Tag",
+      "subtitle": "Tạo voice tag để đánh dấu bản sắc các bài hát của bạn",
+      "empty": "Bạn chưa tạo voice tag nào",
+      "createTts": "Tạo bằng AI (TTS)",
+      "uploadFile": "Upload file âm thanh",
+      "preview": "Nghe thử",
+      "duration": "{seconds} giây",
+      "languageCode": "Ngôn ngữ",
+      "type": {
+        "TTS": "Chuyển văn bản thành giọng nói",
+        "UPLOADED": "Upload"
+      },
+      "form": {
+        "nameLabel": "Tên",
+        "descriptionLabel": "Mô tả",
+        "textLabel": "Văn bản cần chuyển đổi",
+        "languageLabel": "Ngôn ngữ",
+        "submitButton": "Tạo voice tag",
+        "cancelButton": "Hủy",
+        "fileLabel": "File âm thanh",
+        "createSuccess": "Tạo voice tag thành công",
+        "uploadSuccess": "Upload voice tag thành công"
+      },
+      "delete": {
+        "confirmTitle": "Xóa voice tag?",
+        "confirmMessage": "Hành động này không thể hoàn tác.",
+        "confirmButton": "Xóa"
+      },
+      "wizard": {
+        "selectMethod": "Chọn phương thức tạo voice tag",
+        "methodTts": "Tạo từ văn bản (TTS)",
+        "methodTtsDesc": "Dùng AI để chuyển văn bản thành giọng nói",
+        "methodUpload": "Upload file âm thanh",
+        "methodUploadDesc": "Dùng đoạn âm thanh bạn đã thu sẵn"
+      }
+    },
+    "songs": {
+      "title": "Bài hát",
+      "subtitle": "Upload bài hát và mix voice tag của bạn",
+      "upload": "Upload bài hát",
+      "selectFile": "Chọn file âm thanh",
+      "noSongs": "Bạn chưa upload bài hát nào",
+      "originalStream": "Phát bản gốc",
+      "processedStream": "Phát bản có voice tag",
+      "download": "Tải về",
+      "form": {
+        "titleLabel": "Tiêu đề",
+        "artistLabel": "Nghệ sĩ",
+        "albumLabel": "Album",
+        "submitButton": "Upload bài hát",
+        "cancelButton": "Hủy",
+        "fileLabel": "File âm thanh",
+        "fileRequired": "Vui lòng chọn file âm thanh",
+        "uploadingProgress": "Đang upload...",
+        "uploadSuccess": "Upload bài hát thành công"
+      },
+      "delete": {
+        "confirmTitle": "Xóa bài hát?",
+        "confirmMessage": "Bài hát và tất cả phiên bản đã xử lý sẽ bị xóa vĩnh viễn.",
+        "confirmButton": "Xóa"
+      }
+    },
+    "config": {
+      "title": "Cấu hình Voice Tag",
+      "noConfig": "Chưa cấu hình voice tag",
+      "selectVoiceTag": "Chọn voice tag",
+      "selectVoiceTagPlaceholder": "Chọn một voice tag",
+      "voiceTag": "Voice tag",
+      "intervalSeconds": "Khoảng cách (giây)",
+      "intervalHint": "Chèn voice tag mỗi N giây",
+      "volumePercentage": "Âm lượng",
+      "volumeHint": "Voice tag phát to thế nào (0-100%)",
+      "fadeInMs": "Fade in (ms)",
+      "fadeInHint": "Voice tag tăng âm lượng dần",
+      "fadeOutMs": "Fade out (ms)",
+      "fadeOutHint": "Voice tag giảm âm lượng dần",
+      "startOffsetSeconds": "Bỏ qua đầu (giây)",
+      "startOffsetHint": "Bỏ qua N giây đầu trước khi chèn lần đầu",
+      "enabled": "Kích hoạt",
+      "saveButton": "Lưu cấu hình",
+      "saveSuccess": "Đã lưu cấu hình",
+      "removeButton": "Xóa cấu hình",
+      "removeSuccess": "Đã xóa cấu hình"
+    },
+    "processing": {
+      "trigger": "Xử lý bài hát",
+      "retrigger": "Xử lý lại",
+      "retry": "Thử lại",
+      "queued": "Đã đưa vào hàng xử lý...",
+      "pollingHint": "Thường mất 5-15 giây",
+      "backgroundProcessing": "Đang xử lý nền. Nhấn refresh để cập nhật.",
+      "manualRefresh": "Cập nhật trạng thái",
+      "successToast": "Xử lý bài hát thành công!",
+      "failedToast": "Xử lý thất bại. Vui lòng thử lại.",
+      "noConfigToast": "Cấu hình voice tag trước khi xử lý."
+    },
+    "player": {
+      "expiryWarning": "URL âm thanh sắp hết hạn, đang làm mới...",
+      "loadError": "Không thể tải âm thanh",
+      "originalLabel": "Bản gốc",
+      "processedLabel": "Bản đã mix voice tag",
+      "notReady": "Chưa có bản đã xử lý"
+    },
+    "errors": {
+      "fileTooLarge": "File vượt quá giới hạn 100MB",
+      "unsupportedFormat": "Chỉ hỗ trợ file MP3, WAV và FLAC",
+      "processingFailed": "Xử lý âm thanh thất bại. Vui lòng thử lại.",
+      "songNotFound": "Không tìm thấy bài hát",
+      "voiceTagNotFound": "Không tìm thấy voice tag",
+      "alreadyProcessed": "Bài hát đã được xử lý. Thay đổi cấu hình để xử lý lại.",
+      "streamNotReady": "Phiên bản đã xử lý chưa sẵn sàng",
+      "processingInProgress": "Bài hát đang được xử lý",
+      "proOnly": "Tính năng voice tag chỉ dành cho người dùng PRO",
+      "voiceTagInUse": "Voice tag đang được sử dụng, vui lòng gỡ trước khi xóa",
+      "titleRequired": "Tiêu đề không được để trống",
+      "intervalInvalid": "Khoảng cách phải từ 1 đến 60 giây",
+      "volumeRange": "Âm lượng phải từ 0 đến 100",
+      "textTooLong": "Văn bản không được quá 4000 ký tự",
+      "invalidLanguageCode": "Mã ngôn ngữ không đúng định dạng (vd: en-US)",
+      "genericError": "Đã có lỗi xảy ra. Vui lòng thử lại.",
+      "fileRequired": "Vui lòng chọn file âm thanh"
+    },
+    "actions": {
+      "create": "Tạo mới",
+      "save": "Lưu",
+      "edit": "Sửa",
+      "delete": "Xóa",
+      "cancel": "Hủy",
+      "back": "Quay lại",
+      "play": "Phát",
+      "configure": "Cấu hình"
+    }
+  },
+  "validation": {
+    "name": {
+      "required": "Tên không được để trống",
+      "maxlength": "Tên không được quá {max} ký tự"
+    },
+    "description": {
+      "maxlength": "Mô tả không được quá {max} ký tự"
+    },
+    "text": {
+      "required": "Văn bản không được để trống",
+      "maxlength": "Văn bản không được quá {max} ký tự"
+    },
+    "languagecode": {
+      "required": "Vui lòng chọn ngôn ngữ",
+      "pattern": "Mã ngôn ngữ không đúng định dạng"
+    },
+    "title": {
+      "required": "Tiêu đề không được để trống",
+      "maxlength": "Tiêu đề không được quá {max} ký tự"
+    },
+    "artist": {
+      "maxlength": "Tên nghệ sĩ không được quá {max} ký tự"
+    },
+    "album": {
+      "maxlength": "Tên album không được quá {max} ký tự"
+    },
+    "song": {
+      "required": "Vui lòng chọn bài hát"
+    },
+    "interval": {
+      "required": "Vui lòng nhập khoảng cách",
+      "max": "Khoảng cách không được vượt quá thời lượng bài hát"
+    },
+    "volume": {
+      "min": "Âm lượng tối thiểu là {min}",
+      "max": "Âm lượng tối đa là {max}"
+    },
+    "fadeIn": {
+      "min": "Fade in tối thiểu là {min}ms",
+      "max": "Fade in tối đa là {max}ms"
+    },
+    "fadeOut": {
+      "min": "Fade out tối thiểu là {min}ms",
+      "max": "Fade out tối đa là {max}ms"
+    },
+    "startOffset": {
+      "min": "Bỏ qua đầu tối thiểu là {min}",
+      "max": "Bỏ qua đầu tối đa là {max}"
+    }
   }
 }

@@ -1,0 +1,134 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
+import { useProGuard } from "@/features/auth/hooks/use-pro-guard";
+import { ProUpgradePrompt } from "@/features/voice/components/pro-upgrade-prompt";
+import { VoiceTagCard } from "@/features/voice/components/voice-tag-card";
+import { useListVoiceTags } from "@/features/voice/api/voice-tags";
+import type { VoiceTagType } from "@/features/voice/types";
+
+type TypeFilter = "ALL" | VoiceTagType;
+
+export default function VoiceTagsPage() {
+  const { isPro } = useProGuard();
+  const t = useTranslations("voice.voiceTags");
+  const tActions = useTranslations("voice.actions");
+  const tList = useTranslations("voice.list");
+
+  const [page, setPage] = useState(0);
+  const [filter, setFilter] = useState<TypeFilter>("ALL");
+
+  const { data, isLoading, isFetching, isError } = useListVoiceTags({
+    page,
+    size: DEFAULT_PAGE_SIZE,
+    type: filter === "ALL" ? undefined : filter,
+  });
+
+  if (!isPro) {
+    return <ProUpgradePrompt />;
+  }
+
+  const items = data?.success && data.data ? data.data.content : [];
+  const totalPages = data?.success && data.data ? data.data.totalPages : 0;
+
+  return (
+    <div className="flex flex-col gap-6 font-sans">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
+            {t("title")}
+          </h1>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("subtitle")}</p>
+        </div>
+        <Link href="/voice-tags/new">
+          <Button className="self-start sm:self-auto">{tActions("create")}</Button>
+        </Link>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {(
+          [
+            { value: "ALL" as TypeFilter, label: tList("all") },
+            { value: "TTS" as TypeFilter, label: t("type.TTS") },
+            { value: "UPLOADED" as TypeFilter, label: t("type.UPLOADED") },
+          ]
+        ).map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => {
+              setFilter(opt.value);
+              setPage(0);
+            }}
+            aria-pressed={filter === opt.value}
+            className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+              filter === opt.value
+                ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-black dark:text-neutral-300 dark:hover:bg-neutral-900"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="rounded-xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-black">
+        {isLoading || isFetching ? (
+          <div className="flex items-center justify-center gap-3 p-12 text-sm text-neutral-500">
+            <Spinner size="md" />
+            {tList("loading")}
+          </div>
+        ) : isError ? (
+          <div
+            role="alert"
+            className="p-12 text-center text-sm text-red-600 dark:text-red-400"
+          >
+            {tList("loading")}
+          </div>
+        ) : items.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 p-12 text-center">
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("empty")}</p>
+            <Link href="/voice-tags/new">
+              <Button className="mt-2">{tActions("create")}</Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
+            {items.map((tag) => (
+              <VoiceTagCard key={tag.id} voiceTag={tag} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 0}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+          >
+            {tList("prev")}
+          </Button>
+          <span className="text-xs text-neutral-500 dark:text-neutral-400">
+            {page + 1} / {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page + 1 >= totalPages}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            {tList("next")}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
