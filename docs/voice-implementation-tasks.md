@@ -67,30 +67,30 @@ Backend/
 
 ---
 
-## TASK 1: Setup shared-storage Module
+## ✅ [x] TASK 1: Setup shared-storage Module
 
 **Mục tiêu**: Tạo module dùng chung cho S3/Local storage abstraction.
 
 ### Files cần tạo
 
-- [ ] `Backend/shared-storage/pom.xml` (deps: shared-kernel, AWS SDK s3 + s3-transfer-manager + auth, lombok)
-- [ ] `Backend/shared-storage/src/main/java/com/pwb/storage/api/StorageService.java` (interface full feature)
-- [ ] `Backend/shared-storage/src/main/java/com/pwb/storage/api/StorageException.java` (extends `BaseBusinessException`)
-- [ ] `Backend/shared-storage/src/main/java/com/pwb/storage/api/dto/UploadResult.java`
-- [ ] `Backend/shared-storage/src/main/java/com/pwb/storage/api/dto/PresignedUrlResult.java`
-- [ ] `Backend/shared-storage/src/main/java/com/pwb/storage/api/dto/ObjectMetadata.java`
-- [ ] `Backend/shared-storage/src/main/java/com/pwb/storage/infrastructure/config/StorageProperties.java` (`@ConfigurationProperties("app.storage")`)
-- [ ] `Backend/shared-storage/src/main/java/com/pwb/storage/infrastructure/config/StorageProviderType.java` (enum `S3, LOCAL`)
-- [ ] `Backend/shared-storage/src/main/java/com/pwb/storage/infrastructure/config/StorageAutoConfig.java` (`@Configuration` + `@ConditionalOnProperty`)
-- [ ] `Backend/shared-storage/src/main/java/com/pwb/storage/infrastructure/impl/S3StorageServiceImpl.java` (`@ConditionalOnProperty(provider=S3)`)
-- [ ] `Backend/shared-storage/src/main/java/com/pwb/storage/infrastructure/impl/LocalStorageServiceImpl.java` (`@ConditionalOnProperty(provider=LOCAL)`)
-- [ ] `Backend/shared-storage/src/main/java/com/pwb/storage/infrastructure/util/MediaTypeUtils.java` (magic byte detection)
+- [x] `Backend/shared-storage/pom.xml` (deps: shared-kernel, AWS SDK s3 + s3-transfer-manager + auth, lombok)
+- [x] `Backend/shared-storage/src/main/java/com/pwb/storage/api/StorageService.java` (interface full feature)
+- [x] `Backend/shared-storage/src/main/java/com/pwb/storage/api/StorageException.java` (extends `BaseBusinessException`)
+- [x] `Backend/shared-storage/src/main/java/com/pwb/storage/api/dto/UploadResult.java`
+- [x] `Backend/shared-storage/src/main/java/com/pwb/storage/api/dto/PresignedUrlResult.java`
+- [x] `Backend/shared-storage/src/main/java/com/pwb/storage/api/dto/ObjectMetadata.java`
+- [x] `Backend/shared-storage/src/main/java/com/pwb/storage/infrastructure/config/StorageProperties.java` (`@ConfigurationProperties("app.storage")`)
+- [x] `Backend/shared-storage/src/main/java/com/pwb/storage/infrastructure/config/StorageProviderType.java` (enum `S3, LOCAL`)
+- [x] `Backend/shared-storage/src/main/java/com/pwb/storage/infrastructure/config/StorageAutoConfig.java` (`@Configuration` + `@ConditionalOnProperty`)
+- [x] `Backend/shared-storage/src/main/java/com/pwb/storage/infrastructure/impl/S3StorageServiceImpl.java` (`@ConditionalOnProperty(provider=S3)`)
+- [x] `Backend/shared-storage/src/main/java/com/pwb/storage/infrastructure/impl/LocalStorageServiceImpl.java` (`@ConditionalOnProperty(provider=LOCAL)`)
+- [x] `Backend/shared-storage/src/main/java/com/pwb/storage/infrastructure/util/MediaTypeUtils.java` (magic byte detection)
 
 ### Files cần update
 
-- [ ] `Backend/pom.xml` (parent) — thêm `<module>shared-storage</module>`
-- [ ] `Backend/bootstrap/pom.xml` — thêm dependency `shared-storage`
-- [ ] `Backend/shared-kernel/src/main/java/com/pwb/backend/exception/ErrorCode.java` — thêm các code storage:
+- [x] `Backend/pom.xml` (parent) — thêm `<module>shared-storage</module>`
+- [x] `Backend/bootstrap/pom.xml` — thêm dependency `shared-storage`
+- [x] `Backend/shared-kernel/src/main/java/com/pwb/backend/exception/ErrorCode.java` — thêm các code storage:
 
 ```java
 // Storage Module (prefix: STORAGE_)
@@ -104,13 +104,13 @@ STORAGE_INVALID_KEY      ("STORAGE_006", "Invalid storage key format.",     400)
 
 ### Config cần thêm
 
-- [ ] `Backend/bootstrap/src/main/resources/application.yml` — section `app.storage.*` (xem `voice-module-plan.md` §10.1)
+- [x] `Backend/bootstrap/src/main/resources/application.yml` — section `app.storage.*` (xem `voice-module-plan.md` §10.1)
 
 ### Messages cần thêm (i18n)
 
-- [ ] `Backend/shared-web/src/main/resources/messages/messages.properties` — add `STORAGE_001..006`
-- [ ] `Backend/shared-web/src/main/resources/messages/messages_en.properties` — same
-- [ ] `Backend/shared-web/src/main/resources/messages/messages_vi.properties` — Vietnamese translation
+- [x] `Backend/shared-web/src/main/resources/messages/messages.properties` — add `STORAGE_001..006`
+- [x] `Backend/shared-web/src/main/resources/messages/messages_en.properties` — same
+- [x] `Backend/shared-web/src/main/resources/messages/messages_vi.properties` — Vietnamese translation
 
 ### Implementation notes
 
@@ -122,9 +122,10 @@ STORAGE_INVALID_KEY      ("STORAGE_006", "Invalid storage key format.",     400)
 
 ### Definition of Done
 
-- [ ] `mvn -pl shared-storage -am clean compile` pass
-- [ ] Có thể tạo 1 endpoint test `/api/v1/test/upload` (chỉ dev) upload file → lưu S3 → download lại → assert equal bytes
-- [ ] Switch `app.storage.provider=LOCAL` → chạy được không cần S3 credentials
+- [x] `mvn -pl shared-storage -am clean compile` pass
+- [x] Switch `app.storage.provider=LOCAL` → chạy được không cần S3 credentials
+
+> **Note**: Test endpoint dev (q2) đã được quyết định KHÔNG tạo trong TASK này (đợi voice module TASK 2 mới smoke test end-to-end).
 
 ---
 

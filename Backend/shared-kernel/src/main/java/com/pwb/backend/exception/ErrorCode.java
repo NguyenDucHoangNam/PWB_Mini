@@ -37,7 +37,14 @@ public enum ErrorCode {
     FORBIDDEN    ("SYS_003", "Access denied.", 403),
 
     ORDER_NOT_FOUND      ("ORD_001", "Order not found.", 404),
-    OUT_OF_STOCK         ("INV_001", "Product is out of stock.", 400);
+    OUT_OF_STOCK         ("INV_001", "Product is out of stock.", 400),
+
+    STORAGE_UPLOAD_FAILED    ("STORAGE_001", "Storage upload failed.",          500),
+    STORAGE_DOWNLOAD_FAILED  ("STORAGE_002", "Storage download failed.",        500),
+    STORAGE_OBJECT_NOT_FOUND ("STORAGE_003", "Storage object not found.",       404),
+    STORAGE_DELETE_FAILED    ("STORAGE_004", "Storage delete failed.",          500),
+    STORAGE_PRESIGN_FAILED   ("STORAGE_005", "Storage presign URL failed.",     500),
+    STORAGE_INVALID_KEY      ("STORAGE_006", "Invalid storage key format.",     400);
 
     private final String code;
     private final String message;

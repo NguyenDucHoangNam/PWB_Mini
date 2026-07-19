@@ -146,6 +146,20 @@ app:
           password: ${APP_SEED_ADMIN_PASSWORD:}
           fullName: Admin Two
           role: ADMIN
+  storage:
+    provider: ${STORAGE_PROVIDER:LOCAL}
+    max-file-size-bytes: 524288000
+    s3:
+      bucket: ${STORAGE_S3_BUCKET:pwb-storage}
+      region: ${STORAGE_S3_REGION:ap-southeast-1}
+      access-key: ${STORAGE_S3_ACCESS_KEY:}
+      secret-key: ${STORAGE_S3_SECRET_KEY:}
+      endpoint: ${STORAGE_S3_ENDPOINT:}
+      path-style-access: ${STORAGE_S3_PATH_STYLE:true}
+      presigned-url-expiration-minutes: 60
+      multipart-upload-threshold-bytes: 26214400
+    local:
+      base-path: ${STORAGE_LOCAL_BASE_PATH:/tmp/pwb-storage}
 
 springdoc:
   swagger-ui:
