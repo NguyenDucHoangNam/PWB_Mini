@@ -1,5 +1,8 @@
 package com.pwb.iam.infrastructure.security.filter;
 
+import com.pwb.iam.core.model.User;
+import com.pwb.iam.core.model.UserStatus;
+import com.pwb.iam.infrastructure.security.CustomUserDetails;
 import com.pwb.iam.infrastructure.security.CustomUserDetailsService;
 import com.pwb.iam.infrastructure.security.jwt.JwtTokenProvider;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -56,6 +59,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             UUID userId = jwtTokenProvider.extractUserId(token);
             UserDetails userDetails = userDetailsService.loadUserById(userId);
+
+            CustomUserDetails customDetails = (CustomUserDetails) userDetails;
+            User user = customDetails.getUser();
+            if (user.getStatus() == UserStatus.BANNED || user.getStatus() == UserStatus.DELETED) {
+                log.debug("JWT rejected for user {} with status {}", userId, user.getStatus());
+                SecurityContextHolder.clearContext();
+                return;
+            }
 
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(

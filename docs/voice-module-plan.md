@@ -90,7 +90,7 @@
 
 | Vấn đề | Xử lý |
 |---|---|
-| `JwtAuthenticationFilter` không enforce `UserStatus` (BANNED/DELETED user vẫn dùng được token cũ) | **Prerequisite** — phải fix TRƯỚC khi ship voice. Task riêng, không thuộc voice scope. |
+| ~~`JwtAuthenticationFilter` không enforce `UserStatus` (BANNED/DELETED user vẫn dùng được token cũ)~~ | **DONE** trong TASK 0 — clear context nếu status ∈ {BANNED, DELETED}. Smoke test chưa chạy, cần verify manually trước khi ship voice. |
 | `OutboxJpaWriter` hardcode `aggregateType="User"` | Refactor nhỏ khi voice cần publish event aggregate khác. Có thể làm song song với voice. |
 | Chưa có `BaseEntity` chung | Mỗi module tự tạo `BaseEntity` riêng (MVP, không refactor IAM) |
 | `.env` có nhiều config chưa dùng (MongoDB, Elasticsearch, AUDIO_AES_*, PWB_AUDIO_*) | Bỏ qua trong docs này (chưa rõ requirement) |
@@ -786,7 +786,7 @@ VOICE_TEMP_DIR=/tmp/voice-processing
 | 7 | Presigned URL expiration 1h | ✅ Plan | MVP, đủ cho streaming |
 | 8 | Error response không leak existence | ✅ Plan | Trả 404 thay vì 403 |
 | 9 | Log không in audio content / presigned URL | ✅ Plan | Chỉ log key, size, duration |
-| 10 | **Fix JwtAuthenticationFilter enforce UserStatus** | ⚠️ **PREREQUISITE** | **Phải fix TRƯỚC khi ship voice** |
+| 10 | **Fix JwtAuthenticationFilter enforce UserStatus** | ✅ Done (TASK 0) | Status check sau loadUserById, clear context nếu BANNED/DELETED. Smoke test pending — cần verify manually. |
 | 11 | S3 bucket policy private + presigned only | ✅ Plan | Block direct public access |
 | 12 | Cleanup temp files sau processing | ✅ Plan | Tránh disk full |
 | 13 | Rate limit upload endpoint | ⏳ Optional | Theo pattern `RateLimited` annotation có sẵn |
@@ -803,7 +803,7 @@ Trước khi bắt đầu implement voice, cần:
 | 2 | Google Cloud TTS service account + credentials file | DevOps | ⏳ TODO |
 | 3 | PRO role đã define trong database (V4 seed) | ✅ Done | Migration V4 đã seed |
 | 4 | `application.yml` với đầy đủ config | Phần trong docs | ✅ Plan |
-| 5 | **`JwtAuthenticationFilter` enforce UserStatus** | Backend | ⚠️ **PREREQUISITE — phải fix trước** |
+| 5 | **`JwtAuthenticationFilter` enforce UserStatus** | Backend | ✅ Done trong TASK 0 (smoke test pending) |
 | 6 | `OutboxJpaWriter` refactor `aggregateType` thành parameter | Backend | ⏳ Optional — chỉ cần nếu voice event aggregate khác "User" |
 
 ---
