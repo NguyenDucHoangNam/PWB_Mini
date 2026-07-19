@@ -23,8 +23,20 @@ public class OutboxJpaWriter implements OutboxWriter {
 
     @Override
     public void enqueue(String topic, String key, String aggregateType, OutboxEventPayload payload, Map<String, String> headers) {
+        if (topic == null || topic.isBlank()) {
+            throw new IllegalArgumentException("Outbox topic is required");
+        }
+        if (key == null || key.isBlank()) {
+            throw new IllegalArgumentException("Outbox key is required");
+        }
+        if (aggregateType == null || aggregateType.isBlank()) {
+            throw new IllegalArgumentException("Outbox aggregateType is required (topic=" + topic + ", key=" + key + ")");
+        }
+        if (payload == null || payload.body() == null) {
+            throw new IllegalArgumentException("Outbox payload is required (topic=" + topic + ", key=" + key + ")");
+        }
         OutboxEventJpaEntity entity = OutboxEventJpaEntity.builder()
-            .aggregateType(aggregateType == null || aggregateType.isBlank() ? "User" : aggregateType)
+            .aggregateType(aggregateType)
             .aggregateId(key)
             .topic(topic)
             .payloadKey(key)

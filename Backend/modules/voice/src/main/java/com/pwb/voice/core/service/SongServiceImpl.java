@@ -31,6 +31,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -64,8 +65,9 @@ public class SongServiceImpl implements SongService {
     private final ApplicationEventPublisher applicationEventPublisher;
     private final ObjectMapper objectMapper;
 
-    @Override
-    public Song uploadSong(UUID userId, MultipartFile file, UploadSongRequest request) {
+@Override
+@Transactional
+public Song uploadSong(UUID userId, MultipartFile file, UploadSongRequest request) {
         log.info("Uploading song: userId={}, title={}, sizeBytes={}",
                 userId, request.getTitle(), safeSize(file));
 
@@ -135,8 +137,9 @@ public class SongServiceImpl implements SongService {
         return songMapper.toDomain(entity);
     }
 
-    @Override
-    public Song updateSong(UUID userId, UUID songId, UpdateSongRequest request) {
+@Override
+@Transactional
+public Song updateSong(UUID userId, UUID songId, UpdateSongRequest request) {
         log.info("Updating song: userId={}, songId={}", userId, songId);
 
         SongJpaEntity existing = songJpaRepository
@@ -154,8 +157,9 @@ public class SongServiceImpl implements SongService {
         return songMapper.toDomain(saved);
     }
 
-    @Override
-    public void deleteSong(UUID userId, UUID songId) {
+@Override
+@Transactional
+public void deleteSong(UUID userId, UUID songId) {
         log.info("Deleting song: userId={}, songId={}", userId, songId);
 
         SongJpaEntity entity = songJpaRepository
@@ -185,8 +189,9 @@ public class SongServiceImpl implements SongService {
         }
     }
 
-    @Override
-    public SongTagConfig configureVoiceTag(UUID userId, UUID songId, ConfigureVoiceTagRequest request) {
+@Override
+@Transactional
+public SongTagConfig configureVoiceTag(UUID userId, UUID songId, ConfigureVoiceTagRequest request) {
         log.info("Configuring voice tag: userId={}, songId={}, voiceTagId={}",
                 userId, songId, request.getVoiceTagId());
 
@@ -247,8 +252,9 @@ public class SongServiceImpl implements SongService {
         return songTagConfigMapper.toDomain(entity);
     }
 
-    @Override
-    public void removeVoiceTagConfig(UUID userId, UUID songId) {
+@Override
+@Transactional
+public void removeVoiceTagConfig(UUID userId, UUID songId) {
         log.info("Removing voice tag config: userId={}, songId={}", userId, songId);
 
         if (!songJpaRepository.existsByIdAndUserIdAndDeletedFalse(songId, userId)) {
@@ -265,12 +271,13 @@ public class SongServiceImpl implements SongService {
         log.info("Voice tag config removed: userId={}, songId={}", userId, songId);
     }
 
-    @Override
-    public Song triggerProcessing(UUID userId, UUID songId) {
+@Override
+@Transactional
+public Song triggerProcessing(UUID userId, UUID songId) {
         log.info("Triggering processing: userId={}, songId={}", userId, songId);
 
         SongJpaEntity entity = songJpaRepository
-                .findByIdAndUserIdAndDeletedFalse(songId, userId)
+                .findByIdAndUserIdForUpdate(songId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SONG_NOT_FOUND));
 
         SongStatus current = entity.getStatus();

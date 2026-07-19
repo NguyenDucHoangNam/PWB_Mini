@@ -65,10 +65,10 @@ public class FFmpegAudioProcessingService implements AudioProcessingService {
         int intervalSeconds = config.getIntervalSeconds();
         int startOffset = config.getStartOffsetSeconds() == null ? 0 : config.getStartOffsetSeconds();
         int totalDuration = originalMeta.durationSeconds();
-        int insertionPoints = Math.min(
-                MAX_INSERTION_POINTS,
-                Math.max(0, (totalDuration - startOffset) / intervalSeconds)
-        );
+        int usableWindow = totalDuration - startOffset - voiceTagWindow;
+        int insertionPoints = usableWindow > 0
+                ? Math.min(MAX_INSERTION_POINTS, usableWindow / intervalSeconds)
+                : 0;
 
         try {
             Path parent = output.getParent();

@@ -5,7 +5,6 @@ import com.pwb.backend.exception.ErrorCode;
 import com.pwb.outbox.infrastructure.messaging.OutboxKafkaConfig;
 import com.pwb.storage.api.StorageService;
 import com.pwb.voice.api.event.VoiceProcessingRequestedIntegrationEvent;
-import com.pwb.voice.core.model.Song;
 import com.pwb.voice.core.model.SongTagConfig;
 import com.pwb.voice.core.service.AudioProcessingService;
 import com.pwb.voice.infrastructure.config.AudioProcessingProperties;
@@ -13,7 +12,6 @@ import com.pwb.voice.infrastructure.config.VoiceProperties;
 import com.pwb.voice.infrastructure.persistence.entity.SongJpaEntity;
 import com.pwb.voice.infrastructure.persistence.entity.SongTagConfigJpaEntity;
 import com.pwb.voice.infrastructure.persistence.entity.VoiceTagJpaEntity;
-import com.pwb.voice.infrastructure.persistence.mapper.SongMapper;
 import com.pwb.voice.infrastructure.persistence.mapper.SongTagConfigMapper;
 import com.pwb.voice.infrastructure.persistence.repository.SongJpaRepository;
 import com.pwb.voice.infrastructure.persistence.repository.SongTagConfigJpaRepository;
@@ -21,8 +19,7 @@ import com.pwb.voice.infrastructure.persistence.repository.VoiceTagJpaRepository
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -31,7 +28,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
 @Slf4j
-@Component
+@Service
 @RequiredArgsConstructor
 public class VoiceTagInsertionProcessor {
 
@@ -43,7 +40,7 @@ public class VoiceTagInsertionProcessor {
     private final VoiceTagJpaRepository voiceTagRepository;
     private final StorageService storageService;
     private final AudioProcessingService audioProcessingService;
-    private final SongMapper songMapper;
+    private final VoiceProcessingPersistenceService persistenceService;
     private final SongTagConfigMapper songTagConfigMapper;
     private final VoiceProperties voiceProperties;
     private final AudioProcessingProperties audioProcessingProperties;
@@ -96,39 +93,21 @@ public class VoiceTagInsertionProcessor {
             storageService.upload(processedKey, Files.newInputStream(outputPath), Files.size(outputPath),
                     resolveContentType(extension));
 
-            markProcessed(songEntity, processedKey);
+            persistenceService.markProcessed(songEntity, processedKey, audioProcessingService.extractMetadata(outputPath).durationSeconds());
             log.info("Voice processing completed: songId={}, processedKey={}", songId, processedKey);
 
         } catch (BusinessException ex) {
-            markFailed(songId, ex.getMessage());
+            persistenceService.markFailed(songId, "VOICE_006");
             throw new RuntimeException("Voice processing failed: " + ex.getMessage(), ex);
         } catch (Exception ex) {
             log.error("Voice processing failed: songId={}", songId, ex);
-            markFailed(songId, ex.getMessage());
+            persistenceService.markFailed(songId, "VOICE_006");
             throw new RuntimeException("Voice processing failed: " + ex.getMessage(), ex);
         } finally {
             deleteQuietly(originalPath);
             deleteQuietly(tagPath);
             deleteQuietly(outputPath);
         }
-    }
-
-    @Transactional
-    protected void markProcessed(SongJpaEntity songEntity, String processedKey) {
-        Song song = songMapper.toDomain(songEntity);
-        song.markProcessed(processedKey, songEntity.getDurationSeconds());
-        SongJpaEntity merged = songMapper.toEntity(song, songEntity);
-        songRepository.save(merged);
-    }
-
-    @Transactional
-    protected void markFailed(UUID songId, String errorMessage) {
-        songRepository.findById(songId).ifPresent(entity -> {
-            Song song = songMapper.toDomain(entity);
-            song.markFailed(errorMessage == null ? "Unknown error" : errorMessage);
-            SongJpaEntity merged = songMapper.toEntity(song, entity);
-            songRepository.save(merged);
-        });
     }
 
     private String buildProcessedS3Key(UUID userId, UUID songId, String extension) {
