@@ -2,7 +2,7 @@
 
 > **Ngày tạo**: 2026-07-19
 > **Dựa trên**: [voice-module-plan.md](./voice-module-plan.md)
-> **Trạng thái**: TASK 0-8 Done · TASK 9+ Pending
+> **Trạng thái**: TASK 0-9 Done · TASK 10+ Pending
 > **Quy ước đánh dấu**: `[ ]` chưa làm · `[x]` đã xong · `[~]` đang làm
 
 ---
@@ -40,7 +40,7 @@ Backend/
     ├── iam/              # ✅ Đã có (TASK 0 Done - JwtFilter fix)
     ├── notification/     # ✅ Đã có
     ├── outbox/           # ✅ Đã có (refactor aggregateType)
-    └── voice/            # 🔄 TASK 2-8 Done · TASK 9+ Pending
+    └── voice/            # ✅ TASK 2-9 Done · TASK 10+ Pending
 ```
 
 **Voice module progress**:
@@ -51,7 +51,8 @@ Backend/
 - ✅ TASK 6 — DTOs (CreateTts / Upload / Update requests + Response)
 - ✅ TASK 7 — Google TTS service + Redis cache
 - ✅ TASK 8 — Service + Facade + AudioFileValidator + FFprobe wrapper
-- ⏳ TASK 9 — REST controller (next)
+- ✅ TASK 9 — Voice tag REST controller (PRO role check + shared-web `@CurrentUser` abstraction)
+- ⏳ TASK 10 — Song domain + DTOs + repository (next)
 
 ---
 
@@ -481,37 +482,81 @@ Description: Parameter 1 of constructor in com.pwb.iam.infrastructure.security.C
 
 ---
 
-## TASK 9: Voice Tag Controller
+## ✅ [x] TASK 9: Voice Tag Controller — DONE (2026-07-19)
 
 **Mục tiêu**: REST endpoints cho Voice Tag.
 
 ### Files cần tạo
 
-- [ ] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/web/VoiceTagController.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/infrastructure/web/VoiceTagController.java`
+- [x] `Backend/modules/voice/src/main/java/com/pwb/voice/api/dto/response/AudioUrlResponse.java` (response riêng cho presigned audio URL, chứa `url` + `expiresAt`)
 
-### Endpoints
+### Files cần update (cross-module)
+
+Để tránh voice module phụ thuộc trực tiếp IAM (`com.pwb.iam.infrastructure.security.CustomUserDetails`), em tách abstraction ra `shared-web`:
+
+- [x] `Backend/shared-web/src/main/java/com/pwb/backend/security/AuthenticatedUser.java` — interface `{ UUID getId(); String getUsername(); String getRole(); }`.
+- [x] `Backend/shared-web/src/main/java/com/pwb/backend/security/CurrentUser.java` — meta-annotation `@CurrentUser` (kết hợp `@AuthenticationPrincipal`).
+- [x] `Backend/shared-web/src/main/java/com/pwb/backend/security/CurrentUserArgumentResolver.java` — resolve `@CurrentUser` từ `SecurityContextHolder`, hỗ trợ cả `AuthenticatedUser` native + reflection-adapter cho `CustomUserDetails` của IAM (không cần import IAM).
+- [x] `Backend/shared-web/src/main/java/com/pwb/backend/config/WebMvcConfig.java` — register `CurrentUserArgumentResolver`.
+- [x] `Backend/shared-web/pom.xml` — thêm `spring-boot-starter-security` (cần cho `SecurityContextHolder`).
+
+### Endpoints (7)
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/v1/voice-tags/tts` | Tạo TTS voice tag |
-| POST | `/api/v1/voice-tags/upload` | Upload voice tag audio (multipart) |
-| GET | `/api/v1/voice-tags` | List user's voice tags |
+| POST | `/api/v1/voice-tags/tts` | Tạo TTS voice tag (201) |
+| POST | `/api/v1/voice-tags/upload` | Upload voice tag audio (multipart) (201) |
+| GET | `/api/v1/voice-tags` | List user's voice tags (paginated, optional `?type=`) |
 | GET | `/api/v1/voice-tags/{id}` | Get voice tag detail |
 | PUT | `/api/v1/voice-tags/{id}` | Update voice tag metadata |
 | DELETE | `/api/v1/voice-tags/{id}` | Soft delete |
-| GET | `/api/v1/voice-tags/{id}/audio` | Get presigned audio URL |
+| GET | `/api/v1/voice-tags/{id}/audio` | Get presigned audio URL (1h TTL) |
 
 ### Security
 
-- Class-level `@PreAuthorize("hasRole('PRO')")`
-- UserId lấy từ `Authentication.getPrincipal()` qua custom helper (hoặc inject `Authentication`)
-- KHÔNG nhận `userId` từ request body/param — luôn từ SecurityContext
+- Class-level `@PreAuthorize("hasRole('PRO')")` — tất cả 7 endpoints yêu cầu role PRO.
+- `userId` lấy từ `@CurrentUser AuthenticatedUser user` → `user.getId()` (UUID).
+- KHÔNG nhận `userId` từ request body/param — luôn từ SecurityContext.
+
+### i18n messages (đã có sẵn từ TASK 4)
+
+- `VOICE_TAG_CREATED` — cho create TTS + upload success.
+- `VOICE_TAG_UPDATED` — cho update success.
+- `VOICE_TAG_DELETED` — cho delete success.
+- KHÔNG thêm message mới cho list/get/audio URL.
 
 ### Implementation notes
 
-- Multipart upload: set `Content-Type: multipart/form-data`, dùng `@RequestParam("file") MultipartFile file`.
-- Response wrapper: `ApiResponse.success(message(MSG_*), data)` (theo pattern IAM).
-- Sử dụng `MessageResolver` từ shared-web để resolve i18n messages.
+- **Multipartupload**: dùng `@RequestPart("file") MultipartFile file` + `@RequestPart("metadata") UploadVoiceTagRequest` để tách file và JSON metadata rõ ràng. Frontend gửi `multipart/form-data` với 2 part riêng.
+- **List pagination**: dùng `Pageable` mặc định Spring (`@PageableDefault(size = 20)`), trả `Page<VoiceTagResponse>` trực tiếp — chưa có `PageResponse` wrapper (deferred).
+- **Presigned URL TTL**: `Duration.ofHours(1)` constant `PRESIGNED_URL_TTL` — hardcoded (override sau qua query-param nếu cần).
+- **AudioUrlResponse**: tách DTO riêng vì cần trả `url` + `expiresAt` (frontend countdown / refresh).
+- **Reflection adapter trong resolver**: vì `shared-web` không có IAM dependency, em dùng reflection để extract `getId()` / `getUsername()` / `getAuthorities()` từ bất kỳ principal type nào (`CustomUserDetails` từ IAM hoặc bất kỳ `AuthenticatedUser` native). Loose coupling OK, không cần dependency cycle.
+- **Lombok**: `@RequiredArgsConstructor` cho DI, KHÔNG `@Data` trên record.
+- **i18n**: KHÔNG thêm key mới — reuse TASK 4 keys.
+- **Không Swagger annotation `@Operation`/`@Tag`** (per plan) — voice module chưa có `springdoc-openapi` dependency, defer đến khi cần Swagger cho voice (có thể thêm sau).
+- **KHÔNG test** (per `no-auto-create-tests-backend.mdc`).
+- **KHÔNG commit git** (per `no-auto-commit-push-backend.mdc` — đợi sếp confirm).
+
+### Architecture benefit
+
+Trước TASK 9, voice module KHÔNG có cách nào access SecurityContext user. Sau TASK 9:
+- Bất kỳ module nào depend `shared-web` đều có thể inject `@CurrentUser AuthenticatedUser` mà KHÔNG cần IAM dependency.
+- Pattern scale được cho Song module (TASK 13), Notification module (sau này), vv.
+- Trade-off: thêm 1 abstraction layer, nhưng đổi lại loose coupling đúng chuẩn senior.
+
+### Audit notes (2026-07-19)
+
+- [x] 7 file mới (5 shared-web + 2 voice).
+- [x] 1 file update (`Backend/shared-web/pom.xml` — thêm starter-security).
+- [x] `mvn -pl modules/voice -am clean compile` → BUILD SUCCESS.
+- [x] `mvn -pl bootstrap -am compile` → BUILD SUCCESS (9 modules).
+- [x] Tuân thủ: Lombok `@RequiredArgsConstructor`, `@Data` + `@Builder` cho DTOs/record.
+- [x] Không code comment (per `no-code-comments-backend.mdc`).
+- [x] Không hardcode user-facing string — toàn bộ message qua `MessageResolver.get(key)`.
+- [x] Không tạo test file (per `no-auto-create-tests-backend.mdc`).
+- [x] Không commit git (per `no-auto-commit-push-backend.mdc` — đợi sếp confirm).
 
 ---
 
@@ -885,7 +930,7 @@ Week 5:
 - [x] TASK 6 — Voice tag DTOs
 - [x] TASK 7 — Google TTS service + cache
 - [x] TASK 8 — Voice tag service + facade + audio validator + FFprobe
-- [ ] TASK 9 — Voice tag REST controller
+- [x] TASK 9 — Voice tag REST controller (with shared-web `@CurrentUser` abstraction)
 - [ ] TASK 10-11 — Song domain + DTOs
 - [ ] TASK 12-13 — Song service + facade + controller
 - [ ] TASK 14 — FFmpeg audio processing service
