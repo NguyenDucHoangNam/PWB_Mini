@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { asApiError } from "@/lib/api-client";
-import { resolveErrorI18nKey } from "@/lib/error-code-to-i18n";
 import { useCreateTtsVoiceTag } from "../api/voice-tags";
+import { resolveVoiceErrorMessage } from "../lib/resolve-voice-error-message";
 import { ttsFormSchema, LANGUAGE_CODES, type TtsFormValues } from "../schemas/voice-tag-schema";
 
 interface TtsFormProps {
@@ -46,11 +46,12 @@ export function TtsForm({ onCancel, onSuccess }: TtsFormProps) {
           toast.success(t("createSuccess"));
           onSuccess?.();
           router.push("/dashboard/voice-tags");
+        } else {
+          toast.error(response.message || tCommon("error"));
         }
       },
       onError: asApiError((err) => {
-        const key = resolveErrorI18nKey(err);
-        toast.error(key ? tErrors(key.split(".").pop() as never) : tCommon("error"));
+        toast.error(resolveVoiceErrorMessage(err, tErrors, tCommon));
       }),
     },
   });
@@ -75,7 +76,8 @@ export function TtsForm({ onCancel, onSuccess }: TtsFormProps) {
       "validation.languagecode.pattern": "languageCode",
     };
     const error =
-      errors[fieldKey === "languagecode" ? "languageCode" : fieldKey as keyof TtsFormValues]?.message;
+      errors[fieldKey === "languagecode" ? "languageCode" : (fieldKey as keyof TtsFormValues)]
+        ?.message;
     if (!error) return null;
     const i18nKey = (typeof error === "string" && map[error]) || error;
     return tValidation(i18nKey as never);
@@ -86,7 +88,9 @@ export function TtsForm({ onCancel, onSuccess }: TtsFormProps) {
       <div className="flex flex-col gap-2">
         <Label htmlFor="tts-name">{t("nameLabel")}</Label>
         <Input id="tts-name" {...register("name")} maxLength={128} />
-        {errors.name && <p className="text-xs text-red-600 dark:text-red-400">{renderError("name")}</p>}
+        {errors.name && (
+          <p className="text-xs text-red-600 dark:text-red-400">{renderError("name")}</p>
+        )}
       </div>
 
       <div className="flex flex-col gap-2">
@@ -98,7 +102,9 @@ export function TtsForm({ onCancel, onSuccess }: TtsFormProps) {
           rows={4}
           className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
         />
-        {errors.text && <p className="text-xs text-red-600 dark:text-red-400">{renderError("text")}</p>}
+        {errors.text && (
+          <p className="text-xs text-red-600 dark:text-red-400">{renderError("text")}</p>
+        )}
       </div>
 
       <div className="flex flex-col gap-2">

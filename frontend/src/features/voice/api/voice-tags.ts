@@ -88,13 +88,15 @@ export const useCreateTtsVoiceTag = ({
   mutationConfig,
 }: UseCreateTtsVoiceTagOptions = {}) => {
   const queryClient = useQueryClient();
+  const { onSuccess, ...restMutationConfig } = mutationConfig ?? {};
   return useMutation({
-    onSuccess: (response) => {
+    ...restMutationConfig,
+    onSuccess: (response, variables, onMutateResult, context) => {
       if (response.success) {
         queryClient.invalidateQueries({ queryKey: [VOICE_TAGS_KEY] });
       }
+      return onSuccess?.(response, variables, onMutateResult, context);
     },
-    ...mutationConfig,
     mutationFn: createTtsVoiceTag,
   });
 };
@@ -107,13 +109,15 @@ export const useUploadVoiceTag = ({
   mutationConfig,
 }: UseUploadVoiceTagOptions = {}) => {
   const queryClient = useQueryClient();
+  const { onSuccess, ...restMutationConfig } = mutationConfig ?? {};
   return useMutation({
-    onSuccess: (response) => {
+    ...restMutationConfig,
+    onSuccess: (response, variables, onMutateResult, context) => {
       if (response.success) {
         queryClient.invalidateQueries({ queryKey: [VOICE_TAGS_KEY] });
       }
+      return onSuccess?.(response, variables, onMutateResult, context);
     },
-    ...mutationConfig,
     mutationFn: uploadVoiceTag,
   });
 };
@@ -160,16 +164,18 @@ export const useUpdateVoiceTag = ({
   mutationConfig,
 }: UseUpdateVoiceTagOptions = {}) => {
   const queryClient = useQueryClient();
+  const { onSuccess, ...restMutationConfig } = mutationConfig ?? {};
   return useMutation({
-    onSuccess: (response, variables) => {
+    ...restMutationConfig,
+    onSuccess: (response, variables, onMutateResult, context) => {
       if (response.success) {
         queryClient.invalidateQueries({ queryKey: [VOICE_TAGS_KEY] });
         queryClient.invalidateQueries({
           queryKey: voiceTagKey(variables.voiceTagId),
         });
       }
+      return onSuccess?.(response, variables, onMutateResult, context);
     },
-    ...mutationConfig,
     mutationFn: updateVoiceTag,
   });
 };
@@ -182,14 +188,16 @@ export const useDeleteVoiceTag = ({
   mutationConfig,
 }: UseDeleteVoiceTagOptions = {}) => {
   const queryClient = useQueryClient();
+  const { onSuccess, ...restMutationConfig } = mutationConfig ?? {};
   return useMutation({
-    onSuccess: (response) => {
+    ...restMutationConfig,
+    onSuccess: (response, variables, onMutateResult, context) => {
       if (response.success) {
         queryClient.invalidateQueries({ queryKey: [VOICE_TAGS_KEY] });
         queryClient.invalidateQueries({ queryKey: ["voice-songs"] });
       }
+      return onSuccess?.(response, variables, onMutateResult, context);
     },
-    ...mutationConfig,
     mutationFn: deleteVoiceTag,
   });
 };

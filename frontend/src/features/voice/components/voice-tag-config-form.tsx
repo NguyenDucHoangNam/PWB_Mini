@@ -9,9 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { asApiError } from "@/lib/api-client";
-import { resolveErrorI18nKey } from "@/lib/error-code-to-i18n";
 import { useConfigureVoiceTag, useRemoveVoiceTagConfig } from "../api/songs";
 import { useListVoiceTags } from "../api/voice-tags";
+import { resolveVoiceErrorMessage } from "../lib/resolve-voice-error-message";
 import {
   configFormSchema,
   DEFAULT_CONFIG_VALUES,
@@ -88,11 +88,12 @@ export function VoiceTagConfigForm({ songId, config }: VoiceTagConfigFormProps) 
         if (response.success) {
           toast.success(t("saveSuccess"));
           setShowForm(false);
+        } else {
+          toast.error(response.message || tCommon("error"));
         }
       },
       onError: asApiError((err) => {
-        const key = resolveErrorI18nKey(err);
-        toast.error(key ? tErrors(key.split(".").pop() as never) : tCommon("error"));
+        toast.error(resolveVoiceErrorMessage(err, tErrors, tCommon));
       }),
     },
   });
@@ -104,11 +105,12 @@ export function VoiceTagConfigForm({ songId, config }: VoiceTagConfigFormProps) 
           toast.success(t("removeSuccess"));
           setShowForm(false);
           reset(DEFAULT_CONFIG_VALUES);
+        } else {
+          toast.error(response.message || tCommon("error"));
         }
       },
       onError: asApiError((err) => {
-        const key = resolveErrorI18nKey(err);
-        toast.error(key ? tErrors(key.split(".").pop() as never) : tCommon("error"));
+        toast.error(resolveVoiceErrorMessage(err, tErrors, tCommon));
       }),
     },
   });
@@ -226,11 +228,7 @@ export function VoiceTagConfigForm({ songId, config }: VoiceTagConfigFormProps) 
         />
         {errors.intervalSeconds && (
           <p className="text-xs text-red-600 dark:text-red-400">
-            {resolveValidationError(
-              errors.intervalSeconds.message,
-              { max: 60 },
-              tValidation,
-            )}
+            {resolveValidationError(errors.intervalSeconds.message, { max: 60 }, tValidation)}
           </p>
         )}
       </div>
@@ -249,11 +247,7 @@ export function VoiceTagConfigForm({ songId, config }: VoiceTagConfigFormProps) 
         />
         {errors.volumePercentage && (
           <p className="text-xs text-red-600 dark:text-red-400">
-            {resolveValidationError(
-              errors.volumePercentage.message,
-              { max: 100 },
-              tValidation,
-            )}
+            {resolveValidationError(errors.volumePercentage.message, { max: 100 }, tValidation)}
           </p>
         )}
       </div>
@@ -271,11 +265,7 @@ export function VoiceTagConfigForm({ songId, config }: VoiceTagConfigFormProps) 
           />
           {errors.fadeInDurationMs && (
             <p className="text-xs text-red-600 dark:text-red-400">
-              {resolveValidationError(
-                errors.fadeInDurationMs.message,
-                { max: 5000 },
-                tValidation,
-              )}
+              {resolveValidationError(errors.fadeInDurationMs.message, { max: 5000 }, tValidation)}
             </p>
           )}
         </div>
@@ -291,11 +281,7 @@ export function VoiceTagConfigForm({ songId, config }: VoiceTagConfigFormProps) 
           />
           {errors.fadeOutDurationMs && (
             <p className="text-xs text-red-600 dark:text-red-400">
-              {resolveValidationError(
-                errors.fadeOutDurationMs.message,
-                { max: 5000 },
-                tValidation,
-              )}
+              {resolveValidationError(errors.fadeOutDurationMs.message, { max: 5000 }, tValidation)}
             </p>
           )}
         </div>
@@ -313,11 +299,7 @@ export function VoiceTagConfigForm({ songId, config }: VoiceTagConfigFormProps) 
         />
         {errors.startOffsetSeconds && (
           <p className="text-xs text-red-600 dark:text-red-400">
-            {resolveValidationError(
-              errors.startOffsetSeconds.message,
-              { max: 300 },
-              tValidation,
-            )}
+            {resolveValidationError(errors.startOffsetSeconds.message, { max: 300 }, tValidation)}
           </p>
         )}
       </div>

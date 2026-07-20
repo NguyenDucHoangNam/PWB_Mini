@@ -322,9 +322,9 @@
     "timeMinutes": "{minutes} phút trước",
     "timeHours": "{hours} giờ trước",
     "timeDays": "{days} ngày trước",
-"loadError": "Có lỗi xảy ra khi tải danh sách phiên đăng nhập. Vui lòng tải lại trang.",
-      "cancel": "Hủy bỏ"
-    },
+    "loadError": "Có lỗi xảy ra khi tải danh sách phiên đăng nhập. Vui lòng tải lại trang.",
+    "cancel": "Hủy bỏ"
+  },
   "account": {
     "delete": {
       "title": "XÓA TÀI KHOẢN VĨNH VIỄN",
@@ -683,7 +683,8 @@
       "textTooLong": "Văn bản không được quá 4000 ký tự",
       "invalidLanguageCode": "Mã ngôn ngữ không đúng định dạng (vd: en-US)",
       "genericError": "Đã có lỗi xảy ra. Vui lòng thử lại.",
-      "fileRequired": "Vui lòng chọn file âm thanh"
+      "fileRequired": "Vui lòng chọn file âm thanh",
+      "duplicateVoiceTagName": "Tên voice tag đã tồn tại"
     },
     "actions": {
       "create": "Tạo mới",

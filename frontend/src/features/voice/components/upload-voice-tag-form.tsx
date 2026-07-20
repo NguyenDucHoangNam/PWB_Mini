@@ -10,10 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { asApiError } from "@/lib/api-client";
-import { resolveErrorI18nKey } from "@/lib/error-code-to-i18n";
 import { useUploadVoiceTag } from "../api/voice-tags";
 import { useFileValidation } from "../hooks/use-file-validation";
-import { uploadVoiceTagFormSchema, type UploadVoiceTagFormValues } from "../schemas/voice-tag-schema";
+import { resolveVoiceErrorMessage } from "../lib/resolve-voice-error-message";
+import {
+  uploadVoiceTagFormSchema,
+  type UploadVoiceTagFormValues,
+} from "../schemas/voice-tag-schema";
 
 interface UploadVoiceTagFormProps {
   onCancel?: () => void;
@@ -49,11 +52,12 @@ export function UploadVoiceTagForm({ onCancel, onSuccess }: UploadVoiceTagFormPr
           toast.success(t("uploadSuccess"));
           onSuccess?.();
           router.push("/dashboard/voice-tags");
+        } else {
+          toast.error(response.message || tCommon("error"));
         }
       },
       onError: asApiError((err) => {
-        const key = resolveErrorI18nKey(err);
-        toast.error(key ? tErrors(key.split(".").pop() as never) : tCommon("error"));
+        toast.error(resolveVoiceErrorMessage(err, tErrors, tCommon));
       }),
     },
   });
@@ -85,7 +89,7 @@ export function UploadVoiceTagForm({ onCancel, onSuccess }: UploadVoiceTagFormPr
       "metadata",
       new Blob([JSON.stringify({ name: values.name })], {
         type: "application/json",
-      })
+      }),
     );
     upload({ formData });
   });

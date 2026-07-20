@@ -6,8 +6,8 @@ import com.pwb.backend.web.ApiResponse;
 import com.pwb.backend.web.MessageResolver;
 import com.pwb.voice.api.VoiceTagFacade;
 import com.pwb.voice.api.dto.request.CreateTtsVoiceTagRequest;
-import com.pwb.voice.api.dto.request.UploadVoiceTagRequest;
 import com.pwb.voice.api.dto.request.UpdateVoiceTagRequest;
+import com.pwb.voice.api.dto.request.UploadVoiceTagRequest;
 import com.pwb.voice.api.dto.response.AudioUrlResponse;
 import com.pwb.voice.api.dto.response.VoiceTagResponse;
 import com.pwb.voice.api.enums.VoiceTagType;
@@ -46,6 +46,7 @@ public class VoiceTagController {
     private static final String MSG_CREATED = "VOICE_TAG_CREATED";
     private static final String MSG_UPDATED = "VOICE_TAG_UPDATED";
     private static final String MSG_DELETED = "VOICE_TAG_DELETED";
+    private static final String PATH_ID = "id";
     private static final Duration PRESIGNED_URL_TTL = Duration.ofHours(1);
 
     private final VoiceTagFacade voiceTagFacade;
@@ -82,7 +83,7 @@ public class VoiceTagController {
     @GetMapping("/{id}")
     public ApiResponse<VoiceTagResponse> get(
             @CurrentUser AuthenticatedUser user,
-            @PathVariable UUID id) {
+            @PathVariable(name = PATH_ID) UUID id) {
         VoiceTagResponse data = voiceTagFacade.getTag(user.getId(), id);
         return ApiResponse.success(data, null);
     }
@@ -90,7 +91,7 @@ public class VoiceTagController {
     @PutMapping("/{id}")
     public ApiResponse<VoiceTagResponse> update(
             @CurrentUser AuthenticatedUser user,
-            @PathVariable UUID id,
+            @PathVariable(name = PATH_ID) UUID id,
             @Valid @RequestBody UpdateVoiceTagRequest request) {
         VoiceTagResponse data = voiceTagFacade.updateTag(user.getId(), id, request);
         return ApiResponse.success(data, messageResolver.get(MSG_UPDATED));
@@ -99,7 +100,7 @@ public class VoiceTagController {
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(
             @CurrentUser AuthenticatedUser user,
-            @PathVariable UUID id) {
+            @PathVariable(name = PATH_ID) UUID id) {
         voiceTagFacade.deleteTag(user.getId(), id);
         return ApiResponse.success(null, messageResolver.get(MSG_DELETED));
     }
@@ -107,7 +108,7 @@ public class VoiceTagController {
     @GetMapping("/{id}/audio")
     public ApiResponse<AudioUrlResponse> getAudioUrl(
             @CurrentUser AuthenticatedUser user,
-            @PathVariable UUID id) {
+            @PathVariable(name = PATH_ID) UUID id) {
         URL url = voiceTagFacade.getAudioPresignedUrl(user.getId(), id, PRESIGNED_URL_TTL);
         AudioUrlResponse data = AudioUrlResponse.builder()
                 .url(url)

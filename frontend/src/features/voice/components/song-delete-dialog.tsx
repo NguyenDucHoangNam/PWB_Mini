@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useDeleteSong } from "@/features/voice/api/songs";
 import { asApiError } from "@/lib/api-client";
-import { resolveErrorI18nKey } from "@/lib/error-code-to-i18n";
+import { resolveVoiceErrorMessage } from "@/features/voice/lib/resolve-voice-error-message";
 import type { Song } from "../types";
 
 interface SongDeleteDialogProps {
@@ -37,11 +37,12 @@ export function SongDeleteDialog({ song, open, onOpenChange }: SongDeleteDialogP
           toast.success(t("confirmButton"));
           onOpenChange(false);
           router.refresh();
+        } else {
+          toast.error(response.message || tCommon("error"));
         }
       },
       onError: asApiError((err) => {
-        const key = resolveErrorI18nKey(err);
-        toast.error(key ? tErrors(key.split(".").pop() as never) : tCommon("error"));
+        toast.error(resolveVoiceErrorMessage(err, tErrors, tCommon));
       }),
     },
   });

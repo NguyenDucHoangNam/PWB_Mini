@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { asApiError } from "@/lib/api-client";
-import { resolveErrorI18nKey } from "@/lib/error-code-to-i18n";
+import { resolveVoiceErrorMessage } from "../lib/resolve-voice-error-message";
 import { useUploadSong } from "../api/songs";
 import { useFileValidation } from "../hooks/use-file-validation";
 import { uploadSongFormSchema, type UploadSongFormValues } from "../schemas/song-schema";
@@ -50,11 +50,12 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
           toast.success(t("uploadSuccess"));
           onSuccess?.();
           router.push("/dashboard/songs");
+        } else {
+          toast.error(response.message || tCommon("error"));
         }
       },
       onError: asApiError((err) => {
-        const key = resolveErrorI18nKey(err);
-        toast.error(key ? tErrors(key.split(".").pop() as never) : tCommon("error"));
+        toast.error(resolveVoiceErrorMessage(err, tErrors, tCommon));
       }),
     },
   });
@@ -94,8 +95,8 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
             album: values.album || undefined,
           }),
         ],
-        { type: "application/json" }
-      )
+        { type: "application/json" },
+      ),
     );
 
     upload({ formData });

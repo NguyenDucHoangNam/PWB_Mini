@@ -322,9 +322,9 @@
     "timeMinutes": "{minutes}m ago",
     "timeHours": "{hours}h ago",
     "timeDays": "{days}d ago",
-"loadError": "An error occurred while loading active sessions. Please reload page.",
-      "cancel": "Cancel"
-    },
+    "loadError": "An error occurred while loading active sessions. Please reload page.",
+    "cancel": "Cancel"
+  },
   "account": {
     "delete": {
       "title": "DELETE ACCOUNT PERMANENTLY",
@@ -683,7 +683,8 @@
       "textTooLong": "Text must not exceed 4000 characters",
       "invalidLanguageCode": "Invalid language code format (e.g. en-US)",
       "genericError": "Something went wrong. Please try again.",
-      "fileRequired": "Please select an audio file"
+      "fileRequired": "Please select an audio file",
+      "duplicateVoiceTagName": "Voice tag name already exists"
     },
     "actions": {
       "create": "Create new",

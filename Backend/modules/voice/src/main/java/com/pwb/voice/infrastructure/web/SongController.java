@@ -51,6 +51,8 @@ public class SongController {
     private static final String MSG_DELETED = "SONG_DELETED";
     private static final String MSG_CONFIGURED = "VOICE_TAG_CONFIGURED";
     private static final String MSG_CONFIG_REMOVED = "VOICE_TAG_DELETED";
+    private static final String PATH_ID = "id";
+    private static final String PATH_SONG_ID = "songId";
     private static final Duration PRESIGNED_URL_TTL = Duration.ofHours(1);
 
     private final SongFacade songFacade;
@@ -78,7 +80,7 @@ public class SongController {
     @GetMapping("/{id}")
     public ApiResponse<SongDetailResponse> get(
             @CurrentUser AuthenticatedUser user,
-            @PathVariable UUID id) {
+            @PathVariable(name = PATH_ID) UUID id) {
         SongDetailResponse data = songFacade.getSong(user.getId(), id);
         return ApiResponse.success(data, null);
     }
@@ -86,7 +88,7 @@ public class SongController {
     @PutMapping("/{id}")
     public ApiResponse<SongResponse> update(
             @CurrentUser AuthenticatedUser user,
-            @PathVariable UUID id,
+            @PathVariable(name = PATH_ID) UUID id,
             @Valid @RequestBody UpdateSongRequest request) {
         SongResponse data = songFacade.updateSong(user.getId(), id, request);
         return ApiResponse.success(data, messageResolver.get(MSG_UPDATED));
@@ -95,7 +97,7 @@ public class SongController {
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(
             @CurrentUser AuthenticatedUser user,
-            @PathVariable UUID id) {
+            @PathVariable(name = PATH_ID) UUID id) {
         songFacade.deleteSong(user.getId(), id);
         return ApiResponse.success(null, messageResolver.get(MSG_DELETED));
     }
@@ -103,7 +105,7 @@ public class SongController {
     @PostMapping("/{songId}/voice-tag")
     public ResponseEntity<ApiResponse<VoiceTagConfigResponse>> configureVoiceTag(
             @CurrentUser AuthenticatedUser user,
-            @PathVariable UUID songId,
+            @PathVariable(name = PATH_SONG_ID) UUID songId,
             @Valid @RequestBody ConfigureVoiceTagRequest request) {
         VoiceTagConfigResponse data = songFacade.configureVoiceTag(user.getId(), songId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -113,7 +115,7 @@ public class SongController {
     @GetMapping("/{songId}/voice-tag")
     public ApiResponse<VoiceTagConfigResponse> getVoiceTagConfig(
             @CurrentUser AuthenticatedUser user,
-            @PathVariable UUID songId) {
+            @PathVariable(name = PATH_SONG_ID) UUID songId) {
         VoiceTagConfigResponse data = songFacade.getVoiceTagConfig(user.getId(), songId);
         return ApiResponse.success(data, null);
     }
@@ -121,7 +123,7 @@ public class SongController {
     @DeleteMapping("/{songId}/voice-tag")
     public ApiResponse<Void> removeVoiceTagConfig(
             @CurrentUser AuthenticatedUser user,
-            @PathVariable UUID songId) {
+            @PathVariable(name = PATH_SONG_ID) UUID songId) {
         songFacade.removeVoiceTagConfig(user.getId(), songId);
         return ApiResponse.success(null, messageResolver.get(MSG_CONFIG_REMOVED));
     }
@@ -129,7 +131,7 @@ public class SongController {
     @PostMapping("/{songId}/process")
     public ApiResponse<ProcessingStatusResponse> triggerProcessing(
             @CurrentUser AuthenticatedUser user,
-            @PathVariable UUID songId) {
+            @PathVariable(name = PATH_SONG_ID) UUID songId) {
         ProcessingStatusResponse data = songFacade.triggerProcessing(user.getId(), songId);
         String translated = messageResolver.get(data.getMessage());
         return ApiResponse.success(data, translated);
@@ -138,7 +140,7 @@ public class SongController {
     @GetMapping("/{songId}/status")
     public ApiResponse<ProcessingStatusResponse> getProcessingStatus(
             @CurrentUser AuthenticatedUser user,
-            @PathVariable UUID songId) {
+            @PathVariable(name = PATH_SONG_ID) UUID songId) {
         ProcessingStatusResponse data = songFacade.getProcessingStatus(user.getId(), songId);
         return ApiResponse.success(data, null);
     }
@@ -146,7 +148,7 @@ public class SongController {
     @GetMapping("/{id}/stream")
     public ApiResponse<AudioUrlResponse> stream(
             @CurrentUser AuthenticatedUser user,
-            @PathVariable UUID id) {
+            @PathVariable(name = PATH_ID) UUID id) {
         URL presignedUrl = songFacade.getStreamPresignedUrl(user.getId(), id, PRESIGNED_URL_TTL);
         AudioUrlResponse data = AudioUrlResponse.builder()
                 .url(presignedUrl)
@@ -158,7 +160,7 @@ public class SongController {
     @GetMapping("/{id}/original")
     public ApiResponse<AudioUrlResponse> original(
             @CurrentUser AuthenticatedUser user,
-            @PathVariable UUID id) {
+            @PathVariable(name = PATH_ID) UUID id) {
         URL presignedUrl = songFacade.getOriginalPresignedUrl(user.getId(), id, PRESIGNED_URL_TTL);
         AudioUrlResponse data = AudioUrlResponse.builder()
                 .url(presignedUrl)

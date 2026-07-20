@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useDeleteVoiceTag } from "@/features/voice/api/voice-tags";
 import { asApiError } from "@/lib/api-client";
-import { resolveErrorI18nKey } from "@/lib/error-code-to-i18n";
+import { resolveVoiceErrorMessage } from "@/features/voice/lib/resolve-voice-error-message";
 
 interface VoiceTagDeleteDialogProps {
   voiceTagId: string | null;
@@ -45,11 +45,12 @@ export function VoiceTagDeleteDialog({
           onOpenChange(false);
           onSuccess?.();
           router.refresh();
+        } else {
+          toast.error(response.message || tCommon("error"));
         }
       },
       onError: asApiError((err) => {
-        const key = resolveErrorI18nKey(err);
-        toast.error(key ? tErrors(key.split(".").pop() as never) : tCommon("error"));
+        toast.error(resolveVoiceErrorMessage(err, tErrors, tCommon));
       }),
     },
   });
