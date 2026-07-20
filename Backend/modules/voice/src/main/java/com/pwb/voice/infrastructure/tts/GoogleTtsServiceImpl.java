@@ -16,24 +16,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class GoogleTtsServiceImpl implements TextToSpeechService {
 
     private static final String CACHE_NAME = "ttsCache";
-    private static final String SHA_256 = "SHA-256";
-    private static final String KEY_DELIMITER = "|";
 
     private final TextToSpeechClient textToSpeechClient;
     private final TtsProperties ttsProperties;
 
     @Override
-    @Cacheable(value = CACHE_NAME, key = "#root.target.cacheKey(#text, #languageCode)")
+    @Cacheable(value = CACHE_NAME, key = "#text.concat('|').concat(#languageCode)")
     public byte[] synthesize(String text, String languageCode) {
         long startMs = System.currentTimeMillis();
         int textLength = text == null ? 0 : text.length();
@@ -71,31 +65,5 @@ public class GoogleTtsServiceImpl implements TextToSpeechService {
                     textLength, languageCode, durationMs, ex);
             throw new BusinessException(ErrorCode.TTS_GENERATION_FAILED, ex);
         }
-    }
-
-    public String cacheKey(String text, String languageCode) {
-        String raw = String.join(KEY_DELIMITER,
-                text == null ? "" : text,
-                languageCode == null ? "" : languageCode,
-                ttsProperties.getDefaultVoiceName(),
-                Double.toString(ttsProperties.getSpeakingRate()),
-                Double.toString(ttsProperties.getPitch()));
-
-        try {
-            MessageDigest digest = MessageDigest.getInstance(SHA_256);
-            byte[] hash = digest.digest(raw.getBytes(StandardCharsets.UTF_8));
-            return toHex(hash);
-        } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException("SHA-256 algorithm not available", ex);
-        }
-    }
-
-    private static String toHex(byte[] bytes) {
-        StringBuilder hex = new StringBuilder(bytes.length * 2);
-        for (byte b : bytes) {
-            hex.append(Character.forDigit((b >> 4) & 0xF, 16));
-            hex.append(Character.forDigit(b & 0xF, 16));
-        }
-        return hex.toString();
     }
 }
