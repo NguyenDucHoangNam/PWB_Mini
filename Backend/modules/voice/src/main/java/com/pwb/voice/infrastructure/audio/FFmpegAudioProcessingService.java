@@ -86,23 +86,40 @@ public class FFmpegAudioProcessingService implements AudioProcessingService {
             List<String> mixInputs = new ArrayList<>();
             mixInputs.add("[0:a]");
 
+            if (insertionPoints > 1) {
+                filterComplex.append("[1:a]asplit=").append(insertionPoints);
+                for (int i = 0; i < insertionPoints; i++) {
+                    filterComplex.append("[vtag").append(i).append("]");
+                }
+                filterComplex.append(";");
+            }
+
             for (int i = 0; i < insertionPoints; i++) {
                 long delayMs = (long) (startOffset + i * intervalSeconds) * MILLIS_PER_SECOND;
-                String label = "[tag" + i + "]";
-                StringBuilder chain = new StringBuilder();
-                chain.append("[1:a]").append(FILTER_VOLUME).append("=").append(volumeFactor(config)).append(",");
+                String inputLabel = (insertionPoints > 1) ? "[vtag" + i + "]" : "[1:a]";
+                String outputLabel = "[tag" + i + "]";
+
+                List<String> filters = new ArrayList<>();
+                filters.add(FILTER_VOLUME + "=" + volumeFactor(config));
+
                 if (config.getFadeInDurationMs() != null && config.getFadeInDurationMs() > 0) {
-                    chain.append(FILTER_AFADE).append("=t=in:st=0:d=")
-                            .append(config.getFadeInDurationMs() / 1000.0).append(",");
+                    filters.add(FILTER_AFADE + "=t=in:st=0:d=" + (config.getFadeInDurationMs() / 1000.0));
                 }
-                chain.append(FILTER_DELAY).append("=").append(delayMs).append("|").append(delayMs);
+
+                if (delayMs > 0) {
+                    filters.add(FILTER_DELAY + "=" + delayMs + ":all=1");
+                }
+
                 if (config.getFadeOutDurationMs() != null && config.getFadeOutDurationMs() > 0) {
-                    chain.append(",").append(FILTER_AFADE).append("=t=out:st=0:d=")
-                            .append(config.getFadeOutDurationMs() / 1000.0);
+                    filters.add(FILTER_AFADE + "=t=out:st=0:d=" + (config.getFadeOutDurationMs() / 1000.0));
                 }
-                chain.append(label);
-                filterComplex.append(chain).append(";");
-                mixInputs.add(label);
+
+                filterComplex.append(inputLabel)
+                        .append(String.join(",", filters))
+                        .append(outputLabel)
+                        .append(";");
+
+                mixInputs.add(outputLabel);
             }
 
             StringBuilder mixExpression = new StringBuilder();
@@ -121,9 +138,10 @@ public class FFmpegAudioProcessingService implements AudioProcessingService {
             FFmpeg.atPath()
                     .addInput(UrlInput.fromPath(original))
                     .addInput(UrlInput.fromPath(voiceTag))
-                    .setComplexFilter(fullFilter)
+                    .addArguments("-filter_complex", fullFilter)
+                    .addArguments("-map", "[out]")
                     .setOverwriteOutput(true)
-                    .addOutput(UrlOutput.toPath(output).addMap("[out]"))
+                    .addOutput(UrlOutput.toPath(output))
                     .execute();
 
             return output;

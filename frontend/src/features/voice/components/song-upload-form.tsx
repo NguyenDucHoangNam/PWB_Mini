@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { standardSchemaResolver as zodResolver } from "@hookform/resolvers/standard-schema";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { asApiError } from "@/lib/api-client";
 import { resolveVoiceErrorMessage } from "../lib/resolve-voice-error-message";
 import { useUploadSong } from "../api/songs";
+import { useListVoiceTags } from "../api/voice-tags";
 import { useFileValidation } from "../hooks/use-file-validation";
 import { uploadSongFormSchema, type UploadSongFormValues } from "../schemas/song-schema";
 
@@ -33,15 +34,31 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
   const router = useRouter();
 
   const { validateAudioFile } = useFileValidation();
+  const { data: voiceTagsRes } = useListVoiceTags({ page: 0, size: 50 });
+  const voiceTags = voiceTagsRes?.data?.content ?? [];
 
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<UploadSongFormValues>({
     resolver: zodResolver(uploadSongFormSchema),
-    defaultValues: { title: "", artist: "", album: "" },
+    defaultValues: {
+      title: "",
+      artist: "",
+      album: "",
+      attachVoiceTag: false,
+      voiceTagId: "",
+      intervalSeconds: 10,
+      volumePercentage: 80,
+      fadeInDurationMs: 0,
+      fadeOutDurationMs: 0,
+      startOffsetSeconds: 0,
+    },
   });
+
+  const attachVoiceTag = useWatch({ control, name: "attachVoiceTag" });
 
   const { mutate: upload, isPending } = useUploadSong({
     mutationConfig: {
@@ -81,22 +98,34 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
       setClientError(tErrors("fileRequired"));
       return;
     }
+    if (values.attachVoiceTag && !values.voiceTagId) {
+      setClientError(t("selectVoiceTagPlaceholder"));
+      return;
+    }
     setClientError(null);
+
+    const metadataPayload: Record<string, unknown> = {
+      title: values.title,
+      artist: values.artist || undefined,
+      album: values.album || undefined,
+    };
+
+    if (values.attachVoiceTag && values.voiceTagId) {
+      metadataPayload.voiceTagConfig = {
+        voiceTagId: values.voiceTagId,
+        intervalSeconds: Number(values.intervalSeconds) || 10,
+        volumePercentage: Number(values.volumePercentage) || 80,
+        fadeInDurationMs: Number(values.fadeInDurationMs) || 0,
+        fadeOutDurationMs: Number(values.fadeOutDurationMs) || 0,
+        startOffsetSeconds: Number(values.startOffsetSeconds) || 0,
+      };
+    }
 
     const formData = new FormData();
     formData.append("file", file);
     formData.append(
       "metadata",
-      new Blob(
-        [
-          JSON.stringify({
-            title: values.title,
-            artist: values.artist || undefined,
-            album: values.album || undefined,
-          }),
-        ],
-        { type: "application/json" },
-      ),
+      new Blob([JSON.stringify(metadataPayload)], { type: "application/json" }),
     );
 
     upload({ formData });
@@ -148,6 +177,68 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
           <p className="text-xs text-red-600 dark:text-red-400">
             {tValidation(errors.album.message as never)}
           </p>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800 flex flex-col gap-3">
+        <label className="flex items-center gap-3 cursor-pointer select-none text-sm font-medium text-black dark:text-white">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-neutral-300 text-black focus:ring-black dark:border-neutral-700"
+            {...register("attachVoiceTag")}
+          />
+          {t("attachVoiceTag")}
+        </label>
+
+        {attachVoiceTag && (
+          <div className="flex flex-col gap-3 pt-2">
+            {voiceTags.length === 0 ? (
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                {t("noVoiceTags")}
+              </p>
+            ) : (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="voice-tag-select">{t("selectVoiceTag")}</Label>
+                  <select
+                    id="voice-tag-select"
+                    className="h-9 w-full rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm dark:border-neutral-800 dark:bg-black dark:text-white"
+                    {...register("voiceTagId")}
+                  >
+                    <option value="">-- {t("selectVoiceTagPlaceholder")} --</option>
+                    {voiceTags.map((vt) => (
+                      <option key={vt.id} value={vt.id}>
+                        {vt.name} ({vt.tagType})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="interval-seconds">{t("intervalSeconds")}</Label>
+                    <Input
+                      id="interval-seconds"
+                      type="number"
+                      min={1}
+                      {...register("intervalSeconds")}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="volume-percentage">{t("volumePercentage")}</Label>
+                    <Input
+                      id="volume-percentage"
+                      type="number"
+                      min={0}
+                      max={100}
+                      {...register("volumePercentage")}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         )}
       </div>
 

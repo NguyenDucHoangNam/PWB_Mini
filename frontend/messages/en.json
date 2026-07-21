@@ -631,7 +631,13 @@
         "fileLabel": "Audio file",
         "fileRequired": "Please select an audio file",
         "uploadingProgress": "Uploading...",
-        "uploadSuccess": "Song uploaded successfully"
+        "uploadSuccess": "Song uploaded successfully",
+        "attachVoiceTag": "Attach Voice Tag during upload",
+        "selectVoiceTag": "Select Voice Tag",
+        "selectVoiceTagPlaceholder": "Select a voice tag...",
+        "noVoiceTags": "No Voice Tags available. You can create one under Voice Tags tab.",
+        "intervalSeconds": "Repeat Interval (seconds)",
+        "volumePercentage": "Voice Tag Volume (%)"
       },
       "delete": {
         "confirmTitle": "Delete song?",

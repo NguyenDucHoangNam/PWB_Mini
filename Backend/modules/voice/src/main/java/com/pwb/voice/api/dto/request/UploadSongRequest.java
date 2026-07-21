@@ -1,5 +1,6 @@
 package com.pwb.voice.api.dto.request;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -22,4 +23,7 @@ public class UploadSongRequest {
 
     @Size(max = 256, message = "{validation.album.maxlength}")
     private String album;
+
+    @Valid
+    private ConfigureVoiceTagRequest voiceTagConfig;
 }

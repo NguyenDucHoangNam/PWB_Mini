@@ -114,6 +114,11 @@ public Song uploadSong(UUID userId, MultipartFile file, UploadSongRequest reques
         log.info("Song uploaded: userId={}, songId={}, durationSeconds={}, fileSizeBytes={}",
                 userId, saved.getId(), metadata.durationSeconds(), file.getSize());
 
+        if (request.getVoiceTagConfig() != null) {
+            configureVoiceTag(userId, saved.getId(), request.getVoiceTagConfig());
+            return triggerProcessing(userId, saved.getId());
+        }
+
         return songMapper.toDomain(saved);
     }
 

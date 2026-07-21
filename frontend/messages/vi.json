@@ -631,7 +631,13 @@
         "fileLabel": "File âm thanh",
         "fileRequired": "Vui lòng chọn file âm thanh",
         "uploadingProgress": "Đang upload...",
-        "uploadSuccess": "Upload bài hát thành công"
+        "uploadSuccess": "Upload bài hát thành công",
+        "attachVoiceTag": "Gắn kèm Voice Tag ngay khi upload",
+        "selectVoiceTag": "Chọn Voice Tag",
+        "selectVoiceTagPlaceholder": "Chọn một voice tag...",
+        "noVoiceTags": "Chưa có Voice Tag nào. Bạn có thể tạo ở mục Voice Tag.",
+        "intervalSeconds": "Khoảng cách lặp (giây)",
+        "volumePercentage": "Âm lượng Voice Tag (%)"
       },
       "delete": {
         "confirmTitle": "Xóa bài hát?",

@@ -86,6 +86,7 @@ export interface UploadSongRequest {
   title: string;
   artist?: string;
   album?: string;
+  voiceTagConfig?: ConfigureVoiceTagRequest;
 }
 
 export interface UpdateSongRequest {
