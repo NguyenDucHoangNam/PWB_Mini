@@ -41,13 +41,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AuthController {
 
-    private static final String MSG_REGISTER_SUCCESSFUL = "AUTH_REGISTER_SUCCESSFUL";
-    private static final String MSG_LOGIN_SUCCESSFUL = "AUTH_LOGIN_SUCCESSFUL";
-    private static final String MSG_GOOGLE_LOGIN_SUCCESSFUL = "AUTH_GOOGLE_LOGIN_SUCCESSFUL";
-    private static final String MSG_REFRESH_TOKEN_SUCCESSFUL = "AUTH_REFRESH_TOKEN_SUCCESSFUL";
-    private static final String MSG_LOGOUT_SUCCESSFUL = "AUTH_LOGOUT_SUCCESSFUL";
-    private static final String MSG_VERIFY_OTP_SUCCESSFUL = "AUTH_VERIFY_OTP_SUCCESSFUL";
-    private static final String MSG_COMPLETE_PROFILE_SUCCESSFUL = "AUTH_COMPLETE_PROFILE_SUCCESSFUL";
+    private static final String MSG_REGISTER = "AUTH_REGISTER_MESSAGE";
+    private static final String MSG_LOGIN = "AUTH_LOGIN_SUCCESSFUL";
+    private static final String MSG_GOOGLE_LOGIN = "AUTH_GOOGLE_LOGIN_SUCCESSFUL";
+    private static final String MSG_REFRESH_TOKEN = "AUTH_REFRESH_TOKEN_SUCCESSFUL";
+    private static final String MSG_LOGOUT = "AUTH_LOGOUT_SUCCESSFUL";
+    private static final String MSG_VERIFY_OTP = "AUTH_VERIFY_OTP_SUCCESSFUL";
+    private static final String MSG_COMPLETE_PROFILE = "AUTH_COMPLETE_PROFILE_SUCCESSFUL";
 
     private final IamFacade iamFacade;
     private final RefreshTokenCookieService refreshTokenCookieService;
@@ -64,7 +64,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthMessageResponse>> register(@Valid @RequestBody RegisterRequest request) {
         AuthMessageResponse data = iamFacade.register(request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.created(data, messageResolver.get(MSG_REGISTER_SUCCESSFUL)));
+                .body(ApiResponse.created(data, messageResolver.get(MSG_REGISTER)));
     }
 
     @Operation(summary = "Login with email and password", description = "Authenticates user and returns access token + refresh cookie")
@@ -78,7 +78,7 @@ public class AuthController {
                                                            HttpServletResponse response) {
         AuthResponse data = iamFacade.login(request);
         refreshTokenCookieService.setRefreshCookie(response, data.getRefreshToken());
-        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_LOGIN_SUCCESSFUL)));
+        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_LOGIN)));
     }
 
     @Operation(summary = "Login with Google ID token", description = "Authenticates or registers user via Google OAuth2 and returns tokens")
@@ -92,7 +92,7 @@ public class AuthController {
                                                                     HttpServletResponse response) {
         AuthResponse data = iamFacade.loginWithGoogle(request);
         refreshTokenCookieService.setRefreshCookie(response, data.getRefreshToken());
-        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_GOOGLE_LOGIN_SUCCESSFUL)));
+        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_GOOGLE_LOGIN)));
     }
 
     @Operation(summary = "Refresh access token", description = "Uses refresh token (cookie or body) to issue new access + refresh tokens")
@@ -110,7 +110,7 @@ public class AuthController {
                 : (body != null ? body.getRefreshToken() : null);
         AuthResponse data = iamFacade.refresh(RefreshTokenRequest.builder().refreshToken(token).build());
         refreshTokenCookieService.setRefreshCookie(response, data.getRefreshToken());
-        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_REFRESH_TOKEN_SUCCESSFUL)));
+        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_REFRESH_TOKEN)));
     }
 
     @SecurityRequirement(name = "bearerAuth")
@@ -125,7 +125,7 @@ public class AuthController {
                                                                   HttpServletResponse response) {
         refreshTokenCookieService.clearRefreshCookie(response);
         AuthMessageResponse data = iamFacade.logout(user.getId());
-        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_LOGOUT_SUCCESSFUL)));
+        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_LOGOUT)));
     }
 
     @Operation(summary = "Verify OTP", description = "Verifies the OTP code sent to user email and activates the account")
@@ -138,7 +138,7 @@ public class AuthController {
                                                                HttpServletResponse response) {
         AuthResponse data = iamFacade.verifyOtp(request);
         refreshTokenCookieService.setRefreshCookie(response, data.getRefreshToken());
-        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_VERIFY_OTP_SUCCESSFUL)));
+        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_VERIFY_OTP)));
     }
 
     @Operation(summary = "Resend OTP", description = "Resends the OTP code to the user's email (cooldown: 60 seconds)")
@@ -168,7 +168,7 @@ public class AuthController {
             HttpServletResponse response) {
         AuthResponse data = iamFacade.completeProfile(user.getId(), request);
         refreshTokenCookieService.setRefreshCookie(response, data.getRefreshToken());
-        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_COMPLETE_PROFILE_SUCCESSFUL)));
+        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_COMPLETE_PROFILE)));
     }
 
     @Operation(summary = "Request password reset", description = "Sends a password reset link to the user's email (cooldown: 60 seconds)")

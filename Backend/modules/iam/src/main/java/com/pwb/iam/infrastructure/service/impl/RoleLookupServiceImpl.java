@@ -4,6 +4,7 @@ import com.pwb.backend.exception.BusinessException;
 import com.pwb.backend.exception.ErrorCode;
 import com.pwb.iam.core.model.Role;
 import com.pwb.iam.core.model.RoleName;
+import com.pwb.iam.infrastructure.persistence.entity.RoleJpaEntity;
 import com.pwb.iam.infrastructure.persistence.mapper.RoleMapper;
 import com.pwb.iam.infrastructure.persistence.repository.RoleJpaRepository;
 import com.pwb.iam.infrastructure.service.RoleLookupService;
@@ -29,6 +30,7 @@ public class RoleLookupServiceImpl implements RoleLookupService {
     private long cacheTtlSeconds;
 
     private final ConcurrentMap<RoleName, CacheEntry> cache = new ConcurrentHashMap<>();
+    private final ConcurrentMap<RoleName, RoleJpaEntity> entityCache = new ConcurrentHashMap<>();
 
     @Override
     public Role requireRole(RoleName roleName) {
@@ -37,12 +39,27 @@ public class RoleLookupServiceImpl implements RoleLookupService {
         if (entry != null && entry.expiresAt.isAfter(now)) {
             return entry.role;
         }
-        Role role = roleJpaRepository.findByNameAndDeletedFalse(roleName.name())
-                .map(roleMapper::toDomain)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SEEDER_ROLE_NOT_FOUND));
+        RoleJpaEntity entity = loadEntity(roleName);
+        Role role = roleMapper.toDomain(entity);
         cache.put(roleName, new CacheEntry(role, now.plus(Duration.ofSeconds(Math.max(1L, cacheTtlSeconds)))));
         log.debug("Role cached: name={} ttl={}s", roleName, cacheTtlSeconds);
         return role;
+    }
+
+    @Override
+    public RoleJpaEntity requireRoleEntity(RoleName roleName) {
+        RoleJpaEntity cached = entityCache.get(roleName);
+        if (cached != null) {
+            return cached;
+        }
+        RoleJpaEntity loaded = loadEntity(roleName);
+        entityCache.put(roleName, loaded);
+        return loaded;
+    }
+
+    private RoleJpaEntity loadEntity(RoleName roleName) {
+        return roleJpaRepository.findByNameAndDeletedFalse(roleName.name())
+                .orElseThrow(() -> new BusinessException(ErrorCode.SEEDER_ROLE_NOT_FOUND));
     }
 
     private record CacheEntry(Role role, Instant expiresAt) { }

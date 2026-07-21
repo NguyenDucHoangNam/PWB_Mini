@@ -155,8 +155,6 @@ public class IamFacadeImpl implements IamFacade {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_REGISTERED_AUTH);
         }
 
-        enforcePasswordPolicy(request.getPassword());
-
         String username = generateProvisionalUsername();
         String hashed = passwordEncoder.encode(request.getPassword());
 
@@ -169,9 +167,7 @@ public class IamFacadeImpl implements IamFacade {
         domain.assignRole(roleLookupService.requireRole(RoleName.USER));
 
         UserJpaEntity entity = userMapper.toEntity(domain);
-        RoleJpaEntity roleEntity = roleJpaRepository.findByNameAndDeletedFalse(RoleName.USER.name())
-                .orElseThrow(() -> new BusinessException(ErrorCode.SEEDER_ROLE_NOT_FOUND));
-        entity.setRole(roleEntity);
+        entity.setRole(roleLookupService.requireRoleEntity(RoleName.USER));
 
         UserJpaEntity saved = userJpaRepository.save(entity);
         User savedDomain = userMapper.toDomain(saved);
@@ -182,8 +178,10 @@ public class IamFacadeImpl implements IamFacade {
         OtpPolicyResult policy = otpService.requestOtp(
                 savedDomain.getEmail().value(), OtpPurpose.REGISTER);
         if (!policy.allowed()) {
-            log.warn("OTP throttled right after register: userId={} cooldown={}",
-                    savedDomain.getUserId(), policy.cooldownRemaining());
+            long seconds = policy.cooldownRemaining().toSeconds();
+            log.warn("OTP throttled right after register: userId={} cooldown={}s",
+                    savedDomain.getUserId(), seconds);
+            throw new BusinessException(ErrorCode.AUTH_RATE_LIMIT_EXCEEDED, seconds);
         }
 
         return AuthMessageResponse.of(
