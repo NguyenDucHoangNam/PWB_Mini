@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useVerifyOtp } from "../api/verify-otp";
 import { useResendOtp } from "../api/resend-otp";
 import { useAuthStore } from "../stores/use-auth-store";
-import { OtpInput } from "./otp-input";
+import { OtpInput, type OtpInputHandle } from "./otp-input";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
-import { asApiError } from "@/lib/api-client";
+import { asApiError, type ApiError } from "@/lib/api-client";
+import { sanitizeApiMessage } from "@/lib/form-errors";
 import {
   getOtpExpirySeconds,
   getOtpResendCooldownSeconds,
@@ -20,21 +21,17 @@ import { pendingRegistration } from "../lib/pending-registration";
 import { useExpiryCountdown, useCooldown } from "../hooks/use-otp-countdown";
 
 const OTP_LOCKED_CODE = "AUTH_OTP_LOCKED";
-const OTP_RESEND_COOLDOWN_CODE = "AUTH_OTP_RATE_LIMIT";
+const OTP_INVALID_CODE = "AUTH_OTP_INVALID";
+const OTP_EXPIRED_CODE = "AUTH_OTP_EXPIRED";
+const OTP_RESEND_COOLDOWN_CODE = "AUTH_RATE_LIMIT_EXCEEDED";
+const COOLDOWN_MESSAGE_PATTERN = /(\d+)\s*(giây|seconds|s)\b/i;
 
-function parseRetryAfter(headers: Record<string, string> | undefined): number | null {
-  if (!headers) return null;
-  const raw = headers["retry-after"] ?? headers["Retry-After"];
-  if (!raw) return null;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed <= 0) return null;
-  return Math.floor(parsed);
-}
-
-function parseServerTimestamp(value: string | null | undefined): number | null {
-  if (!value) return null;
-  const ms = Date.parse(value);
-  return Number.isFinite(ms) ? ms : null;
+function extractCooldownSeconds(message: string | undefined | null): number | null {
+  if (!message) return null;
+  const match = message.match(COOLDOWN_MESSAGE_PATTERN);
+  if (!match) return null;
+  const seconds = Number.parseInt(match[1], 10);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
 }
 
 export function OtpForm() {
@@ -46,8 +43,10 @@ export function OtpForm() {
   const userId = searchParams.get("userId") || "";
   const [otpCode, setOtpCode] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [otpIssuedAt, setOtpIssuedAt] = useState<number | null>(null);
+  const [otpIssuedAt, setOtpIssuedAt] = useState<number | null>(() => Date.now());
   const [otpInvalid, setOtpInvalid] = useState(false);
+
+  const otpInputRef = useRef<OtpInputHandle>(null);
 
   useEffect(() => {
     if (!userId) {
@@ -72,14 +71,6 @@ export function OtpForm() {
 
   const { mutate: verifyMutate, isPending: isVerifying } = useVerifyOtp();
   const { mutate: resendMutate, isPending: isResending } = useResendOtp();
-
-  useEffect(() => {
-    if (otpIssuedAt === null) {
-      const now = Date.now();
-      setOtpIssuedAt(now);
-      cooldown.reset();
-    }
-  }, [otpIssuedAt, cooldown]);
 
   const handleVerify = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,7 +115,7 @@ export function OtpForm() {
             setOtpInvalid(true);
           }
         },
-        onError: asApiError((err) => {
+        onError: asApiError<unknown>((err: ApiError) => {
           const errorCode = err.errors?.[0]?.code;
           if (errorCode === OTP_LOCKED_CODE) {
             setOtpIssuedAt(Date.now() - otpExpiryTtl * 1000);
@@ -132,10 +123,18 @@ export function OtpForm() {
             setOtpInvalid(true);
             return;
           }
-          const apiError = err.errors?.[0]?.message;
-          setError(apiError || err.message || t("verificationFailed"));
+          if (errorCode === OTP_EXPIRED_CODE) {
+            setOtpIssuedAt(Date.now() - otpExpiryTtl * 1000);
+            setError(t("expiredError"));
+            setOtpInvalid(true);
+            return;
+          }
+          const apiError = sanitizeApiMessage(err, t("verificationFailed"));
+          setError(apiError);
           setOtpInvalid(true);
-          toast.error(t("errorToast"));
+          if (errorCode !== OTP_INVALID_CODE) {
+            toast.error(t("errorToast"));
+          }
         }),
       },
     );
@@ -152,18 +151,37 @@ export function OtpForm() {
       { data: { userId, purpose: "REGISTER" as const } },
       {
         onSuccess: (response) => {
-          toast.success(t("resendSuccess"));
-          setOtpIssuedAt(Date.now());
-          cooldown.reset();
-        },
-        onError: asApiError((err) => {
-          const errorCode = err.errors?.[0]?.code;
-          if (err.status === 429 || errorCode === OTP_RESEND_COOLDOWN_CODE) {
-            const retryAfter = parseRetryAfter(err.headers ?? undefined);
-            cooldown.setFromServer(Date.now(), retryAfter ?? resendCooldownTtl);
+          if (response.success && response.data) {
+            const cooldownSeconds = extractCooldownSeconds(response.data.message);
+
+            if (cooldownSeconds !== null) {
+              cooldown.setFromServer(Date.now(), cooldownSeconds);
+              setOtpIssuedAt(Date.now());
+              return;
+            }
+
+            toast.success(t("resendSuccess"));
+            setOtpIssuedAt(Date.now());
+            cooldown.reset();
+            otpInputRef.current?.clear();
+            otpInputRef.current?.flash();
+          } else {
+            setError(response.message || t("resendFailed"));
+            toast.error(t("resendFailedToast"));
           }
-          const apiError = err.errors?.[0]?.message;
-          setError(apiError || err.message || t("resendFailed"));
+        },
+        onError: asApiError<unknown>((err: ApiError) => {
+          const errorCode = err.errors?.[0]?.code;
+          if (errorCode === OTP_RESEND_COOLDOWN_CODE) {
+            const cooldownSeconds = extractCooldownSeconds(err.errors?.[0]?.message);
+            if (cooldownSeconds !== null) {
+              cooldown.setFromServer(Date.now(), cooldownSeconds);
+            } else {
+              cooldown.setFromServer(Date.now(), resendCooldownTtl);
+            }
+          }
+          const apiError = sanitizeApiMessage(err, t("resendFailed"));
+          setError(apiError);
           toast.error(t("resendFailedToast"));
         }),
       },
@@ -207,8 +225,10 @@ export function OtpForm() {
 
       <div className="flex flex-col gap-4">
         <OtpInput
+          ref={otpInputRef}
           disabled={isVerifying || otpExpiry === 0}
           invalid={otpInvalid}
+          flashOnUpdate
           onChange={setOtpCode}
         />
 
@@ -246,7 +266,10 @@ export function OtpForm() {
       <div className="text-center text-sm text-neutral-500 dark:text-neutral-400">
         {t("notReceivedText")}{" "}
         {cooldown.remaining > 0 ? (
-          <span className="text-neutral-400 font-semibold cursor-not-allowed">
+          <span className="text-neutral-400 font-semibold cursor-not-allowed inline-flex items-center gap-1.5">
+            {cooldown.remaining > 0 && (
+              <Spinner size="sm" className="text-neutral-400" />
+            )}
             {t("resendCooldownText", { seconds: cooldown.remaining })}
           </span>
         ) : (
@@ -254,9 +277,16 @@ export function OtpForm() {
             type="button"
             disabled={isResending}
             onClick={handleResend}
-            className="font-semibold text-black dark:text-white hover:underline focus:outline-none"
+            className="font-semibold text-black dark:text-white hover:underline focus:outline-none inline-flex items-center gap-1.5"
           >
-            {isResending ? t("resending") : t("resendLink")}
+            {isResending ? (
+              <>
+                <Spinner size="sm" />
+                {t("resending")}
+              </>
+            ) : (
+              t("resendLink")
+            )}
           </button>
         )}
       </div>

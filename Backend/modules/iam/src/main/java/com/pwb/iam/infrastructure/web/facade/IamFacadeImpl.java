@@ -29,6 +29,7 @@ import com.pwb.iam.core.model.UserStatus;
 import com.pwb.iam.core.events.AuthSuccessEvent;
 import com.pwb.iam.core.service.PasswordPolicyResult;
 import com.pwb.iam.core.service.PasswordPolicyService;
+import com.pwb.iam.infrastructure.config.OtpProperties;
 import com.pwb.iam.infrastructure.persistence.entity.PasswordResetTokenJpaEntity;
 import com.pwb.iam.infrastructure.persistence.entity.RoleJpaEntity;
 import com.pwb.iam.infrastructure.persistence.entity.UserJpaEntity;
@@ -68,6 +69,7 @@ public class IamFacadeImpl implements IamFacade {
 
     private static final String COOLDOWN_PREFIX = "password-reset:cooldown:";
     private static final int PROVISIONAL_USERNAME_RANDOM_LENGTH = 16;
+    private static final String PROVISIONAL_USERNAME_PREFIX = "user_";
 
     private static final String MSG_REGISTER = "AUTH_REGISTER_MESSAGE";
     private static final String MSG_FORGOT_PASSWORD = "AUTH_FORGOT_PASSWORD_SENT";
@@ -88,6 +90,7 @@ public class IamFacadeImpl implements IamFacade {
     private final AuthEventPublisher authEventPublisher;
     private final PasswordResetProperties passwordResetProperties;
     private final OtpService otpService;
+    private final OtpProperties otpProperties;
     private final MessageResolver messageResolver;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenStore refreshTokenStore;
@@ -114,6 +117,7 @@ public class IamFacadeImpl implements IamFacade {
             AuthEventPublisher authEventPublisher,
             PasswordResetProperties passwordResetProperties,
             OtpService otpService,
+            OtpProperties otpProperties,
             MessageResolver messageResolver,
             JwtTokenProvider jwtTokenProvider,
             RefreshTokenStore refreshTokenStore,
@@ -134,6 +138,7 @@ public class IamFacadeImpl implements IamFacade {
         this.authEventPublisher = authEventPublisher;
         this.passwordResetProperties = passwordResetProperties;
         this.otpService = otpService;
+        this.otpProperties = otpProperties;
         this.messageResolver = messageResolver;
         this.jwtTokenProvider = jwtTokenProvider;
         this.refreshTokenStore = refreshTokenStore;
@@ -217,8 +222,11 @@ public class IamFacadeImpl implements IamFacade {
         authEventPublisher.publishUserVerifiedEmail(saved.getId(), saved.getEmail());
 
         log.info("User OTP verified: userId={}", saved.getId());
+        AuthResponse.NextStep nextStep = isProvisionalUsername(saved.getUsername())
+                ? AuthResponse.NextStep.COMPLETE_PROFILE
+                : AuthResponse.NextStep.NONE;
         return buildAuthResponseWithRotation(
-                userMapper.toDomain(saved), AuthResponse.NextStep.COMPLETE_PROFILE);
+                userMapper.toDomain(saved), nextStep);
     }
 
     @Override
@@ -554,11 +562,16 @@ public class IamFacadeImpl implements IamFacade {
 
         OtpPolicyResult policy = otpService.requestOtp(entity.getEmail(), request.getPurpose());
         if (policy.allowed()) {
-            return AuthMessageResponse.of(entity.getId(), messageResolver.get(MSG_OTP_RESENT));
+            return AuthMessageResponse.of(
+                    entity.getId(),
+                    messageResolver.get(MSG_OTP_RESENT),
+                    (int) otpProperties.getTtlSeconds());
         }
         long seconds = policy.cooldownRemaining().toSeconds();
-        return AuthMessageResponse.of(entity.getId(),
-                messageResolver.get(MSG_OTP_COOLDOWN, seconds));
+        return AuthMessageResponse.of(
+                entity.getId(),
+                messageResolver.get(MSG_OTP_COOLDOWN, seconds),
+                (int) seconds);
     }
 
     @Override
@@ -585,7 +598,11 @@ public class IamFacadeImpl implements IamFacade {
 
     private String generateProvisionalUsername() {
         String hex = UUID.randomUUID().toString().replace("-", "");
-        return "user_" + hex.substring(0, PROVISIONAL_USERNAME_RANDOM_LENGTH);
+        return PROVISIONAL_USERNAME_PREFIX + hex.substring(0, PROVISIONAL_USERNAME_RANDOM_LENGTH);
+    }
+
+    private boolean isProvisionalUsername(String username) {
+        return username != null && username.startsWith(PROVISIONAL_USERNAME_PREFIX);
     }
 
     private void enforceResetCooldown(String email) {

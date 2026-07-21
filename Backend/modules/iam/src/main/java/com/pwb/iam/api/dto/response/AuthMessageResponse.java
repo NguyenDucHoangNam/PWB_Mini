@@ -17,10 +17,20 @@ public class AuthMessageResponse {
 
     private String message;
 
+    private Integer expiresIn;
+
     public static AuthMessageResponse of(UUID userId, String message) {
         return AuthMessageResponse.builder()
                 .userId(userId)
                 .message(message)
+                .build();
+    }
+
+    public static AuthMessageResponse of(UUID userId, String message, Integer expiresIn) {
+        return AuthMessageResponse.builder()
+                .userId(userId)
+                .message(message)
+                .expiresIn(expiresIn)
                 .build();
     }
 }

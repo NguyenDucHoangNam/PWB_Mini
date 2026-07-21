@@ -355,6 +355,21 @@
     }
   }
 
+  @keyframes otp-flash {
+    0% {
+      border-color: oklch(0.65 0.16 155);
+      box-shadow: 0 0 0 0 oklch(0.65 0.16 155 / 0.45);
+    }
+    50% {
+      border-color: oklch(0.65 0.16 155);
+      box-shadow: 0 0 0 6px oklch(0.65 0.16 155 / 0);
+    }
+    100% {
+      border-color: var(--input);
+      box-shadow: 0 0 0 0 oklch(0.65 0.16 155 / 0);
+    }
+  }
+
   .cn-toast__waveform {
     @apply ml-auto inline-flex items-end gap-[2px] opacity-70;
     height: 14px;
@@ -381,6 +396,10 @@
   }
   .cn-toast__waveform > span:nth-child(5) {
     animation-delay: 480ms;
+  }
+
+  .otp-flash {
+    animation: otp-flash 800ms ease-out;
   }
 }
 

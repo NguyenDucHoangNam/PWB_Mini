@@ -27,12 +27,27 @@ export function getBackendOrigin(): string | null {
   }
 }
 
+/**
+ * Server-side OTP lifetime in seconds. Used by the OTP countdown UI.
+ *
+ * MUST stay in sync with the backend `OtpProperties.ttlSeconds`. The default
+ * fallback is intentionally identical to the backend default (300s = 5min) so
+ * the worst-case drift is "OTP expires earlier than the UI thinks". Override
+ * via `NEXT_PUBLIC_AUTH_OTP_EXPIRY_SECONDS` when the backend default changes.
+ */
 export function getOtpExpirySeconds(): number {
   const raw = process.env.NEXT_PUBLIC_AUTH_OTP_EXPIRY_SECONDS;
   const parsed = raw ? Number(raw) : NaN;
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 300;
 }
 
+/**
+ * Server-side resend cooldown in seconds. Used to disable the resend button
+ * after a successful resend.
+ *
+ * MUST stay in sync with the backend `OtpProperties.cooldownSeconds`. Default
+ * fallback matches the backend default (60s).
+ */
 export function getOtpResendCooldownSeconds(): number {
   const raw = process.env.NEXT_PUBLIC_AUTH_OTP_RESEND_COOLDOWN_SECONDS;
   const parsed = raw ? Number(raw) : NaN;

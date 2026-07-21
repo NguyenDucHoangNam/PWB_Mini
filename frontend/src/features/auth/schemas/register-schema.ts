@@ -11,7 +11,7 @@ export const registerSchema = z
       .max(255, "emailLength"),
     password: z
       .string()
-      .min(8, "minPassword")
+      .min(12, "passwordTooShort")
       .max(128, "maxPassword")
       .regex(PASSWORD_COMPLEXITY_REGEX, "passwordComplexity"),
     confirmPassword: z.string().min(1, "confirmPasswordRequired"),

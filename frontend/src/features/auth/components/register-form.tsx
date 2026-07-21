@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -12,7 +12,8 @@ import { useAuthStore } from "../stores/use-auth-store";
 import { useGoogleIdentity } from "../hooks/use-google-identity";
 import { useCaptureReturnTo } from "@/hooks/use-return-to";
 import { decodeJwtExpiry } from "@/lib/jwt-decode";
-import { asApiError } from "@/lib/api-client";
+import { asApiError, type ApiError } from "@/lib/api-client";
+import { sanitizeApiMessage } from "@/lib/form-errors";
 import type { AuthUser } from "../types";
 import {
   EMAIL_REGEX,
@@ -20,6 +21,7 @@ import {
 } from "../hooks/password-validators";
 import { PasswordInput } from "./password-input";
 import { PasswordStrengthBar } from "./password-strength-bar";
+import { PasswordRules } from "./password-rules";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +31,12 @@ import { pendingRegistration } from "../lib/pending-registration";
 import { registerSchema, type RegisterFormValues } from "../schemas/register-schema";
 import { applyFieldErrors } from "@/lib/form-errors";
 
-const RATE_LIMIT_CODE = "RATE_LIMIT_EXCEEDED";
+const RATE_LIMIT_CODE = "AUTH_RATE_LIMIT_EXCEEDED";
+const EMAIL_EXISTS_CODES = new Set([
+  "EMAIL_ALREADY_REGISTERED_AUTH",
+  "EMAIL_ALREADY_EXISTS",
+  "IAM_020",
+]);
 const FIELD_MAPPING: Record<string, string> = {
   email: "email",
   password: "password",
@@ -47,6 +54,7 @@ export function RegisterForm() {
     handleSubmit,
     watch,
     setError,
+    setFocus,
     formState: { errors, isValid },
   } = useForm<RegisterFormValues>({
     resolver: standardSchemaResolver(registerSchema),
@@ -108,8 +116,8 @@ export function RegisterForm() {
               toast.error(response.message || t("errorToast"));
             }
           },
-          onError: asApiError((err) => {
-            toast.error(err.message || t("errorToast"));
+          onError: asApiError<unknown>((err: ApiError) => {
+            toast.error(sanitizeApiMessage(err, t("errorToast")));
           }),
         },
       );
@@ -143,19 +151,30 @@ export function RegisterForm() {
               `/verify-otp?userId=${encodeURIComponent(response.data.userId)}`,
             );
           } else {
-            setError("root", { message: response.message || t("errorToast") });
-            toast.error(t("errorToast"));
+            const fallback = sanitizeApiMessage(
+              { errors: null, message: response.message } as unknown as ApiError,
+              t("errorToast"),
+            );
+            setError("root", { message: fallback });
+            toast.error(fallback);
           }
         },
-        onError: asApiError((err) => {
-          if (err.status === 429 || err.errors?.[0]?.code === RATE_LIMIT_CODE) {
+        onError: asApiError<unknown>((err: ApiError) => {
+          const errorCode = err.errors?.[0]?.code;
+          if (err.status === 429 || errorCode === RATE_LIMIT_CODE) {
             setError("root", { message: t("rateLimitError") });
             toast.error(t("rateLimitError"));
             return;
           }
-          const errorCode = err.errors?.[0]?.code;
-          if (errorCode === "USER_EMAIL_EXISTS") {
+          if (errorCode && EMAIL_EXISTS_CODES.has(errorCode)) {
             setError("root", { message: t("emailExistsHint") });
+            toast.error(t("emailExistsHint"), {
+              action: {
+                label: t("emailExistsLoginCta"),
+                onClick: () => router.push("/login"),
+              },
+            });
+            setFocus("email");
             return;
           }
           applyFieldErrors(
@@ -164,8 +183,12 @@ export function RegisterForm() {
             FIELD_MAPPING,
             t("errorToast"),
             (msg) => {
-              setError("root", { message: msg });
-              toast.error(t("errorToast"));
+              const safeMsg = sanitizeApiMessage(
+                { errors: [{ message: msg }], message: msg } as unknown as ApiError,
+                t("errorToast"),
+              );
+              setError("root", { message: safeMsg });
+              toast.error(safeMsg);
             },
           );
         }),
@@ -229,6 +252,7 @@ export function RegisterForm() {
           </span>
         )}
         <PasswordStrengthBar strength={passwordStrength} />
+        <PasswordRules password={password} />
       </div>
 
       <div className="flex flex-col gap-1">

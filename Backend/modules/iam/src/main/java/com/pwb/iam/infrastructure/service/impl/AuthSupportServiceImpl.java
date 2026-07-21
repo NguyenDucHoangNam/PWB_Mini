@@ -33,6 +33,7 @@ public class AuthSupportServiceImpl implements AuthSupportService {
                 .expiresIn(jwtTokenProvider.getAccessTokenExpirationSeconds())
                 .userId(user.getUserId())
                 .email(user.getEmail().value())
+                .username(user.getUsername())
                 .status(user.getStatus().name())
                 .role(roleName)
                 .nextStep(nextStep)

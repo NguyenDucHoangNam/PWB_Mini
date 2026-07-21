@@ -1,15 +1,26 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from "react";
+
+export interface OtpInputHandle {
+  clear: () => void;
+  focus: () => void;
+  flash: () => void;
+}
 
 interface OtpInputProps {
   disabled?: boolean;
   invalid?: boolean;
+  flashOnUpdate?: boolean;
   onChange: (otp: string) => void;
 }
 
-export function OtpInput({ disabled = false, invalid = false, onChange }: OtpInputProps) {
+export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpInput(
+  { disabled = false, invalid = false, flashOnUpdate = false, onChange },
+  ref,
+) {
   const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
+  const [isFlashing, setIsFlashing] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
@@ -17,6 +28,28 @@ export function OtpInput({ disabled = false, invalid = false, onChange }: OtpInp
       inputRefs.current[0].focus();
     }
   }, []);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      clear: () => {
+        setOtp(Array(6).fill(""));
+        onChange("");
+        inputRefs.current[0]?.focus();
+      },
+      focus: () => {
+        const firstEmpty = otp.findIndex((digit) => !digit);
+        const targetIndex = firstEmpty === -1 ? 0 : firstEmpty;
+        inputRefs.current[targetIndex]?.focus();
+      },
+      flash: () => {
+        if (!flashOnUpdate) return;
+        setIsFlashing(true);
+        window.setTimeout(() => setIsFlashing(false), 800);
+      },
+    }),
+    [otp, onChange, flashOnUpdate],
+  );
 
   const handleChange = (value: string, index: number) => {
     if (value && !/^\d$/.test(value)) return;
@@ -105,9 +138,9 @@ export function OtpInput({ disabled = false, invalid = false, onChange }: OtpInp
               invalid
                 ? "border-red-500 focus:border-red-500 focus:ring-red-500/20 dark:border-red-500"
                 : "border-neutral-200 dark:border-neutral-800"
-            }`}
+            } ${isFlashing ? "otp-flash" : ""}`}
           />
         ))}
     </div>
   );
-}
+});
