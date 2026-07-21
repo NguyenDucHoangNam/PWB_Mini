@@ -39,4 +39,15 @@ public interface LiveRoomParticipantJpaRepository
               AND p.leftAt IS NULL
             """)
     long countActiveByRoom(@Param("roomCode") String roomCode);
+
+    @Query("""
+            UPDATE LiveRoomParticipantJpaEntity p
+            SET p.leftAt = :leftAt,
+                p.updatedAt = :leftAt
+            WHERE p.roomCode = :roomCode
+              AND p.deleted = false
+              AND p.leftAt IS NULL
+            """)
+    @org.springframework.data.jpa.repository.Modifying
+    int markAllLeftByRoom(@Param("roomCode") String roomCode, @Param("leftAt") java.time.Instant leftAt);
 }

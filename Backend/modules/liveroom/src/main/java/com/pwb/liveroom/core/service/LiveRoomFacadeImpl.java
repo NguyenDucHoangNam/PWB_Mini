@@ -30,16 +30,14 @@ public class LiveRoomFacadeImpl implements LiveRoomFacade {
     @Override
     @Transactional
     public LiveRoomResponse createRoom(UUID hostUserId, CreateLiveRoomRequest request) {
-        log.info("Facade createRoom: hostUserId={}, mode={}", hostUserId, request.getMode());
+        log.info("Facade createRoom: hostUserId={}", hostUserId);
 
         LiveRoom domain = liveRoomService.createRoom(
                 hostUserId,
                 request.getTitle(),
                 request.getDescription(),
-                request.getMode(),
-                request.getPassword(),
-                request.getMaxParticipants(),
-                request.getScheduledStartAt()
+                request.getScheduledStartAt(),
+                request.getMaxParticipants()
         );
 
         return toResponse(domain);
@@ -47,6 +45,7 @@ public class LiveRoomFacadeImpl implements LiveRoomFacade {
 
     @Override
     public Page<LiveRoomSummaryResponse> listMyRooms(UUID hostUserId, LiveRoomStatus status, Pageable pageable) {
+        log.debug("Facade listMyRooms: hostUserId={}, status={}", hostUserId, status);
         return liveRoomService.listMyRooms(hostUserId, status, pageable)
                 .map(this::toSummary);
     }
@@ -67,8 +66,6 @@ public class LiveRoomFacadeImpl implements LiveRoomFacade {
                 roomCode,
                 request.getTitle(),
                 request.getDescription(),
-                request.getMode(),
-                request.getPassword(),
                 request.getMaxParticipants()
         );
 
@@ -78,6 +75,7 @@ public class LiveRoomFacadeImpl implements LiveRoomFacade {
     @Override
     @Transactional
     public void endRoom(UUID hostUserId, String roomCode) {
+        log.info("Facade endRoom: hostUserId={}, roomCode={}", hostUserId, roomCode);
         liveRoomService.endRoom(hostUserId, roomCode);
     }
 
@@ -89,7 +87,6 @@ public class LiveRoomFacadeImpl implements LiveRoomFacade {
                         .roomCode(roomCode)
                         .exists(false)
                         .active(false)
-                        .passwordRequired(false)
                         .build());
     }
 
@@ -105,7 +102,6 @@ public class LiveRoomFacadeImpl implements LiveRoomFacade {
                 .title(domain.getTitle())
                 .description(domain.getDescription())
                 .mode(domain.getMode())
-                .passwordProtected(domain.hasPassword())
                 .maxParticipants(domain.getMaxParticipants())
                 .currentParticipantCount(domain.getCurrentParticipantCount())
                 .availableSlots(availableSlots)
@@ -139,7 +135,6 @@ public class LiveRoomFacadeImpl implements LiveRoomFacade {
                 .roomCode(entity.getRoomCode())
                 .exists(true)
                 .active(entity.getStatus() == LiveRoomStatus.ACTIVE)
-                .passwordRequired(entity.getMode().requiresPassword())
                 .build();
     }
 }

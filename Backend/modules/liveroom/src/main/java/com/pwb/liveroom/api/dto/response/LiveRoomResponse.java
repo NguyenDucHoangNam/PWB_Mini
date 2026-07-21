@@ -22,7 +22,6 @@ public class LiveRoomResponse {
     private String title;
     private String description;
     private LiveRoomMode mode;
-    private boolean passwordProtected;
     private int maxParticipants;
     private int currentParticipantCount;
     private int availableSlots;
@@ -31,6 +30,4 @@ public class LiveRoomResponse {
     private Instant startedAt;
     private Instant endedAt;
     private Instant createdAt;
-    private Instant updatedAt;
-    private Long version;
 }

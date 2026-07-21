@@ -74,7 +74,13 @@ public enum ErrorCode {
     LIVEROOM_MODE_NOT_JOINABLE      ("LIVEROOM_010", "Room mode does not allow public join.",            403),
     LIVEROOM_FULL                   ("LIVEROOM_011", "Room is at maximum capacity.",                     409),
     LIVEROOM_NOT_JOINED             ("LIVEROOM_012", "You have not joined this room.",                   404),
-    LIVEROOM_ALREADY_JOINED         ("LIVEROOM_013", "You have already joined this room.",               409);
+    LIVEROOM_ALREADY_JOINED         ("LIVEROOM_013", "You have already joined this room.",               409),
+
+    LIVEROOM_JOIN_REQUEST_NOT_FOUND      ("LIVEROOM_020", "Join request not found.",                            404),
+    LIVEROOM_JOIN_REQUEST_ALREADY_PENDING("LIVEROOM_021", "You already have a pending join request.",          409),
+    LIVEROOM_JOIN_REQUEST_NOT_PENDING    ("LIVEROOM_022", "Join request is no longer pending.",                 409),
+    LIVEROOM_JOIN_REQUEST_NOT_OWNER      ("LIVEROOM_023", "You can only manage your own join request.",         403),
+    LIVEROOM_JOIN_REQUEST_INVALID_DECISION("LIVEROOM_024", "Join request decision is invalid for this room.",   400);
 
     private final String code;
     private final String message;

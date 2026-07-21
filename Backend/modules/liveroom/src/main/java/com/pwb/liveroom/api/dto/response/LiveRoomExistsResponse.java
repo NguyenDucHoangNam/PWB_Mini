@@ -14,5 +14,4 @@ public class LiveRoomExistsResponse {
     private String roomCode;
     private boolean exists;
     private boolean active;
-    private boolean passwordRequired;
 }

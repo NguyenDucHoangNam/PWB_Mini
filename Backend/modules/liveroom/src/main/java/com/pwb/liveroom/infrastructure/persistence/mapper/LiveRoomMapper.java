@@ -17,7 +17,6 @@ public class LiveRoomMapper {
                 .title(domain.getTitle())
                 .description(domain.getDescription())
                 .mode(domain.getMode())
-                .passwordHash(domain.getPasswordHash())
                 .maxParticipants(domain.getMaxParticipants())
                 .status(domain.getStatus())
                 .currentParticipantCount(domain.getCurrentParticipantCount())
@@ -36,7 +35,6 @@ public class LiveRoomMapper {
         existing.setTitle(domain.getTitle());
         existing.setDescription(domain.getDescription());
         existing.setMode(domain.getMode());
-        existing.setPasswordHash(domain.getPasswordHash());
         existing.setMaxParticipants(domain.getMaxParticipants());
         existing.setStatus(domain.getStatus());
         existing.setCurrentParticipantCount(domain.getCurrentParticipantCount());
@@ -57,7 +55,6 @@ public class LiveRoomMapper {
                 entity.getTitle(),
                 entity.getDescription(),
                 entity.getMode(),
-                entity.getPasswordHash(),
                 entity.getMaxParticipants(),
                 entity.getStatus(),
                 entity.getCurrentParticipantCount(),

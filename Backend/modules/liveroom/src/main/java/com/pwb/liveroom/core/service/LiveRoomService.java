@@ -1,11 +1,12 @@
 package com.pwb.liveroom.core.service;
 
-import com.pwb.liveroom.api.enums.LiveRoomMode;
 import com.pwb.liveroom.core.model.LiveRoom;
 import com.pwb.liveroom.core.model.LiveRoomStatus;
+import com.pwb.liveroom.infrastructure.persistence.entity.LiveRoomJpaEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.Instant;
 import java.util.UUID;
 
 public interface LiveRoomService {
@@ -14,10 +15,8 @@ public interface LiveRoomService {
             UUID hostUserId,
             String title,
             String description,
-            LiveRoomMode mode,
-            String rawPassword,
-            Integer maxParticipants,
-            java.time.Instant scheduledStartAt);
+            Instant scheduledStartAt,
+            Integer maxParticipants);
 
     Page<LiveRoom> listMyRooms(UUID hostUserId, LiveRoomStatus status, Pageable pageable);
 
@@ -28,8 +27,6 @@ public interface LiveRoomService {
             String roomCode,
             String title,
             String description,
-            LiveRoomMode mode,
-            String rawPassword,
             Integer maxParticipants);
 
     void endRoom(UUID hostUserId, String roomCode);
@@ -37,4 +34,6 @@ public interface LiveRoomService {
     boolean existsActiveRoomByCode(String roomCode);
 
     LiveRoom getRoomAsParticipant(String roomCode);
+
+    LiveRoomJpaEntity loadRoomEntityAsHost(UUID hostUserId, String roomCode);
 }

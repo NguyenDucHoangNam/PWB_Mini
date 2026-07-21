@@ -19,7 +19,6 @@ public final class LiveRoom {
     private String title;
     private String description;
     private LiveRoomMode mode;
-    private String passwordHash;
     private int maxParticipants;
     private LiveRoomStatus status;
     private int currentParticipantCount;
@@ -34,7 +33,6 @@ public final class LiveRoom {
             String title,
             String description,
             LiveRoomMode mode,
-            String passwordHash,
             int maxParticipants,
             LiveRoomStatus status,
             int currentParticipantCount,
@@ -49,7 +47,6 @@ public final class LiveRoom {
         this.title = title;
         this.description = description;
         this.mode = mode;
-        this.passwordHash = passwordHash;
         this.maxParticipants = maxParticipants;
         this.status = status;
         this.currentParticipantCount = currentParticipantCount;
@@ -64,13 +61,10 @@ public final class LiveRoom {
             String roomCode,
             String title,
             String description,
-            LiveRoomMode mode,
-            String passwordHash,
-            int maxParticipants,
-            Instant scheduledStartAt
+            Instant scheduledStartAt,
+            int maxParticipants
     ) {
         validateTitle(title);
-        validateMode(mode, passwordHash);
         validateCapacity(maxParticipants);
         validateRoomCode(roomCode);
 
@@ -80,8 +74,7 @@ public final class LiveRoom {
                 roomCode,
                 title.trim(),
                 description == null ? null : description.trim(),
-                mode,
-                passwordHash,
+                LiveRoomMode.PUBLIC,
                 maxParticipants,
                 LiveRoomStatus.ACTIVE,
                 0,
@@ -99,7 +92,6 @@ public final class LiveRoom {
             String title,
             String description,
             LiveRoomMode mode,
-            String passwordHash,
             int maxParticipants,
             LiveRoomStatus status,
             int currentParticipantCount,
@@ -114,8 +106,7 @@ public final class LiveRoom {
                 roomCode,
                 title,
                 description,
-                mode,
-                passwordHash,
+                mode == null ? LiveRoomMode.PUBLIC : mode,
                 maxParticipants,
                 status,
                 currentParticipantCount,
@@ -129,8 +120,6 @@ public final class LiveRoom {
     public void updateSettings(
             String title,
             String description,
-            LiveRoomMode mode,
-            String passwordHash,
             Integer maxParticipants
     ) {
         ensureNotEnded();
@@ -141,15 +130,6 @@ public final class LiveRoom {
         }
         if (description != null) {
             this.description = description.isBlank() ? null : description.trim();
-        }
-        if (mode != null) {
-            String effectivePassword = passwordHash != null ? passwordHash : this.passwordHash;
-            validateMode(mode, effectivePassword);
-            this.mode = mode;
-            this.passwordHash = mode.requiresPassword() ? effectivePassword : null;
-        } else if (passwordHash != null) {
-            validateMode(this.mode, passwordHash);
-            this.passwordHash = passwordHash;
         }
         if (maxParticipants != null) {
             validateCapacity(maxParticipants);
@@ -199,10 +179,6 @@ public final class LiveRoom {
         return hostUserId.equals(userId);
     }
 
-    public boolean hasPassword() {
-        return mode.requiresPassword() && passwordHash != null;
-    }
-
     private void ensureNotEnded() {
         if (status == LiveRoomStatus.ENDED) {
             throw new IllegalStateException("Room has already ended");
@@ -221,19 +197,6 @@ public final class LiveRoom {
         }
         if (title.length() > 200) {
             throw new IllegalArgumentException("Title must not exceed 200 characters");
-        }
-    }
-
-    private static void validateMode(LiveRoomMode mode, String passwordHash) {
-        if (mode == null) {
-            throw new IllegalArgumentException("Room mode is required");
-        }
-        if (mode.requiresPassword() && (passwordHash == null || passwordHash.isBlank())) {
-            throw new IllegalArgumentException("Password is required for PASSWORD mode");
-        }
-        if (!mode.requiresPassword() && passwordHash != null && !passwordHash.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Password can only be set when mode is PASSWORD");
         }
     }
 

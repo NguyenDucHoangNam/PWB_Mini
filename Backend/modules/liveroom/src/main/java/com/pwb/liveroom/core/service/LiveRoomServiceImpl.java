@@ -2,18 +2,17 @@ package com.pwb.liveroom.core.service;
 
 import com.pwb.backend.exception.BusinessException;
 import com.pwb.backend.exception.ErrorCode;
-import com.pwb.liveroom.api.enums.LiveRoomMode;
 import com.pwb.liveroom.core.model.LiveRoom;
 import com.pwb.liveroom.core.model.LiveRoomStatus;
 import com.pwb.liveroom.infrastructure.config.LiveRoomProperties;
 import com.pwb.liveroom.infrastructure.persistence.entity.LiveRoomJpaEntity;
 import com.pwb.liveroom.infrastructure.persistence.mapper.LiveRoomMapper;
 import com.pwb.liveroom.infrastructure.persistence.repository.LiveRoomJpaRepository;
+import com.pwb.liveroom.infrastructure.persistence.repository.LiveRoomParticipantJpaRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,13 +26,11 @@ import java.util.UUID;
 public class LiveRoomServiceImpl implements LiveRoomService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
-    private static final int PASSWORD_MIN_LENGTH = 4;
-    private static final int PASSWORD_MAX_LENGTH = 64;
 
     private final LiveRoomJpaRepository liveRoomJpaRepository;
+    private final LiveRoomParticipantJpaRepository participantJpaRepository;
     private final LiveRoomMapper liveRoomMapper;
     private final LiveRoomProperties liveRoomProperties;
-    private final PasswordEncoder passwordEncoder;
 
     @Override
     @Transactional
@@ -41,17 +38,14 @@ public class LiveRoomServiceImpl implements LiveRoomService {
             UUID hostUserId,
             String title,
             String description,
-            LiveRoomMode mode,
-            String rawPassword,
-            Integer maxParticipants,
-            Instant scheduledStartAt) {
+            Instant scheduledStartAt,
+            Integer maxParticipants) {
 
-        log.info("Creating live room: hostUserId={}, title={}, mode={}", hostUserId, title, mode);
+        log.info("Creating live room: hostUserId={}, title={}", hostUserId, title);
 
         ensureHostHasNoActiveRoom(hostUserId);
 
         int capacity = resolveCapacity(maxParticipants);
-        String passwordHash = encodePasswordIfRequired(mode, rawPassword);
         String roomCode = generateUniqueRoomCode();
 
         LiveRoom domain = LiveRoom.create(
@@ -59,10 +53,8 @@ public class LiveRoomServiceImpl implements LiveRoomService {
                 roomCode,
                 title,
                 description,
-                mode,
-                passwordHash,
-                capacity,
-                scheduledStartAt
+                scheduledStartAt,
+                capacity
         );
 
         LiveRoomJpaEntity entity = liveRoomMapper.toEntity(domain);
@@ -76,6 +68,7 @@ public class LiveRoomServiceImpl implements LiveRoomService {
 
     @Override
     public Page<LiveRoom> listMyRooms(UUID hostUserId, LiveRoomStatus status, Pageable pageable) {
+        log.debug("Listing my rooms: hostUserId={}, status={}", hostUserId, status);
         if (status == null) {
             return liveRoomJpaRepository
                     .findByHostUserIdAndDeletedFalse(hostUserId, pageable)
@@ -101,8 +94,6 @@ public class LiveRoomServiceImpl implements LiveRoomService {
             String roomCode,
             String title,
             String description,
-            LiveRoomMode mode,
-            String rawPassword,
             Integer maxParticipants) {
 
         log.info("Updating live room settings: hostUserId={}, roomCode={}", hostUserId, roomCode);
@@ -113,12 +104,9 @@ public class LiveRoomServiceImpl implements LiveRoomService {
         }
 
         LiveRoom domain = liveRoomMapper.toDomain(entity);
-        String encodedPassword = encodePasswordIfRequired(
-                mode != null ? mode : domain.getMode(),
-                rawPassword);
 
         try {
-            domain.updateSettings(title, description, mode, encodedPassword, maxParticipants);
+            domain.updateSettings(title, description, maxParticipants);
         } catch (IllegalArgumentException ex) {
             throw mapValidationFailure(ex);
         } catch (IllegalStateException ex) {
@@ -151,10 +139,16 @@ public class LiveRoomServiceImpl implements LiveRoomService {
         }
 
         LiveRoom domain = liveRoomMapper.toDomain(entity);
+        Instant endedAt = Instant.now();
         domain.markEnded();
 
         LiveRoomJpaEntity merged = liveRoomMapper.toEntity(domain, entity);
         liveRoomJpaRepository.save(merged);
+
+        int evicted = participantJpaRepository.markAllLeftByRoom(roomCode, endedAt);
+        if (evicted > 0) {
+            log.info("Evicted {} active participants on room end: roomCode={}", evicted, roomCode);
+        }
 
         log.info("Live room ended: hostUserId={}, roomCode={}", hostUserId, roomCode);
     }
@@ -171,6 +165,11 @@ public class LiveRoomServiceImpl implements LiveRoomService {
         LiveRoomJpaEntity entity = liveRoomJpaRepository.findByRoomCodeAndDeletedFalse(roomCode)
                 .orElseThrow(() -> new BusinessException(ErrorCode.LIVEROOM_NOT_FOUND));
         return liveRoomMapper.toDomain(entity);
+    }
+
+    @Override
+    public LiveRoomJpaEntity loadRoomEntityAsHost(UUID hostUserId, String roomCode) {
+        return loadRoomAsHost(hostUserId, roomCode);
     }
 
     private void ensureHostHasNoActiveRoom(UUID hostUserId) {
@@ -201,23 +200,6 @@ public class LiveRoomServiceImpl implements LiveRoomService {
             throw new BusinessException(ErrorCode.LIVEROOM_INVALID_CAPACITY);
         }
         return requested;
-    }
-
-    private String encodePasswordIfRequired(LiveRoomMode mode, String rawPassword) {
-        if (mode == null || !mode.requiresPassword()) {
-            if (rawPassword != null && !rawPassword.isBlank()) {
-                throw new BusinessException(ErrorCode.LIVEROOM_INVALID_MODE);
-            }
-            return null;
-        }
-        if (rawPassword == null || rawPassword.isBlank()) {
-            throw new BusinessException(ErrorCode.LIVEROOM_PASSWORD_REQUIRED);
-        }
-        if (rawPassword.length() < PASSWORD_MIN_LENGTH || rawPassword.length() > PASSWORD_MAX_LENGTH) {
-            throw new BusinessException(ErrorCode.LIVEROOM_INVALID_MODE,
-                    PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH);
-        }
-        return passwordEncoder.encode(rawPassword);
     }
 
     private String generateUniqueRoomCode() {
@@ -252,9 +234,6 @@ public class LiveRoomServiceImpl implements LiveRoomService {
             return new BusinessException(ErrorCode.INVALID_INPUT);
         }
         String lower = message.toLowerCase(java.util.Locale.ROOT);
-        if (lower.contains("password")) {
-            return new BusinessException(ErrorCode.LIVEROOM_PASSWORD_REQUIRED);
-        }
         if (lower.contains("participants") || lower.contains("capacity")) {
             return new BusinessException(ErrorCode.LIVEROOM_INVALID_CAPACITY);
         }

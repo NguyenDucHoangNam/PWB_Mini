@@ -55,9 +55,6 @@ public class LiveRoomJpaEntity extends LiveRoomBaseEntity {
     @Column(name = "mode", nullable = false, length = 32)
     private LiveRoomMode mode;
 
-    @Column(name = "password_hash", length = 255)
-    private String passwordHash;
-
     @Column(name = "max_participants", nullable = false)
     private int maxParticipants;
 
