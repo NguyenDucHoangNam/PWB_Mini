@@ -27,7 +27,7 @@ public class GoogleTtsServiceImpl implements TextToSpeechService {
     private final TtsProperties ttsProperties;
 
     @Override
-    @Cacheable(value = CACHE_NAME, key = "#text.concat('|').concat(#languageCode)")
+    @Cacheable(value = CACHE_NAME, key = "#text + '|' + #languageCode")
     public byte[] synthesize(String text, String languageCode) {
         long startMs = System.currentTimeMillis();
         int textLength = text == null ? 0 : text.length();
