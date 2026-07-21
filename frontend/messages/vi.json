@@ -765,6 +765,148 @@
     "startOffset": {
       "min": "Bỏ qua đầu tối thiểu là {min}",
       "max": "Bỏ qua đầu tối đa là {max}"
+    },
+    "liveroom": {
+      "title": {
+        "required": "Tiêu đề không được để trống",
+        "maxlength": "Tiêu đề không được quá {max} ký tự"
+      },
+      "description": {
+        "maxlength": "Mô tả không được quá {max} ký tự"
+      },
+      "mode": {
+        "required": "Vui lòng chọn chế độ phòng"
+      },
+      "password": {
+        "length": "Mật khẩu phải có từ 4 đến 64 ký tự"
+      },
+      "capacity": {
+        "range": "Số người tham gia tối đa phải từ 2 đến 500"
+      },
+      "displayname": {
+        "length": "Tên hiển thị phải có từ 1 đến 100 ký tự"
+      },
+      "schedule": {
+        "future": "Thời gian hẹn phải ở trong tương lai",
+        "invalid": "Thời gian hẹn không hợp lệ"
+      }
+    }
+  },
+  "liveroom": {
+    "nav": {
+      "title": "Phòng Trực Tiếp",
+      "subtitle": "Quản lý các phòng âm thanh trực tiếp của bạn.",
+      "listenerTitle": "Phòng Trực Tiếp",
+      "listenerSubtitle": "Tham gia với vai trò người nghe và theo dõi theo thời gian thực."
+    },
+    "list": {
+      "filterAll": "Tất cả",
+      "filterActive": "Đang hoạt động",
+      "filterPaused": "Tạm dừng",
+      "filterEnded": "Đã kết thúc",
+      "empty": "Bạn chưa tạo phòng trực tiếp nào",
+      "createBtn": "Tạo phòng",
+      "prev": "Trước",
+      "next": "Sau",
+      "loading": "Đang tải danh sách phòng..."
+    },
+    "status": {
+      "active": "Đang hoạt động",
+      "paused": "Tạm dừng",
+      "ended": "Đã kết thúc"
+    },
+    "mode": {
+      "PUBLIC": "Công khai",
+      "PRIVATE": "Riêng tư",
+      "INVITE_ONLY": "Chỉ mời",
+      "PASSWORD": "Có mật khẩu"
+    },
+    "card": {
+      "capacity": "{current}/{max} người nghe",
+      "createdAt": "Tạo lúc {date}",
+      "startedAt": "Bắt đầu {date}",
+      "endedAt": "Kết thúc {date}",
+      "scheduled": "Bắt đầu {date}",
+      "manage": "Quản lý",
+      "end": "Kết thúc phòng",
+      "view": "Xem phòng"
+    },
+    "form": {
+      "titleLabel": "Tiêu đề",
+      "titlePlaceholder": "Nhập tiêu đề cho phòng của bạn",
+      "descriptionLabel": "Mô tả",
+      "descriptionPlaceholder": "Tùy chọn. Mô tả phòng của bạn",
+      "modeLabel": "Chế độ phòng",
+      "passwordLabel": "Mật khẩu",
+      "passwordHint": "Bắt buộc khi chọn chế độ Có mật khẩu (4-64 ký tự)",
+      "capacityLabel": "Số người tham gia tối đa",
+      "capacityHint": "Từ 2 đến 500",
+      "scheduledLabel": "Thời gian bắt đầu hẹn trước",
+      "scheduledHint": "Tùy chọn. Phải ở trong tương lai",
+      "submitCreate": "Tạo phòng",
+      "submitUpdate": "Lưu thay đổi",
+      "submitting": "Đang lưu...",
+      "createSuccess": "Tạo phòng thành công",
+      "updateSuccess": "Đã cập nhật phòng"
+    },
+    "endDialog": {
+      "title": "Kết thúc phòng này?",
+      "message": "Tất cả người nghe sẽ bị ngắt kết nối ngay lập tức. Hành động này không thể hoàn tác.",
+      "confirm": "Kết thúc phòng",
+      "success": "Đã kết thúc phòng"
+    },
+    "existsCheck": {
+      "checking": "Đang kiểm tra...",
+      "existsActive": "Phòng đang phát trực tiếp",
+      "existsInactive": "Phòng hiện không khả dụng",
+      "notFound": "Không tìm thấy phòng",
+      "realtimeConnecting": "Đang kết nối cập nhật thời gian thực..."
+    },
+    "participant": {
+      "title": "Người nghe",
+      "count": "{count} đang hoạt động",
+      "hostBadge": "Chủ phòng",
+      "youBadge": "Bạn",
+      "joinedAt": "Tham gia {time}",
+      "leftAt": "Đã rời",
+      "empty": "Chưa có người nghe nào",
+      "displayNameLabel": "Tên hiển thị (tùy chọn)",
+      "displayNamePlaceholder": "Để trống sẽ dùng tên đăng nhập của bạn"
+    },
+    "join": {
+      "joinBtn": "Tham gia phòng",
+      "leaveBtn": "Rời phòng",
+      "joining": "Đang tham gia...",
+      "leaving": "Đang rời...",
+      "joinSuccess": "Đã tham gia phòng",
+      "leaveSuccess": "Đã rời phòng",
+      "joinDisabled": "Phòng không cho phép tham gia",
+      "full": "Phòng đã đầy",
+      "ended": "Phòng đã kết thúc"
+    },
+    "errors": {
+      "roomNotFound": "Không tìm thấy phòng",
+      "codeExists": "Mã phòng đã tồn tại",
+      "hostAlreadyActive": "Bạn đã có một phòng đang hoạt động",
+      "invalidMode": "Chế độ phòng không hợp lệ cho cấu hình đã cho",
+      "passwordRequired": "Cần nhập mật khẩu cho phòng có mật khẩu",
+      "notHost": "Chỉ chủ phòng mới có thể chỉnh sửa phòng này",
+      "alreadyEnded": "Phòng đã kết thúc",
+      "codeGenFailed": "Không thể tạo mã phòng duy nhất",
+      "invalidCapacity": "Số người tham gia tối đa phải từ 2 đến 500",
+      "modeNotJoinable": "Chế độ phòng này không cho phép tham gia",
+      "full": "Phòng đã đạt sức chứa tối đa",
+      "notJoined": "Bạn chưa tham gia phòng này",
+      "alreadyJoined": "Bạn đã tham gia phòng này rồi",
+      "generic": "Đã có lỗi xảy ra",
+      "proOnlyHost": "Tính năng tạo và quản lý Phòng Trực Tiếp chỉ dành cho tài khoản PRO. Nâng cấp gói của bạn để sử dụng."
+    },
+    "actions": {
+      "back": "Quay lại",
+      "edit": "Sửa",
+      "delete": "Kết thúc",
+      "cancel": "Hủy",
+      "save": "Lưu"
     }
   }
 }

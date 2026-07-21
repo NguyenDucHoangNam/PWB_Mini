@@ -9,6 +9,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.List;
 import java.util.Locale;
@@ -33,6 +34,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ErrorResponse> handleMaxUpload(MaxUploadSizeExceededException ex) {
         ErrorCode ec = ErrorCode.FILE_TOO_LARGE;
+        return ResponseEntity.status(HttpStatus.valueOf(ec.getHttpStatus()))
+                .body(ErrorResponse.of(ec, resolveMessage(ec, null)));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResource(NoResourceFoundException ex) {
+        ErrorCode ec = ErrorCode.RESOURCE_NOT_FOUND;
         return ResponseEntity.status(HttpStatus.valueOf(ec.getHttpStatus()))
                 .body(ErrorResponse.of(ec, resolveMessage(ec, null)));
     }

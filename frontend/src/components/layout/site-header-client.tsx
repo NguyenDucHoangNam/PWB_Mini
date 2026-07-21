@@ -100,7 +100,7 @@ export function SiteHeaderClient() {
 
   const loggedInItems: NavItem[] = [
     { label: t("dashboard"), href: "/dashboard/songs" },
-    { label: t("liveRooms"), href: "/rooms" },
+    { label: t("liveRooms"), href: "/dashboard/live-rooms" },
   ];
 
   const dropdownItems = [
@@ -303,7 +303,7 @@ function MobileAuthenticated({
       <Link href="/dashboard/songs" onClick={onNavigate} className={linkClass}>
         {labels.dashboard}
       </Link>
-      <Link href="/rooms" onClick={onNavigate} className={linkClass}>
+      <Link href="/dashboard/live-rooms" onClick={onNavigate} className={linkClass}>
         {labels.liveRooms}
       </Link>
       <hr className="border-neutral-200 dark:border-neutral-800" />

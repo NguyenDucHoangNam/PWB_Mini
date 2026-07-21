@@ -765,6 +765,148 @@
     "startOffset": {
       "min": "Start offset must be at least {min}",
       "max": "Start offset must not exceed {max}"
+    },
+    "liveroom": {
+      "title": {
+        "required": "Title is required",
+        "maxlength": "Title must not exceed {max} characters"
+      },
+      "description": {
+        "maxlength": "Description must not exceed {max} characters"
+      },
+      "mode": {
+        "required": "Please select a room mode"
+      },
+      "password": {
+        "length": "Password must be between 4 and 64 characters"
+      },
+      "capacity": {
+        "range": "Max participants must be between 2 and 500"
+      },
+      "displayname": {
+        "length": "Display name must be between 1 and 100 characters"
+      },
+      "schedule": {
+        "future": "Scheduled time must be in the future",
+        "invalid": "Scheduled time is invalid"
+      }
+    }
+  },
+  "liveroom": {
+    "nav": {
+      "title": "Live Rooms",
+      "subtitle": "Manage your live audio rooms.",
+      "listenerTitle": "Live Room",
+      "listenerSubtitle": "Join as a listener and follow along in real time."
+    },
+    "list": {
+      "filterAll": "All",
+      "filterActive": "Active",
+      "filterPaused": "Paused",
+      "filterEnded": "Ended",
+      "empty": "You haven't created any live rooms yet",
+      "createBtn": "Create room",
+      "prev": "Prev",
+      "next": "Next",
+      "loading": "Loading rooms..."
+    },
+    "status": {
+      "active": "Active",
+      "paused": "Paused",
+      "ended": "Ended"
+    },
+    "mode": {
+      "PUBLIC": "Public",
+      "PRIVATE": "Private",
+      "INVITE_ONLY": "Invite only",
+      "PASSWORD": "Password-protected"
+    },
+    "card": {
+      "capacity": "{current}/{max} listeners",
+      "createdAt": "Created {date}",
+      "startedAt": "Started {date}",
+      "endedAt": "Ended {date}",
+      "scheduled": "Starts {date}",
+      "manage": "Manage",
+      "end": "End room",
+      "view": "View room"
+    },
+    "form": {
+      "titleLabel": "Title",
+      "titlePlaceholder": "Enter a title for your room",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Optional. Describe your room",
+      "modeLabel": "Room mode",
+      "passwordLabel": "Password",
+      "passwordHint": "Required when mode is Password-protected (4-64 characters)",
+      "capacityLabel": "Max participants",
+      "capacityHint": "Between 2 and 500",
+      "scheduledLabel": "Scheduled start time",
+      "scheduledHint": "Optional. Must be in the future",
+      "submitCreate": "Create room",
+      "submitUpdate": "Save changes",
+      "submitting": "Saving...",
+      "createSuccess": "Room created successfully",
+      "updateSuccess": "Room updated successfully"
+    },
+    "endDialog": {
+      "title": "End this room?",
+      "message": "All listeners will be disconnected immediately. This action cannot be undone.",
+      "confirm": "End room",
+      "success": "Room ended"
+    },
+    "existsCheck": {
+      "checking": "Checking...",
+      "existsActive": "Room is live",
+      "existsInactive": "Room is not available",
+      "notFound": "Room not found",
+      "realtimeConnecting": "Connecting to real-time updates..."
+    },
+    "participant": {
+      "title": "Listeners",
+      "count": "{count} active",
+      "hostBadge": "Host",
+      "youBadge": "You",
+      "joinedAt": "Joined {time}",
+      "leftAt": "Left",
+      "empty": "No listeners yet",
+      "displayNameLabel": "Display name (optional)",
+      "displayNamePlaceholder": "Leave blank to use your username"
+    },
+    "join": {
+      "joinBtn": "Join room",
+      "leaveBtn": "Leave room",
+      "joining": "Joining...",
+      "leaving": "Leaving...",
+      "joinSuccess": "Joined room",
+      "leaveSuccess": "Left room",
+      "joinDisabled": "Room is not joinable",
+      "full": "Room is at capacity",
+      "ended": "Room has ended"
+    },
+    "errors": {
+      "roomNotFound": "Room not found",
+      "codeExists": "Room code already exists",
+      "hostAlreadyActive": "You already have an active room",
+      "invalidMode": "Invalid room mode for the given configuration",
+      "passwordRequired": "Password is required for password-protected rooms",
+      "notHost": "Only the host can modify this room",
+      "alreadyEnded": "Room has already ended",
+      "codeGenFailed": "Failed to generate a unique room code",
+      "invalidCapacity": "Max participants must be between 2 and 500",
+      "modeNotJoinable": "This room mode does not allow joining",
+      "full": "Room is at maximum capacity",
+      "notJoined": "You have not joined this room",
+      "alreadyJoined": "You have already joined this room",
+      "generic": "Something went wrong",
+      "proOnlyHost": "Live Rooms hosting is available to PRO accounts only. Upgrade your plan to create and manage rooms."
+    },
+    "actions": {
+      "back": "Back",
+      "edit": "Edit",
+      "delete": "End",
+      "cancel": "Cancel",
+      "save": "Save"
     }
   }
 }

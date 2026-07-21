@@ -36,6 +36,7 @@ public enum ErrorCode {
 
     UNAUTHORIZED ("SYS_002", "Authentication required.", 401),
     FORBIDDEN    ("SYS_003", "Access denied.", 403),
+    RESOURCE_NOT_FOUND ("SYS_004", "Resource not found.", 404),
 
     ORDER_NOT_FOUND      ("ORD_001", "Order not found.", 404),
     OUT_OF_STOCK         ("INV_001", "Product is out of stock.", 400),
