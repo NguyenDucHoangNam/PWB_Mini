@@ -28,6 +28,7 @@
         <module>modules/voice</module>
         <module>modules/notification</module>
         <module>modules/outbox</module>
+        <module>modules/liveroom</module>
     </modules>
 
     <properties>

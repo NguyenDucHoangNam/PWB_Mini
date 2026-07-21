@@ -59,7 +59,17 @@ public enum ErrorCode {
     ACCESS_DENIED_PRO_ONLY   ("VOICE_010", "This feature is available for PRO only.", 403),
     VOICE_TAG_IN_USE         ("VOICE_011", "Voice tag is currently in use.",       409),
     SONG_ALREADY_PROCESSED   ("VOICE_012", "Song has already been processed.",     409),
-    INVALID_AUDIO_DURATION   ("VOICE_013", "Audio duration exceeds maximum.",      400);
+    INVALID_AUDIO_DURATION   ("VOICE_013", "Audio duration exceeds maximum.",      400),
+
+    LIVEROOM_NOT_FOUND              ("LIVEROOM_001", "Live room not found.",                              404),
+    LIVEROOM_CODE_ALREADY_EXISTS    ("LIVEROOM_002", "Room code already exists.",                         409),
+    LIVEROOM_HOST_ALREADY_ACTIVE    ("LIVEROOM_003", "Host already has an active room.",                  409),
+    LIVEROOM_INVALID_MODE           ("LIVEROOM_004", "Invalid room mode for the given configuration.",   400),
+    LIVEROOM_PASSWORD_REQUIRED      ("LIVEROOM_005", "Password is required for password-protected room.", 400),
+    LIVEROOM_NOT_HOST               ("LIVEROOM_006", "Only the host can modify this room.",               403),
+    LIVEROOM_ALREADY_ENDED          ("LIVEROOM_007", "Room has already ended.",                           409),
+    LIVEROOM_CODE_GENERATION_FAILED ("LIVEROOM_008", "Failed to generate unique room code.",              500),
+    LIVEROOM_INVALID_CAPACITY       ("LIVEROOM_009", "Max participants must be between 2 and 500.",     400);
 
     private final String code;
     private final String message;
