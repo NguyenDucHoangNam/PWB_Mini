@@ -46,4 +46,16 @@ public interface OtpCodeJpaRepository extends IamJpaRepository<OtpCodeJpaEntity>
     int markLocked(@Param("id") UUID id,
                    @Param("attempts") int attempts,
                    @Param("now") Instant now);
+
+    @Modifying
+    @Query("""
+            UPDATE OtpCodeJpaEntity o
+            SET o.status = :newStatus,
+                o.verifiedAt = :now
+            WHERE o.id = :id
+              AND o.status = com.pwb.iam.core.model.OtpCode.OtpStatus.LOCKED
+            """)
+    int markExpiredFromLocked(@Param("id") UUID id,
+                              @Param("newStatus") OtpStatus newStatus,
+                              @Param("now") Instant now);
 }

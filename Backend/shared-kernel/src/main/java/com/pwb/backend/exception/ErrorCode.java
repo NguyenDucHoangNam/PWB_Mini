@@ -32,6 +32,7 @@ public enum ErrorCode {
     AUTH_ACCOUNT_LOCKED            ("IAM_024", "Account temporarily locked due to too many failed login attempts.", 429),
     AUTH_IP_LOCKED                 ("IAM_025", "IP temporarily blocked due to too many failed login attempts.", 429),
     AUTH_RATE_LIMIT_EXCEEDED       ("IAM_026", "Too many requests. Please try again in {0} seconds.", 429),
+    AUTH_OTP_DAILY_LIMIT_EXCEEDED   ("IAM_027", "You have reached the daily OTP request limit. Please try again tomorrow.", 429),
 
     UNAUTHORIZED ("SYS_002", "Authentication required.", 401),
     FORBIDDEN    ("SYS_003", "Access denied.", 403),

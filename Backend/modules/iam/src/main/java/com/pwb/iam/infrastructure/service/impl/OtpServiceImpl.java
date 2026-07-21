@@ -161,6 +161,16 @@ public class OtpServiceImpl implements OtpService {
         String cooldownKey = COOLDOWN_PREFIX + userId + ":" + purpose.name();
         String dailyKey = DAILY_COUNT_PREFIX + userId + ":" + purpose.name();
 
+        otpCodeRepository.findLatestByUserIdAndPurposeAndStatus(userId, purpose, OtpStatus.LOCKED)
+                .ifPresent(lockedEntity -> {
+                    int updated = otpCodeRepository.markExpiredFromLocked(
+                            lockedEntity.getId(), OtpStatus.EXPIRED, Instant.now());
+                    if (updated > 0) {
+                        log.info("Reset LOCKED OTP entity on resend: userId={} otpId={}",
+                                userId, lockedEntity.getId());
+                    }
+                });
+
         String code = generateNumericCode(otpProperties.getCodeLength());
         String salt = generateSalt();
         String hashed = sha256(salt + code);
@@ -183,18 +193,22 @@ public class OtpServiceImpl implements OtpService {
 
         if (result == null) {
             log.error("OTP request script returned null: userId={}", userId);
-            return OtpPolicyResult.throttled(Duration.ZERO);
+            return OtpPolicyResult.cooldownThrottled(Duration.ZERO);
         }
 
         if (result < 0) {
             if (result == -1) {
-                Duration cooldown = Duration.ofSeconds(otpProperties.getResendCooldownSeconds());
-                log.info("OTP request throttled by cooldown: userId={}", userId);
-                return OtpPolicyResult.throttled(cooldown);
+                Long ttl = redisTemplate.getExpire(cooldownKey, java.util.concurrent.TimeUnit.SECONDS);
+                Duration cooldown = ttl != null && ttl > 0
+                        ? Duration.ofSeconds(ttl)
+                        : Duration.ofSeconds(otpProperties.getResendCooldownSeconds());
+                log.info("OTP request throttled by cooldown: userId={} remaining={}s",
+                        userId, cooldown.toSeconds());
+                return OtpPolicyResult.cooldownThrottled(cooldown);
             }
             if (result == -2) {
                 log.info("OTP request throttled by daily limit: userId={}", userId);
-                return OtpPolicyResult.throttled(Duration.ZERO);
+                return OtpPolicyResult.dailyLimitThrottled(otpProperties.getDailyResendLimit());
             }
         }
 

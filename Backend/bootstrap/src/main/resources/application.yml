@@ -104,6 +104,15 @@ app:
     rate-limit:
       enabled: ${APP_RATE_LIMIT_ENABLED:true}
       requests-per-hour: ${APP_RATE_LIMIT_PER_HOUR:100}
+      endpoints:
+        auth.register:
+          requests-per-hour: ${APP_RATE_LIMIT_REGISTER_PER_HOUR:20}
+        auth.resend-otp:
+          requests-per-hour: ${APP_RATE_LIMIT_RESEND_OTP_PER_HOUR:10}
+        auth.forgot-password:
+          requests-per-hour: ${APP_RATE_LIMIT_FORGOT_PASSWORD_PER_HOUR:10}
+        auth.reset-password:
+          requests-per-hour: ${APP_RATE_LIMIT_RESET_PASSWORD_PER_HOUR:10}
   google:
     client-id: ${APP_GOOGLE_CLIENT_ID:}
     clock-skew-seconds: 30

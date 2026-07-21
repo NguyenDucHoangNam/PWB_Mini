@@ -183,10 +183,19 @@ public class IamFacadeImpl implements IamFacade {
         OtpPolicyResult policy = otpService.requestOtp(
                 savedDomain.getEmail().value(), OtpPurpose.REGISTER);
         if (!policy.allowed()) {
-            long seconds = policy.cooldownRemaining().toSeconds();
-            log.warn("OTP throttled right after register: userId={} cooldown={}s",
-                    savedDomain.getUserId(), seconds);
-            throw new BusinessException(ErrorCode.AUTH_RATE_LIMIT_EXCEEDED, seconds);
+            throw switch (policy.throttleType()) {
+                case DAILY_LIMIT -> {
+                    log.warn("OTP daily limit reached right after register: userId={}",
+                            savedDomain.getUserId());
+                    yield new BusinessException(ErrorCode.AUTH_OTP_DAILY_LIMIT_EXCEEDED);
+                }
+                default -> {
+                    long seconds = policy.cooldownRemaining().toSeconds();
+                    log.warn("OTP throttled right after register: userId={} cooldown={}s",
+                            savedDomain.getUserId(), seconds);
+                    yield new BusinessException(ErrorCode.AUTH_RATE_LIMIT_EXCEEDED, seconds);
+                }
+            };
         }
 
         return AuthMessageResponse.of(
@@ -433,20 +442,29 @@ public class IamFacadeImpl implements IamFacade {
     @Transactional
     public AuthMessageResponse forgotPassword(ForgotPasswordRequest request) {
         String email = normalizeEmail(request.getEmail());
-        enforceResetCooldown(email);
+        long cooldownRemaining = enforceResetCooldown(email);
 
         String sentMessage = messageResolver.get(MSG_FORGOT_PASSWORD);
+
+        if (cooldownRemaining > 0) {
+            log.info("Password reset cooldown active: email={} remaining={}s", email, cooldownRemaining);
+            return AuthMessageResponse.of(
+                    null,
+                    messageResolver.get(MSG_OTP_COOLDOWN, cooldownRemaining),
+                    (int) cooldownRemaining);
+        }
+
         Optional<UserJpaEntity> userOpt = userJpaRepository.findByEmailAndDeletedFalse(email);
         if (userOpt.isEmpty()) {
             log.info("Password reset requested for unknown email (silent)");
-            return AuthMessageResponse.of(null, sentMessage);
+            return AuthMessageResponse.of(null, sentMessage, (int) passwordResetProperties.getCooldownSeconds());
         }
         User user = userMapper.toDomain(userOpt.get());
 
         if (user.getStatus() != UserStatus.ACTIVE) {
             log.info("Password reset skipped for non-active user: userId={} status={}",
                     user.getUserId(), user.getStatus());
-            return AuthMessageResponse.of(null, sentMessage);
+            return AuthMessageResponse.of(null, sentMessage, (int) passwordResetProperties.getCooldownSeconds());
         }
         if (user.getOauthProvider() != com.pwb.iam.core.model.OAuthProvider.LOCAL) {
             throw new BusinessException(ErrorCode.AUTH_OAUTH_USER_NO_PASSWORD);
@@ -474,7 +492,7 @@ public class IamFacadeImpl implements IamFacade {
 
         log.info("Password reset requested: userId={} email={}",
                 user.getUserId(), user.getEmail().value());
-        return AuthMessageResponse.of(user.getUserId(), sentMessage);
+        return AuthMessageResponse.of(user.getUserId(), sentMessage, (int) passwordResetProperties.getCooldownSeconds());
     }
 
     @Override
@@ -605,16 +623,22 @@ public class IamFacadeImpl implements IamFacade {
         return username != null && username.startsWith(PROVISIONAL_USERNAME_PREFIX);
     }
 
-    private void enforceResetCooldown(String email) {
+    private long enforceResetCooldown(String email) {
         if (stringRedisTemplate == null) {
-            return;
+            return 0L;
         }
         String key = COOLDOWN_PREFIX + email;
+        Long ttl = stringRedisTemplate.getExpire(key, java.util.concurrent.TimeUnit.SECONDS);
+        if (ttl != null && ttl > 0) {
+            return ttl;
+        }
         Boolean acquired = stringRedisTemplate.opsForValue().setIfAbsent(
                 key, "1", Duration.ofSeconds(passwordResetProperties.getCooldownSeconds()));
         if (Boolean.FALSE.equals(acquired)) {
-            throw new BusinessException(ErrorCode.PASSWORD_RESET_COOLDOWN);
+            Long remaining = stringRedisTemplate.getExpire(key, java.util.concurrent.TimeUnit.SECONDS);
+            return remaining != null && remaining > 0 ? remaining : passwordResetProperties.getCooldownSeconds();
         }
+        return 0L;
     }
 
     private void enforcePasswordPolicy(String rawPassword) {

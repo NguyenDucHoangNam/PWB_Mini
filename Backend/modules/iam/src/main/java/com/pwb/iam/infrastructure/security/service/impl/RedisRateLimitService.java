@@ -34,15 +34,16 @@ public class RedisRateLimitService implements RateLimitService {
         }
 
         String key = buildKey(endpoint, clientKey);
+        int limit = rateLimitProperties.resolveLimitFor(endpoint);
         Long count = stringRedisTemplate.opsForValue().increment(key);
         if (count != null && count == 1L) {
             stringRedisTemplate.expire(key, WINDOW);
         }
 
-        if (count != null && count > rateLimitProperties.getRequestsPerHour()) {
+        if (count != null && count > limit) {
             long retryAfter = getRemainingSeconds(key);
-            log.warn("Rate limit exceeded: endpoint={} key={} count={} retryAfter={}s",
-                    endpoint, clientKey, count, retryAfter);
+            log.warn("Rate limit exceeded: endpoint={} key={} count={} limit={} retryAfter={}s",
+                    endpoint, clientKey, count, limit, retryAfter);
             return RateLimitDecision.deny(retryAfter);
         }
 
