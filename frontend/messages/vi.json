@@ -18,8 +18,8 @@
     "home": "Trang chủ",
     "features": "Tính năng",
     "contact": "Liên hệ",
-    "dashboard": "Dashboard",
-    "liveRooms": "Live Rooms",
+    "dashboard": "Playlist",
+    "liveRooms": "Phòng Trực Tiếp",
     "profile": "Hồ sơ cá nhân",
     "sessions": "Quản lý phiên",
     "logout": "Đăng xuất",
@@ -38,8 +38,8 @@
     "product": "Sản phẩm",
     "support": "Hỗ trợ",
     "legal": "Pháp lý",
-    "dashboard": "Dashboard",
-    "liveRooms": "Live Rooms",
+    "dashboard": "Playlist",
+    "liveRooms": "Phòng Trực Tiếp",
     "demoSharing": "Demo Sharing",
     "contact": "Liên hệ:",
     "faq": "FAQ",
@@ -367,7 +367,7 @@
       "title": "TÀI KHOẢN ĐANG CHỜ XÓA VĨNH VIỄN",
       "subtitle": "Tài khoản của bạn đã được yêu cầu vô hiệu hóa và đưa vào danh sách chờ xóa vĩnh viễn. Nếu không được khôi phục, tài khoản và mọi sản phẩm demo sẽ bị hủy bỏ sau:",
       "daysLeft": "{days} ngày còn lại",
-      "submit": "HỦY YÊU CẦU XÓA & QUAY VỀ DASHBOARD",
+      "submit": "HỦY YÊU CẦU XÓA & QUAY VỀ PLAYLIST",
       "submitting": "Đang khôi phục...",
       "logout": "Đăng xuất",
       "toastSuccess": "Chào mừng trở lại! Yêu cầu xóa tài khoản đã được hủy.",
@@ -543,7 +543,7 @@
     "403": {
       "title": "BẠN KHÔNG CÓ QUYỀN TRUY CẬP TRANG NÀY",
       "desc": "Tài khoản của bạn không có đủ quyền hạn để xem nội dung này. Nếu bạn cho rằng đây là lỗi, vui lòng liên hệ quản trị viên.",
-      "btn": "QUAY VỀ DASHBOARD"
+      "btn": "QUAY VỀ PLAYLIST"
     },
     "404": {
       "title": "TRANG BẠN TÌM KIẾM KHÔNG TỒN TẠI",

@@ -18,7 +18,7 @@
     "home": "Home",
     "features": "Features",
     "contact": "Contact",
-    "dashboard": "Dashboard",
+    "dashboard": "Playlist",
     "liveRooms": "Live Rooms",
     "profile": "Profile settings",
     "sessions": "Sessions",
@@ -38,7 +38,7 @@
     "product": "Product",
     "support": "Support",
     "legal": "Legal",
-    "dashboard": "Dashboard",
+    "dashboard": "Playlist",
     "liveRooms": "Live Rooms",
     "demoSharing": "Demo Sharing",
     "contact": "Contact:",
@@ -367,7 +367,7 @@
       "title": "ACCOUNT PENDING PERMANENT DELETION",
       "subtitle": "Your account has been deactivated and is scheduled for permanent deletion. Unless recovered, the account and all demo projects will be deleted in:",
       "daysLeft": "{days} days remaining",
-      "submit": "CANCEL DELETION & RETURN TO DASHBOARD",
+      "submit": "CANCEL DELETION & RETURN TO PLAYLIST",
       "submitting": "Recovering...",
       "logout": "Log out",
       "toastSuccess": "Welcome back! Account deletion request cancelled successfully.",
@@ -543,7 +543,7 @@
     "403": {
       "title": "ACCESS TO THIS PAGE IS FORBIDDEN",
       "desc": "Your account does not possess sufficient privileges to view this content. Contact support if you believe this is an error.",
-      "btn": "RETURN TO DASHBOARD"
+      "btn": "RETURN TO PLAYLIST"
     },
     "404": {
       "title": "THE PAGE YOU SOUGHT DOES NOT EXIST",
