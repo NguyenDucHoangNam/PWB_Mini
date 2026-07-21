@@ -164,6 +164,13 @@ public class LiveRoomServiceImpl implements LiveRoomService {
                 .isPresent();
     }
 
+    @Override
+    public LiveRoom getRoomAsParticipant(String roomCode) {
+        LiveRoomJpaEntity entity = liveRoomJpaRepository.findByRoomCodeAndDeletedFalse(roomCode)
+                .orElseThrow(() -> new BusinessException(ErrorCode.LIVEROOM_NOT_FOUND));
+        return liveRoomMapper.toDomain(entity);
+    }
+
     private void ensureHostHasNoActiveRoom(UUID hostUserId) {
         if (liveRoomJpaRepository.existsByHostUserIdAndStatusAndDeletedFalse(
                 hostUserId, LiveRoomStatus.ACTIVE)) {

@@ -69,7 +69,11 @@ public enum ErrorCode {
     LIVEROOM_NOT_HOST               ("LIVEROOM_006", "Only the host can modify this room.",               403),
     LIVEROOM_ALREADY_ENDED          ("LIVEROOM_007", "Room has already ended.",                           409),
     LIVEROOM_CODE_GENERATION_FAILED ("LIVEROOM_008", "Failed to generate unique room code.",              500),
-    LIVEROOM_INVALID_CAPACITY       ("LIVEROOM_009", "Max participants must be between 2 and 500.",     400);
+    LIVEROOM_INVALID_CAPACITY       ("LIVEROOM_009", "Max participants must be between 2 and 500.",     400),
+    LIVEROOM_MODE_NOT_JOINABLE      ("LIVEROOM_010", "Room mode does not allow public join.",            403),
+    LIVEROOM_FULL                   ("LIVEROOM_011", "Room is at maximum capacity.",                     409),
+    LIVEROOM_NOT_JOINED             ("LIVEROOM_012", "You have not joined this room.",                   404),
+    LIVEROOM_ALREADY_JOINED         ("LIVEROOM_013", "You have already joined this room.",               409);
 
     private final String code;
     private final String message;

@@ -35,4 +35,6 @@ public interface LiveRoomService {
     void endRoom(UUID hostUserId, String roomCode);
 
     boolean existsActiveRoomByCode(String roomCode);
+
+    LiveRoom getRoomAsParticipant(String roomCode);
 }
