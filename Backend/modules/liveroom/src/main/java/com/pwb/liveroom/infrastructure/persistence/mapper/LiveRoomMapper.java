@@ -2,16 +2,12 @@ package com.pwb.liveroom.infrastructure.persistence.mapper;
 
 import com.pwb.liveroom.core.model.LiveRoom;
 import com.pwb.liveroom.infrastructure.persistence.entity.LiveRoomJpaEntity;
-import org.mapstruct.Mapper;
-import org.mapstruct.ReportingPolicy;
+import org.springframework.stereotype.Component;
 
-@Mapper(
-        componentModel = "spring",
-        unmappedTargetPolicy = ReportingPolicy.IGNORE
-)
-public interface LiveRoomMapper {
+@Component
+public class LiveRoomMapper {
 
-    default LiveRoomJpaEntity toEntity(LiveRoom domain) {
+    public LiveRoomJpaEntity toEntity(LiveRoom domain) {
         if (domain == null) {
             return null;
         }
@@ -31,7 +27,7 @@ public interface LiveRoomMapper {
                 .build();
     }
 
-    default LiveRoomJpaEntity toEntity(LiveRoom domain, LiveRoomJpaEntity existing) {
+    public LiveRoomJpaEntity toEntity(LiveRoom domain, LiveRoomJpaEntity existing) {
         if (domain == null) {
             return existing;
         }
@@ -50,7 +46,7 @@ public interface LiveRoomMapper {
         return existing;
     }
 
-    default LiveRoom toDomain(LiveRoomJpaEntity entity) {
+    public LiveRoom toDomain(LiveRoomJpaEntity entity) {
         if (entity == null) {
             return null;
         }

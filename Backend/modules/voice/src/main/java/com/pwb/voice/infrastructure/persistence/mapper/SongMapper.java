@@ -2,16 +2,12 @@ package com.pwb.voice.infrastructure.persistence.mapper;
 
 import com.pwb.voice.core.model.Song;
 import com.pwb.voice.infrastructure.persistence.entity.SongJpaEntity;
-import org.mapstruct.Mapper;
-import org.mapstruct.ReportingPolicy;
+import org.springframework.stereotype.Component;
 
-@Mapper(
-        componentModel = "spring",
-        unmappedTargetPolicy = ReportingPolicy.IGNORE
-)
-public interface SongMapper {
+@Component
+public class SongMapper {
 
-    default SongJpaEntity toEntity(Song domain) {
+    public SongJpaEntity toEntity(Song domain) {
         if (domain == null) {
             return null;
         }
@@ -31,7 +27,7 @@ public interface SongMapper {
                 .build();
     }
 
-    default SongJpaEntity toEntity(Song domain, SongJpaEntity existing) {
+    public SongJpaEntity toEntity(Song domain, SongJpaEntity existing) {
         if (domain == null) {
             return existing;
         }
@@ -50,7 +46,7 @@ public interface SongMapper {
         return existing;
     }
 
-    default Song toDomain(SongJpaEntity entity) {
+    public Song toDomain(SongJpaEntity entity) {
         if (entity == null) {
             return null;
         }

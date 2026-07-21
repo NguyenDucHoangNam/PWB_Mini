@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/live-rooms")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('PRO')")
+@PreAuthorize("hasAnyRole('USER', 'PRO', 'ADMIN')")
 public class LiveRoomController {
 
     private static final String MSG_CREATED = "LIVEROOM_CREATED";
@@ -46,6 +46,7 @@ public class LiveRoomController {
     private final MessageResolver messageResolver;
 
     @PostMapping
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<LiveRoomResponse>> create(
             @CurrentUser AuthenticatedUser user,
             @Valid @RequestBody CreateLiveRoomRequest request) {
@@ -55,6 +56,7 @@ public class LiveRoomController {
     }
 
     @GetMapping("/me")
+    @PreAuthorize("hasRole('PRO')")
     public ApiResponse<Page<LiveRoomSummaryResponse>> listMine(
             @CurrentUser AuthenticatedUser user,
             @RequestParam(name = "status", required = false) LiveRoomStatus status,
@@ -64,6 +66,7 @@ public class LiveRoomController {
     }
 
     @GetMapping("/{" + PATH_ROOM_CODE + "}")
+    @PreAuthorize("hasAnyRole('USER', 'PRO', 'ADMIN')")
     public ApiResponse<LiveRoomResponse> get(
             @CurrentUser AuthenticatedUser user,
             @PathVariable(name = PATH_ROOM_CODE) String roomCode) {
@@ -72,6 +75,7 @@ public class LiveRoomController {
     }
 
     @PatchMapping("/{" + PATH_ROOM_CODE + "}")
+    @PreAuthorize("hasRole('PRO')")
     public ApiResponse<LiveRoomResponse> update(
             @CurrentUser AuthenticatedUser user,
             @PathVariable(name = PATH_ROOM_CODE) String roomCode,
@@ -81,6 +85,7 @@ public class LiveRoomController {
     }
 
     @PostMapping("/{" + PATH_ROOM_CODE + "}/end")
+    @PreAuthorize("hasRole('PRO')")
     public ApiResponse<Void> end(
             @CurrentUser AuthenticatedUser user,
             @PathVariable(name = PATH_ROOM_CODE) String roomCode) {
@@ -89,6 +94,7 @@ public class LiveRoomController {
     }
 
     @GetMapping("/{" + PATH_ROOM_CODE + "}/exists")
+    @PreAuthorize("hasAnyRole('USER', 'PRO', 'ADMIN')")
     public ApiResponse<LiveRoomExistsResponse> exists(
             @PathVariable(name = PATH_ROOM_CODE) String roomCode) {
         LiveRoomExistsResponse data = liveRoomFacade.checkRoomExists(roomCode);

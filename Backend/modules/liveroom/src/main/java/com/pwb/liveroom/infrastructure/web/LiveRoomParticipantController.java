@@ -42,10 +42,12 @@ public class LiveRoomParticipantController {
             @Valid @RequestBody(required = false) JoinLiveRoomRequest request) {
 
         JoinLiveRoomRequest effective = request == null ? new JoinLiveRoomRequest() : request;
+        String rawRole = user.getRole();
+        String effectiveRole = rawRole != null && rawRole.startsWith("ROLE_") ? rawRole.substring(5) : rawRole;
         LiveRoomJoinResponse data = participantFacade.joinRoom(
                 user.getId(),
                 null,
-                user.getRole(),
+                effectiveRole,
                 roomCode,
                 effective);
         return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_JOINED)));

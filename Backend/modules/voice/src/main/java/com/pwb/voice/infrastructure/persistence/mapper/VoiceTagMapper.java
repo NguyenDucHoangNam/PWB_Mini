@@ -2,16 +2,12 @@ package com.pwb.voice.infrastructure.persistence.mapper;
 
 import com.pwb.voice.core.model.VoiceTag;
 import com.pwb.voice.infrastructure.persistence.entity.VoiceTagJpaEntity;
-import org.mapstruct.Mapper;
-import org.mapstruct.ReportingPolicy;
+import org.springframework.stereotype.Component;
 
-@Mapper(
-        componentModel = "spring",
-        unmappedTargetPolicy = ReportingPolicy.IGNORE
-)
-public interface VoiceTagMapper {
+@Component
+public class VoiceTagMapper {
 
-    default VoiceTagJpaEntity toEntity(VoiceTag domain) {
+    public VoiceTagJpaEntity toEntity(VoiceTag domain) {
         if (domain == null) {
             return null;
         }
@@ -28,7 +24,7 @@ public interface VoiceTagMapper {
                 .build();
     }
 
-    default VoiceTagJpaEntity toEntity(VoiceTag domain, VoiceTagJpaEntity existing) {
+    public VoiceTagJpaEntity toEntity(VoiceTag domain, VoiceTagJpaEntity existing) {
         if (domain == null) {
             return existing;
         }
@@ -44,7 +40,7 @@ public interface VoiceTagMapper {
         return existing;
     }
 
-    default VoiceTag toDomain(VoiceTagJpaEntity entity) {
+    public VoiceTag toDomain(VoiceTagJpaEntity entity) {
         if (entity == null) {
             return null;
         }

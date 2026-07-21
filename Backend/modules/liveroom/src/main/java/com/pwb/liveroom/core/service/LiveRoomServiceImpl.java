@@ -88,7 +88,9 @@ public class LiveRoomServiceImpl implements LiveRoomService {
 
     @Override
     public LiveRoom getRoomByCode(UUID hostUserId, String roomCode) {
-        LiveRoomJpaEntity entity = loadRoomAsHost(hostUserId, roomCode);
+        LiveRoomJpaEntity entity = liveRoomJpaRepository
+                .findByRoomCodeAndDeletedFalse(roomCode)
+                .orElseThrow(() -> new BusinessException(ErrorCode.LIVEROOM_NOT_FOUND));
         return liveRoomMapper.toDomain(entity);
     }
 

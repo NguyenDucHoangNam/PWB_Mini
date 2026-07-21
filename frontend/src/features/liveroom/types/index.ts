@@ -96,6 +96,7 @@ export interface ParticipantWsEvent {
   roomCode?: string;
   userId?: string;
   displayName?: string;
+  roleAtJoin?: string;
   currentCount?: number;
   maxParticipants?: number;
   timestamp?: string;

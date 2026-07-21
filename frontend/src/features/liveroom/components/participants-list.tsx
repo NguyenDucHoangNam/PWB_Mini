@@ -39,33 +39,47 @@ export function ParticipantsList({ roomCode, hostUserId }: ParticipantsListProps
   const [realtimeReady, setRealtimeReady] = useState(false);
 
   useEffect(() => {
+    if (data?.data) {
+      setLiveParticipants(data.data);
+    }
+  }, [data?.data]);
+
+  useEffect(() => {
     if (!roomCode) return;
     const handle = subscribeRoomParticipants(roomCode, (event: ParticipantWsEvent) => {
       setRealtimeReady(true);
-      if (event.type === "PARTICIPANT_JOINED" && event.participant) {
+      if (event.type === "PARTICIPANT_JOINED") {
+        const newP: ParticipantSummary = event.participant ?? {
+          participantId: event.userId ?? String(Date.now()),
+          userId: event.userId ?? "",
+          displayName: event.displayName ?? "Listener",
+          roleAtJoin: event.roleAtJoin ?? "USER",
+          joinedAt: event.timestamp ?? new Date().toISOString(),
+        };
         setLiveParticipants((prev) => {
-          const base = prev ?? data?.data ?? [];
-          if (base.some((p) => p.participantId === event.participant!.participantId)) {
+          const base = prev ?? [];
+          if (base.some((p) => (newP.userId && p.userId === newP.userId) || p.participantId === newP.participantId)) {
             return base;
           }
-          return [...base, event.participant!];
+          return [...base, newP];
         });
-      } else if (event.type === "PARTICIPANT_LEFT" && event.participant) {
+      } else if (event.type === "PARTICIPANT_LEFT") {
+        const targetUserId = event.participant?.userId ?? event.userId;
+        const targetId = event.participant?.participantId;
         setLiveParticipants((prev) => {
-          const base = prev ?? data?.data ?? [];
-          return base.filter((p) => p.participantId !== event.participant!.participantId);
-        });
-      } else if (event.type === "PARTICIPANT_LEFT" && event.userId) {
-        setLiveParticipants((prev) => {
-          const base = prev ?? data?.data ?? [];
-          return base.filter((p) => p.userId !== event.userId);
+          const base = prev ?? [];
+          return base.filter((p) => {
+            if (targetId && p.participantId === targetId) return false;
+            if (targetUserId && p.userId === targetUserId) return false;
+            return true;
+          });
         });
       }
     });
     return () => {
       handle.unsubscribe();
     };
-  }, [roomCode, data?.data]);
+  }, [roomCode]);
 
   const initial = useMemo(() => data?.data ?? [], [data?.data]);
   const participants = liveParticipants ?? initial;

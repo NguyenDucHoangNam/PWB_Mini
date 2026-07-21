@@ -44,17 +44,18 @@ public final class LiveRoomParticipant {
             String roleAtJoin,
             Instant joinedAt
     ) {
+        String cleanRole = roleAtJoin != null && roleAtJoin.startsWith("ROLE_") ? roleAtJoin.substring(5) : roleAtJoin;
         validateRoomCode(roomCode);
         validateUserId(userId);
         validateDisplayName(displayName);
-        validateRole(roleAtJoin);
+        validateRole(cleanRole);
 
         return new LiveRoomParticipant(
                 UUID.randomUUID(),
                 roomCode,
                 userId,
                 displayName.trim(),
-                roleAtJoin,
+                cleanRole,
                 joinedAt == null ? Instant.now() : joinedAt,
                 null
         );
@@ -127,7 +128,8 @@ public final class LiveRoomParticipant {
         if (roleAtJoin == null || roleAtJoin.isBlank()) {
             throw new IllegalArgumentException("Role at join is required");
         }
-        if (!"USER".equals(roleAtJoin) && !"PRO".equals(roleAtJoin) && !"ADMIN".equals(roleAtJoin)) {
+        String cleanRole = roleAtJoin.startsWith("ROLE_") ? roleAtJoin.substring(5) : roleAtJoin;
+        if (!"USER".equals(cleanRole) && !"PRO".equals(cleanRole) && !"ADMIN".equals(cleanRole)) {
             throw new IllegalArgumentException(
                     "Role at join must be one of USER, PRO, ADMIN");
         }

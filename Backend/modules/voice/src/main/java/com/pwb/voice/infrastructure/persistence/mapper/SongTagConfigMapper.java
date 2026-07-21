@@ -2,16 +2,12 @@ package com.pwb.voice.infrastructure.persistence.mapper;
 
 import com.pwb.voice.core.model.SongTagConfig;
 import com.pwb.voice.infrastructure.persistence.entity.SongTagConfigJpaEntity;
-import org.mapstruct.Mapper;
-import org.mapstruct.ReportingPolicy;
+import org.springframework.stereotype.Component;
 
-@Mapper(
-        componentModel = "spring",
-        unmappedTargetPolicy = ReportingPolicy.IGNORE
-)
-public interface SongTagConfigMapper {
+@Component
+public class SongTagConfigMapper {
 
-    default SongTagConfigJpaEntity toEntity(SongTagConfig domain) {
+    public SongTagConfigJpaEntity toEntity(SongTagConfig domain) {
         if (domain == null) {
             return null;
         }
@@ -27,7 +23,7 @@ public interface SongTagConfigMapper {
                 .build();
     }
 
-    default SongTagConfigJpaEntity toEntity(SongTagConfig domain, SongTagConfigJpaEntity existing) {
+    public SongTagConfigJpaEntity toEntity(SongTagConfig domain, SongTagConfigJpaEntity existing) {
         if (domain == null) {
             return existing;
         }
@@ -42,7 +38,7 @@ public interface SongTagConfigMapper {
         return existing;
     }
 
-    default SongTagConfig toDomain(SongTagConfigJpaEntity entity) {
+    public SongTagConfig toDomain(SongTagConfigJpaEntity entity) {
         if (entity == null) {
             return null;
         }

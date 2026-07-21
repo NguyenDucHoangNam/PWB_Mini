@@ -40,6 +40,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ErrorResponse> handleNoResource(NoResourceFoundException ex) {
+        log.warn("Resource not found: {} {}", ex.getHttpMethod(), ex.getResourcePath());
         ErrorCode ec = ErrorCode.RESOURCE_NOT_FOUND;
         return ResponseEntity.status(HttpStatus.valueOf(ec.getHttpStatus()))
                 .body(ErrorResponse.of(ec, resolveMessage(ec, null)));
