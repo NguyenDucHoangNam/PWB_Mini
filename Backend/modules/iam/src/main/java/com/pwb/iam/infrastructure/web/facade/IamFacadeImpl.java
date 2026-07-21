@@ -234,11 +234,11 @@ public class IamFacadeImpl implements IamFacade {
         authEventPublisher.publishUserVerifiedEmail(saved.getId(), saved.getEmail());
 
         log.info("User OTP verified: userId={}", saved.getId());
-        AuthResponse.NextStep nextStep = isProvisionalUsername(saved.getUsername())
+        User verifiedUser = userMapper.toDomain(saved);
+        AuthResponse.NextStep nextStep = verifiedUser.isProvisionalUsername()
                 ? AuthResponse.NextStep.COMPLETE_PROFILE
                 : AuthResponse.NextStep.NONE;
-        return buildAuthResponseAndPublishEvent(
-                userMapper.toDomain(saved), nextStep);
+        return buildAuthResponseAndPublishEvent(verifiedUser, nextStep);
     }
 
     @Override
@@ -262,6 +262,7 @@ public class IamFacadeImpl implements IamFacade {
             enforcePasswordPolicy(request.getNewPassword());
             user.changePassword(Password.fromHash(passwordEncoder.encode(request.getNewPassword())));
         }
+        user.markProvisionalUsernameResolved();
 
         UserJpaEntity toSave = userMapper.toEntity(user);
         toSave.setRole(originalRole);
@@ -321,6 +322,7 @@ public class IamFacadeImpl implements IamFacade {
             Optional<UserJpaEntity> byEmail = userJpaRepository.findByEmailAndDeletedFalse(payload.email());
             if (byEmail.isPresent()) {
                 user = userMapper.toDomain(byEmail.get());
+                RoleJpaEntity originalRole = byEmail.get().getRole();
                 user.linkOAuth(com.pwb.iam.core.model.OAuthProvider.GOOGLE, payload.sub());
                 if (payload.picture() != null && !payload.picture().isBlank()
                         && (user.getAvatarUrl() == null || user.getAvatarUrl().isBlank())) {
@@ -333,10 +335,16 @@ public class IamFacadeImpl implements IamFacade {
                 if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
                     user.markActive();
                 }
+                UserJpaEntity updatedEntity = userMapper.toEntity(user);
+                if (originalRole != null) {
+                    updatedEntity.setRole(originalRole);
+                }
+                UserJpaEntity saved = userJpaRepository.save(updatedEntity);
+                user = userMapper.toDomain(saved);
                 authEventPublisher.publishUserLinkedGoogle(
                         user.getUserId(), user.getEmail().value(), user.getFullName());
             } else {
-                String username = "user_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+                String username = generateProvisionalUsername();
                 User fresh = User.createGoogle(
                         username,
                         EmailAddress.of(payload.email()),
@@ -382,7 +390,7 @@ public class IamFacadeImpl implements IamFacade {
         authEventPublisher.publishLoginSuccess(user.getUserId(), user.getEmail().value());
         log.info("Google login success: userId={} email={}", user.getUserId(), user.getEmail().value());
 
-        AuthResponse.NextStep nextStep = user.getUsername() != null && user.getUsername().startsWith("user_")
+        AuthResponse.NextStep nextStep = user.isProvisionalUsername()
                 ? AuthResponse.NextStep.COMPLETE_PROFILE
                 : AuthResponse.NextStep.NONE;
 
@@ -613,10 +621,6 @@ public class IamFacadeImpl implements IamFacade {
     private String generateProvisionalUsername() {
         String hex = UUID.randomUUID().toString().replace("-", "");
         return PROVISIONAL_USERNAME_PREFIX + hex.substring(0, PROVISIONAL_USERNAME_RANDOM_LENGTH);
-    }
-
-    private boolean isProvisionalUsername(String username) {
-        return username != null && username.startsWith(PROVISIONAL_USERNAME_PREFIX);
     }
 
     private long enforceResetCooldown(String email) {

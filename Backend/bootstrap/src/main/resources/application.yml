@@ -109,6 +109,8 @@ app:
           requests-per-hour: ${APP_RATE_LIMIT_REGISTER_PER_HOUR:20}
         auth.login:
           requests-per-hour: ${APP_RATE_LIMIT_LOGIN_PER_HOUR:30}
+        auth.google:
+          requests-per-hour: ${APP_RATE_LIMIT_GOOGLE_PER_HOUR:30}
         auth.resend-otp:
           requests-per-hour: ${APP_RATE_LIMIT_RESEND_OTP_PER_HOUR:10}
         auth.forgot-password:

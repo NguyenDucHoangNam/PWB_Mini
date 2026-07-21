@@ -79,22 +79,23 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request,
                                                            HttpServletResponse response) {
         AuthResponse data = iamFacade.login(request);
-        refreshTokenCookieService.setRefreshCookie(response, data.getRefreshToken());
-        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_LOGIN)));
+        return respondWithTokens(data, response, MSG_LOGIN);
     }
 
     @Operation(summary = "Login with Google ID token", description = "Authenticates or registers user via Google OAuth2 and returns tokens")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Google login successful"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation error / Invalid token format"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Invalid Google token / Email not verified"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "OAuth user has no password set")
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Account banned or deleted"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "Rate limit exceeded")
     })
     @PostMapping("/google")
+    @RateLimited(endpoint = "auth.google")
     public ResponseEntity<ApiResponse<AuthResponse>> loginWithGoogle(@Valid @RequestBody GoogleLoginRequest request,
                                                                     HttpServletResponse response) {
         AuthResponse data = iamFacade.loginWithGoogle(request);
-        refreshTokenCookieService.setRefreshCookie(response, data.getRefreshToken());
-        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_GOOGLE_LOGIN)));
+        return respondWithTokens(data, response, MSG_GOOGLE_LOGIN);
     }
 
     @Operation(summary = "Refresh access token", description = "Uses refresh token (cookie or body) to issue new access + refresh tokens")
@@ -111,8 +112,7 @@ public class AuthController {
                 ? cookieRefreshToken
                 : (body != null ? body.getRefreshToken() : null);
         AuthResponse data = iamFacade.refresh(RefreshTokenRequest.builder().refreshToken(token).build());
-        refreshTokenCookieService.setRefreshCookie(response, data.getRefreshToken());
-        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_REFRESH_TOKEN)));
+        return respondWithTokens(data, response, MSG_REFRESH_TOKEN);
     }
 
     @SecurityRequirement(name = "bearerAuth")
@@ -139,8 +139,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> verifyOtp(@Valid @RequestBody VerifyOtpRequest request,
                                                                HttpServletResponse response) {
         AuthResponse data = iamFacade.verifyOtp(request);
-        refreshTokenCookieService.setRefreshCookie(response, data.getRefreshToken());
-        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_VERIFY_OTP)));
+        return respondWithTokens(data, response, MSG_VERIFY_OTP);
     }
 
     @Operation(summary = "Resend OTP", description = "Resends the OTP code to the user's email (cooldown: 60 seconds)")
@@ -169,8 +168,7 @@ public class AuthController {
             @Valid @RequestBody CompleteProfileRequest request,
             HttpServletResponse response) {
         AuthResponse data = iamFacade.completeProfile(user.getId(), request);
-        refreshTokenCookieService.setRefreshCookie(response, data.getRefreshToken());
-        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(MSG_COMPLETE_PROFILE)));
+        return respondWithTokens(data, response, MSG_COMPLETE_PROFILE);
     }
 
     @Operation(summary = "Request password reset", description = "Sends a password reset link to the user's email (cooldown: 60 seconds)")
@@ -211,5 +209,11 @@ public class AuthController {
             @Valid @RequestBody ChangePasswordRequest request) {
         AuthMessageResponse data = iamFacade.changePassword(user.getId(), request);
         return ResponseEntity.ok(ApiResponse.success(data, data.getMessage()));
+    }
+
+    private ResponseEntity<ApiResponse<AuthResponse>> respondWithTokens(
+            AuthResponse data, HttpServletResponse response, String messageKey) {
+        refreshTokenCookieService.setRefreshCookie(response, data.getRefreshToken());
+        return ResponseEntity.ok(ApiResponse.success(data, messageResolver.get(messageKey)));
     }
 }

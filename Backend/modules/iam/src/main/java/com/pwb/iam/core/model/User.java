@@ -20,6 +20,7 @@ public final class User extends BaseEntity {
     private OAuthProvider oauthProvider;
     private String oauthId;
     private Instant deletionRequestedAt;
+    private boolean provisionalUsername;
 
     private User(
             UUID userId,
@@ -33,7 +34,8 @@ public final class User extends BaseEntity {
             Role role,
             OAuthProvider oauthProvider,
             String oauthId,
-            Instant deletionRequestedAt
+            Instant deletionRequestedAt,
+            boolean provisionalUsername
     ) {
         this.userId = userId;
         this.username = username;
@@ -47,6 +49,7 @@ public final class User extends BaseEntity {
         this.oauthProvider = oauthProvider;
         this.oauthId = oauthId;
         this.deletionRequestedAt = deletionRequestedAt;
+        this.provisionalUsername = provisionalUsername;
     }
 
     public static User createLocal(
@@ -67,7 +70,8 @@ public final class User extends BaseEntity {
                 Role.defaultUserRole(),
                 OAuthProvider.LOCAL,
                 null,
-                null
+                null,
+                false
         );
     }
 
@@ -90,7 +94,8 @@ public final class User extends BaseEntity {
                 Role.defaultUserRole(),
                 OAuthProvider.GOOGLE,
                 oauthId,
-                null
+                null,
+                true
         );
     }
 
@@ -106,7 +111,8 @@ public final class User extends BaseEntity {
             Role role,
             OAuthProvider oauthProvider,
             String oauthId,
-            Instant deletionRequestedAt
+            Instant deletionRequestedAt,
+            boolean provisionalUsername
     ) {
         Password password = passwordHash == null ? null : Password.fromHash(passwordHash);
         return new User(
@@ -121,7 +127,8 @@ public final class User extends BaseEntity {
                 role,
                 oauthProvider,
                 oauthId,
-                deletionRequestedAt
+                deletionRequestedAt,
+                provisionalUsername
         );
     }
 
@@ -186,6 +193,11 @@ public final class User extends BaseEntity {
     public void linkOAuth(OAuthProvider provider, String oauthId) {
         this.oauthProvider = provider;
         this.oauthId = oauthId;
+        touch();
+    }
+
+    public void markProvisionalUsernameResolved() {
+        this.provisionalUsername = false;
         touch();
     }
 }

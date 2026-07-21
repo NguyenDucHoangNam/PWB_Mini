@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class GoogleLoginRequest {
 
-    @NotBlank
-    @Size(min = 10, max = 4096)
+    @NotBlank(message = "{validation.google.idtoken.required}")
+    @Size(min = 10, max = 4096, message = "{validation.google.idtoken.size}")
     private String idToken;
 }

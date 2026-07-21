@@ -80,6 +80,9 @@ public class UserJpaEntity extends IamJpaBaseEntity {
     @Column(name = "deletion_requested_at")
     private Instant deletionRequestedAt;
 
+    @Column(name = "is_provisional_username", nullable = false)
+    private boolean provisionalUsername;
+
     public UUID getRoleId() {
         return role == null ? null : role.getId();
     }

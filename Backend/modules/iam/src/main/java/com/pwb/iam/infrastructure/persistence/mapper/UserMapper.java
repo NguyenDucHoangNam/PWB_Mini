@@ -28,6 +28,7 @@ public abstract class UserMapper {
                 .oauthProvider(domain.getOauthProvider())
                 .oauthId(domain.getOauthId())
                 .deletionRequestedAt(domain.getDeletionRequestedAt())
+                .provisionalUsername(domain.isProvisionalUsername())
                 .build();
     }
 
@@ -45,6 +46,7 @@ public abstract class UserMapper {
         existing.setOauthProvider(domain.getOauthProvider());
         existing.setOauthId(domain.getOauthId());
         existing.setDeletionRequestedAt(domain.getDeletionRequestedAt());
+        existing.setProvisionalUsername(domain.isProvisionalUsername());
         return existing;
     }
 
@@ -66,7 +68,8 @@ public abstract class UserMapper {
                 role,
                 entity.getOauthProvider(),
                 entity.getOauthId(),
-                entity.getDeletionRequestedAt()
+                entity.getDeletionRequestedAt(),
+                entity.isProvisionalUsername()
         );
     }
 
