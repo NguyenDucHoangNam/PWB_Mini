@@ -43,14 +43,13 @@ import com.pwb.iam.infrastructure.security.event.AuthEventPublisher;
 import com.pwb.iam.infrastructure.security.jwt.GoogleTokenVerifier;
 import com.pwb.iam.infrastructure.security.jwt.JwtTokenProvider;
 import com.pwb.iam.infrastructure.security.service.LoginAttemptService;
+import com.pwb.iam.infrastructure.security.service.LoginFailureHandler;
 import com.pwb.iam.infrastructure.security.service.RefreshTokenStore;
 import com.pwb.iam.infrastructure.security.util.ClientIpResolver;
 import com.pwb.iam.infrastructure.service.AuthSupportService;
 import com.pwb.iam.infrastructure.service.PasswordResetTokenService;
 import com.pwb.iam.infrastructure.service.RoleLookupService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -70,6 +69,9 @@ public class IamFacadeImpl implements IamFacade {
     private static final String COOLDOWN_PREFIX = "password-reset:cooldown:";
     private static final int PROVISIONAL_USERNAME_RANDOM_LENGTH = 16;
     private static final String PROVISIONAL_USERNAME_PREFIX = "user_";
+
+    private static final String DUMMY_BCRYPT_HASH =
+            "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
     private static final String MSG_REGISTER = "AUTH_REGISTER_MESSAGE";
     private static final String MSG_FORGOT_PASSWORD = "AUTH_FORGOT_PASSWORD_SENT";
@@ -96,15 +98,14 @@ public class IamFacadeImpl implements IamFacade {
     private final RefreshTokenStore refreshTokenStore;
     private final RefreshTokenProperties refreshTokenProperties;
     private final LoginAttemptService loginAttemptService;
+    private final LoginFailureHandler loginFailureHandler;
     private final PasswordResetTokenService passwordResetTokenService;
     private final PasswordPolicyService passwordPolicyService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Nullable
-    @Autowired
-    private StringRedisTemplate stringRedisTemplate;
+    private final StringRedisTemplate stringRedisTemplate;
 
-    @Autowired
     public IamFacadeImpl(
             UserJpaRepository userJpaRepository,
             PasswordResetTokenJpaRepository passwordResetTokenJpaRepository,
@@ -123,6 +124,7 @@ public class IamFacadeImpl implements IamFacade {
             RefreshTokenStore refreshTokenStore,
             RefreshTokenProperties refreshTokenProperties,
             LoginAttemptService loginAttemptService,
+            LoginFailureHandler loginFailureHandler,
             PasswordResetTokenService passwordResetTokenService,
             PasswordPolicyService passwordPolicyService,
             ApplicationEventPublisher eventPublisher,
@@ -144,6 +146,7 @@ public class IamFacadeImpl implements IamFacade {
         this.refreshTokenStore = refreshTokenStore;
         this.refreshTokenProperties = refreshTokenProperties;
         this.loginAttemptService = loginAttemptService;
+        this.loginFailureHandler = loginFailureHandler;
         this.passwordResetTokenService = passwordResetTokenService;
         this.passwordPolicyService = passwordPolicyService;
         this.eventPublisher = eventPublisher;
@@ -234,7 +237,7 @@ public class IamFacadeImpl implements IamFacade {
         AuthResponse.NextStep nextStep = isProvisionalUsername(saved.getUsername())
                 ? AuthResponse.NextStep.COMPLETE_PROFILE
                 : AuthResponse.NextStep.NONE;
-        return buildAuthResponseWithRotation(
+        return buildAuthResponseAndPublishEvent(
                 userMapper.toDomain(saved), nextStep);
     }
 
@@ -265,7 +268,7 @@ public class IamFacadeImpl implements IamFacade {
         UserJpaEntity saved = userJpaRepository.save(toSave);
         log.info("Profile completed: userId={} username={}",
                 saved.getId(), saved.getUsername());
-        return buildAuthResponseWithRotation(
+        return buildAuthResponseAndPublishEvent(
                 userMapper.toDomain(saved), AuthResponse.NextStep.NONE);
     }
 
@@ -283,35 +286,24 @@ public class IamFacadeImpl implements IamFacade {
         }
 
         UserJpaEntity entity = userJpaRepository.findByEmailAndDeletedFalse(email).orElse(null);
-        if (entity == null) {
-            loginAttemptService.recordFailure(email, clientIp);
-            throw new BusinessException(ErrorCode.AUTH_LOGIN_FAILED);
+        String storedHash = entity != null ? entity.getPassword() : DUMMY_BCRYPT_HASH;
+
+        if (entity == null || !passwordEncoder.matches(request.getPassword(), storedHash)) {
+            loginFailureHandler.recordFailureAndTranslate(email, clientIp);
         }
+
         User user = userMapper.toDomain(entity);
-
-        if (user.getStatus() != UserStatus.ACTIVE) {
-            if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
-                throw new BusinessException(ErrorCode.AUTH_ACCOUNT_NOT_VERIFIED);
-            }
-            loginAttemptService.recordFailure(email, clientIp);
-            throw new BusinessException(ErrorCode.AUTH_LOGIN_FAILED);
+        if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
+            throw new BusinessException(ErrorCode.AUTH_ACCOUNT_NOT_VERIFIED);
         }
-
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword().getHash())) {
-            loginAttemptService.recordFailure(email, clientIp);
-            if (loginAttemptService.isEmailLocked(email)) {
-                throw new BusinessException(ErrorCode.AUTH_ACCOUNT_LOCKED);
-            }
-            if (loginAttemptService.isIpLocked(clientIp)) {
-                throw new BusinessException(ErrorCode.AUTH_IP_LOCKED);
-            }
-            throw new BusinessException(ErrorCode.AUTH_LOGIN_FAILED);
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            loginFailureHandler.recordFailureAndTranslate(email, clientIp);
         }
 
         loginAttemptService.recordSuccess(email, clientIp);
         authEventPublisher.publishLoginSuccess(user.getUserId(), user.getEmail().value());
         log.info("User login success: userId={}", user.getUserId());
-        return buildAuthResponseWithRotation(user, AuthResponse.NextStep.NONE);
+        return buildAuthResponseAndPublishEvent(user);
     }
 
     @Override
@@ -394,7 +386,7 @@ public class IamFacadeImpl implements IamFacade {
                 ? AuthResponse.NextStep.COMPLETE_PROFILE
                 : AuthResponse.NextStep.NONE;
 
-        return buildAuthResponseWithRotation(user, nextStep);
+        return buildAuthResponseAndPublishEvent(user, nextStep);
     }
 
     @Override
@@ -435,7 +427,7 @@ public class IamFacadeImpl implements IamFacade {
         refreshTokenStore.revoke(jti);
 
         log.info("Token refreshed: userId={}", user.getUserId());
-        return buildAuthResponseWithRotation(user, AuthResponse.NextStep.NONE);
+        return buildAuthResponseAndPublishEvent(user, AuthResponse.NextStep.NONE);
     }
 
     @Override
@@ -607,7 +599,11 @@ public class IamFacadeImpl implements IamFacade {
         return raw.trim().toLowerCase();
     }
 
-    private AuthResponse buildAuthResponseWithRotation(User user, AuthResponse.NextStep nextStep) {
+    private AuthResponse buildAuthResponseAndPublishEvent(User user) {
+        return buildAuthResponseAndPublishEvent(user, AuthResponse.NextStep.NONE);
+    }
+
+    private AuthResponse buildAuthResponseAndPublishEvent(User user, AuthResponse.NextStep nextStep) {
         AuthResponse response = authSupportService.buildAuthResponse(user, nextStep);
         String refreshToken = response.getRefreshToken();
         eventPublisher.publishEvent(AuthSuccessEvent.of(user.getUserId(), user.getEmail().value(), refreshToken));

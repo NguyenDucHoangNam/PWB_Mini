@@ -71,9 +71,11 @@ public class AuthController {
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Login successful"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Invalid credentials / Account locked"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Account not verified")
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Account not verified"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "Rate limit exceeded")
     })
     @PostMapping("/login")
+    @RateLimited(endpoint = "auth.login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request,
                                                            HttpServletResponse response) {
         AuthResponse data = iamFacade.login(request);
