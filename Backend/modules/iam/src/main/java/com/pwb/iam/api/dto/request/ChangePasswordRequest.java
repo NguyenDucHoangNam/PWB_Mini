@@ -1,5 +1,6 @@
 package com.pwb.iam.api.dto.request;
 
+import com.pwb.iam.infrastructure.security.annotation.StrongPassword;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -17,6 +18,7 @@ public class ChangePasswordRequest {
     private String currentPassword;
 
     @NotBlank
-    @Size(min = 8, max = 128)
+    @Size(max = 128)
+    @StrongPassword
     private String newPassword;
 }

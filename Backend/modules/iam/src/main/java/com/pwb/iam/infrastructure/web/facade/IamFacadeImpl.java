@@ -27,6 +27,8 @@ import com.pwb.iam.core.model.RoleName;
 import com.pwb.iam.core.model.User;
 import com.pwb.iam.core.model.UserStatus;
 import com.pwb.iam.core.events.AuthSuccessEvent;
+import com.pwb.iam.core.service.PasswordPolicyResult;
+import com.pwb.iam.core.service.PasswordPolicyService;
 import com.pwb.iam.infrastructure.persistence.entity.PasswordResetTokenJpaEntity;
 import com.pwb.iam.infrastructure.persistence.entity.RoleJpaEntity;
 import com.pwb.iam.infrastructure.persistence.entity.UserJpaEntity;
@@ -92,6 +94,7 @@ public class IamFacadeImpl implements IamFacade {
     private final RefreshTokenProperties refreshTokenProperties;
     private final LoginAttemptService loginAttemptService;
     private final PasswordResetTokenService passwordResetTokenService;
+    private final PasswordPolicyService passwordPolicyService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Nullable
@@ -117,6 +120,7 @@ public class IamFacadeImpl implements IamFacade {
             RefreshTokenProperties refreshTokenProperties,
             LoginAttemptService loginAttemptService,
             PasswordResetTokenService passwordResetTokenService,
+            PasswordPolicyService passwordPolicyService,
             ApplicationEventPublisher eventPublisher,
             @Nullable StringRedisTemplate stringRedisTemplate) {
         this.userJpaRepository = userJpaRepository;
@@ -136,6 +140,7 @@ public class IamFacadeImpl implements IamFacade {
         this.refreshTokenProperties = refreshTokenProperties;
         this.loginAttemptService = loginAttemptService;
         this.passwordResetTokenService = passwordResetTokenService;
+        this.passwordPolicyService = passwordPolicyService;
         this.eventPublisher = eventPublisher;
         this.stringRedisTemplate = stringRedisTemplate;
     }
@@ -149,6 +154,8 @@ public class IamFacadeImpl implements IamFacade {
         if (existingOpt.isPresent()) {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_REGISTERED_AUTH);
         }
+
+        enforcePasswordPolicy(request.getPassword());
 
         String username = generateProvisionalUsername();
         String hashed = passwordEncoder.encode(request.getPassword());
@@ -234,6 +241,7 @@ public class IamFacadeImpl implements IamFacade {
             user.changeFullName(request.getFullName().trim());
         }
         if (request.getNewPassword() != null && !request.getNewPassword().isBlank()) {
+            enforcePasswordPolicy(request.getNewPassword());
             user.changePassword(Password.fromHash(passwordEncoder.encode(request.getNewPassword())));
         }
 
@@ -491,6 +499,8 @@ public class IamFacadeImpl implements IamFacade {
             throw new BusinessException(ErrorCode.AUTH_OAUTH_USER_NO_PASSWORD);
         }
 
+        enforcePasswordPolicy(request.getNewPassword());
+
         user.changePassword(Password.fromHash(passwordEncoder.encode(request.getNewPassword())));
         UserJpaEntity toSave = userMapper.toEntity(user);
         toSave.setRole(originalRole);
@@ -524,6 +534,8 @@ public class IamFacadeImpl implements IamFacade {
         if (passwordEncoder.matches(request.getNewPassword(), user.getPassword().getHash())) {
             throw new BusinessException(ErrorCode.AUTH_PASSWORD_REUSED);
         }
+
+        enforcePasswordPolicy(request.getNewPassword());
 
         user.changePassword(Password.fromHash(passwordEncoder.encode(request.getNewPassword())));
         UserJpaEntity toSave = userMapper.toEntity(user);
@@ -587,6 +599,17 @@ public class IamFacadeImpl implements IamFacade {
                 key, "1", Duration.ofSeconds(passwordResetProperties.getCooldownSeconds()));
         if (Boolean.FALSE.equals(acquired)) {
             throw new BusinessException(ErrorCode.PASSWORD_RESET_COOLDOWN);
+        }
+    }
+
+    private void enforcePasswordPolicy(String rawPassword) {
+        PasswordPolicyResult result = passwordPolicyService.validate(rawPassword);
+        if (result.isInvalid()) {
+            String reasons = result.violations().stream()
+                    .map(Enum::name)
+                    .collect(java.util.stream.Collectors.joining(", "));
+            log.warn("Password policy rejected: violations={}", reasons);
+            throw new BusinessException(ErrorCode.WEAK_PASSWORD, reasons);
         }
     }
 }
