@@ -107,7 +107,8 @@ export interface MediaStateUpdateBody {
 export type ParticipantWsEventType =
   | "PARTICIPANT_JOINED"
   | "PARTICIPANT_LEFT"
-  | "MEDIA_STATE_CHANGED";
+  | "MEDIA_STATE_CHANGED"
+  | "ROOM_ENDED";
 
 export interface ParticipantWsEvent {
   type: ParticipantWsEventType;
@@ -149,6 +150,18 @@ export interface PeerLeftWsEvent {
 }
 
 export type PeerWsEvent = PeerJoinedWsEvent | PeerLeftWsEvent;
+
+export interface RoomStateParticipant {
+  userId: string;
+  displayName: string;
+}
+
+export interface RoomStateWsEvent {
+  type: "ROOM_STATE";
+  roomCode: string;
+  participants: RoomStateParticipant[];
+  timestamp: string;
+}
 
 export interface JoinRequestCreatedWsEvent {
   type: "JOIN_REQUEST_CREATED";

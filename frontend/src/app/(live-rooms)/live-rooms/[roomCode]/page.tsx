@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -16,14 +16,13 @@ import { WaitingRoomCard } from "@/features/liveroom/components/waiting-room-car
 import { RejectedCard } from "@/features/liveroom/components/rejected-card";
 import { ParticipantsList } from "@/features/liveroom/components/participants-list";
 import { MediaStage } from "@/features/liveroom/components/media-stage";
-import { MediaControls } from "@/features/liveroom/components/media-controls";
-import { useLiveRoomMedia } from "@/features/liveroom/hooks/use-live-room-media";
 import {
   useLeaveRoom,
   useRoom,
   useCheckRoomExists,
   useEndRoom,
   useViewerStatus,
+  joinPublicRoom,
 } from "@/features/liveroom";
 import { useLiveRoomRealtime } from "@/features/liveroom/hooks/use-live-room-realtime";
 import { resolveLiveroomErrorMessage } from "@/features/liveroom/lib/resolve-liveroom-error-message";
@@ -85,17 +84,26 @@ export default function ListenerLiveRoomPage() {
   });
 
   const [userPhase, setUserPhase] = useState<GuestPhase>({ kind: "ASK" });
+  const [autoJoining, setAutoJoining] = useState(false);
 
   const serverStatus = viewerStatusRes?.data;
   const isHost = !authBootstrapping && serverStatus?.host === true;
   const isParticipant = !isHost && serverStatus?.participant === true;
   const hasPending = !isHost && !isParticipant && serverStatus?.pendingRequest === true;
+  const roomMode = serverStatus?.roomMode ?? "PUBLIC";
 
-  const phase: GuestPhase = isHost || isParticipant
-    ? { kind: "IN_ROOM" }
-    : hasPending && serverStatus?.pendingRequestId
-      ? { kind: "WAITING", request: buildPendingRequestFromStatus(serverStatus, currentUserId) }
-      : userPhase;
+  const needsAutoJoin = !isHost && !isParticipant && roomMode === "PUBLIC" && !hasPending;
+
+  const phase: GuestPhase =
+    isHost || isParticipant
+      ? { kind: "IN_ROOM" }
+      : autoJoining
+        ? { kind: "ASK" }
+        : roomMode === "PUBLIC"
+          ? { kind: "IN_ROOM" }
+          : hasPending && serverStatus?.pendingRequestId
+            ? { kind: "WAITING", request: buildPendingRequestFromStatus(serverStatus, currentUserId) }
+            : userPhase;
 
   const { mutate: leaveRoom, isPending: isLeaving } = useLeaveRoom({
     mutationConfig: {
@@ -152,6 +160,31 @@ export default function ListenerLiveRoomPage() {
     }
   }, [authBootstrapping, isHost, roomCode, router]);
 
+  const joinedRef = useRef(false);
+  useEffect(() => {
+    if (!needsAutoJoin) return;
+    if (joinedRef.current) return;
+    joinedRef.current = true;
+    setAutoJoining(true);
+    joinPublicRoom({ roomCode })
+      .then(() => refetchViewerStatus())
+      .finally(() => setAutoJoining(false));
+  }, [needsAutoJoin, roomCode, refetchViewerStatus]);
+
+  const room = roomRes?.data ?? null;
+  const isActive = room?.status === "ACTIVE";
+  const localDisplayName = useAuthStore.getState().user?.username ?? "Guest";
+
+  const handleLeave = useCallback(() => {
+    if (!room) return;
+    leaveRoom({ roomCode: room.roomCode });
+  }, [leaveRoom, room]);
+
+  const handleEndRoom = useCallback(() => {
+    if (!room) return;
+    endRoomFromGuest({ roomCode: room.roomCode });
+  }, [endRoomFromGuest, room]);
+
   if (authBootstrapping || isHost) {
     return (
       <div className="flex h-screen items-center justify-center bg-neutral-950">
@@ -180,7 +213,7 @@ export default function ListenerLiveRoomPage() {
     );
   }
 
-  if (roomError || !roomRes?.data) {
+  if (roomError || !room) {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-3 bg-neutral-950 text-center">
         <p className="text-sm text-red-400">{tExists("notFound")}</p>
@@ -190,18 +223,6 @@ export default function ListenerLiveRoomPage() {
       </div>
     );
   }
-
-  const room = roomRes.data;
-  const isActive = room.status === "ACTIVE";
-  const localDisplayName = useAuthStore.getState().user?.username ?? "Guest";
-
-  const handleLeave = useCallback(() => {
-    leaveRoom({ roomCode: room.roomCode });
-  }, [leaveRoom, room.roomCode]);
-
-  const handleEndRoom = useCallback(() => {
-    endRoomFromGuest({ roomCode: room.roomCode });
-  }, [endRoomFromGuest, room.roomCode]);
 
   if (!isActive) {
     return (
@@ -324,13 +345,6 @@ function InRoomStage({
   tParticipantLeave,
   tParticipantEnding,
 }: InRoomStageProps) {
-  const media = useLiveRoomMedia({
-    roomCode,
-    localUserId,
-    localDisplayName,
-    enabled: true,
-  });
-
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-neutral-800 bg-black/40 p-5">
       <div className="flex items-center gap-2 text-sm text-green-400">
@@ -342,19 +356,6 @@ function InRoomStage({
         localUserId={localUserId}
         localDisplayName={localDisplayName}
         enabled
-      />
-      <MediaControls
-        micMuted={media.micMuted}
-        cameraOff={media.cameraOff}
-        selectingDevice={media.selectingDevice}
-        audioDevices={media.audioDevices}
-        videoDevices={media.videoDevices}
-        currentAudioId={media.currentAudioId}
-        currentVideoId={media.currentVideoId}
-        onToggleMic={media.toggleMic}
-        onToggleCamera={media.toggleCamera}
-        onSelectAudio={media.setAudioDevice}
-        onSelectVideo={media.setVideoDevice}
         onLeave={onLeave}
       />
       <Button

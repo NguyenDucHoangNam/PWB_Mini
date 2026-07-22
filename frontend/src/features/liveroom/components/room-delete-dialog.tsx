@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -28,6 +29,7 @@ export function RoomEndDialog({ room, open, onOpenChange }: RoomEndDialogProps) 
   const t = useTranslations("liveroom.endDialog");
   const tErrors = useTranslations("liveroom.errors");
   const tCommon = useTranslations("common");
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [pending, setPending] = useState(false);
 
@@ -39,6 +41,7 @@ export function RoomEndDialog({ room, open, onOpenChange }: RoomEndDialogProps) 
           toast.success(t("success"));
           onOpenChange(false);
           void queryClient.invalidateQueries({ queryKey: [LIVE_ROOMS_KEY] });
+          router.push("/dashboard/live-rooms");
         } else {
           toast.error(response.message || tCommon("error"));
         }

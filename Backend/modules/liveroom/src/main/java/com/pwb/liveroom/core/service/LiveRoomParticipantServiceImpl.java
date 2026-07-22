@@ -20,6 +20,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -34,6 +35,62 @@ public class LiveRoomParticipantServiceImpl implements LiveRoomParticipantServic
     private final LiveRoomParticipantMapper participantMapper;
     private final LiveRoomRealtimeBroadcaster broadcaster;
     private final ApplicationEventPublisher eventPublisher;
+
+    @Override
+    @Transactional
+    public LiveRoomParticipant joinPublicRoom(UUID userId, String roomCode, String displayName, String role) {
+        log.info("joinPublicRoom: userId={}, roomCode={}", userId, roomCode);
+
+        LiveRoomJpaEntity roomEntity = liveRoomJpaRepository
+                .findByRoomCodeForUpdate(roomCode)
+                .orElseThrow(() -> new BusinessException(ErrorCode.LIVEROOM_NOT_FOUND));
+
+        if (roomEntity.getStatus() != com.pwb.liveroom.core.model.LiveRoomStatus.ACTIVE) {
+            throw new BusinessException(ErrorCode.LIVEROOM_ALREADY_ENDED);
+        }
+        if (roomEntity.getMode() != com.pwb.liveroom.api.enums.LiveRoomMode.PUBLIC) {
+            throw new BusinessException(ErrorCode.LIVEROOM_MODE_NOT_JOINABLE);
+        }
+
+        Optional<LiveRoomParticipantJpaEntity> existing =
+                participantJpaRepository.findActiveByRoomAndUser(roomCode, userId);
+        if (existing.isPresent()) {
+            log.debug("joinPublicRoom idempotent: already joined userId={}, roomCode={}", userId, roomCode);
+            return participantMapper.toDomain(existing.get());
+        }
+
+        if (roomEntity.getCurrentParticipantCount() >= roomEntity.getMaxParticipants()) {
+            throw new BusinessException(ErrorCode.LIVEROOM_FULL);
+        }
+
+        LiveRoomParticipant participant = LiveRoomParticipant.join(
+                roomCode, userId, displayName, role, Instant.now());
+        LiveRoomParticipantJpaEntity saved = participantJpaRepository.save(
+                participantMapper.toEntity(participant));
+
+        LiveRoom liveRoomDomain = liveRoomMapper.toDomain(roomEntity);
+        try {
+            liveRoomDomain.incrementParticipants();
+        } catch (IllegalStateException ex) {
+            throw new BusinessException(ErrorCode.LIVEROOM_FULL);
+        }
+        liveRoomMapper.toEntity(liveRoomDomain, roomEntity);
+        liveRoomJpaRepository.save(roomEntity);
+
+        eventPublisher.publishEvent(new ParticipantJoinedEvent(
+                saved.getRoomCode(),
+                roomEntity.getHostUserId(),
+                saved.getUserId(),
+                saved.getDisplayName(),
+                saved.getRoleAtJoin(),
+                roomEntity.getCurrentParticipantCount(),
+                roomEntity.getMaxParticipants(),
+                Math.max(0, roomEntity.getMaxParticipants() - roomEntity.getCurrentParticipantCount()),
+                saved.getJoinedAt()));
+
+        log.info("joinPublicRoom success: userId={}, roomCode={}", userId, roomCode);
+        return participantMapper.toDomain(saved);
+    }
 
     @Override
     @Transactional
@@ -130,6 +187,24 @@ public class LiveRoomParticipantServiceImpl implements LiveRoomParticipantServic
                 event.maxParticipants(),
                 event.availableSlots(),
                 event.joinedAt().toString());
+
+        broadcaster.broadcastPeerJoined(
+                event.roomCode(),
+                event.userId(),
+                event.displayName(),
+                event.joinedAt().toString());
+
+        pushRoomStateToNewcomer(event.roomCode(), event.userId());
+    }
+
+    private void pushRoomStateToNewcomer(String roomCode, UUID newcomerUserId) {
+        List<Map<String, String>> existingPeers = participantJpaRepository.findActiveByRoom(roomCode).stream()
+                .filter(p -> !p.getUserId().equals(newcomerUserId))
+                .map(p -> Map.of(
+                        "userId", p.getUserId().toString(),
+                        "displayName", p.getDisplayName() == null ? "" : p.getDisplayName()))
+                .toList();
+        broadcaster.pushRoomStateToUser(roomCode, newcomerUserId, existingPeers);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -141,6 +216,11 @@ public class LiveRoomParticipantServiceImpl implements LiveRoomParticipantServic
                 event.currentCount(),
                 event.maxParticipants(),
                 event.availableSlots(),
+                event.leftAt().toString());
+
+        broadcaster.broadcastPeerLeft(
+                event.roomCode(),
+                event.userId(),
                 event.leftAt().toString());
     }
 

@@ -8,6 +8,8 @@ import java.util.UUID;
 
 public interface LiveRoomParticipantService {
 
+    LiveRoomParticipant joinPublicRoom(UUID userId, String roomCode, String displayName, String role);
+
     Optional<LiveRoomParticipant> leaveRoom(UUID userId, String roomCode);
 
     List<LiveRoomParticipant> listActiveParticipants(String roomCode);

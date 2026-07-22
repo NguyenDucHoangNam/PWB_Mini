@@ -20,6 +20,14 @@ public class LiveRoomParticipantFacadeImpl implements LiveRoomParticipantFacade 
 
     @Override
     @Transactional
+    public ParticipantSummaryResponse joinPublicRoom(UUID userId, String roomCode, String displayName, String role) {
+        log.info("Facade joinPublicRoom: userId={}, roomCode={}", userId, roomCode);
+        LiveRoomParticipant participant = participantService.joinPublicRoom(userId, roomCode, displayName, role);
+        return toParticipantSummary(participant);
+    }
+
+    @Override
+    @Transactional
     public void leaveRoom(UUID userId, String roomCode) {
         log.info("Facade leaveRoom: userId={}, roomCode={}", userId, roomCode);
         participantService.leaveRoom(userId, roomCode);

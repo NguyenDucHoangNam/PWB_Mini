@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { standardSchemaResolver as zodResolver } from "@hookform/resolvers/standard-schema";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { Globe, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,6 +30,8 @@ export function CreateRoomForm() {
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors },
     reset,
   } = useForm<CreateRoomFormValues>({
@@ -47,7 +50,7 @@ export function CreateRoomForm() {
         if (response.success && response.data) {
           toast.success(t("createSuccess"));
           reset();
-          router.push(`/live-rooms/${response.data.roomCode}`);
+          router.push(`/dashboard/live-rooms/${response.data.roomCode}`);
         } else {
           toast.error(response.message || tCommon("error"));
         }
@@ -105,15 +108,66 @@ export function CreateRoomForm() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="create-room-mode">{t("modeLabel")}</Label>
-        <select
-          id="create-room-mode"
-          {...register("mode")}
-          className="flex h-9 w-full rounded-lg border border-neutral-200 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-black focus:ring-1 focus:ring-black/30 dark:border-neutral-800 dark:bg-black dark:text-white"
-        >
-          <option value="PUBLIC">{t("modePublic")}</option>
-          <option value="PRIVATE">{t("modePrivate")}</option>
-        </select>
+        <Label>{t("modeLabel")}</Label>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setValue("mode", "PUBLIC")}
+            className={`flex flex-1 items-center gap-2 rounded-lg border p-3 transition-colors ${
+              watch("mode") === "PUBLIC"
+                ? "border-primary bg-primary/5 dark:bg-primary/10"
+                : "border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600"
+            }`}
+          >
+            <Globe
+              className={`h-5 w-5 ${
+                watch("mode") === "PUBLIC"
+                  ? "text-primary"
+                  : "text-neutral-500"
+              }`}
+            />
+            <div className="flex flex-col items-start text-left">
+              <span
+                className={`text-sm font-medium ${
+                  watch("mode") === "PUBLIC"
+                    ? "text-primary"
+                    : "text-neutral-700 dark:text-neutral-300"
+                }`}
+              >
+                {t("modePublic")}
+              </span>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setValue("mode", "PRIVATE")}
+            className={`flex flex-1 items-center gap-2 rounded-lg border p-3 transition-colors ${
+              watch("mode") === "PRIVATE"
+                ? "border-primary bg-primary/5 dark:bg-primary/10"
+                : "border-neutral-200 hover:border-neutral-300 dark:border-neutral-700 dark:hover:border-neutral-600"
+            }`}
+          >
+            <Lock
+              className={`h-5 w-5 ${
+                watch("mode") === "PRIVATE"
+                  ? "text-primary"
+                  : "text-neutral-500"
+              }`}
+            />
+            <div className="flex flex-col items-start text-left">
+              <span
+                className={`text-sm font-medium ${
+                  watch("mode") === "PRIVATE"
+                    ? "text-primary"
+                    : "text-neutral-700 dark:text-neutral-300"
+                }`}
+              >
+                {t("modePrivate")}
+              </span>
+            </div>
+          </button>
+        </div>
+        <input type="hidden" {...register("mode")} />
         {errors.mode && (
           <p className="text-xs text-red-600 dark:text-red-400">
             {tValidation(errors.mode.message as never)}
@@ -122,12 +176,25 @@ export function CreateRoomForm() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="create-room-capacity">{t("capacityLabel")}</Label>
-        <Input
-          id="create-room-capacity"
-          type="number"
-          min={2}
-          max={5}
+        <Label>{t("capacityLabel")}</Label>
+        <div className="flex gap-2">
+          {[2, 3, 4, 5].map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setValue("maxParticipants", n)}
+              className={`flex h-10 w-12 items-center justify-center rounded-lg border text-sm font-medium transition-colors ${
+                watch("maxParticipants") === n
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-neutral-200 bg-transparent text-neutral-700 hover:border-neutral-300 dark:border-neutral-700 dark:text-neutral-300 dark:hover:border-neutral-600"
+              }`}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+        <input
+          type="hidden"
           {...register("maxParticipants", { valueAsNumber: true })}
         />
         <span className="text-xs text-neutral-500 dark:text-neutral-400">

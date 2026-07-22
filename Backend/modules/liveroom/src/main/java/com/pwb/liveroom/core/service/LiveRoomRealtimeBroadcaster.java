@@ -5,6 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -19,6 +21,8 @@ public class LiveRoomRealtimeBroadcaster {
     private static final String JOIN_REQUESTS_TOPIC_SUFFIX = "/join-requests";
     private static final String USER_QUEUE_BASE = "/queue/user/";
     private static final String JOIN_REQUESTS_USER_SUFFIX = "/join-requests";
+    private static final String ROOM_USER_QUEUE_BASE = "/queue/room/";
+    private static final String ROOM_STATE_USER_SUFFIX = "/state";
 
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -157,12 +161,50 @@ public class LiveRoomRealtimeBroadcaster {
         send(destination, payload, "JOIN_REQUEST_DECIDED:" + status, roomCode, requesterUserId);
     }
 
+    public void broadcastRoomEnded(
+            String roomCode,
+            UUID hostUserId,
+            String endedAt) {
+        String destination = ROOM_TOPIC_BASE + roomCode + PARTICIPANTS_TOPIC_SUFFIX;
+        Object payload = Map.of(
+                "type", "ROOM_ENDED",
+                "roomCode", roomCode,
+                "hostUserId", hostUserId,
+                "timestamp", endedAt
+        );
+        send(destination, payload, "ROOM_ENDED", roomCode, hostUserId);
+    }
+
+    public void pushRoomStateToUser(
+            String roomCode,
+            UUID recipientUserId,
+            List<Map<String, String>> participants) {
+        String destination = ROOM_USER_QUEUE_BASE + roomCode + ROOM_STATE_USER_SUFFIX;
+        Object payload = Map.of(
+                "type", "ROOM_STATE",
+                "roomCode", roomCode,
+                "participants", participants,
+                "timestamp", Instant.now().toString()
+        );
+        sendToUser(recipientUserId.toString(), destination, payload, "ROOM_STATE", roomCode);
+    }
+
     private void send(String destination, Object payload, String type, String roomCode, UUID userId) {
         try {
             messagingTemplate.convertAndSend(destination, payload);
             log.debug("Broadcast {}: roomCode={}, userId={}", type, roomCode, userId);
         } catch (Exception ex) {
             log.warn("Failed to broadcast {} for roomCode={}, userId={}: {}",
+                    type, roomCode, userId, ex.getMessage());
+        }
+    }
+
+    private void sendToUser(String userId, String destination, Object payload, String type, String roomCode) {
+        try {
+            messagingTemplate.convertAndSendToUser(userId, destination, payload);
+            log.debug("Push {}: roomCode={}, userId={}", type, roomCode, userId);
+        } catch (Exception ex) {
+            log.warn("Failed to push {} for roomCode={}, userId={}: {}",
                     type, roomCode, userId, ex.getMessage());
         }
     }

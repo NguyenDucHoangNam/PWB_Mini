@@ -9,6 +9,13 @@ export const LIVE_ROOM_PARTICIPANTS_KEY = "live-room-participants" as const;
 export const liveRoomParticipantsKey = (roomCode: string) =>
   ["live-room-participants", roomCode] as const;
 
+export const joinPublicRoom = ({
+  roomCode,
+}: {
+  roomCode: string;
+}): Promise<ApiResponse<ParticipantSummary>> =>
+  apiClient.post(`/live-rooms/${roomCode}/join`).then((res) => res.data);
+
 export const leaveRoom = ({
   roomCode,
 }: {

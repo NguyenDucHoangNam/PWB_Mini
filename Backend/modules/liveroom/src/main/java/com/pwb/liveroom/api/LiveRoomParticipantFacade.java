@@ -7,6 +7,8 @@ import java.util.UUID;
 
 public interface LiveRoomParticipantFacade {
 
+    ParticipantSummaryResponse joinPublicRoom(UUID userId, String roomCode, String displayName, String role);
+
     void leaveRoom(UUID userId, String roomCode);
 
     List<ParticipantSummaryResponse> listParticipants(String roomCode);

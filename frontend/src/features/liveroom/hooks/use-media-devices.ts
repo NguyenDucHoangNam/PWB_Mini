@@ -64,6 +64,8 @@ export function useMediaDevices(): UseMediaDevicesResult {
   >("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const currentAudioIdRef = useRef<string | null>(null);
+  const currentVideoIdRef = useRef<string | null>(null);
 
   const stopStream = useCallback(() => {
     if (streamRef.current) {
@@ -119,10 +121,12 @@ export function useMediaDevices(): UseMediaDevicesResult {
         const audioTrack = next.getAudioTracks()[0];
         const videoTrack = next.getVideoTracks()[0];
         const settings = next.getVideoTracks()[0]?.getSettings?.();
-        setCurrentAudioId(audioTrack?.getSettings().deviceId ?? null);
-        setCurrentVideoId(
-          videoTrack?.getSettings().deviceId ?? settings?.deviceId ?? null,
-        );
+        const resolvedAudioId = audioTrack?.getSettings().deviceId ?? null;
+        const resolvedVideoId = videoTrack?.getSettings().deviceId ?? settings?.deviceId ?? null;
+        setCurrentAudioId(resolvedAudioId);
+        setCurrentVideoId(resolvedVideoId);
+        currentAudioIdRef.current = resolvedAudioId;
+        currentVideoIdRef.current = resolvedVideoId;
         await enumerate();
         return next;
       } catch (err) {
@@ -156,30 +160,32 @@ export function useMediaDevices(): UseMediaDevicesResult {
     async (deviceId: string) => {
       setSelectingDevice(true);
       try {
-        await acquireStream(deviceId, currentVideoId);
+        await acquireStream(deviceId, currentVideoIdRef.current);
       } finally {
         setSelectingDevice(false);
       }
     },
-    [acquireStream, currentVideoId],
+    [acquireStream],
   );
 
   const setVideo = useCallback(
     async (deviceId: string) => {
       setSelectingDevice(true);
       try {
-        await acquireStream(currentAudioId, deviceId);
+        await acquireStream(currentAudioIdRef.current, deviceId);
       } finally {
         setSelectingDevice(false);
       }
     },
-    [acquireStream, currentAudioId],
+    [acquireStream],
   );
 
   const stop = useCallback(() => {
     stopStream();
     setCurrentAudioId(null);
     setCurrentVideoId(null);
+    currentAudioIdRef.current = null;
+    currentVideoIdRef.current = null;
   }, [stopStream]);
 
   useEffect(() => {

@@ -972,17 +972,14 @@
     },
     "actions": {
       "back": "Back",
-      "edit": "Edit",
-      "delete": "End",
+      "joinRoom": "Join Room",
+      "requestToJoin": "Request to Join",
+      "waitingTitle": "Waiting for approval...",
+      "waitingSubtitle": "The host will let you in soon",
       "cancel": "Cancel",
-      "save": "Save",
-      "admitted": "You've been admitted to the room",
-      "rejected": "Your join request was declined",
-      "openHostView": "Open host view",
-      "openRoom": "Open room",
-      "copyLink": "Copy link",
-      "linkCopied": "Link copied to clipboard",
-      "endRoomConfirm": "End this room? You won't be able to start it again."
+      "requestRejected": "Request Rejected",
+      "tryAgain": "Try Again",
+      "notActive": "This room is not active"
     }
   }
 }

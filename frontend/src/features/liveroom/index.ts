@@ -20,6 +20,7 @@ export {
 export {
   LIVE_ROOM_PARTICIPANTS_KEY,
   liveRoomParticipantsKey,
+  joinPublicRoom,
   leaveRoom,
   listParticipants,
   updateMyMedia,

@@ -4,10 +4,12 @@ import com.pwb.backend.exception.BusinessException;
 import com.pwb.backend.exception.ErrorCode;
 import com.pwb.liveroom.api.enums.LiveRoomMode;
 import com.pwb.liveroom.core.model.LiveRoom;
+import com.pwb.liveroom.core.model.LiveRoomParticipant;
 import com.pwb.liveroom.core.model.LiveRoomStatus;
 import com.pwb.liveroom.infrastructure.config.LiveRoomProperties;
 import com.pwb.liveroom.infrastructure.persistence.entity.LiveRoomJpaEntity;
 import com.pwb.liveroom.infrastructure.persistence.mapper.LiveRoomMapper;
+import com.pwb.liveroom.infrastructure.persistence.mapper.LiveRoomParticipantMapper;
 import com.pwb.liveroom.infrastructure.persistence.repository.LiveRoomJpaRepository;
 import com.pwb.liveroom.infrastructure.persistence.repository.LiveRoomParticipantJpaRepository;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +33,9 @@ public class LiveRoomServiceImpl implements LiveRoomService {
     private final LiveRoomJpaRepository liveRoomJpaRepository;
     private final LiveRoomParticipantJpaRepository participantJpaRepository;
     private final LiveRoomMapper liveRoomMapper;
+    private final LiveRoomParticipantMapper participantMapper;
     private final LiveRoomProperties liveRoomProperties;
+    private final LiveRoomRealtimeBroadcaster broadcaster;
 
     @Override
     @Transactional
@@ -60,6 +64,15 @@ public class LiveRoomServiceImpl implements LiveRoomService {
 
         LiveRoomJpaEntity entity = liveRoomMapper.toEntity(domain);
         LiveRoomJpaEntity saved = liveRoomJpaRepository.save(entity);
+
+        Instant now = Instant.now();
+        LiveRoomParticipant hostParticipant = LiveRoomParticipant.join(
+                roomCode, hostUserId, "Host", "PRO", now);
+        participantJpaRepository.save(participantMapper.toEntity(hostParticipant));
+
+        domain.incrementParticipants();
+        liveRoomMapper.toEntity(domain, saved);
+        liveRoomJpaRepository.save(saved);
 
         log.info("Live room created: hostUserId={}, roomCode={}, roomId={}",
                 hostUserId, saved.getRoomCode(), saved.getId());
@@ -116,6 +129,8 @@ public class LiveRoomServiceImpl implements LiveRoomService {
         if (evicted > 0) {
             log.info("Evicted {} active participants on room end: roomCode={}", evicted, roomCode);
         }
+
+        broadcaster.broadcastRoomEnded(roomCode, hostUserId, endedAt.toString());
 
         log.info("Live room ended: hostUserId={}, roomCode={}", hostUserId, roomCode);
     }

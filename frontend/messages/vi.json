@@ -975,17 +975,14 @@
     },
     "actions": {
       "back": "Quay lại",
-      "edit": "Sửa",
-      "delete": "Kết thúc",
+      "joinRoom": "Vào phòng",
+      "requestToJoin": "Yêu cầu vào phòng",
+      "waitingTitle": "Đang chờ được chấp nhận...",
+      "waitingSubtitle": "Chủ phòng sẽ cho bạn vào sớm thôi",
       "cancel": "Hủy",
-      "save": "Lưu",
-      "admitted": "Bạn đã được cho vào phòng",
-      "rejected": "Yêu cầu vào phòng của bạn đã bị từ chối",
-      "openHostView": "Mở giao diện chủ phòng",
-      "openRoom": "Mở phòng",
-      "copyLink": "Sao chép liên kết",
-      "linkCopied": "Đã sao chép liên kết",
-      "endRoomConfirm": "Kết thúc phòng này? Bạn sẽ không thể bắt đầu lại."
+      "requestRejected": "Yêu cầu bị từ chối",
+      "tryAgain": "Thử lại",
+      "notActive": "Phòng này hiện không hoạt động"
     }
   }
 }

@@ -47,8 +47,8 @@ interface LiveRoomMediaState {
 
 export const useLiveRoomMediaStore = create<LiveRoomMediaState>((set) => ({
   localStream: null,
-  micMuted: false,
-  cameraOff: false,
+  micMuted: true,
+  cameraOff: true,
   errorMessage: null,
   remotePeers: [],
   peerManager: null,

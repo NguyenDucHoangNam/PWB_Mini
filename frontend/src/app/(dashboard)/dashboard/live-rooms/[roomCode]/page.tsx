@@ -11,11 +11,10 @@ import { Spinner } from "@/components/ui/spinner";
 import { JoinRequestQueuePanel } from "@/features/liveroom/components/join-request-queue-panel";
 import { ParticipantsList } from "@/features/liveroom/components/participants-list";
 import { MediaStage } from "@/features/liveroom/components/media-stage";
-import { MediaControls } from "@/features/liveroom/components/media-controls";
-import { useLiveRoomMedia } from "@/features/liveroom/hooks/use-live-room-media";
 import { useProGuard } from "@/features/auth/hooks/use-pro-guard";
 import {
   useEndRoom,
+  useLeaveRoom,
   useRoom,
   useListJoinRequests,
   liveRoomJoinRequestsKey,
@@ -83,12 +82,12 @@ export default function LiveRoomDetailPage() {
     },
   });
 
-  const media = useLiveRoomMedia({
-    roomCode,
-    localUserId: currentUserId ?? "",
-    localDisplayName,
-    enabled: Boolean(currentUserId),
+  const { mutate: leaveRoomMutate } = useLeaveRoom({
+    mutationConfig: {
+      onError: asApiError((err) => showError(err)),
+    },
   });
+
 
   if (!isPro) {
     return (
@@ -142,6 +141,19 @@ export default function LiveRoomDetailPage() {
     endRoomMutate({ roomCode });
   };
 
+  const handleLeave = () => {
+    leaveRoomMutate(
+      { roomCode },
+      {
+        onSuccess: (response) => {
+          if (response.success) {
+            router.push("/dashboard/live-rooms");
+          }
+        },
+      },
+    );
+  };
+
   const handleCopyShareLink = async () => {
     if (typeof window === "undefined") return;
     const origin = window.location.origin;
@@ -178,6 +190,7 @@ export default function LiveRoomDetailPage() {
               localUserId={currentUserId}
               localDisplayName={localDisplayName}
               enabled
+              onLeave={handleLeave}
             />
           ) : null}
 
@@ -200,24 +213,7 @@ export default function LiveRoomDetailPage() {
             )}
           </div>
 
-          <div className="absolute inset-x-0 bottom-0 z-10">
-            <div className="flex items-center justify-center px-4 pb-6">
-              <MediaControls
-                micMuted={media.micMuted}
-                cameraOff={media.cameraOff}
-                selectingDevice={media.selectingDevice}
-                audioDevices={media.audioDevices}
-                videoDevices={media.videoDevices}
-                currentAudioId={media.currentAudioId}
-                currentVideoId={media.currentVideoId}
-                onToggleMic={media.toggleMic}
-                onToggleCamera={media.toggleCamera}
-                onSelectAudio={media.setAudioDevice}
-                onSelectVideo={media.setVideoDevice}
-                onLeave={handleEnd}
-              />
-            </div>
-          </div>
+
         </div>
 
         {sidebarTab && (

@@ -40,66 +40,59 @@ export class WebRTCPeerManager {
   private readonly peerLeftHandlers: Set<RemoteStreamHandler["onPeerLeft"]> = new Set();
   private unsubscribers: Array<() => void> = [];
   private disposed = false;
+  private localStream: MediaStream | null = null;
 
   constructor(options: WebRTCPeerManagerOptions) {
     this.roomCode = options.roomCode;
     this.localUserId = options.localUserId;
 
-    this.unsubscribers.push(() =>
-      subscribeSignalingOffers(options.roomCode, (event) => {
-        if (event.fromUserId === this.localUserId) return;
-        if (event.toUserId !== this.localUserId) return;
-        this.handleRemoteOffer(event).catch((err) => this.logError("handle offer", err));
-      }).unsubscribe,
-    );
-    this.unsubscribers.push(() =>
-      subscribeSignalingAnswers(options.roomCode, (event) => {
-        if (event.fromUserId === this.localUserId) return;
-        if (event.toUserId !== this.localUserId) return;
-        this.handleRemoteAnswer(event).catch((err) => this.logError("handle answer", err));
-      }).unsubscribe,
-    );
-    this.unsubscribers.push(() =>
-      subscribeSignalingIce(options.roomCode, (event) => {
-        if (event.fromUserId === this.localUserId) return;
-        if (event.toUserId !== this.localUserId) return;
-        this.handleRemoteIce(event).catch((err) => this.logError("handle ice", err));
-      }).unsubscribe,
-    );
-    void options.localUserDisplayName;
+    const offerSub = subscribeSignalingOffers(options.roomCode, (event) => {
+      if (event.fromUserId === this.localUserId) return;
+      if (event.toUserId !== this.localUserId) return;
+      this.handleRemoteOffer(event).catch((err) => this.logError("handle offer", err));
+    });
+    this.unsubscribers.push(() => offerSub.unsubscribe());
+
+    const answerSub = subscribeSignalingAnswers(options.roomCode, (event) => {
+      if (event.fromUserId === this.localUserId) return;
+      if (event.toUserId !== this.localUserId) return;
+      this.handleRemoteAnswer(event).catch((err) => this.logError("handle answer", err));
+    });
+    this.unsubscribers.push(() => answerSub.unsubscribe());
+
+    const iceSub = subscribeSignalingIce(options.roomCode, (event) => {
+      if (event.fromUserId === this.localUserId) return;
+      if (event.toUserId !== this.localUserId) return;
+      this.handleRemoteIce(event).catch((err) => this.logError("handle ice", err));
+    });
+    this.unsubscribers.push(() => iceSub.unsubscribe());
   }
 
-  async addPeer(localStream: MediaStream, displayName: string): Promise<void> {
+  async addPeer(localStream: MediaStream, remoteUserId: string): Promise<void> {
     if (this.disposed) return;
-    const existing = this.peers.get(displayName);
+    this.localStream = localStream;
+
+    const existing = this.peers.get(remoteUserId);
     if (existing) {
       this.replaceLocalTracks(existing.connection, localStream);
       return;
     }
-    const peerConnection = this.createPeerConnection(displayName, localStream);
+
+    const peerConnection = this.createPeerConnection(remoteUserId, localStream);
     const remoteStream = new MediaStream();
     const entry: PeerEntry = {
       connection: peerConnection,
       remoteStream,
-      displayName,
+      displayName: remoteUserId,
       iceBuffer: [],
       hasRemoteDescription: false,
       pendingIceFlushTimer: null,
     };
-    this.peers.set(displayName, entry);
-
-    localStream.getTracks().forEach((track) => {
-      const sender = peerConnection.getSenders().find((s) => s.track?.kind === track.kind);
-      if (sender) {
-        void sender.replaceTrack(track);
-      } else {
-        peerConnection.addTrack(track, localStream);
-      }
-    });
+    this.peers.set(remoteUserId, entry);
 
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
-    sendSignalOffer(this.roomCode, displayName, {
+    sendSignalOffer(this.roomCode, remoteUserId, {
       sdp: offer.sdp ?? undefined,
     });
   }
@@ -123,6 +116,7 @@ export class WebRTCPeerManager {
 
   setLocalStreamForAllPeers(stream: MediaStream | null): void {
     if (!stream) return;
+    this.localStream = stream;
     for (const entry of this.peers.values()) {
       this.replaceLocalTracks(entry.connection, stream);
     }
@@ -153,54 +147,46 @@ export class WebRTCPeerManager {
     }
     this.remoteStreamHandlers.clear();
     this.peerLeftHandlers.clear();
+    this.localStream = null;
   }
 
   private createPeerConnection(remoteUserId: string, localStream: MediaStream): RTCPeerConnection {
     const peerConnection = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-    const entry = this.peers.get(remoteUserId);
 
     localStream.getTracks().forEach((track) => {
       peerConnection.addTrack(track, localStream);
     });
 
-    peerConnection.ontrack = (event) => {
-      const target = this.peers.get(remoteUserId);
-      if (!target) return;
-      for (const track of event.streams[0]?.getTracks() ?? []) {
-        target.remoteStream.addTrack(track);
-      }
-      this.remoteStreamHandlers.forEach((handler) =>
-        handler(remoteUserId, target.displayName, target.remoteStream),
-      );
-    };
-
-    peerConnection.onicecandidate = (event) => {
-      if (!event.candidate) return;
-      sendSignalIce(this.roomCode, remoteUserId, {
-        candidate: event.candidate.candidate,
-        sdpMid: event.candidate.sdpMid,
-        sdpMLineIndex: event.candidate.sdpMLineIndex,
-      });
-    };
-
-    peerConnection.onconnectionstatechange = () => {
-      if (peerConnection.connectionState === "failed") {
-        this.logError(
-          `peer ${remoteUserId} connection failed`,
-          new Error(peerConnection.connectionState ?? "unknown"),
-        );
-      }
-    };
-
-    void entry;
+    this.attachPeerConnectionHandlers(remoteUserId, peerConnection);
     return peerConnection;
   }
 
   private async handleRemoteOffer(event: PeerSignalEnvelope): Promise<void> {
     const remoteUserId = event.fromUserId;
     let entry = this.peers.get(remoteUserId);
+
+    if (entry) {
+      const state = entry.connection.signalingState;
+      if (state !== "stable" && state !== "have-remote-offer") {
+        try {
+          entry.connection.close();
+        } catch {
+          /* ignore */
+        }
+        entry = undefined;
+        this.peers.delete(remoteUserId);
+      }
+    }
+
     if (!entry) {
       const peerConnection = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+
+      if (this.localStream) {
+        this.localStream.getTracks().forEach((track) => {
+          peerConnection.addTrack(track, this.localStream!);
+        });
+      }
+
       const remoteStream = new MediaStream();
       entry = {
         connection: peerConnection,
@@ -211,7 +197,7 @@ export class WebRTCPeerManager {
         pendingIceFlushTimer: null,
       };
       this.peers.set(remoteUserId, entry);
-      this.attachPeerConnectionHandlers(remoteUserId, entry);
+      this.attachPeerConnectionHandlers(remoteUserId, peerConnection);
     }
 
     await entry.connection.setRemoteDescription({
@@ -276,17 +262,22 @@ export class WebRTCPeerManager {
     }
   }
 
-  private attachPeerConnectionHandlers(remoteUserId: string, entry: PeerEntry): void {
-    entry.connection.ontrack = (event) => {
+  private attachPeerConnectionHandlers(remoteUserId: string, peerConnection: RTCPeerConnection): void {
+    peerConnection.ontrack = (event) => {
+      const target = this.peers.get(remoteUserId);
+      if (!target) return;
       for (const track of event.streams[0]?.getTracks() ?? []) {
-        entry.remoteStream.addTrack(track);
+        const existingTrack = target.remoteStream.getTrackById(track.id);
+        if (!existingTrack) {
+          target.remoteStream.addTrack(track);
+        }
       }
       this.remoteStreamHandlers.forEach((handler) =>
-        handler(remoteUserId, entry.displayName, entry.remoteStream),
+        handler(remoteUserId, target.displayName, target.remoteStream),
       );
     };
 
-    entry.connection.onicecandidate = (event) => {
+    peerConnection.onicecandidate = (event) => {
       if (!event.candidate) return;
       sendSignalIce(this.roomCode, remoteUserId, {
         candidate: event.candidate.candidate,
@@ -295,11 +286,11 @@ export class WebRTCPeerManager {
       });
     };
 
-    entry.connection.onconnectionstatechange = () => {
-      if (entry.connection.connectionState === "failed") {
+    peerConnection.onconnectionstatechange = () => {
+      if (peerConnection.connectionState === "failed") {
         this.logError(
           `peer ${remoteUserId} connection failed`,
-          new Error(entry.connection.connectionState ?? "unknown"),
+          new Error(peerConnection.connectionState ?? "unknown"),
         );
       }
     };

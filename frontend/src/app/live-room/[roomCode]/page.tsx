@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { MediaStage } from "@/features/liveroom/components/media-stage";
-import { MediaControls } from "@/features/liveroom/components/media-controls";
-import { useLiveRoomMedia } from "@/features/liveroom/hooks/use-live-room-media";
+import { AskToJoinCard } from "@/features/liveroom/components/ask-to-join-card";
+import { WaitingRoomCard } from "@/features/liveroom/components/waiting-room-card";
+import { RejectedCard } from "@/features/liveroom/components/rejected-card";
 import {
   useLeaveRoom,
   useRoom,
@@ -19,10 +20,11 @@ import {
 import { useLiveRoomRealtime } from "@/features/liveroom/hooks/use-live-room-realtime";
 import { asApiError } from "@/lib/api-client";
 import { resolveLiveroomErrorMessage } from "@/features/liveroom/lib/resolve-liveroom-error-message";
+import type { LiveRoomJoinRequest } from "@/features/liveroom/types";
 
 type GuestPhase =
   | { kind: "ASK" }
-  | { kind: "WAITING" }
+  | { kind: "WAITING"; request: LiveRoomJoinRequest }
   | { kind: "REJECTED"; reason: string }
   | { kind: "IN_ROOM" };
 
@@ -55,26 +57,20 @@ export default function ListenerLiveRoomPage() {
   });
 
   const [phase, setPhase] = useState<GuestPhase>({ kind: "ASK" });
+  const [pendingRequest, setPendingRequest] = useState<LiveRoomJoinRequest | null>(null);
 
   const serverStatus = viewerStatusRes?.data;
   const isHost = !authBootstrapping && serverStatus?.host === true;
   const isParticipant = !isHost && serverStatus?.participant === true;
-  const hasPending = !isHost && !isParticipant && serverStatus?.pendingRequest === true;
 
   const localDisplayName = useAuthStore.getState().user?.username ?? "Guest";
 
-  const media = useLiveRoomMedia({
-    roomCode,
-    localUserId: currentUserId ?? "",
-    localDisplayName,
-    enabled: phase.kind === "IN_ROOM",
-  });
-
-  const { mutate: leaveRoom, isPending: isLeaving } = useLeaveRoom({
+  const { mutate: leaveRoom } = useLeaveRoom({
     mutationConfig: {
       onSuccess: (response) => {
         if (response.success) {
           setPhase({ kind: "ASK" });
+          setPendingRequest(null);
         } else {
           toast.error(response.message || tCommon("error"));
         }
@@ -89,7 +85,7 @@ export default function ListenerLiveRoomPage() {
     roomCode,
     isHost: false,
     onJoinRequestDecided: (event) => {
-      if (phase.kind === "WAITING" && event.requestId === serverStatus?.pendingRequestId) {
+      if (phase.kind === "WAITING" && pendingRequest && event.requestId === pendingRequest.id) {
         if (event.status === "APPROVED") {
           toast.success(tActions("admitted"));
           setPhase({ kind: "IN_ROOM" });
@@ -100,7 +96,12 @@ export default function ListenerLiveRoomPage() {
       }
       void refetchViewerStatus();
     },
-    onParticipantChanged: () => {
+    onParticipantChanged: (event) => {
+      if (event.type === "ROOM_ENDED") {
+        toast.info(tActions("notActive"));
+        setPhase({ kind: "ASK" });
+        setPendingRequest(null);
+      }
       void refetchViewerStatus();
     },
   });
@@ -115,10 +116,23 @@ export default function ListenerLiveRoomPage() {
     leaveRoom({ roomCode });
   }, [leaveRoom, roomCode]);
 
-  const handleJoin = useCallback(() => {
-    setPhase({ kind: "WAITING" });
-    void refetchViewerStatus();
-  }, [refetchViewerStatus]);
+  const handleRequestSent = useCallback((request: LiveRoomJoinRequest) => {
+    setPendingRequest(request);
+    setPhase({ kind: "WAITING", request });
+  }, []);
+
+  const handleApproved = useCallback(() => {
+    setPhase({ kind: "IN_ROOM" });
+  }, []);
+
+  const handleRejected = useCallback((reason: string) => {
+    setPhase({ kind: "REJECTED", reason });
+  }, []);
+
+  const handleCancelled = useCallback(() => {
+    setPhase({ kind: "ASK" });
+    setPendingRequest(null);
+  }, []);
 
   if (authBootstrapping) {
     return (
@@ -174,7 +188,7 @@ export default function ListenerLiveRoomPage() {
       <div className="flex h-screen flex-col items-center justify-center bg-neutral-950">
         <div className="mb-4 text-center">
           <h1 className="text-xl font-semibold text-white">{room.title}</h1>
-          <p className="mt-2 text-sm text-neutral-400">This room is not active</p>
+          <p className="mt-2 text-sm text-neutral-400">{tActions("notActive")}</p>
         </div>
         <Button variant="outline" onClick={() => router.push("/dashboard/live-rooms")}>
           {tActions("back")}
@@ -182,6 +196,8 @@ export default function ListenerLiveRoomPage() {
       </div>
     );
   }
+
+  const isPublic = room.mode === "PUBLIC";
 
   return (
     <div className="flex h-screen flex-col bg-neutral-950">
@@ -201,92 +217,63 @@ export default function ListenerLiveRoomPage() {
       </div>
 
       {phase.kind === "ASK" && (
-        <div className="flex flex-1 items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-white">{room.title}</h1>
-            {room.description && (
-              <p className="mt-2 max-w-md text-sm text-neutral-400">{room.description}</p>
-            )}
-            <p className="mt-1 text-xs text-neutral-500">
-              {tExists("existsActive")} • {room.currentParticipantCount}/{room.maxParticipants} participants
-            </p>
-            {hasPending || isParticipant ? (
+        <div className="flex flex-1 items-center justify-center px-4">
+          {isPublic ? (
+            <div className="text-center">
+              <h1 className="text-3xl font-bold text-white">{room.title}</h1>
+              {room.description && (
+                <p className="mt-2 max-w-md text-sm text-neutral-400">{room.description}</p>
+              )}
+              <p className="mt-1 text-xs text-neutral-500">
+                {tExists("existsActive")} • {room.currentParticipantCount}/{room.maxParticipants} participants
+              </p>
               <Button className="mt-6" onClick={() => setPhase({ kind: "IN_ROOM" })}>
-                Join Room
+                {tActions("joinRoom")}
               </Button>
-            ) : (
-              <Button className="mt-6" onClick={handleJoin}>
-                Request to Join
-              </Button>
-            )}
-          </div>
+            </div>
+          ) : (
+            <AskToJoinCard
+              roomCode={roomCode}
+              isActive={isActive}
+              onSent={handleRequestSent}
+            />
+          )}
         </div>
       )}
 
-      {phase.kind === "WAITING" && (
-        <div className="flex flex-1 items-center justify-center">
-          <div className="text-center">
-            <div className="mb-4 flex justify-center">
-              <Spinner size="md" />
-            </div>
-            <h2 className="text-xl font-semibold text-white">Waiting for approval...</h2>
-            <p className="mt-2 text-sm text-neutral-400">The host will let you in soon</p>
-            <Button
-              variant="outline"
-              className="mt-6"
-              onClick={() => setPhase({ kind: "ASK" })}
-            >
-              Cancel
-            </Button>
-          </div>
+      {phase.kind === "WAITING" && pendingRequest && (
+        <div className="flex flex-1 items-center justify-center px-4">
+          <WaitingRoomCard
+            roomCode={roomCode}
+            request={pendingRequest}
+            onApproved={handleApproved}
+            onRejected={handleRejected}
+            onCancelled={handleCancelled}
+          />
         </div>
       )}
 
       {phase.kind === "REJECTED" && (
-        <div className="flex flex-1 items-center justify-center">
-          <div className="text-center">
-            <h2 className="text-xl font-semibold text-red-400">Request Rejected</h2>
-            {phase.reason && (
-              <p className="mt-2 text-sm text-neutral-400">{phase.reason}</p>
-            )}
-            <Button
-              variant="outline"
-              className="mt-6"
-              onClick={() => setPhase({ kind: "ASK" })}
-            >
-              Try Again
-            </Button>
-          </div>
+        <div className="flex flex-1 items-center justify-center px-4">
+          <RejectedCard
+            reason={phase.reason}
+            onAskAgain={() => {
+              setPhase({ kind: "ASK" });
+              setPendingRequest(null);
+            }}
+            onBack={() => router.push("/dashboard/live-rooms")}
+          />
         </div>
       )}
 
       {phase.kind === "IN_ROOM" && currentUserId && (
-        <>
-          <MediaStage
-            roomCode={roomCode}
-            localUserId={currentUserId}
-            localDisplayName={localDisplayName}
-            enabled
-          />
-          <div className="absolute inset-x-0 bottom-0 z-10">
-            <div className="flex items-center justify-center px-4 pb-6">
-              <MediaControls
-                micMuted={media.micMuted}
-                cameraOff={media.cameraOff}
-                selectingDevice={media.selectingDevice}
-                audioDevices={media.audioDevices}
-                videoDevices={media.videoDevices}
-                currentAudioId={media.currentAudioId}
-                currentVideoId={media.currentVideoId}
-                onToggleMic={media.toggleMic}
-                onToggleCamera={media.toggleCamera}
-                onSelectAudio={media.setAudioDevice}
-                onSelectVideo={media.setVideoDevice}
-                onLeave={handleLeave}
-              />
-            </div>
-          </div>
-        </>
+        <MediaStage
+          roomCode={roomCode}
+          localUserId={currentUserId}
+          localDisplayName={localDisplayName}
+          enabled
+          onLeave={handleLeave}
+        />
       )}
     </div>
   );

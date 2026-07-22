@@ -27,12 +27,23 @@ import java.util.List;
 public class LiveRoomParticipantController {
 
     private static final String MSG_LEFT = "LIVEROOM_LEFT";
+    private static final String MSG_JOINED = "LIVEROOM_JOINED";
     private static final String MSG_PARTICIPANTS_RETRIEVED = "LIVEROOM_PARTICIPANTS_RETRIEVED";
     private static final String MSG_MEDIA_UPDATED = "LIVEROOM_PARTICIPANT_MEDIA_UPDATED";
     private static final String PATH_ROOM_CODE = "roomCode";
 
     private final LiveRoomParticipantFacade participantFacade;
     private final MessageResolver messageResolver;
+
+    @PostMapping("/join")
+    public ApiResponse<ParticipantSummaryResponse> joinPublicRoom(
+            @CurrentUser AuthenticatedUser user,
+            @PathVariable(name = PATH_ROOM_CODE) String roomCode) {
+
+        ParticipantSummaryResponse data = participantFacade.joinPublicRoom(
+                user.getId(), roomCode, user.getUsername(), user.getRole());
+        return ApiResponse.success(data, messageResolver.get(MSG_JOINED));
+    }
 
     @PostMapping("/leave")
     public ApiResponse<Void> leave(

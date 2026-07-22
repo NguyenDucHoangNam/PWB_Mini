@@ -9,6 +9,7 @@ import type {
   ParticipantWsEvent,
   PeerSignalEnvelope,
   PeerWsEvent,
+  RoomStateWsEvent,
 } from "../types";
 
 const WS_PATH = "/ws/liveroom";
@@ -181,6 +182,20 @@ export function subscribeRoomPeerEvents(
       const type = (raw as { type?: string }).type;
       return type === "PEER_JOINED" || type === "PEER_LEFT";
     },
+  );
+}
+
+export function subscribeRoomState(
+  roomCode: string,
+  onEvent: (event: RoomStateWsEvent) => void,
+): Subscription {
+  return subscribeTopic<RoomStateWsEvent>(
+    `/user/queue/room/${roomCode}/state`,
+    onEvent,
+    (raw) =>
+      typeof raw === "object" &&
+      raw !== null &&
+      (raw as { type?: string }).type === "ROOM_STATE",
   );
 }
 

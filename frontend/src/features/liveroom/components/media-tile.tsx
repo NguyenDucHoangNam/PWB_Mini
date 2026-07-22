@@ -32,7 +32,7 @@ export function MediaTile({
     if (!stream) {
       node.load();
     }
-  }, [stream]);
+  }, [stream, cameraOff]);
 
   return (
     <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-neutral-200 bg-black dark:border-neutral-800">

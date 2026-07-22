@@ -8,6 +8,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { checkRoomExists } from "../api/rooms";
+import { asApiError } from "@/lib/api-client";
+import { resolveLiveroomErrorMessage } from "../lib/resolve-liveroom-error-message";
 
 const ROOM_CODE_LENGTH = 6;
 
@@ -19,6 +22,7 @@ export function JoinRoomByCodeCard() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [code, setCode] = useState("");
+  const [checking, setChecking] = useState(false);
 
   const t = useTranslations("liveroom.joinByCode");
   const tErrors = useTranslations("liveroom.errors");
@@ -28,16 +32,29 @@ export function JoinRoomByCodeCard() {
     setCode(sanitizeCode(event.target.value));
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmed = code.trim();
-    if (trimmed.length !== ROOM_CODE_LENGTH) {
-      toast.error(tErrors("invalidCodeLength"));
-      return;
+    if (trimmed.length !== ROOM_CODE_LENGTH) return;
+
+    setChecking(true);
+    try {
+      const res = await checkRoomExists({ roomCode: trimmed });
+      setChecking(false);
+      if (res.success && res.data?.exists && res.data?.active) {
+        startTransition(() => {
+          router.push(`/live-rooms/${trimmed}`);
+        });
+      } else {
+        toast.error(tErrors("roomNotFound"));
+      }
+    } catch (err) {
+      setChecking(false);
+      const handler = asApiError((apiErr) => {
+        toast.error(resolveLiveroomErrorMessage(apiErr, tErrors, tCommon));
+      });
+      handler(err);
     }
-    startTransition(() => {
-      router.push(`/live-rooms/${trimmed}`);
-    });
   };
 
   return (
@@ -72,8 +89,8 @@ export function JoinRoomByCodeCard() {
             className="font-mono tracking-widest uppercase"
           />
         </div>
-        <Button type="submit" disabled={isPending || code.length !== ROOM_CODE_LENGTH}>
-          {isPending ? (
+        <Button type="submit" disabled={isPending || checking || code.length !== ROOM_CODE_LENGTH}>
+          {isPending || checking ? (
             <span className="flex items-center gap-2">
               <Spinner size="sm" />
               {tCommon("loading")}
