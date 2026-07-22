@@ -53,7 +53,7 @@ export function JoinRoomByCodeCard() {
       const handler = asApiError((apiErr) => {
         toast.error(resolveLiveroomErrorMessage(apiErr, tErrors, tCommon));
       });
-      handler(err);
+      handler(err as Error);
     }
   };
 

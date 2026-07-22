@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import { ImmersiveMeetingRoom } from "@/features/liveroom/components/immersive-meeting-room";
 import { MediaStage } from "@/features/liveroom/components/media-stage";
 import { AskToJoinCard } from "@/features/liveroom/components/ask-to-join-card";
 import { WaitingRoomCard } from "@/features/liveroom/components/waiting-room-card";
@@ -28,7 +29,7 @@ type GuestPhase =
   | { kind: "REJECTED"; reason: string }
   | { kind: "IN_ROOM" };
 
-export default function ListenerLiveRoomPage() {
+export default function UnifiedLiveRoomPage() {
   const params = useParams();
   const router = useRouter();
   const roomCode = (params?.roomCode as string) ?? "";
@@ -39,6 +40,7 @@ export default function ListenerLiveRoomPage() {
   const tCommon = useTranslations("common");
 
   const currentUserId = useAuthStore((state) => state.user?.userId ?? null);
+  const localDisplayName = useAuthStore.getState().user?.username ?? "Guest";
   const authBootstrapping = useAuthStore((state) => state.bootstrapping);
 
   const { data: existsRes, isLoading: existsLoading, isError: existsError } =
@@ -61,9 +63,6 @@ export default function ListenerLiveRoomPage() {
 
   const serverStatus = viewerStatusRes?.data;
   const isHost = !authBootstrapping && serverStatus?.host === true;
-  const isParticipant = !isHost && serverStatus?.participant === true;
-
-  const localDisplayName = useAuthStore.getState().user?.username ?? "Guest";
 
   const { mutate: leaveRoom } = useLeaveRoom({
     mutationConfig: {
@@ -83,7 +82,7 @@ export default function ListenerLiveRoomPage() {
 
   useLiveRoomRealtime({
     roomCode,
-    isHost: false,
+    isHost,
     onJoinRequestDecided: (event) => {
       if (phase.kind === "WAITING" && pendingRequest && event.requestId === pendingRequest.id) {
         if (event.status === "APPROVED") {
@@ -91,7 +90,7 @@ export default function ListenerLiveRoomPage() {
           setPhase({ kind: "IN_ROOM" });
         } else if (event.status === "REJECTED") {
           toast.error(tActions("rejected"));
-          setPhase({ kind: "REJECTED", reason: event.decisionReason ?? "" });
+          setPhase({ kind: "REJECTED", reason: event.reason ?? "" });
         }
       }
       void refetchViewerStatus();
@@ -105,12 +104,6 @@ export default function ListenerLiveRoomPage() {
       void refetchViewerStatus();
     },
   });
-
-  useEffect(() => {
-    if (!authBootstrapping && isHost) {
-      router.replace(`/dashboard/live-rooms/${roomCode}`);
-    }
-  }, [authBootstrapping, isHost, roomCode, router]);
 
   const handleLeave = useCallback(() => {
     leaveRoom({ roomCode });
@@ -135,14 +128,6 @@ export default function ListenerLiveRoomPage() {
   }, []);
 
   if (authBootstrapping) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-neutral-950">
-        <Spinner size="md" />
-      </div>
-    );
-  }
-
-  if (isHost) {
     return (
       <div className="flex h-screen items-center justify-center bg-neutral-950">
         <Spinner size="md" />
@@ -182,8 +167,9 @@ export default function ListenerLiveRoomPage() {
 
   const room = roomRes.data;
   const isActive = room.status === "ACTIVE";
+  const isTerminal = room.status === "ENDED";
 
-  if (!isActive) {
+  if (isTerminal) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-neutral-950">
         <div className="mb-4 text-center">
@@ -194,6 +180,17 @@ export default function ListenerLiveRoomPage() {
           {tActions("back")}
         </Button>
       </div>
+    );
+  }
+
+  if (isHost && currentUserId) {
+    return (
+      <ImmersiveMeetingRoom
+        roomCode={roomCode}
+        room={room}
+        localUserId={currentUserId}
+        localDisplayName={localDisplayName}
+      />
     );
   }
 
@@ -216,7 +213,14 @@ export default function ListenerLiveRoomPage() {
         </Button>
       </div>
 
-      {phase.kind === "ASK" && (
+      {!isActive ? (
+        <div className="flex flex-1 flex-col items-center justify-center px-4">
+          <p className="mb-4 text-sm text-neutral-400">{tActions("notActive")}</p>
+          <Button variant="outline" onClick={() => router.push("/dashboard/live-rooms")}>
+            {tActions("back")}
+          </Button>
+        </div>
+      ) : phase.kind === "ASK" ? (
         <div className="flex flex-1 items-center justify-center px-4">
           {isPublic ? (
             <div className="text-center">
@@ -239,9 +243,7 @@ export default function ListenerLiveRoomPage() {
             />
           )}
         </div>
-      )}
-
-      {phase.kind === "WAITING" && pendingRequest && (
+      ) : phase.kind === "WAITING" && pendingRequest ? (
         <div className="flex flex-1 items-center justify-center px-4">
           <WaitingRoomCard
             roomCode={roomCode}
@@ -251,9 +253,7 @@ export default function ListenerLiveRoomPage() {
             onCancelled={handleCancelled}
           />
         </div>
-      )}
-
-      {phase.kind === "REJECTED" && (
+      ) : phase.kind === "REJECTED" ? (
         <div className="flex flex-1 items-center justify-center px-4">
           <RejectedCard
             reason={phase.reason}
@@ -264,9 +264,7 @@ export default function ListenerLiveRoomPage() {
             onBack={() => router.push("/dashboard/live-rooms")}
           />
         </div>
-      )}
-
-      {phase.kind === "IN_ROOM" && currentUserId && (
+      ) : phase.kind === "IN_ROOM" && currentUserId ? (
         <MediaStage
           roomCode={roomCode}
           localUserId={currentUserId}
@@ -274,7 +272,7 @@ export default function ListenerLiveRoomPage() {
           enabled
           onLeave={handleLeave}
         />
-      )}
+      ) : null}
     </div>
   );
 }

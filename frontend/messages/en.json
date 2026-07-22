@@ -980,6 +980,15 @@
       "requestRejected": "Request Rejected",
       "tryAgain": "Try Again",
       "notActive": "This room is not active"
+    },
+    "immersive": {
+      "close": "Close",
+      "people": "People",
+      "chat": "Chat",
+      "chatPlaceholder": "Type a message...",
+      "chatEmpty": "No messages yet. Start the conversation!",
+      "chatSend": "Send",
+      "leaveConfirm": "Leave this room?"
     }
   }
 }

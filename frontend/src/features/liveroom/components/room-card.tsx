@@ -33,7 +33,7 @@ export function RoomCard({ room, onEnd }: RoomCardProps) {
         <div className="flex items-start justify-between gap-2">
           <div className="flex flex-col gap-1 min-w-0">
             <Link
-              href={`/dashboard/live-rooms/${room.roomCode}`}
+              href={`/live-room/${room.roomCode}`}
               className="truncate text-base font-semibold text-black hover:underline dark:text-white"
             >
               {room.title}
@@ -54,7 +54,7 @@ export function RoomCard({ room, onEnd }: RoomCardProps) {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Link href={`/dashboard/live-rooms/${room.roomCode}`}>
+        <Link href={`/live-room/${room.roomCode}`}>
           <Button variant="outline" size="sm">
             {tCard("manage")}
           </Button>

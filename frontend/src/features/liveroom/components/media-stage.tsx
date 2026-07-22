@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { useTranslations } from "next-intl";
 import { useLiveRoomMedia } from "../hooks/use-live-room-media";
 import { MediaTile } from "./media-tile";
 import { MediaControls } from "./media-controls";
@@ -15,11 +14,17 @@ interface MediaStageProps {
   localDisplayName: string;
   enabled: boolean;
   onLeave?: () => void;
+  showControls?: boolean;
 }
 
-export function MediaStage({ roomCode, localUserId, localDisplayName, enabled, onLeave }: MediaStageProps) {
-  const tMedia = useTranslations("liveroom.media");
-
+export function MediaStage({
+  roomCode,
+  localUserId,
+  localDisplayName,
+  enabled,
+  onLeave,
+  showControls = true,
+}: MediaStageProps) {
   const media = useLiveRoomMedia({
     roomCode,
     localUserId,
@@ -82,24 +87,26 @@ export function MediaStage({ roomCode, localUserId, localDisplayName, enabled, o
           />
         ))}
       </div>
-      <div className="absolute inset-x-0 bottom-0 z-10">
-        <div className="flex items-center justify-center px-4 pb-6">
-          <MediaControls
-            micMuted={media.micMuted}
-            cameraOff={media.cameraOff}
-            selectingDevice={media.selectingDevice}
-            audioDevices={media.audioDevices}
-            videoDevices={media.videoDevices}
-            currentAudioId={media.currentAudioId}
-            currentVideoId={media.currentVideoId}
-            onToggleMic={media.toggleMic}
-            onToggleCamera={media.toggleCamera}
-            onSelectAudio={media.setAudioDevice}
-            onSelectVideo={media.setVideoDevice}
-            onLeave={onLeave ?? media.stop}
-          />
+      {showControls ? (
+        <div className="absolute inset-x-0 bottom-0 z-10">
+          <div className="flex items-center justify-center px-4 pb-6">
+            <MediaControls
+              micMuted={media.micMuted}
+              cameraOff={media.cameraOff}
+              selectingDevice={media.selectingDevice}
+              audioDevices={media.audioDevices}
+              videoDevices={media.videoDevices}
+              currentAudioId={media.currentAudioId}
+              currentVideoId={media.currentVideoId}
+              onToggleMic={media.toggleMic}
+              onToggleCamera={media.toggleCamera}
+              onSelectAudio={media.setAudioDevice}
+              onSelectVideo={media.setVideoDevice}
+              onLeave={onLeave ?? media.stop}
+            />
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

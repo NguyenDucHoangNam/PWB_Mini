@@ -12,7 +12,7 @@ const subscribeAuthStore = (callback: () => void) =>
 const getAccessTokenSnapshot = () => useAuthStore.getState().accessToken ?? null;
 const getServerAccessTokenSnapshot = () => null;
 
-export default function LiveRoomLayout({
+export default function LiveRoomImmersiveLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -58,7 +58,7 @@ export default function LiveRoomLayout({
   }
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-neutral-950">
+    <div className="fixed inset-0 overflow-hidden bg-neutral-950 text-white">
       {children}
     </div>
   );

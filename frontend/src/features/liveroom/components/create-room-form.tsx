@@ -50,7 +50,7 @@ export function CreateRoomForm() {
         if (response.success && response.data) {
           toast.success(t("createSuccess"));
           reset();
-          router.push(`/dashboard/live-rooms/${response.data.roomCode}`);
+          router.push(`/live-room/${response.data.roomCode}`);
         } else {
           toast.error(response.message || tCommon("error"));
         }

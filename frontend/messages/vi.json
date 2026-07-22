@@ -983,6 +983,15 @@
       "requestRejected": "Yêu cầu bị từ chối",
       "tryAgain": "Thử lại",
       "notActive": "Phòng này hiện không hoạt động"
+    },
+    "immersive": {
+      "close": "Đóng",
+      "people": "Mọi người",
+      "chat": "Trò chuyện",
+      "chatPlaceholder": "Nhập tin nhắn...",
+      "chatEmpty": "Chưa có tin nhắn nào. Hãy bắt đầu cuộc trò chuyện!",
+      "chatSend": "Gửi",
+      "leaveConfirm": "Rời khỏi phòng này?"
     }
   }
 }
