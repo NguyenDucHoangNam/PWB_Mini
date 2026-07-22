@@ -4,16 +4,12 @@ import { useCallback, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, Link2 } from "lucide-react";
+import { ExternalLink, Link2, Users, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { ProUpgradePrompt } from "@/features/liveroom/components/pro-upgrade-prompt";
-import { RoomStatusBadge } from "@/features/liveroom/components/room-status-badge";
-import { RoomModeBadge } from "@/features/liveroom/components/room-mode-badge";
-import { UpdateRoomForm } from "@/features/liveroom/components/update-room-form";
-import { ParticipantsList } from "@/features/liveroom/components/participants-list";
 import { JoinRequestQueuePanel } from "@/features/liveroom/components/join-request-queue-panel";
+import { ParticipantsList } from "@/features/liveroom/components/participants-list";
 import { MediaStage } from "@/features/liveroom/components/media-stage";
 import { MediaControls } from "@/features/liveroom/components/media-controls";
 import { useLiveRoomMedia } from "@/features/liveroom/hooks/use-live-room-media";
@@ -31,7 +27,7 @@ import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { asApiError } from "@/lib/api-client";
 import { resolveLiveroomErrorMessage } from "@/features/liveroom/lib/resolve-liveroom-error-message";
 
-type HostTab = "settings" | "waiting" | "listeners" | "stage";
+type SidebarTab = "requests" | "participants" | null;
 
 export default function LiveRoomDetailPage() {
   const params = useParams();
@@ -43,18 +39,16 @@ export default function LiveRoomDetailPage() {
   const tCommon = useTranslations("common");
   const tErrors = useTranslations("liveroom.errors");
   const tCard = useTranslations("liveroom.card");
-  const tNav = useTranslations("liveroom.nav");
-  const tHost = useTranslations("liveroom.hostWaitingRoom");
-  const tMedia = useTranslations("liveroom.media");
 
   const currentUserId = useAuthStore((state) => state.user?.userId ?? null);
   const queryClient = useQueryClient();
+  const localDisplayName = useAuthStore((state) => state.user?.username ?? "Host");
 
   const { data: roomRes, isLoading, isError } = useRoom({ roomCode });
   const { data: pendingRes } = useListJoinRequests({ roomCode, status: "PENDING" });
   const pendingCount = pendingRes?.success && pendingRes.data ? pendingRes.data.length : 0;
 
-  const [tab, setTab] = useState<HostTab>("settings");
+  const [sidebarTab, setSidebarTab] = useState<"requests" | "participants" | null>(null);
 
   const invalidateHostQueries = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: liveRoomJoinRequestsKey(roomCode) });
@@ -65,10 +59,8 @@ export default function LiveRoomDetailPage() {
   useLiveRoomRealtime({
     roomCode,
     isHost: true,
-    onJoinRequestCreated: (event) => {
+    onJoinRequestCreated: () => {
       invalidateHostQueries();
-      toast.info(tHost("hostToastNewRequest", { name: event.displayName }));
-      setTab((current) => (current === "waiting" ? current : "waiting"));
     },
     onParticipantChanged: () => {
       invalidateHostQueries();
@@ -91,13 +83,29 @@ export default function LiveRoomDetailPage() {
     },
   });
 
+  const media = useLiveRoomMedia({
+    roomCode,
+    localUserId: currentUserId ?? "",
+    localDisplayName,
+    enabled: Boolean(currentUserId),
+  });
+
   if (!isPro) {
-    return <ProUpgradePrompt />;
+    return (
+      <div className="flex h-screen items-center justify-center bg-neutral-950">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <p className="text-sm text-red-400">Pro required</p>
+          <Button variant="outline" onClick={() => router.push("/dashboard/live-rooms")}>
+            {tActions("back")}
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center gap-3 p-12 text-sm text-neutral-500">
+      <div className="flex h-screen items-center justify-center bg-neutral-950">
         <Spinner size="md" />
       </div>
     );
@@ -105,11 +113,13 @@ export default function LiveRoomDetailPage() {
 
   if (isError || !roomRes?.data) {
     return (
-      <div className="flex flex-col items-center gap-3 p-12 text-center">
-        <p className="text-sm text-red-600 dark:text-red-400">{tErrors("roomNotFound")}</p>
-        <Button variant="outline" onClick={() => router.push("/dashboard/live-rooms")}>
-          {tActions("back")}
-        </Button>
+      <div className="flex h-screen items-center justify-center bg-neutral-950">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <p className="text-sm text-red-400">{tErrors("roomNotFound")}</p>
+          <Button variant="outline" onClick={() => router.push("/dashboard/live-rooms")}>
+            {tActions("back")}
+          </Button>
+        </div>
       </div>
     );
   }
@@ -118,12 +128,10 @@ export default function LiveRoomDetailPage() {
   const isHost = currentUserId === room.hostUserId;
 
   if (!isHost) {
+    router.replace("/dashboard/live-rooms");
     return (
-      <div className="flex flex-col items-center gap-3 p-12 text-center">
-        <p className="text-sm text-red-600 dark:text-red-400">{tErrors("notHost")}</p>
-        <Button variant="outline" onClick={() => router.push("/dashboard/live-rooms")}>
-          {tActions("back")}
-        </Button>
+      <div className="flex h-screen items-center justify-center bg-neutral-950">
+        <Spinner size="md" />
       </div>
     );
   }
@@ -134,15 +142,10 @@ export default function LiveRoomDetailPage() {
     endRoomMutate({ roomCode });
   };
 
-  const handleOpenRoomInNewTab = () => {
-    if (typeof window === "undefined") return;
-    window.open(`/live-rooms/${room.roomCode}`, "_blank", "noopener,noreferrer");
-  };
-
   const handleCopyShareLink = async () => {
     if (typeof window === "undefined") return;
     const origin = window.location.origin;
-    const link = `${origin}/live-rooms/${room.roomCode}`;
+    const link = `${origin}/live-room/${room.roomCode}`;
     try {
       await navigator.clipboard.writeText(link);
       toast.success(tActions("linkCopied"));
@@ -151,158 +154,121 @@ export default function LiveRoomDetailPage() {
     }
   };
 
-  const tabs: { id: HostTab; label: string; badge?: number }[] = [
-    { id: "stage", label: tMedia("title") },
-    { id: "settings", label: tNav("settingsTab") },
-    { id: "waiting", label: tHost("tabLabel"), badge: pendingCount },
-    { id: "listeners", label: tNav("listenersTab") },
-  ];
-
-  return (
-    <div className="flex flex-col gap-6 font-sans">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
-              {room.title}
-            </h1>
-            <RoomStatusBadge status={room.status} />
-            <RoomModeBadge mode={room.mode} />
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
-            <span className="font-mono">{room.roomCode}</span>
-            <span>
-              {tCard("capacity", {
-                current: room.currentParticipantCount,
-                max: room.maxParticipants,
-              })}
-            </span>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {!isTerminal && (
-            <>
-              <Button variant="outline" onClick={handleCopyShareLink}>
-                <Link2 className="mr-1 inline size-4" />
-                {tActions("copyLink")}
-              </Button>
-              <Button onClick={handleOpenRoomInNewTab}>
-                <ExternalLink className="mr-1 inline size-4" />
-                {tActions("openRoom")}
-              </Button>
-            </>
-          )}
-          <Button variant="outline" onClick={() => router.push("/dashboard/live-rooms")}>
-            {tActions("back")}
-          </Button>
-          {!isTerminal && (
-            <Button variant="destructive" onClick={handleEnd}>
-              {tCard("end")}
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2 border-b border-neutral-200 dark:border-neutral-800">
-        {tabs.map((tabItem) => {
-          const selected = tab === tabItem.id;
-          return (
-            <button
-              key={tabItem.id}
-              type="button"
-              onClick={() => setTab(tabItem.id)}
-              aria-pressed={selected}
-              className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-semibold transition-colors ${
-                selected
-                  ? "border-black text-black dark:border-white dark:text-white"
-                  : "border-transparent text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
-              }`}
-            >
-              {tabItem.label}
-              {typeof tabItem.badge === "number" && tabItem.badge > 0 && (
-                <span className="inline-flex min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">
-                  {tabItem.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {tab === "settings" && (
-        <div className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-black">
-          <h2 className="mb-4 text-sm font-semibold text-black dark:text-white">
-            {tNav("settingsTab")}
-          </h2>
-          <UpdateRoomForm room={room} />
-        </div>
-      )}
-
-      {tab === "waiting" && (
-        <div className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-black">
-          <JoinRequestQueuePanel roomCode={room.roomCode} />
-        </div>
-      )}
-
-      {tab === "listeners" && (
-        <div className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-black">
-          <ParticipantsList roomCode={room.roomCode} hostUserId={room.hostUserId} />
-        </div>
-      )}
-
-      {tab === "stage" && !isTerminal && currentUserId && (
-        <HostStagePanel
-          roomCode={room.roomCode}
-          localUserId={currentUserId}
-          localDisplayName={useAuthStore.getState().user?.username ?? "Host"}
-        />
-      )}
-    </div>
-  );
-}
-
-interface HostStagePanelProps {
-  roomCode: string;
-  localUserId: string;
-  localDisplayName: string;
-}
-
-function HostStagePanel({ roomCode, localUserId, localDisplayName }: HostStagePanelProps) {
-  const media = useLiveRoomMedia({
-    roomCode,
-    localUserId,
-    localDisplayName,
-    enabled: true,
-  });
-
-  const handleLeave = () => {
-    if (typeof window !== "undefined") {
-      window.open(`/live-rooms/${roomCode}`, "_blank", "noopener,noreferrer");
-    }
+  const handleOpenRoomInNewTab = () => {
+    if (typeof window === "undefined") return;
+    window.open(`/live-room/${room.roomCode}`, "_blank", "noopener,noreferrer");
   };
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-black">
-      <MediaStage
-        roomCode={roomCode}
-        localUserId={localUserId}
-        localDisplayName={localDisplayName}
-        enabled
-      />
-      <MediaControls
-        micMuted={media.micMuted}
-        cameraOff={media.cameraOff}
-        selectingDevice={media.selectingDevice}
-        audioDevices={media.audioDevices}
-        videoDevices={media.videoDevices}
-        currentAudioId={media.currentAudioId}
-        currentVideoId={media.currentVideoId}
-        onToggleMic={media.toggleMic}
-        onToggleCamera={media.toggleCamera}
-        onSelectAudio={media.setAudioDevice}
-        onSelectVideo={media.setVideoDevice}
-        onLeave={handleLeave}
-      />
+    <div className="flex h-screen flex-col bg-neutral-950 font-sans">
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="relative flex flex-1 flex-col">
+          {isTerminal ? (
+            <div className="flex flex-1 items-center justify-center">
+              <div className="text-center">
+                <p className="text-lg font-medium text-neutral-300">Room ended</p>
+                <Button variant="outline" onClick={() => router.push("/dashboard/live-rooms")} className="mt-4">
+                  {tActions("back")}
+                </Button>
+              </div>
+            </div>
+          ) : currentUserId ? (
+            <MediaStage
+              roomCode={roomCode}
+              localUserId={currentUserId}
+              localDisplayName={localDisplayName}
+              enabled
+            />
+          ) : null}
+
+          <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 backdrop-blur-sm">
+              <span className="text-sm font-medium text-white">{room.title}</span>
+              <span className="font-mono text-xs text-neutral-400">{room.roomCode}</span>
+            </div>
+            {!isTerminal && (
+              <>
+                <Button size="sm" variant="ghost" onClick={handleCopyShareLink} className="h-8 rounded-full bg-black/60 px-3 text-xs text-white backdrop-blur-sm hover:bg-black/80">
+                  <Link2 className="mr-1.5 size-3.5" />
+                  Copy link
+                </Button>
+                <Button size="sm" variant="ghost" onClick={handleOpenRoomInNewTab} className="h-8 rounded-full bg-black/60 px-3 text-xs text-white backdrop-blur-sm hover:bg-black/80">
+                  <ExternalLink className="mr-1.5 size-3.5" />
+                  Open
+                </Button>
+              </>
+            )}
+          </div>
+
+          <div className="absolute inset-x-0 bottom-0 z-10">
+            <div className="flex items-center justify-center px-4 pb-6">
+              <MediaControls
+                micMuted={media.micMuted}
+                cameraOff={media.cameraOff}
+                selectingDevice={media.selectingDevice}
+                audioDevices={media.audioDevices}
+                videoDevices={media.videoDevices}
+                currentAudioId={media.currentAudioId}
+                currentVideoId={media.currentVideoId}
+                onToggleMic={media.toggleMic}
+                onToggleCamera={media.toggleCamera}
+                onSelectAudio={media.setAudioDevice}
+                onSelectVideo={media.setVideoDevice}
+                onLeave={handleEnd}
+              />
+            </div>
+          </div>
+        </div>
+
+        {sidebarTab && (
+          <aside className="flex w-80 shrink-0 flex-col border-l border-neutral-800 bg-neutral-900">
+            <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
+              <span className="text-sm font-medium text-white">
+                {sidebarTab === "requests" ? "Join Requests" : "Participants"}
+              </span>
+              <Button size="sm" variant="ghost" onClick={() => setSidebarTab(null)} className="text-neutral-400 hover:text-white">
+                ✕
+              </Button>
+            </div>
+            {sidebarTab === "requests" && (
+              <div className="flex-1 overflow-y-auto p-3">
+                <JoinRequestQueuePanel roomCode={room.roomCode} />
+              </div>
+            )}
+            {sidebarTab === "participants" && (
+              <div className="flex-1 overflow-y-auto p-3">
+                <ParticipantsList roomCode={room.roomCode} hostUserId={room.hostUserId} />
+              </div>
+            )}
+          </aside>
+        )}
+
+        {!sidebarTab && !isTerminal && (
+          <div className="absolute bottom-24 right-6 z-10 flex shrink-0 flex-col items-center gap-3">
+            {pendingCount > 0 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setSidebarTab("requests")}
+                className="relative flex-col gap-1 rounded-full bg-black/60 p-3 text-white backdrop-blur-sm hover:bg-black/80"
+              >
+                <span className="text-xs font-medium">Requests</span>
+                <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-medium text-white">
+                  {pendingCount > 9 ? "9+" : pendingCount}
+                </span>
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setSidebarTab("participants")}
+              className="flex-col gap-1 rounded-full bg-black/60 p-3 text-white backdrop-blur-sm hover:bg-black/80"
+            >
+              <span className="text-xs font-medium">People</span>
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

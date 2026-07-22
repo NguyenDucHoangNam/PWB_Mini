@@ -1,7 +1,6 @@
 package com.pwb.liveroom.api;
 
 import com.pwb.liveroom.api.dto.request.CreateLiveRoomRequest;
-import com.pwb.liveroom.api.dto.request.UpdateLiveRoomSettingsRequest;
 import com.pwb.liveroom.api.dto.response.LiveRoomExistsResponse;
 import com.pwb.liveroom.api.dto.response.LiveRoomResponse;
 import com.pwb.liveroom.api.dto.response.LiveRoomSummaryResponse;
@@ -19,8 +18,6 @@ public interface LiveRoomFacade {
     Page<LiveRoomSummaryResponse> listMyRooms(UUID hostUserId, LiveRoomStatus status, Pageable pageable);
 
     LiveRoomResponse getRoom(UUID hostUserId, String roomCode);
-
-    LiveRoomResponse updateRoom(UUID hostUserId, String roomCode, UpdateLiveRoomSettingsRequest request);
 
     void endRoom(UUID hostUserId, String roomCode);
 

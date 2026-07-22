@@ -60,16 +60,13 @@ export function MediaStage({ roomCode, localUserId, localDisplayName, enabled }:
   }, [peers.length]);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-black dark:text-white">{tMedia("title")}</h2>
-      </div>
+    <div className="flex flex-1 flex-col p-3">
       {media.errorMessage ? (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+        <div className="mb-2 rounded-lg border border-amber-600 bg-amber-950/50 px-3 py-2 text-xs text-amber-300">
           {media.errorMessage}
         </div>
       ) : null}
-      <div className={`gap-3 ${gridClassName}`}>
+      <div className={`grid flex-1 auto-rows-fr gap-3 ${gridClassName}`}>
         <MediaTile
           stream={media.stream}
           cameraOff={media.cameraOff}
@@ -77,11 +74,6 @@ export function MediaStage({ roomCode, localUserId, localDisplayName, enabled }:
           displayName={localDisplayName}
           isLocal
         />
-        {peers.length === 0 ? (
-          <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-dashed border-neutral-200 text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
-            {tMedia("noParticipants")}
-          </div>
-        ) : null}
         {peers.map((peer) => (
           <MediaTile
             key={peer.userId}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -84,12 +84,13 @@ export default function ListenerLiveRoomPage() {
     queryConfig: { enabled: Boolean(existsRes?.data?.exists) },
   });
 
+  const [userPhase, setUserPhase] = useState<GuestPhase>({ kind: "ASK" });
+
   const serverStatus = viewerStatusRes?.data;
   const isHost = !authBootstrapping && serverStatus?.host === true;
   const isParticipant = !isHost && serverStatus?.participant === true;
   const hasPending = !isHost && !isParticipant && serverStatus?.pendingRequest === true;
 
-  const [userPhase, setUserPhase] = useState<GuestPhase>({ kind: "ASK" });
   const phase: GuestPhase = isHost || isParticipant
     ? { kind: "IN_ROOM" }
     : hasPending && serverStatus?.pendingRequestId
@@ -145,9 +146,23 @@ export default function ListenerLiveRoomPage() {
     },
   });
 
+  useEffect(() => {
+    if (!authBootstrapping && isHost) {
+      router.replace(`/dashboard/live-rooms/${roomCode}`);
+    }
+  }, [authBootstrapping, isHost, roomCode, router]);
+
+  if (authBootstrapping || isHost) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-neutral-950">
+        <Spinner size="md" />
+      </div>
+    );
+  }
+
   if (existsLoading || roomLoading || viewerStatusLoading) {
     return (
-      <div className="flex items-center justify-center gap-3 p-12 text-sm text-neutral-500">
+      <div className="flex h-screen items-center justify-center gap-3 bg-neutral-950 text-sm text-neutral-500">
         <Spinner size="md" />
         <span>{tExists("checking")}</span>
       </div>
@@ -156,8 +171,8 @@ export default function ListenerLiveRoomPage() {
 
   if (existsError || !existsRes?.data?.exists) {
     return (
-      <div className="flex flex-col items-center gap-3 p-12 text-center">
-        <p className="text-sm text-red-600 dark:text-red-400">{tExists("notFound")}</p>
+      <div className="flex h-screen flex-col items-center justify-center gap-3 bg-neutral-950 text-center">
+        <p className="text-sm text-red-400">{tExists("notFound")}</p>
         <Button variant="outline" onClick={() => router.push("/dashboard/live-rooms")}>
           {tActions("back")}
         </Button>
@@ -167,8 +182,8 @@ export default function ListenerLiveRoomPage() {
 
   if (roomError || !roomRes?.data) {
     return (
-      <div className="flex flex-col items-center gap-3 p-12 text-center">
-        <p className="text-sm text-red-600 dark:text-red-400">{tExists("notFound")}</p>
+      <div className="flex h-screen flex-col items-center justify-center gap-3 bg-neutral-950 text-center">
+        <p className="text-sm text-red-400">{tExists("notFound")}</p>
         <Button variant="outline" onClick={() => router.push("/dashboard/live-rooms")}>
           {tActions("back")}
         </Button>
@@ -178,128 +193,110 @@ export default function ListenerLiveRoomPage() {
 
   const room = roomRes.data;
   const isActive = room.status === "ACTIVE";
+  const localDisplayName = useAuthStore.getState().user?.username ?? "Guest";
+
+  const handleLeave = useCallback(() => {
+    leaveRoom({ roomCode: room.roomCode });
+  }, [leaveRoom, room.roomCode]);
+
+  const handleEndRoom = useCallback(() => {
+    endRoomFromGuest({ roomCode: room.roomCode });
+  }, [endRoomFromGuest, room.roomCode]);
 
   if (!isActive) {
     return (
-      <div className="flex flex-col gap-6 font-sans">
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
-              {room.title}
-            </h1>
+      <div className="flex h-screen flex-col items-center justify-center gap-6 bg-neutral-950">
+        <div className="text-center">
+          <div className="mb-2 flex flex-wrap items-center justify-center gap-2">
+            <h1 className="text-2xl font-bold text-white">{room.title}</h1>
             <RoomStatusBadge status={room.status} />
             <RoomModeBadge mode={room.mode} />
           </div>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">
-            {tExists("existsInactive")}
-          </p>
+          <p className="text-sm text-neutral-400">{tExists("existsInactive")}</p>
         </div>
-        <Button variant="outline" className="self-start" onClick={() => router.push("/dashboard/live-rooms")}>
+        <Button variant="outline" onClick={() => router.push("/dashboard/live-rooms")}>
           {tActions("back")}
         </Button>
       </div>
     );
   }
 
-  const handleLeave = () => {
-    if (isHost) {
-      const confirmed = typeof window !== "undefined"
-        ? window.confirm(tActions("endRoomConfirm"))
-        : false;
-      if (!confirmed) return;
-      endRoomFromGuest({ roomCode: room.roomCode });
-      return;
-    }
-    leaveRoom({ roomCode: room.roomCode });
-  };
-
-  const localDisplayName = useAuthStore.getState().user?.username ?? "Guest";
-
   return (
-    <div className="flex flex-col gap-6 font-sans">
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
-            {room.title}
-          </h1>
+    <div className="flex h-screen flex-col bg-neutral-950 font-sans">
+      <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2 rounded-full bg-black/60 px-3 py-1.5 backdrop-blur-sm">
+          <h1 className="text-sm font-medium text-white">{room.title}</h1>
+          <span className="font-mono text-xs text-neutral-400">{room.roomCode}</span>
           <RoomStatusBadge status={room.status} />
           <RoomModeBadge mode={room.mode} />
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
-          <span className="font-mono">{room.roomCode}</span>
-          <span>
-            {tCard("capacity", {
-              current: room.currentParticipantCount,
-              max: room.maxParticipants,
-            })}
-          </span>
-        </div>
-        {room.description && (
-          <p className="text-sm text-neutral-600 dark:text-neutral-300 max-w-prose">
-            {room.description}
-          </p>
-        )}
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">
-          {tNav("listenerSubtitle")}
-        </p>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => router.push("/dashboard/live-rooms")}
+          className="rounded-full bg-black/60 px-3 text-xs text-white backdrop-blur-sm hover:bg-black/80"
+        >
+          ✕
+        </Button>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="flex flex-col gap-3">
-          {phase.kind === "ASK" && (
-            <AskToJoinCard
-              roomCode={room.roomCode}
-              isActive={isActive}
-              onSent={(request) => setUserPhase({ kind: "WAITING", request })}
-            />
-          )}
+      <div className="flex flex-1 items-center justify-center px-4">
+        <div className="grid w-full max-w-4xl gap-6 lg:grid-cols-2">
+          <div className="flex flex-col gap-3">
+            {phase.kind === "ASK" && (
+              <AskToJoinCard
+                roomCode={room.roomCode}
+                isActive={isActive}
+                onSent={(request) => setUserPhase({ kind: "WAITING", request })}
+              />
+            )}
 
-          {phase.kind === "WAITING" && (
-            <WaitingRoomCard
-              roomCode={room.roomCode}
-              request={phase.request}
-              onApproved={() => setUserPhase({ kind: "IN_ROOM" })}
-              onRejected={(reason) => {
-                setUserPhase({
-                  kind: "REJECTED",
-                  request: phase.request,
-                  reason,
-                });
-              }}
-              onCancelled={() => setUserPhase({ kind: "ASK" })}
-            />
-          )}
+            {phase.kind === "WAITING" && (
+              <WaitingRoomCard
+                roomCode={room.roomCode}
+                request={phase.request}
+                onApproved={() => setUserPhase({ kind: "IN_ROOM" })}
+                onRejected={(reason) => {
+                  setUserPhase({
+                    kind: "REJECTED",
+                    request: phase.request,
+                    reason,
+                  });
+                }}
+                onCancelled={() => setUserPhase({ kind: "ASK" })}
+              />
+            )}
 
-          {phase.kind === "REJECTED" && (
-            <RejectedCard
-              reason={phase.reason}
-              onAskAgain={() => setUserPhase({ kind: "ASK" })}
-              onBack={() => setUserPhase({ kind: "ASK" })}
-            />
-          )}
+            {phase.kind === "REJECTED" && (
+              <RejectedCard
+                reason={phase.reason}
+                onAskAgain={() => setUserPhase({ kind: "ASK" })}
+                onBack={() => setUserPhase({ kind: "ASK" })}
+              />
+            )}
 
-          {phase.kind === "IN_ROOM" && currentUserId && (
-            <InRoomStage
-              roomCode={room.roomCode}
-              localUserId={currentUserId}
-              localDisplayName={localDisplayName}
-              onLeave={handleLeave}
-              isLeaving={isLeaving || isEnding}
-              isHost={isHost}
-              tParticipantLeave={isHost ? tParticipant("endRoom") : tParticipant("leaveRoom")}
-              tParticipantEnding={
-                isLeaving || isEnding
-                  ? isHost
-                    ? tParticipant("ending")
-                    : tParticipant("leaving")
-                  : null
-              }
-            />
-          )}
-        </div>
+            {phase.kind === "IN_ROOM" && currentUserId && (
+              <InRoomStage
+                roomCode={room.roomCode}
+                localUserId={currentUserId}
+                localDisplayName={localDisplayName}
+                onLeave={handleLeave}
+                onEndRoom={handleEndRoom}
+                isLeaving={isLeaving || isEnding}
+                isHost={false}
+                tParticipantLeave={tParticipant("leaveRoom")}
+                tParticipantEnding={
+                  isLeaving || isEnding
+                    ? tParticipant("leaving")
+                    : null
+                }
+              />
+            )}
+          </div>
 
-        <div className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-black">
-          <ParticipantsList roomCode={room.roomCode} hostUserId={room.hostUserId} />
+          <div className="rounded-xl border border-neutral-800 bg-black/40 p-5">
+            <ParticipantsList roomCode={room.roomCode} hostUserId={room.hostUserId} />
+          </div>
         </div>
       </div>
     </div>
@@ -311,6 +308,7 @@ interface InRoomStageProps {
   localUserId: string;
   localDisplayName: string;
   onLeave: () => void;
+  onEndRoom: () => void;
   isLeaving: boolean;
   isHost: boolean;
   tParticipantLeave: string;
@@ -323,11 +321,9 @@ function InRoomStage({
   localDisplayName,
   onLeave,
   isLeaving,
-  isHost,
   tParticipantLeave,
   tParticipantEnding,
 }: InRoomStageProps) {
-  const tParticipant = useTranslations("liveroom.participant");
   const media = useLiveRoomMedia({
     roomCode,
     localUserId,
@@ -336,12 +332,10 @@ function InRoomStage({
   });
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-black">
-      <div className="flex items-center justify-between text-sm text-green-700 dark:text-green-300">
-        <span className="flex items-center gap-2 font-semibold">
-          <span className="inline-flex size-2 rounded-full bg-green-500 animate-pulse" />
-          {tParticipant("joinedHeader")}
-        </span>
+    <div className="flex flex-col gap-4 rounded-xl border border-neutral-800 bg-black/40 p-5">
+      <div className="flex items-center gap-2 text-sm text-green-400">
+        <span className="inline-flex size-2 rounded-full bg-green-500 animate-pulse" />
+        <span className="font-semibold">In Room</span>
       </div>
       <MediaStage
         roomCode={roomCode}
@@ -381,11 +375,6 @@ function InRoomStage({
           </span>
         )}
       </Button>
-      {isHost && (
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">
-          {tParticipant("hostInGuestTabHint")}
-        </p>
-      )}
     </div>
   );
 }

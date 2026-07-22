@@ -7,14 +7,12 @@ export {
   createRoom,
   listMyRooms,
   getRoom,
-  updateRoom,
   endRoom,
   checkRoomExists,
   getViewerStatus,
   useCreateRoom,
   useMyRooms,
   useRoom,
-  useUpdateRoom,
   useEndRoom,
   useCheckRoomExists,
   useViewerStatus,
@@ -60,11 +58,9 @@ export {
 export { useLiveRoomRealtime } from "./hooks/use-live-room-realtime";
 export {
   createRoomFormSchema,
-  updateRoomFormSchema,
   askToJoinFormSchema,
   declineRequestFormSchema,
   type CreateRoomFormValues,
-  type UpdateRoomFormValues,
   type AskToJoinFormValues,
   type DeclineRequestFormValues,
 } from "./schemas/room-schema";
@@ -74,7 +70,6 @@ export { RoomCard } from "./components/room-card";
 export { RoomStatusBadge } from "./components/room-status-badge";
 export { RoomModeBadge } from "./components/room-mode-badge";
 export { CreateRoomForm } from "./components/create-room-form";
-export { UpdateRoomForm } from "./components/update-room-form";
 export { RoomEndDialog } from "./components/room-delete-dialog";
 export { ParticipantsList } from "./components/participants-list";
 export { DashboardLiveRoomsTab } from "./components/dashboard-live-rooms-tab";

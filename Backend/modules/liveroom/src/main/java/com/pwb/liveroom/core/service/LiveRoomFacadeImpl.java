@@ -4,7 +4,6 @@ import com.pwb.backend.exception.BusinessException;
 import com.pwb.backend.exception.ErrorCode;
 import com.pwb.liveroom.api.LiveRoomFacade;
 import com.pwb.liveroom.api.dto.request.CreateLiveRoomRequest;
-import com.pwb.liveroom.api.dto.request.UpdateLiveRoomSettingsRequest;
 import com.pwb.liveroom.api.dto.response.LiveRoomExistsResponse;
 import com.pwb.liveroom.api.dto.response.LiveRoomResponse;
 import com.pwb.liveroom.api.dto.response.LiveRoomSummaryResponse;
@@ -14,7 +13,6 @@ import com.pwb.liveroom.core.model.LiveRoom;
 import com.pwb.liveroom.core.model.LiveRoomStatus;
 import com.pwb.liveroom.infrastructure.persistence.entity.LiveRoomJpaEntity;
 import com.pwb.liveroom.infrastructure.persistence.entity.LiveRoomJoinRequestJpaEntity;
-import com.pwb.liveroom.infrastructure.persistence.entity.LiveRoomParticipantJpaEntity;
 import com.pwb.liveroom.infrastructure.persistence.repository.LiveRoomJpaRepository;
 import com.pwb.liveroom.infrastructure.persistence.repository.LiveRoomJoinRequestJpaRepository;
 import com.pwb.liveroom.infrastructure.persistence.repository.LiveRoomParticipantJpaRepository;
@@ -47,7 +45,7 @@ public class LiveRoomFacadeImpl implements LiveRoomFacade {
                 hostUserId,
                 request.getTitle(),
                 request.getDescription(),
-                request.getScheduledStartAt(),
+                request.getMode(),
                 request.getMaxParticipants()
         );
 
@@ -64,22 +62,6 @@ public class LiveRoomFacadeImpl implements LiveRoomFacade {
     @Override
     public LiveRoomResponse getRoom(UUID hostUserId, String roomCode) {
         LiveRoom domain = liveRoomService.getRoomByCode(hostUserId, roomCode);
-        return toResponse(domain);
-    }
-
-    @Override
-    @Transactional
-    public LiveRoomResponse updateRoom(UUID hostUserId, String roomCode, UpdateLiveRoomSettingsRequest request) {
-        log.info("Facade updateRoom: hostUserId={}, roomCode={}", hostUserId, roomCode);
-
-        LiveRoom domain = liveRoomService.updateRoomSettings(
-                hostUserId,
-                roomCode,
-                request.getTitle(),
-                request.getDescription(),
-                request.getMaxParticipants()
-        );
-
         return toResponse(domain);
     }
 

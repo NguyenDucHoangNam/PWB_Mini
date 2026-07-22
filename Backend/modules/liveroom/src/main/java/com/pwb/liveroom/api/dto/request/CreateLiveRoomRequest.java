@@ -1,16 +1,15 @@
 package com.pwb.liveroom.api.dto.request;
 
-import jakarta.validation.constraints.Future;
+import com.pwb.liveroom.api.enums.LiveRoomMode;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.time.Instant;
 
 @Data
 @Builder
@@ -25,10 +24,10 @@ public class CreateLiveRoomRequest {
     @Size(max = 1000, message = "{validation.liveroom.description.maxlength}")
     private String description;
 
-    @Min(value = 2, message = "{validation.liveroom.capacity.range}")
-    @Max(value = 500, message = "{validation.liveroom.capacity.range}")
-    private Integer maxParticipants;
+    @NotNull(message = "{validation.liveroom.mode.required}")
+    private LiveRoomMode mode;
 
-    @Future(message = "{validation.liveroom.schedule.future}")
-    private Instant scheduledStartAt;
+    @Min(value = 2, message = "{validation.liveroom.capacity.range}")
+    @Max(value = 5, message = "{validation.liveroom.capacity.range}")
+    private Integer maxParticipants;
 }

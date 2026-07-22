@@ -213,8 +213,8 @@ app:
       length: 6
       max-generation-attempts: 10
     capacity:
-      default-max-participants: 50
-      absolute-max-participants: 500
+      default-max-participants: 5
+      absolute-max-participants: 5
 
 
 springdoc:

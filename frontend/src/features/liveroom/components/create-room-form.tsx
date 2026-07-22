@@ -18,13 +18,6 @@ import {
 import { resolveLiveroomErrorMessage } from "../lib/resolve-liveroom-error-message";
 import type { CreateLiveRoomRequest } from "../types";
 
-function localInputToIso(value: string | undefined): string | undefined {
-  if (!value) return undefined;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return undefined;
-  return date.toISOString();
-}
-
 export function CreateRoomForm() {
   const router = useRouter();
   const t = useTranslations("liveroom.form");
@@ -43,8 +36,8 @@ export function CreateRoomForm() {
     defaultValues: {
       title: "",
       description: "",
-      maxParticipants: 50,
-      scheduledStartAt: "",
+      mode: "PUBLIC",
+      maxParticipants: 5,
     },
   });
 
@@ -54,7 +47,7 @@ export function CreateRoomForm() {
         if (response.success && response.data) {
           toast.success(t("createSuccess"));
           reset();
-          router.push(`/dashboard/live-rooms/${response.data.roomCode}`);
+          router.push(`/live-rooms/${response.data.roomCode}`);
         } else {
           toast.error(response.message || tCommon("error"));
         }
@@ -68,14 +61,11 @@ export function CreateRoomForm() {
   const onSubmit = handleSubmit((values) => {
     const payload: CreateLiveRoomRequest = {
       title: values.title.trim(),
-      maxParticipants: Number(values.maxParticipants) || 50,
+      mode: values.mode,
+      maxParticipants: Number(values.maxParticipants) || 5,
     };
     if (values.description && values.description.trim().length > 0) {
       payload.description = values.description.trim();
-    }
-    const scheduledIso = localInputToIso(values.scheduledStartAt);
-    if (scheduledIso) {
-      payload.scheduledStartAt = scheduledIso;
     }
     createRoom({ data: payload });
   });
@@ -115,12 +105,29 @@ export function CreateRoomForm() {
       </div>
 
       <div className="flex flex-col gap-2">
+        <Label htmlFor="create-room-mode">{t("modeLabel")}</Label>
+        <select
+          id="create-room-mode"
+          {...register("mode")}
+          className="flex h-9 w-full rounded-lg border border-neutral-200 bg-transparent px-3 py-1.5 text-sm outline-none focus:border-black focus:ring-1 focus:ring-black/30 dark:border-neutral-800 dark:bg-black dark:text-white"
+        >
+          <option value="PUBLIC">{t("modePublic")}</option>
+          <option value="PRIVATE">{t("modePrivate")}</option>
+        </select>
+        {errors.mode && (
+          <p className="text-xs text-red-600 dark:text-red-400">
+            {tValidation(errors.mode.message as never)}
+          </p>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2">
         <Label htmlFor="create-room-capacity">{t("capacityLabel")}</Label>
         <Input
           id="create-room-capacity"
           type="number"
           min={2}
-          max={500}
+          max={5}
           {...register("maxParticipants", { valueAsNumber: true })}
         />
         <span className="text-xs text-neutral-500 dark:text-neutral-400">
@@ -129,23 +136,6 @@ export function CreateRoomForm() {
         {errors.maxParticipants && (
           <p className="text-xs text-red-600 dark:text-red-400">
             {tValidation(errors.maxParticipants.message as never)}
-          </p>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="create-room-scheduled">{t("scheduledLabel")}</Label>
-        <Input
-          id="create-room-scheduled"
-          type="datetime-local"
-          {...register("scheduledStartAt")}
-        />
-        <span className="text-xs text-neutral-500 dark:text-neutral-400">
-          {t("scheduledHint")}
-        </span>
-        {errors.scheduledStartAt && (
-          <p className="text-xs text-red-600 dark:text-red-400">
-            {tValidation(errors.scheduledStartAt.message as never)}
           </p>
         )}
       </div>

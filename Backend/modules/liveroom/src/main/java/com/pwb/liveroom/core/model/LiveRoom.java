@@ -10,7 +10,7 @@ import java.util.UUID;
 public final class LiveRoom {
 
     private static final int MIN_PARTICIPANTS = 2;
-    private static final int MAX_PARTICIPANTS = 500;
+    private static final int MAX_PARTICIPANTS = 5;
 
     private final UUID id;
     private final UUID hostUserId;
@@ -61,7 +61,7 @@ public final class LiveRoom {
             String roomCode,
             String title,
             String description,
-            Instant scheduledStartAt,
+            LiveRoomMode mode,
             int maxParticipants
     ) {
         validateTitle(title);
@@ -74,11 +74,11 @@ public final class LiveRoom {
                 roomCode,
                 title.trim(),
                 description == null ? null : description.trim(),
-                LiveRoomMode.PUBLIC,
+                mode,
                 maxParticipants,
                 LiveRoomStatus.ACTIVE,
                 0,
-                scheduledStartAt,
+                null,
                 null,
                 null,
                 Instant.now()

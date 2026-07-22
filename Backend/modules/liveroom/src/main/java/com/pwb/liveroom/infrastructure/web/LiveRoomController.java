@@ -6,7 +6,6 @@ import com.pwb.backend.web.ApiResponse;
 import com.pwb.backend.web.MessageResolver;
 import com.pwb.liveroom.api.LiveRoomFacade;
 import com.pwb.liveroom.api.dto.request.CreateLiveRoomRequest;
-import com.pwb.liveroom.api.dto.request.UpdateLiveRoomSettingsRequest;
 import com.pwb.liveroom.api.dto.response.LiveRoomExistsResponse;
 import com.pwb.liveroom.api.dto.response.LiveRoomResponse;
 import com.pwb.liveroom.api.dto.response.LiveRoomSummaryResponse;
@@ -21,7 +20,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -35,7 +33,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class LiveRoomController {
 
     private static final String MSG_CREATED = "LIVEROOM_CREATED";
-    private static final String MSG_UPDATED = "LIVEROOM_UPDATED";
     private static final String MSG_ENDED = "LIVEROOM_ENDED";
     private static final String MSG_RETRIEVED = "LIVEROOM_RETRIEVED";
     private static final String MSG_LIST_RETRIEVED = "LIVEROOM_LIST_RETRIEVED";
@@ -73,16 +70,6 @@ public class LiveRoomController {
             @PathVariable(name = PATH_ROOM_CODE) String roomCode) {
         LiveRoomResponse data = liveRoomFacade.getRoom(user.getId(), roomCode);
         return ApiResponse.success(data, messageResolver.get(MSG_RETRIEVED));
-    }
-
-    @PatchMapping("/{" + PATH_ROOM_CODE + "}")
-    @PreAuthorize("hasRole('PRO')")
-    public ApiResponse<LiveRoomResponse> update(
-            @CurrentUser AuthenticatedUser user,
-            @PathVariable(name = PATH_ROOM_CODE) String roomCode,
-            @Valid @RequestBody UpdateLiveRoomSettingsRequest request) {
-        LiveRoomResponse data = liveRoomFacade.updateRoom(user.getId(), roomCode, request);
-        return ApiResponse.success(data, messageResolver.get(MSG_UPDATED));
     }
 
     @PostMapping("/{" + PATH_ROOM_CODE + "}/end")

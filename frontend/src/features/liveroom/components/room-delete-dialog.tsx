@@ -13,7 +13,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useState } from "react";
-import { useEndRoom } from "../api/rooms";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEndRoom, LIVE_ROOMS_KEY } from "../api/rooms";
 import { resolveLiveroomErrorMessage } from "../lib/resolve-liveroom-error-message";
 import type { LiveRoomSummary } from "../types";
 
@@ -27,7 +28,7 @@ export function RoomEndDialog({ room, open, onOpenChange }: RoomEndDialogProps) 
   const t = useTranslations("liveroom.endDialog");
   const tErrors = useTranslations("liveroom.errors");
   const tCommon = useTranslations("common");
-
+  const queryClient = useQueryClient();
   const [pending, setPending] = useState(false);
 
   const { mutate: endRoom } = useEndRoom({
@@ -37,6 +38,7 @@ export function RoomEndDialog({ room, open, onOpenChange }: RoomEndDialogProps) 
         if (response.success) {
           toast.success(t("success"));
           onOpenChange(false);
+          void queryClient.invalidateQueries({ queryKey: [LIVE_ROOMS_KEY] });
         } else {
           toast.error(response.message || tCommon("error"));
         }

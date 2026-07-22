@@ -9,7 +9,6 @@ import type {
   LiveRoomSummary,
   LiveRoomViewerStatus,
   ListMyRoomsParams,
-  UpdateLiveRoomSettingsRequest,
 } from "../types";
 
 export const LIVE_ROOMS_KEY = "live-rooms" as const;
@@ -39,15 +38,6 @@ export const getRoom = ({
   roomCode: string;
 }): Promise<ApiResponse<LiveRoom>> =>
   apiClient.get(`/live-rooms/${roomCode}`).then((res) => res.data);
-
-export const updateRoom = ({
-  roomCode,
-  data,
-}: {
-  roomCode: string;
-  data: UpdateLiveRoomSettingsRequest;
-}): Promise<ApiResponse<LiveRoom>> =>
-  apiClient.patch(`/live-rooms/${roomCode}`, data).then((res) => res.data);
 
 export const endRoom = ({
   roomCode,
@@ -116,24 +106,6 @@ export const useRoom = ({
     enabled: Boolean(roomCode),
     ...queryConfig,
   });
-
-type UseUpdateRoomOptions = {
-  mutationConfig?: MutationConfig<typeof updateRoom>;
-};
-
-export const useUpdateRoom = ({ mutationConfig }: UseUpdateRoomOptions = {}) => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    onSuccess: (response, variables) => {
-      if (response.success) {
-        queryClient.invalidateQueries({ queryKey: [LIVE_ROOMS_KEY] });
-        queryClient.invalidateQueries({ queryKey: liveRoomKey(variables.roomCode) });
-      }
-    },
-    ...mutationConfig,
-    mutationFn: updateRoom,
-  });
-};
 
 type UseEndRoomOptions = {
   mutationConfig?: MutationConfig<typeof endRoom>;

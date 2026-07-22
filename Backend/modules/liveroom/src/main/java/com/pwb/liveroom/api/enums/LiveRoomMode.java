@@ -2,10 +2,11 @@ package com.pwb.liveroom.api.enums;
 
 public enum LiveRoomMode {
 
-    PUBLIC;
+    PUBLIC,
+    PRIVATE;
 
-    public boolean requiresPassword() {
-        return false;
+    public boolean requiresApproval() {
+        return this == PRIVATE;
     }
 
     public boolean isPubliclyDiscoverable() {

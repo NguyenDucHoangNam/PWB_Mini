@@ -1,4 +1,4 @@
-export type LiveRoomMode = "PUBLIC";
+export type LiveRoomMode = "PUBLIC" | "PRIVATE";
 
 export type LiveRoomStatus = "ACTIVE" | "PAUSED" | "ENDED";
 
@@ -54,13 +54,7 @@ export interface LiveRoomViewerStatus {
 export interface CreateLiveRoomRequest {
   title: string;
   description?: string;
-  maxParticipants?: number;
-  scheduledStartAt?: string;
-}
-
-export interface UpdateLiveRoomSettingsRequest {
-  title?: string;
-  description?: string;
+  mode: LiveRoomMode;
   maxParticipants?: number;
 }
 

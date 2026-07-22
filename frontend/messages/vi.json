@@ -781,7 +781,7 @@
         "length": "Mật khẩu phải có từ 4 đến 64 ký tự"
       },
       "capacity": {
-        "range": "Số người tham gia tối đa phải từ 2 đến 500"
+        "range": "Số người tham gia tối đa phải từ 2 đến 5"
       },
       "displayname": {
         "length": "Tên hiển thị phải có từ 1 đến 100 ký tự"
@@ -818,7 +818,8 @@
       "ended": "Đã kết thúc"
     },
     "mode": {
-      "PUBLIC": "Công khai"
+      "PUBLIC": "Công khai",
+      "PRIVATE": "Riêng tư"
     },
     "card": {
       "capacity": "{current}/{max} người nghe",
@@ -835,10 +836,11 @@
       "titlePlaceholder": "Nhập tiêu đề cho phòng của bạn",
       "descriptionLabel": "Mô tả",
       "descriptionPlaceholder": "Tùy chọn. Mô tả phòng của bạn",
+      "modeLabel": "Loại phòng",
+      "modePublic": "Công khai - Ai có mã đều có thể vào",
+      "modePrivate": "Riêng tư - Cần chủ phòng duyệt",
       "capacityLabel": "Số người tham gia tối đa",
-      "capacityHint": "Từ 2 đến 500",
-      "scheduledLabel": "Thời gian bắt đầu hẹn trước",
-      "scheduledHint": "Tùy chọn. Phải ở trong tương lai",
+      "capacityHint": "Từ 2 đến 5",
       "submitCreate": "Tạo phòng",
       "submitUpdate": "Lưu thay đổi",
       "submitting": "Đang lưu...",
@@ -951,7 +953,7 @@
       "notHost": "Chỉ chủ phòng mới có thể chỉnh sửa phòng này",
       "alreadyEnded": "Phòng đã kết thúc",
       "codeGenFailed": "Không thể tạo mã phòng duy nhất",
-      "invalidCapacity": "Số người tham gia tối đa phải từ 2 đến 500",
+      "invalidCapacity": "Số người tham gia tối đa phải từ 2 đến 5",
       "full": "Phòng đã đạt sức chứa tối đa",
       "notJoined": "Bạn chưa tham gia phòng này",
       "alreadyJoined": "Bạn đã tham gia phòng này rồi",

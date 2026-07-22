@@ -775,7 +775,7 @@
         "maxlength": "Description must not exceed {max} characters"
       },
       "capacity": {
-        "range": "Max participants must be between 2 and 500"
+        "range": "Max participants must be between 2 and 5"
       },
       "displayname": {
         "length": "Display name must not exceed {max} characters"
@@ -815,7 +815,8 @@
       "ended": "Ended"
     },
     "mode": {
-      "PUBLIC": "Public"
+      "PUBLIC": "Public",
+      "PRIVATE": "Private"
     },
     "card": {
       "capacity": "{current}/{max} listeners",
@@ -832,10 +833,11 @@
       "titlePlaceholder": "Enter a title for your room",
       "descriptionLabel": "Description",
       "descriptionPlaceholder": "Optional. Describe your room",
+      "modeLabel": "Room type",
+      "modePublic": "Public - Anyone with code can join",
+      "modePrivate": "Private - Host approval required",
       "capacityLabel": "Max participants",
-      "capacityHint": "Between 2 and 500",
-      "scheduledLabel": "Scheduled start time",
-      "scheduledHint": "Optional. Must be in the future",
+      "capacityHint": "Between 2 and 5",
       "submitCreate": "Create room",
       "submitUpdate": "Save changes",
       "submitting": "Saving...",
@@ -948,7 +950,7 @@
       "notHost": "Only the host can modify this room",
       "alreadyEnded": "Room has already ended",
       "codeGenFailed": "Failed to generate a unique room code",
-      "invalidCapacity": "Max participants must be between 2 and 500",
+      "invalidCapacity": "Max participants must be between 2 and 5",
       "full": "Room is at maximum capacity",
       "notJoined": "You have not joined this room",
       "alreadyJoined": "You have already joined this room",

@@ -2,6 +2,7 @@ package com.pwb.liveroom.core.service;
 
 import com.pwb.backend.exception.BusinessException;
 import com.pwb.backend.exception.ErrorCode;
+import com.pwb.liveroom.api.enums.LiveRoomMode;
 import com.pwb.liveroom.core.model.LiveRoom;
 import com.pwb.liveroom.core.model.LiveRoomStatus;
 import com.pwb.liveroom.infrastructure.config.LiveRoomProperties;
@@ -38,10 +39,10 @@ public class LiveRoomServiceImpl implements LiveRoomService {
             UUID hostUserId,
             String title,
             String description,
-            Instant scheduledStartAt,
+            LiveRoomMode mode,
             Integer maxParticipants) {
 
-        log.info("Creating live room: hostUserId={}, title={}", hostUserId, title);
+        log.info("Creating live room: hostUserId={}, title={}, mode={}", hostUserId, title, mode);
 
         ensureHostHasNoActiveRoom(hostUserId);
 
@@ -53,7 +54,7 @@ public class LiveRoomServiceImpl implements LiveRoomService {
                 roomCode,
                 title,
                 description,
-                scheduledStartAt,
+                mode,
                 capacity
         );
 
@@ -85,40 +86,6 @@ public class LiveRoomServiceImpl implements LiveRoomService {
                 .findByRoomCodeAndDeletedFalse(roomCode)
                 .orElseThrow(() -> new BusinessException(ErrorCode.LIVEROOM_NOT_FOUND));
         return liveRoomMapper.toDomain(entity);
-    }
-
-    @Override
-    @Transactional
-    public LiveRoom updateRoomSettings(
-            UUID hostUserId,
-            String roomCode,
-            String title,
-            String description,
-            Integer maxParticipants) {
-
-        log.info("Updating live room settings: hostUserId={}, roomCode={}", hostUserId, roomCode);
-
-        LiveRoomJpaEntity entity = loadRoomAsHost(hostUserId, roomCode);
-        if (entity.getStatus() == LiveRoomStatus.ENDED) {
-            throw new BusinessException(ErrorCode.LIVEROOM_ALREADY_ENDED);
-        }
-
-        LiveRoom domain = liveRoomMapper.toDomain(entity);
-
-        try {
-            domain.updateSettings(title, description, maxParticipants);
-        } catch (IllegalArgumentException ex) {
-            throw mapValidationFailure(ex);
-        } catch (IllegalStateException ex) {
-            throw new BusinessException(ErrorCode.LIVEROOM_ALREADY_ENDED);
-        }
-
-        LiveRoomJpaEntity merged = liveRoomMapper.toEntity(domain, entity);
-        LiveRoomJpaEntity saved = liveRoomJpaRepository.save(merged);
-
-        log.info("Live room updated: hostUserId={}, roomCode={}", hostUserId, roomCode);
-
-        return liveRoomMapper.toDomain(saved);
     }
 
     @Override
@@ -226,20 +193,5 @@ public class LiveRoomServiceImpl implements LiveRoomService {
             builder.append(charset.charAt(RANDOM.nextInt(charset.length())));
         }
         return builder.toString();
-    }
-
-    private BusinessException mapValidationFailure(IllegalArgumentException ex) {
-        String message = ex.getMessage();
-        if (message == null) {
-            return new BusinessException(ErrorCode.INVALID_INPUT);
-        }
-        String lower = message.toLowerCase(java.util.Locale.ROOT);
-        if (lower.contains("participants") || lower.contains("capacity")) {
-            return new BusinessException(ErrorCode.LIVEROOM_INVALID_CAPACITY);
-        }
-        if (lower.contains("title")) {
-            return new BusinessException(ErrorCode.INVALID_INPUT);
-        }
-        return new BusinessException(ErrorCode.INVALID_INPUT);
     }
 }
