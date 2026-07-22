@@ -1,14 +1,14 @@
 package com.pwb.liveroom.infrastructure.web;
 
-import com.pwb.backend.security.AuthenticatedUser;
+import com.pwb.liveroom.core.service.LiveRoomParticipantService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 
+import java.security.Principal;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -24,14 +24,15 @@ public class LiveRoomWebSocketController {
     private static final String SIGNAL_ICE_SUFFIX = "/signal/ice";
 
     private final SimpMessagingTemplate messagingTemplate;
+    private final LiveRoomParticipantService participantService;
 
     @MessageMapping("/room/{roomCode}/ping")
     public Map<String, Object> handlePing(
             @DestinationVariable("roomCode") String roomCode,
-            @AuthenticationPrincipal AuthenticatedUser user,
+            Principal principal,
             Map<String, Object> payload) {
 
-        log.debug("Ping received: roomCode={}, userId={}", roomCode, user == null ? "anonymous" : user.getId());
+        log.debug("Ping received: roomCode={}, userId={}", roomCode, principal == null ? "anonymous" : principal.getName());
 
         return Map.of(
                 "type", "PONG",
@@ -44,72 +45,102 @@ public class LiveRoomWebSocketController {
     @MessageMapping("/room/{roomCode}/signal/offer")
     public void relayOffer(
             @DestinationVariable("roomCode") String roomCode,
-            @AuthenticationPrincipal AuthenticatedUser user,
+            Principal principal,
             Map<String, Object> payload) {
-        relaySignal(roomCode, user, payload, "OFFER", SIGNAL_OFFER_SUFFIX);
+        relaySignal(roomCode, principal, payload, "OFFER", SIGNAL_OFFER_SUFFIX);
     }
 
     @MessageMapping("/room/{roomCode}/signal/answer")
     public void relayAnswer(
             @DestinationVariable("roomCode") String roomCode,
-            @AuthenticationPrincipal AuthenticatedUser user,
+            Principal principal,
             Map<String, Object> payload) {
-        relaySignal(roomCode, user, payload, "ANSWER", SIGNAL_ANSWER_SUFFIX);
+        relaySignal(roomCode, principal, payload, "ANSWER", SIGNAL_ANSWER_SUFFIX);
     }
 
     @MessageMapping("/room/{roomCode}/signal/ice")
     public void relayIce(
             @DestinationVariable("roomCode") String roomCode,
-            @AuthenticationPrincipal AuthenticatedUser user,
+            Principal principal,
             Map<String, Object> payload) {
-        relaySignal(roomCode, user, payload, "ICE", SIGNAL_ICE_SUFFIX);
+        relaySignal(roomCode, principal, payload, "ICE", SIGNAL_ICE_SUFFIX);
+    }
+
+    @MessageMapping("/room/{roomCode}/state/request")
+    public void handleRoomStateRequest(
+            @DestinationVariable("roomCode") String roomCode,
+            Principal principal) {
+        if (principal == null) {
+            log.warn("ROOM_STATE request rejected: unauthenticated user, roomCode={}", roomCode);
+            return;
+        }
+        UUID userId = parseUserId(principal);
+        if (userId == null) {
+            log.warn("ROOM_STATE request rejected: bad principal name={}", principal.getName());
+            return;
+        }
+        log.debug("ROOM_STATE request: roomCode={}, userId={}", roomCode, userId);
+        participantService.requestRoomState(userId, roomCode);
     }
 
     private void relaySignal(
             String roomCode,
-            AuthenticatedUser user,
+            Principal principal,
             Map<String, Object> payload,
             String type,
             String suffix) {
-        if (user == null) {
+        if (principal == null) {
             log.warn("Signal {} rejected: unauthenticated user, roomCode={}", type, roomCode);
             return;
         }
+        UUID userId = parseUserId(principal);
+        if (userId == null) {
+            log.warn("Signal {} rejected: bad principal name={}, roomCode={}", type, principal.getName(), roomCode);
+            return;
+        }
         if (payload == null) {
-            log.warn("Signal {} rejected: empty payload, userId={}, roomCode={}", type, user.getId(), roomCode);
+            log.warn("Signal {} rejected: empty payload, userId={}, roomCode={}", type, userId, roomCode);
             return;
         }
         Object rawToUserId = payload.get("toUserId");
         if (!(rawToUserId instanceof String toUserIdStr) || toUserIdStr.isBlank()) {
-            log.warn("Signal {} rejected: missing toUserId, userId={}, roomCode={}", type, user.getId(), roomCode);
+            log.warn("Signal {} rejected: missing toUserId, userId={}, roomCode={}", type, userId, roomCode);
             return;
         }
         UUID toUserId;
         try {
             toUserId = UUID.fromString(toUserIdStr);
         } catch (IllegalArgumentException ex) {
-            log.warn("Signal {} rejected: bad toUserId={}, userId={}", type, toUserIdStr, user.getId());
+            log.warn("Signal {} rejected: bad toUserId={}, userId={}", type, toUserIdStr, userId);
             return;
         }
-        if (toUserId.equals(user.getId())) {
-            log.warn("Signal {} rejected: self-send, userId={}", type, user.getId());
+        if (toUserId.equals(userId)) {
+            log.warn("Signal {} rejected: self-send, userId={}", type, userId);
             return;
         }
 
         Map<String, Object> forwarded = Map.of(
                 "type", type,
                 "roomCode", roomCode,
-                "fromUserId", user.getId().toString(),
+                "fromUserId", userId.toString(),
                 "toUserId", toUserIdStr,
                 "payload", payload.getOrDefault("payload", Map.of())
         );
         String destination = SIGNAL_USER_BASE + roomCode + suffix;
         try {
             messagingTemplate.convertAndSendToUser(toUserIdStr, destination, forwarded);
-            log.debug("Relay {}: from={}, to={}, roomCode={}", type, user.getId(), toUserId, roomCode);
+            log.debug("Relay {}: from={}, to={}, roomCode={}", type, userId, toUserId, roomCode);
         } catch (Exception ex) {
             log.warn("Failed to relay {}: from={}, to={}, roomCode={}, error={}",
-                    type, user.getId(), toUserId, roomCode, ex.getMessage());
+                    type, userId, toUserId, roomCode, ex.getMessage());
+        }
+    }
+
+    private UUID parseUserId(Principal principal) {
+        try {
+            return UUID.fromString(principal.getName());
+        } catch (IllegalArgumentException ex) {
+            return null;
         }
     }
 }

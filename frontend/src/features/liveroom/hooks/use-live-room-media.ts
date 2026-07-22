@@ -70,6 +70,7 @@ export function useLiveRoomMedia({
   const managerRef = useRef<WebRTCPeerManager | null>(null);
   const managerApiRef = useRef<{
     addPeer: (remoteUserId: string) => Promise<void>;
+    queuePeerIfNeeded: (remoteUserId: string) => Promise<void>;
     removePeer: (remoteUserId: string) => void;
   } | null>(null);
 
@@ -83,9 +84,13 @@ export function useLiveRoomMedia({
     managerRef.current = manager;
     managerApiRef.current = {
       addPeer: async (remoteUserId) => {
-        if (!devices.stream) return;
+        if (!devices.stream) {
+          await manager.queuePeerIfNeeded(remoteUserId);
+          return;
+        }
         await manager.addPeer(devices.stream, remoteUserId);
       },
+      queuePeerIfNeeded: (remoteUserId) => manager.queuePeerIfNeeded(remoteUserId),
       removePeer: (remoteUserId) => {
         manager.removePeer(remoteUserId);
       },
@@ -105,15 +110,7 @@ export function useLiveRoomMedia({
         managerApiRef.current = null;
       }
     };
-  }, [
-    enabled,
-    roomCode,
-    localUserId,
-    localDisplayName,
-    upsertRemotePeer,
-    removeRemotePeer,
-    devices.stream,
-  ]);
+  }, [enabled, roomCode, localUserId, localDisplayName, upsertRemotePeer, removeRemotePeer]);
 
   useEffect(() => {
     if (!devices.stream) {
@@ -127,7 +124,6 @@ export function useLiveRoomMedia({
   usePeerSignaling({
     roomCode,
     managerRef: managerApiRef,
-    localStream: devices.stream,
     enabled: enabled && Boolean(devices.stream),
   });
 

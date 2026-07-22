@@ -281,6 +281,10 @@ export function sendSignalIce(
   });
 }
 
+export function requestRoomState(roomCode: string): boolean {
+  return publishSignal(`/app/room/${roomCode}/state/request`, {});
+}
+
 export function disconnectStompClient(): void {
   for (const tracked of trackedSubs) {
     if (tracked.subscription) {

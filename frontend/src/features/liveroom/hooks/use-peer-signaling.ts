@@ -1,16 +1,16 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { subscribeRoomPeerEvents, subscribeRoomState } from "../api/ws";
+import { requestRoomState, subscribeRoomPeerEvents, subscribeRoomState } from "../api/ws";
 import type { PeerJoinedWsEvent, PeerLeftWsEvent, RoomStateWsEvent } from "../types";
 
 interface UsePeerSignalingParams {
   roomCode: string;
   managerRef: React.MutableRefObject<{
     addPeer: (remoteUserId: string) => Promise<void>;
+    queuePeerIfNeeded: (remoteUserId: string) => Promise<void>;
     removePeer: (remoteUserId: string) => void;
   } | null>;
-  localStream: MediaStream | null;
   enabled: boolean;
   onRemoteUserJoined?: (event: PeerJoinedWsEvent) => void;
   onRemoteUserLeft?: (event: PeerLeftWsEvent) => void;
@@ -20,7 +20,6 @@ interface UsePeerSignalingParams {
 export function usePeerSignaling({
   roomCode,
   managerRef,
-  localStream,
   enabled,
   onRemoteUserJoined,
   onRemoteUserLeft,
@@ -37,12 +36,12 @@ export function usePeerSignaling({
   }, [onRemoteUserJoined, onRemoteUserLeft, onRoomStateReceived]);
 
   useEffect(() => {
-    if (!roomCode || !enabled || !localStream) return undefined;
+    if (!roomCode || !enabled) return undefined;
 
     const peerSubscription = subscribeRoomPeerEvents(roomCode, (event) => {
       if (event.type === "PEER_JOINED") {
         joinedHandlerRef.current?.(event);
-        void managerRef.current?.addPeer(event.userId);
+        void managerRef.current?.queuePeerIfNeeded(event.userId);
         return;
       }
       if (event.type === "PEER_LEFT") {
@@ -54,13 +53,18 @@ export function usePeerSignaling({
     const stateSubscription = subscribeRoomState(roomCode, (event) => {
       roomStateHandlerRef.current?.(event);
       for (const peer of event.participants) {
-        void managerRef.current?.addPeer(peer.userId);
+        void managerRef.current?.queuePeerIfNeeded(peer.userId);
       }
     });
 
+    const requestTimer = setTimeout(() => {
+      requestRoomState(roomCode);
+    }, 250);
+
     return () => {
+      clearTimeout(requestTimer);
       peerSubscription.unsubscribe();
       stateSubscription.unsubscribe();
     };
-  }, [roomCode, enabled, localStream, managerRef]);
+  }, [roomCode, enabled, managerRef]);
 }

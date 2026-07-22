@@ -235,6 +235,23 @@ public class LiveRoomParticipantServiceImpl implements LiveRoomParticipantServic
                 event.lastSeenAt().toString());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public void requestRoomState(UUID userId, String roomCode) {
+        if (!liveRoomJpaRepository.existsByRoomCodeAndDeletedFalse(roomCode)) {
+            log.warn("requestRoomState ignored: room not found, roomCode={}, userId={}", roomCode, userId);
+            return;
+        }
+        Optional<LiveRoomParticipantJpaEntity> requester =
+                participantJpaRepository.findActiveByRoomAndUser(roomCode, userId);
+        if (requester.isEmpty()) {
+            log.warn("requestRoomState ignored: user not joined, roomCode={}, userId={}", roomCode, userId);
+            return;
+        }
+        log.info("requestRoomState: roomCode={}, userId={}", roomCode, userId);
+        pushRoomStateToNewcomer(roomCode, userId);
+    }
+
     public record ParticipantJoinedEvent(
             String roomCode,
             UUID hostUserId,

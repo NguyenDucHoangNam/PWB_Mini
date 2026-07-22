@@ -38,6 +38,7 @@ export class WebRTCPeerManager {
   private readonly peers: Map<string, PeerEntry> = new Map();
   private readonly remoteStreamHandlers: Set<RemoteStreamHandler["onRemoteStream"]> = new Set();
   private readonly peerLeftHandlers: Set<RemoteStreamHandler["onPeerLeft"]> = new Set();
+  private readonly pendingPeerUserIds: Set<string> = new Set();
   private unsubscribers: Array<() => void> = [];
   private disposed = false;
   private localStream: MediaStream | null = null;
@@ -68,8 +69,13 @@ export class WebRTCPeerManager {
     this.unsubscribers.push(() => iceSub.unsubscribe());
   }
 
-  async addPeer(localStream: MediaStream, remoteUserId: string): Promise<void> {
+  async addPeer(localStream: MediaStream | null, remoteUserId: string): Promise<void> {
     if (this.disposed) return;
+    if (remoteUserId === this.localUserId) return;
+    if (!localStream) {
+      this.pendingPeerUserIds.add(remoteUserId);
+      return;
+    }
     this.localStream = localStream;
 
     const existing = this.peers.get(remoteUserId);
@@ -97,6 +103,17 @@ export class WebRTCPeerManager {
     });
   }
 
+  async queuePeerIfNeeded(remoteUserId: string): Promise<void> {
+    if (this.disposed) return;
+    if (remoteUserId === this.localUserId) return;
+    if (this.peers.has(remoteUserId)) return;
+    if (this.localStream) {
+      await this.addPeer(this.localStream, remoteUserId);
+      return;
+    }
+    this.pendingPeerUserIds.add(remoteUserId);
+  }
+
   async onPeerJoined(remoteUserId: string, localStream: MediaStream): Promise<void> {
     if (this.disposed) return;
     await this.addPeer(localStream, remoteUserId);
@@ -104,6 +121,7 @@ export class WebRTCPeerManager {
 
   removePeer(remoteUserId: string): void {
     const entry = this.peers.get(remoteUserId);
+    this.pendingPeerUserIds.delete(remoteUserId);
     if (!entry) return;
     try {
       entry.connection.close();
@@ -119,6 +137,12 @@ export class WebRTCPeerManager {
     this.localStream = stream;
     for (const entry of this.peers.values()) {
       this.replaceLocalTracks(entry.connection, stream);
+    }
+    if (this.pendingPeerUserIds.size === 0) return;
+    const queued = Array.from(this.pendingPeerUserIds);
+    this.pendingPeerUserIds.clear();
+    for (const userId of queued) {
+      void this.addPeer(stream, userId);
     }
   }
 
@@ -145,6 +169,7 @@ export class WebRTCPeerManager {
       }
       this.peers.delete(userId);
     }
+    this.pendingPeerUserIds.clear();
     this.remoteStreamHandlers.clear();
     this.peerLeftHandlers.clear();
     this.localStream = null;
