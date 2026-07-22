@@ -1,15 +1,54 @@
 "use client";
 
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
+import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { JoinRoomCard } from "@/features/liveroom/components/join-room-card";
-import { ParticipantsList } from "@/features/liveroom/components/participants-list";
-import { RoomModeBadge } from "@/features/liveroom/components/room-mode-badge";
-import { RoomStatusBadge } from "@/features/liveroom/components/room-status-badge";
-import { useCheckRoomExists, useRoom } from "@/features/liveroom/api/rooms";
+import { asApiError } from "@/lib/api-client";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import { RoomStatusBadge } from "@/features/liveroom/components/room-status-badge";
+import { RoomModeBadge } from "@/features/liveroom/components/room-mode-badge";
+import { AskToJoinCard } from "@/features/liveroom/components/ask-to-join-card";
+import { WaitingRoomCard } from "@/features/liveroom/components/waiting-room-card";
+import { RejectedCard } from "@/features/liveroom/components/rejected-card";
+import { ParticipantsList } from "@/features/liveroom/components/participants-list";
+import {
+  useLeaveRoom,
+  useRoom,
+  useCheckRoomExists,
+  useEndRoom,
+  useViewerStatus,
+} from "@/features/liveroom";
+import { useLiveRoomRealtime } from "@/features/liveroom/hooks/use-live-room-realtime";
+import { resolveLiveroomErrorMessage } from "@/features/liveroom/lib/resolve-liveroom-error-message";
+import type { LiveRoomJoinRequest, LiveRoomViewerStatus } from "@/features/liveroom/types";
+
+type GuestPhase =
+  | { kind: "ASK" }
+  | { kind: "WAITING"; request: LiveRoomJoinRequest }
+  | { kind: "REJECTED"; request: LiveRoomJoinRequest; reason: string }
+  | { kind: "IN_ROOM" };
+
+function buildPendingRequestFromStatus(
+  status: LiveRoomViewerStatus,
+  viewerUserId: string | null,
+): LiveRoomJoinRequest {
+  return {
+    id: status.pendingRequestId ?? "",
+    roomCode: status.roomCode,
+    userId: viewerUserId ?? "",
+    displayName: "",
+    message: null,
+    status: status.pendingStatus ?? "PENDING",
+    decisionReason: null,
+    decidedByUserId: null,
+    decidedAt: null,
+    createdAt: status.createdAt,
+  };
+}
 
 export default function ListenerLiveRoomPage() {
   const params = useParams();
@@ -21,8 +60,11 @@ export default function ListenerLiveRoomPage() {
   const tErrors = useTranslations("liveroom.errors");
   const tExists = useTranslations("liveroom.existsCheck");
   const tNav = useTranslations("liveroom.nav");
+  const tParticipant = useTranslations("liveroom.participant");
+  const tCommon = useTranslations("common");
 
   const currentUserId = useAuthStore((state) => state.user?.userId ?? null);
+  const authBootstrapping = useAuthStore((state) => state.bootstrapping);
 
   const { data: existsRes, isLoading: existsLoading, isError: existsError } =
     useCheckRoomExists({ roomCode });
@@ -30,8 +72,77 @@ export default function ListenerLiveRoomPage() {
     roomCode,
     queryConfig: { enabled: Boolean(existsRes?.data?.exists) },
   });
+  const {
+    data: viewerStatusRes,
+    isLoading: viewerStatusLoading,
+    refetch: refetchViewerStatus,
+  } = useViewerStatus({
+    roomCode,
+    queryConfig: { enabled: Boolean(existsRes?.data?.exists) },
+  });
 
-  if (existsLoading || roomLoading) {
+  const serverStatus = viewerStatusRes?.data;
+  const isHost = !authBootstrapping && serverStatus?.host === true;
+  const isParticipant = !isHost && serverStatus?.participant === true;
+  const hasPending = !isHost && !isParticipant && serverStatus?.pendingRequest === true;
+
+  const [userPhase, setUserPhase] = useState<GuestPhase>({ kind: "ASK" });
+  const phase: GuestPhase = isHost || isParticipant
+    ? { kind: "IN_ROOM" }
+    : hasPending && serverStatus?.pendingRequestId
+      ? { kind: "WAITING", request: buildPendingRequestFromStatus(serverStatus, currentUserId) }
+      : userPhase;
+
+  const { mutate: leaveRoom, isPending: isLeaving } = useLeaveRoom({
+    mutationConfig: {
+      onSuccess: (response) => {
+        if (response.success) {
+          setUserPhase({ kind: "ASK" });
+        } else {
+          toast.error(response.message || tCommon("error"));
+        }
+      },
+      onError: asApiError((err) => {
+        toast.error(resolveLiveroomErrorMessage(err, tErrors, tCommon));
+      }),
+    },
+  });
+
+  const { mutate: endRoomFromGuest, isPending: isEnding } = useEndRoom({
+    mutationConfig: {
+      onSuccess: () => {
+        if (typeof window !== "undefined") {
+          window.close();
+        }
+      },
+      onError: asApiError((err) => {
+        toast.error(resolveLiveroomErrorMessage(err, tErrors, tCommon));
+      }),
+    },
+  });
+
+  useLiveRoomRealtime({
+    roomCode,
+    isHost: false,
+    onJoinRequestDecided: (event) => {
+      setUserPhase((current) => {
+        if (current.kind === "WAITING" && current.request.id === event.requestId) {
+          if (event.status === "APPROVED") {
+            toast.success(tActions("admitted"));
+          } else if (event.status === "REJECTED") {
+            toast.error(tActions("rejected"));
+          }
+        }
+        return current;
+      });
+      void refetchViewerStatus();
+    },
+    onParticipantChanged: () => {
+      void refetchViewerStatus();
+    },
+  });
+
+  if (existsLoading || roomLoading || viewerStatusLoading) {
     return (
       <div className="flex items-center justify-center gap-3 p-12 text-sm text-neutral-500">
         <Spinner size="md" />
@@ -40,7 +151,18 @@ export default function ListenerLiveRoomPage() {
     );
   }
 
-  if (existsError || !existsRes?.data?.exists || roomError || !roomRes?.data) {
+  if (existsError || !existsRes?.data?.exists) {
+    return (
+      <div className="flex flex-col items-center gap-3 p-12 text-center">
+        <p className="text-sm text-red-600 dark:text-red-400">{tExists("notFound")}</p>
+        <Button variant="outline" onClick={() => router.push("/dashboard/live-rooms")}>
+          {tActions("back")}
+        </Button>
+      </div>
+    );
+  }
+
+  if (roomError || !roomRes?.data) {
     return (
       <div className="flex flex-col items-center gap-3 p-12 text-center">
         <p className="text-sm text-red-600 dark:text-red-400">{tExists("notFound")}</p>
@@ -52,8 +174,41 @@ export default function ListenerLiveRoomPage() {
   }
 
   const room = roomRes.data;
-  const isHost = currentUserId === room.hostUserId;
   const isActive = room.status === "ACTIVE";
+
+  if (!isActive) {
+    return (
+      <div className="flex flex-col gap-6 font-sans">
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
+              {room.title}
+            </h1>
+            <RoomStatusBadge status={room.status} />
+            <RoomModeBadge mode={room.mode} />
+          </div>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">
+            {tExists("existsInactive")}
+          </p>
+        </div>
+        <Button variant="outline" className="self-start" onClick={() => router.push("/dashboard/live-rooms")}>
+          {tActions("back")}
+        </Button>
+      </div>
+    );
+  }
+
+  const handleLeave = () => {
+    if (isHost) {
+      const confirmed = typeof window !== "undefined"
+        ? window.confirm(tActions("endRoomConfirm"))
+        : false;
+      if (!confirmed) return;
+      endRoomFromGuest({ roomCode: room.roomCode });
+      return;
+    }
+    leaveRoom({ roomCode: room.roomCode });
+  };
 
   return (
     <div className="flex flex-col gap-6 font-sans">
@@ -86,17 +241,70 @@ export default function ListenerLiveRoomPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="flex flex-col gap-3">
-          <JoinRoomCard
-            roomCode={room.roomCode}
-            isActive={isActive}
-            isHost={isHost}
-          />
-          {isHost && (
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">
-              {tErrors("notHost")}
-            </p>
+          {phase.kind === "ASK" && (
+            <AskToJoinCard
+              roomCode={room.roomCode}
+              isActive={isActive}
+              onSent={(request) => setUserPhase({ kind: "WAITING", request })}
+            />
+          )}
+
+          {phase.kind === "WAITING" && (
+            <WaitingRoomCard
+              roomCode={room.roomCode}
+              request={phase.request}
+              onApproved={() => setUserPhase({ kind: "IN_ROOM" })}
+              onRejected={(reason) => {
+                setUserPhase({
+                  kind: "REJECTED",
+                  request: phase.request,
+                  reason,
+                });
+              }}
+              onCancelled={() => setUserPhase({ kind: "ASK" })}
+            />
+          )}
+
+          {phase.kind === "REJECTED" && (
+            <RejectedCard
+              reason={phase.reason}
+              onAskAgain={() => setUserPhase({ kind: "ASK" })}
+              onBack={() => setUserPhase({ kind: "ASK" })}
+            />
+          )}
+
+          {phase.kind === "IN_ROOM" && (
+            <div className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-black">
+              <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
+                <span className="inline-flex size-2 rounded-full bg-green-500 animate-pulse" />
+                <span className="font-semibold">{tParticipant("joinedHeader")}</span>
+              </div>
+              <Button
+                variant="destructive"
+                onClick={handleLeave}
+                disabled={isLeaving || isEnding}
+              >
+                {isLeaving || isEnding ? (
+                  <span className="flex items-center gap-2">
+                    <Spinner size="sm" />
+                    {isHost ? tParticipant("ending") : tParticipant("leaving")}
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <LogOut className="size-4" />
+                    {isHost ? tParticipant("endRoom") : tParticipant("leaveRoom")}
+                  </span>
+                )}
+              </Button>
+              {isHost && (
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  {tParticipant("hostInGuestTabHint")}
+                </p>
+              )}
+            </div>
           )}
         </div>
+
         <div className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-black">
           <ParticipantsList roomCode={room.roomCode} hostUserId={room.hostUserId} />
         </div>

@@ -1,14 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
-import {
-  liveRoomParticipantsKey,
-  useParticipants,
-} from "../api/participants";
+import { useParticipants, liveRoomParticipantsKey } from "../api/participants";
 import { subscribeRoomParticipants } from "../api/ws";
 import {
   type ParticipantSummary,
@@ -35,65 +32,46 @@ export function ParticipantsList({ roomCode, hostUserId }: ParticipantsListProps
   const queryClient = useQueryClient();
 
   const { data, isLoading, isError } = useParticipants({ roomCode });
-  const [liveParticipants, setLiveParticipants] = useState<ParticipantSummary[] | null>(null);
-  const [realtimeReady, setRealtimeReady] = useState(false);
-
-  useEffect(() => {
-    if (data?.data) {
-      setLiveParticipants(data.data);
-    }
-  }, [data?.data]);
+  const participants: ParticipantSummary[] = data?.data ?? [];
 
   useEffect(() => {
     if (!roomCode) return;
     const handle = subscribeRoomParticipants(roomCode, (event: ParticipantWsEvent) => {
-      setRealtimeReady(true);
       if (event.type === "PARTICIPANT_JOINED") {
-        const newP: ParticipantSummary = event.participant ?? {
+        const newP: ParticipantSummary = {
           participantId: event.userId ?? String(Date.now()),
           userId: event.userId ?? "",
           displayName: event.displayName ?? "Listener",
           roleAtJoin: event.roleAtJoin ?? "USER",
           joinedAt: event.timestamp ?? new Date().toISOString(),
         };
-        setLiveParticipants((prev) => {
-          const base = prev ?? [];
-          if (base.some((p) => (newP.userId && p.userId === newP.userId) || p.participantId === newP.participantId)) {
-            return base;
+        queryClient.setQueryData(liveRoomParticipantsKey(roomCode), (old: unknown) => {
+          if (!old || typeof old !== "object" || !("data" in old)) {
+            return { data: [newP] };
           }
-          return [...base, newP];
+          const list = ((old as { data?: ParticipantSummary[] }).data ?? []).slice();
+          if (list.some((p) => p.userId === newP.userId)) {
+            return old;
+          }
+          list.push(newP);
+          return { ...(old as Record<string, unknown>), data: list };
         });
       } else if (event.type === "PARTICIPANT_LEFT") {
-        const targetUserId = event.participant?.userId ?? event.userId;
-        const targetId = event.participant?.participantId;
-        setLiveParticipants((prev) => {
-          const base = prev ?? [];
-          return base.filter((p) => {
-            if (targetId && p.participantId === targetId) return false;
-            if (targetUserId && p.userId === targetUserId) return false;
-            return true;
-          });
+        const targetUserId = event.userId;
+        if (!targetUserId) return;
+        queryClient.setQueryData(liveRoomParticipantsKey(roomCode), (old: unknown) => {
+          if (!old || typeof old !== "object" || !("data" in old)) return old;
+          const list = ((old as { data?: ParticipantSummary[] }).data ?? []).filter(
+            (p) => p.userId !== targetUserId,
+          );
+          return { ...(old as Record<string, unknown>), data: list };
         });
       }
     });
     return () => {
       handle.unsubscribe();
     };
-  }, [roomCode]);
-
-  const initial = useMemo(() => data?.data ?? [], [data?.data]);
-  const participants = liveParticipants ?? initial;
-
-  useEffect(() => {
-    if (liveParticipants && liveParticipants.length > 0) {
-      queryClient.setQueryData(liveRoomParticipantsKey(roomCode), (old: unknown) => {
-        if (old && typeof old === "object" && "data" in old) {
-          return { ...(old as Record<string, unknown>), data: liveParticipants };
-        }
-        return old;
-      });
-    }
-  }, [liveParticipants, queryClient, roomCode]);
+  }, [queryClient, roomCode]);
 
   if (isLoading) {
     return (
@@ -104,7 +82,7 @@ export function ParticipantsList({ roomCode, hostUserId }: ParticipantsListProps
     );
   }
 
-  if (isError && !liveParticipants) {
+  if (isError && participants.length === 0) {
     return (
       <p className="text-xs text-red-600 dark:text-red-400">
         {t("empty")}
@@ -123,12 +101,6 @@ export function ParticipantsList({ roomCode, hostUserId }: ParticipantsListProps
         </span>
       </div>
 
-      {!realtimeReady && (
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">
-          {tExists("realtimeConnecting")}
-        </p>
-      )}
-
       {participants.length === 0 ? (
         <div className="rounded-lg border border-dashed border-neutral-200 p-6 text-center text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
           {t("empty")}
@@ -140,7 +112,7 @@ export function ParticipantsList({ roomCode, hostUserId }: ParticipantsListProps
             const isCurrent = currentUserId && p.userId === currentUserId;
             return (
               <li
-                key={p.participantId}
+                key={`${p.participantId}-${p.userId}`}
                 className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
               >
                 <div className="flex flex-col gap-0.5 min-w-0">

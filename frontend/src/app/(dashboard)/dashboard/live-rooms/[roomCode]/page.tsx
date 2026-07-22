@@ -1,7 +1,10 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useQueryClient } from "@tanstack/react-query";
+import { ExternalLink, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -10,11 +13,22 @@ import { RoomStatusBadge } from "@/features/liveroom/components/room-status-badg
 import { RoomModeBadge } from "@/features/liveroom/components/room-mode-badge";
 import { UpdateRoomForm } from "@/features/liveroom/components/update-room-form";
 import { ParticipantsList } from "@/features/liveroom/components/participants-list";
+import { JoinRequestQueuePanel } from "@/features/liveroom/components/join-request-queue-panel";
 import { useProGuard } from "@/features/auth/hooks/use-pro-guard";
-import { useEndRoom, useRoom } from "@/features/liveroom/api/rooms";
+import {
+  useEndRoom,
+  useRoom,
+  useListJoinRequests,
+  liveRoomJoinRequestsKey,
+  liveRoomParticipantsKey,
+  liveRoomKey,
+} from "@/features/liveroom";
+import { useLiveRoomRealtime } from "@/features/liveroom/hooks/use-live-room-realtime";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { asApiError } from "@/lib/api-client";
 import { resolveLiveroomErrorMessage } from "@/features/liveroom/lib/resolve-liveroom-error-message";
+
+type HostTab = "settings" | "waiting" | "listeners";
 
 export default function LiveRoomDetailPage() {
   const params = useParams();
@@ -26,11 +40,36 @@ export default function LiveRoomDetailPage() {
   const tCommon = useTranslations("common");
   const tErrors = useTranslations("liveroom.errors");
   const tCard = useTranslations("liveroom.card");
-  const tForm = useTranslations("liveroom.form");
+  const tNav = useTranslations("liveroom.nav");
+  const tHost = useTranslations("liveroom.hostWaitingRoom");
 
   const currentUserId = useAuthStore((state) => state.user?.userId ?? null);
+  const queryClient = useQueryClient();
 
   const { data: roomRes, isLoading, isError } = useRoom({ roomCode });
+  const { data: pendingRes } = useListJoinRequests({ roomCode, status: "PENDING" });
+  const pendingCount = pendingRes?.success && pendingRes.data ? pendingRes.data.length : 0;
+
+  const [tab, setTab] = useState<HostTab>("settings");
+
+  const invalidateHostQueries = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: liveRoomJoinRequestsKey(roomCode) });
+    queryClient.invalidateQueries({ queryKey: liveRoomParticipantsKey(roomCode) });
+    queryClient.invalidateQueries({ queryKey: liveRoomKey(roomCode) });
+  }, [queryClient, roomCode]);
+
+  useLiveRoomRealtime({
+    roomCode,
+    isHost: true,
+    onJoinRequestCreated: (event) => {
+      invalidateHostQueries();
+      toast.info(tHost("hostToastNewRequest", { name: event.displayName }));
+      setTab((current) => (current === "waiting" ? current : "waiting"));
+    },
+    onParticipantChanged: () => {
+      invalidateHostQueries();
+    },
+  });
 
   const showError = (err: unknown) => {
     toast.error(
@@ -91,6 +130,29 @@ export default function LiveRoomDetailPage() {
     endRoomMutate({ roomCode });
   };
 
+  const handleOpenRoomInNewTab = () => {
+    if (typeof window === "undefined") return;
+    window.open(`/live-rooms/${room.roomCode}`, "_blank", "noopener,noreferrer");
+  };
+
+  const handleCopyShareLink = async () => {
+    if (typeof window === "undefined") return;
+    const origin = window.location.origin;
+    const link = `${origin}/live-rooms/${room.roomCode}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success(tActions("linkCopied"));
+    } catch {
+      toast.error(tCommon("error"));
+    }
+  };
+
+  const tabs: { id: HostTab; label: string; badge?: number }[] = [
+    { id: "settings", label: tNav("settingsTab") },
+    { id: "waiting", label: tHost("tabLabel"), badge: pendingCount },
+    { id: "listeners", label: tNav("listenersTab") },
+  ];
+
   return (
     <div className="flex flex-col gap-6 font-sans">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -112,7 +174,19 @@ export default function LiveRoomDetailPage() {
             </span>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {!isTerminal && (
+            <>
+              <Button variant="outline" onClick={handleCopyShareLink}>
+                <Link2 className="mr-1 inline size-4" />
+                {tActions("copyLink")}
+              </Button>
+              <Button onClick={handleOpenRoomInNewTab}>
+                <ExternalLink className="mr-1 inline size-4" />
+                {tActions("openRoom")}
+              </Button>
+            </>
+          )}
           <Button variant="outline" onClick={() => router.push("/dashboard/live-rooms")}>
             {tActions("back")}
           </Button>
@@ -124,17 +198,52 @@ export default function LiveRoomDetailPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="flex flex-wrap gap-2 border-b border-neutral-200 dark:border-neutral-800">
+        {tabs.map((tabItem) => {
+          const selected = tab === tabItem.id;
+          return (
+            <button
+              key={tabItem.id}
+              type="button"
+              onClick={() => setTab(tabItem.id)}
+              aria-pressed={selected}
+              className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-semibold transition-colors ${
+                selected
+                  ? "border-black text-black dark:border-white dark:text-white"
+                  : "border-transparent text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
+              }`}
+            >
+              {tabItem.label}
+              {typeof tabItem.badge === "number" && tabItem.badge > 0 && (
+                <span className="inline-flex min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">
+                  {tabItem.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {tab === "settings" && (
         <div className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-black">
           <h2 className="mb-4 text-sm font-semibold text-black dark:text-white">
-            {tForm("titleLabel")}
+            {tNav("settingsTab")}
           </h2>
           <UpdateRoomForm room={room} />
         </div>
+      )}
+
+      {tab === "waiting" && (
+        <div className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-black">
+          <JoinRequestQueuePanel roomCode={room.roomCode} />
+        </div>
+      )}
+
+      {tab === "listeners" && (
         <div className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-black">
           <ParticipantsList roomCode={room.roomCode} hostUserId={room.hostUserId} />
         </div>
-      </div>
+      )}
     </div>
   );
 }

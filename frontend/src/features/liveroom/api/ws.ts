@@ -2,7 +2,11 @@ import { Client, type IMessage, type StompSubscription } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import { API_BASE_URL } from "@/lib/constants";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
-import type { ParticipantWsEvent } from "../types";
+import type {
+  JoinRequestCreatedWsEvent,
+  JoinRequestDecidedWsEvent,
+  ParticipantWsEvent,
+} from "../types";
 
 const WS_PATH = "/ws/liveroom";
 
@@ -57,25 +61,24 @@ function ensureClient(): Client | null {
   return client;
 }
 
-export interface ParticipantSubscription {
+export interface Subscription {
   unsubscribe: () => void;
 }
 
-export function subscribeRoomParticipants(
-  roomCode: string,
-  onEvent: (event: ParticipantWsEvent) => void,
-): ParticipantSubscription {
+function subscribeTopic<T>(
+  destination: string,
+  onEvent: (event: T) => void,
+): Subscription {
   const client = ensureClient();
   if (!client) {
     return { unsubscribe: () => {} };
   }
 
   let subscription: StompSubscription | null = null;
-  let activated = false;
 
   const handleFrame = (frame: IMessage) => {
     try {
-      const payload = JSON.parse(frame.body) as ParticipantWsEvent;
+      const payload = JSON.parse(frame.body) as T;
       onEvent(payload);
     } catch {
       /* ignore malformed frames */
@@ -84,7 +87,7 @@ export function subscribeRoomParticipants(
 
   const attach = () => {
     if (subscription) return;
-    subscription = client.subscribe(`/topic/room/${roomCode}/participants`, handleFrame);
+    subscription = client.subscribe(destination, handleFrame);
   };
 
   if (client.connected) {
@@ -97,19 +100,43 @@ export function subscribeRoomParticipants(
     };
   }
 
-  activated = true;
-
   return {
     unsubscribe: () => {
       if (subscription) {
         subscription.unsubscribe();
         subscription = null;
       }
-      if (activated) {
-        activated = false;
-      }
     },
   };
+}
+
+export function subscribeRoomParticipants(
+  roomCode: string,
+  onEvent: (event: ParticipantWsEvent) => void,
+): Subscription {
+  return subscribeTopic<ParticipantWsEvent>(
+    `/topic/room/${roomCode}/participants`,
+    onEvent,
+  );
+}
+
+export function subscribeRoomJoinRequests(
+  roomCode: string,
+  onEvent: (event: JoinRequestCreatedWsEvent) => void,
+): Subscription {
+  return subscribeTopic<JoinRequestCreatedWsEvent>(
+    `/topic/room/${roomCode}/join-requests`,
+    onEvent,
+  );
+}
+
+export function subscribeUserJoinRequestDecisions(
+  onEvent: (event: JoinRequestDecidedWsEvent) => void,
+): Subscription {
+  return subscribeTopic<JoinRequestDecidedWsEvent>(
+    "/user/queue/join-requests",
+    onEvent,
+  );
 }
 
 export function disconnectStompClient(): void {

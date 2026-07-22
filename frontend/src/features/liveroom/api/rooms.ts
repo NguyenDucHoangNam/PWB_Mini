@@ -7,6 +7,7 @@ import type {
   LiveRoom,
   LiveRoomExistsResponse,
   LiveRoomSummary,
+  LiveRoomViewerStatus,
   ListMyRoomsParams,
   UpdateLiveRoomSettingsRequest,
 } from "../types";
@@ -15,6 +16,8 @@ export const LIVE_ROOMS_KEY = "live-rooms" as const;
 export const liveRoomKey = (roomCode: string) => ["live-rooms", roomCode] as const;
 export const liveRoomExistsKey = (roomCode: string) =>
   ["live-rooms", roomCode, "exists"] as const;
+export const liveRoomViewerStatusKey = (roomCode: string) =>
+  ["live-rooms", roomCode, "me-status"] as const;
 
 export const createRoom = ({
   data,
@@ -60,6 +63,13 @@ export const checkRoomExists = ({
 }): Promise<ApiResponse<LiveRoomExistsResponse>> =>
   apiClient.get(`/live-rooms/${roomCode}/exists`).then((res) => res.data);
 
+export const getViewerStatus = ({
+  roomCode,
+}: {
+  roomCode: string;
+}): Promise<ApiResponse<LiveRoomViewerStatus>> =>
+  apiClient.get(`/live-rooms/${roomCode}/me/status`).then((res) => res.data);
+
 type UseCreateRoomOptions = {
   mutationConfig?: MutationConfig<typeof createRoom>;
 };
@@ -92,12 +102,6 @@ export const useMyRooms = ({
     queryFn: () => listMyRooms({ page, size, status }),
     ...queryConfig,
   });
-
-type UseRoomOptions = {
-  queryConfig?: QueryConfig<typeof getRoom>;
-};
-
-void ({} as UseRoomOptions);
 
 export const useRoom = ({
   roomCode,
@@ -149,12 +153,6 @@ export const useEndRoom = ({ mutationConfig }: UseEndRoomOptions = {}) => {
   });
 };
 
-type UseCheckRoomExistsOptions = {
-  queryConfig?: QueryConfig<typeof checkRoomExists>;
-};
-
-void ({} as UseCheckRoomExistsOptions);
-
 export const useCheckRoomExists = ({
   roomCode,
   queryConfig,
@@ -165,6 +163,21 @@ export const useCheckRoomExists = ({
   useQuery({
     queryKey: liveRoomExistsKey(roomCode),
     queryFn: () => checkRoomExists({ roomCode }),
+    enabled: Boolean(roomCode),
+    retry: false,
+    ...queryConfig,
+  });
+
+export const useViewerStatus = ({
+  roomCode,
+  queryConfig,
+}: {
+  roomCode: string;
+  queryConfig?: QueryConfig<typeof getViewerStatus>;
+}) =>
+  useQuery({
+    queryKey: liveRoomViewerStatusKey(roomCode),
+    queryFn: () => getViewerStatus({ roomCode }),
     enabled: Boolean(roomCode),
     retry: false,
     ...queryConfig,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { standardSchemaResolver as zodResolver } from "@hookform/resolvers/standard-schema";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -11,11 +11,12 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { asApiError } from "@/lib/api-client";
 import { useCreateRoom } from "../api/rooms";
-import { createRoomFormSchema, type CreateRoomFormValues } from "../schemas/room-schema";
+import {
+  createRoomFormSchema,
+  type CreateRoomFormValues,
+} from "../schemas/room-schema";
 import { resolveLiveroomErrorMessage } from "../lib/resolve-liveroom-error-message";
-import type { CreateLiveRoomRequest, LiveRoomMode } from "../types";
-
-const MODE_VALUES: LiveRoomMode[] = ["PUBLIC", "PRIVATE", "INVITE_ONLY", "PASSWORD"];
+import type { CreateLiveRoomRequest } from "../types";
 
 function localInputToIso(value: string | undefined): string | undefined {
   if (!value) return undefined;
@@ -35,7 +36,6 @@ export function CreateRoomForm() {
   const {
     register,
     handleSubmit,
-    control,
     formState: { errors },
     reset,
   } = useForm<CreateRoomFormValues>({
@@ -43,15 +43,10 @@ export function CreateRoomForm() {
     defaultValues: {
       title: "",
       description: "",
-      mode: "PUBLIC",
-      password: "",
       maxParticipants: 50,
       scheduledStartAt: "",
     },
   });
-
-  const mode = useWatch({ control, name: "mode" });
-  const isPasswordMode = mode === "PASSWORD";
 
   const { mutate: createRoom, isPending } = useCreateRoom({
     mutationConfig: {
@@ -73,14 +68,10 @@ export function CreateRoomForm() {
   const onSubmit = handleSubmit((values) => {
     const payload: CreateLiveRoomRequest = {
       title: values.title.trim(),
-      mode: values.mode,
       maxParticipants: Number(values.maxParticipants) || 50,
     };
     if (values.description && values.description.trim().length > 0) {
       payload.description = values.description.trim();
-    }
-    if (isPasswordMode && values.password && values.password.length >= 4) {
-      payload.password = values.password;
     }
     const scheduledIso = localInputToIso(values.scheduledStartAt);
     if (scheduledIso) {
@@ -123,67 +114,24 @@ export function CreateRoomForm() {
         )}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="create-room-mode">{t("modeLabel")}</Label>
-          <select
-            id="create-room-mode"
-            {...register("mode")}
-            className="h-9 w-full rounded-md border border-neutral-200 bg-white px-3 py-1 text-sm dark:border-neutral-800 dark:bg-black dark:text-white"
-          >
-            {MODE_VALUES.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-          {errors.mode && (
-            <p className="text-xs text-red-600 dark:text-red-400">
-              {tValidation(errors.mode.message as never)}
-            </p>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="create-room-capacity">{t("capacityLabel")}</Label>
-          <Input
-            id="create-room-capacity"
-            type="number"
-            min={2}
-            max={500}
-            {...register("maxParticipants", { valueAsNumber: true })}
-          />
-          <span className="text-xs text-neutral-500 dark:text-neutral-400">
-            {t("capacityHint")}
-          </span>
-          {errors.maxParticipants && (
-            <p className="text-xs text-red-600 dark:text-red-400">
-              {tValidation(errors.maxParticipants.message as never)}
-            </p>
-          )}
-        </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="create-room-capacity">{t("capacityLabel")}</Label>
+        <Input
+          id="create-room-capacity"
+          type="number"
+          min={2}
+          max={500}
+          {...register("maxParticipants", { valueAsNumber: true })}
+        />
+        <span className="text-xs text-neutral-500 dark:text-neutral-400">
+          {t("capacityHint")}
+        </span>
+        {errors.maxParticipants && (
+          <p className="text-xs text-red-600 dark:text-red-400">
+            {tValidation(errors.maxParticipants.message as never)}
+          </p>
+        )}
       </div>
-
-      {isPasswordMode && (
-        <div className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3 dark:border-neutral-800">
-          <Label htmlFor="create-room-password">{t("passwordLabel")}</Label>
-          <Input
-            id="create-room-password"
-            type="password"
-            autoComplete="new-password"
-            {...register("password")}
-            maxLength={64}
-          />
-          <span className="text-xs text-neutral-500 dark:text-neutral-400">
-            {t("passwordHint")}
-          </span>
-          {errors.password && (
-            <p className="text-xs text-red-600 dark:text-red-400">
-              {tValidation(errors.password.message as never)}
-            </p>
-          )}
-        </div>
-      )}
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="create-room-scheduled">{t("scheduledLabel")}</Label>

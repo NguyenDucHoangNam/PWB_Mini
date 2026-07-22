@@ -10,6 +10,7 @@ import com.pwb.liveroom.api.dto.request.UpdateLiveRoomSettingsRequest;
 import com.pwb.liveroom.api.dto.response.LiveRoomExistsResponse;
 import com.pwb.liveroom.api.dto.response.LiveRoomResponse;
 import com.pwb.liveroom.api.dto.response.LiveRoomSummaryResponse;
+import com.pwb.liveroom.api.dto.response.LiveRoomViewerStatusResponse;
 import com.pwb.liveroom.core.model.LiveRoomStatus;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,7 @@ public class LiveRoomController {
     private static final String MSG_RETRIEVED = "LIVEROOM_RETRIEVED";
     private static final String MSG_LIST_RETRIEVED = "LIVEROOM_LIST_RETRIEVED";
     private static final String MSG_EXISTS_CHECKED = "LIVEROOM_EXISTS_CHECKED";
+    private static final String MSG_VIEWER_STATUS_RETRIEVED = "LIVEROOM_VIEWER_STATUS_RETRIEVED";
     private static final String PATH_ROOM_CODE = "roomCode";
 
     private final LiveRoomFacade liveRoomFacade;
@@ -98,5 +100,14 @@ public class LiveRoomController {
             @PathVariable(name = PATH_ROOM_CODE) String roomCode) {
         LiveRoomExistsResponse data = liveRoomFacade.checkRoomExists(roomCode);
         return ApiResponse.success(data, messageResolver.get(MSG_EXISTS_CHECKED));
+    }
+
+    @GetMapping("/{" + PATH_ROOM_CODE + "}/me/status")
+    @PreAuthorize("hasAnyRole('USER', 'PRO', 'ADMIN')")
+    public ApiResponse<LiveRoomViewerStatusResponse> myStatus(
+            @CurrentUser AuthenticatedUser user,
+            @PathVariable(name = PATH_ROOM_CODE) String roomCode) {
+        LiveRoomViewerStatusResponse data = liveRoomFacade.getViewerStatus(user.getId(), roomCode);
+        return ApiResponse.success(data, messageResolver.get(MSG_VIEWER_STATUS_RETRIEVED));
     }
 }

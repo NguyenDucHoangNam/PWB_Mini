@@ -5,6 +5,7 @@ import com.pwb.liveroom.api.dto.request.UpdateLiveRoomSettingsRequest;
 import com.pwb.liveroom.api.dto.response.LiveRoomExistsResponse;
 import com.pwb.liveroom.api.dto.response.LiveRoomResponse;
 import com.pwb.liveroom.api.dto.response.LiveRoomSummaryResponse;
+import com.pwb.liveroom.api.dto.response.LiveRoomViewerStatusResponse;
 import com.pwb.liveroom.core.model.LiveRoomStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,4 +25,6 @@ public interface LiveRoomFacade {
     void endRoom(UUID hostUserId, String roomCode);
 
     LiveRoomExistsResponse checkRoomExists(String roomCode);
+
+    LiveRoomViewerStatusResponse getViewerStatus(UUID viewerUserId, String roomCode);
 }

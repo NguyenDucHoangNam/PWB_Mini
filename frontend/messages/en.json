@@ -774,21 +774,18 @@
       "description": {
         "maxlength": "Description must not exceed {max} characters"
       },
-      "mode": {
-        "required": "Please select a room mode"
-      },
-      "password": {
-        "length": "Password must be between 4 and 64 characters"
-      },
       "capacity": {
         "range": "Max participants must be between 2 and 500"
       },
       "displayname": {
-        "length": "Display name must be between 1 and 100 characters"
+        "length": "Display name must not exceed {max} characters"
       },
       "schedule": {
         "future": "Scheduled time must be in the future",
         "invalid": "Scheduled time is invalid"
+      },
+      "askMessage": {
+        "maxlength": "Message must not exceed {max} characters"
       }
     }
   },
@@ -797,7 +794,9 @@
       "title": "Live Rooms",
       "subtitle": "Manage your live audio rooms.",
       "listenerTitle": "Live Room",
-      "listenerSubtitle": "Join as a listener and follow along in real time."
+      "listenerSubtitle": "Join as a listener and follow along in real time.",
+      "settingsTab": "Settings",
+      "listenersTab": "Listeners"
     },
     "list": {
       "filterAll": "All",
@@ -816,10 +815,7 @@
       "ended": "Ended"
     },
     "mode": {
-      "PUBLIC": "Public",
-      "PRIVATE": "Private",
-      "INVITE_ONLY": "Invite only",
-      "PASSWORD": "Password-protected"
+      "PUBLIC": "Public"
     },
     "card": {
       "capacity": "{current}/{max} listeners",
@@ -836,9 +832,6 @@
       "titlePlaceholder": "Enter a title for your room",
       "descriptionLabel": "Description",
       "descriptionPlaceholder": "Optional. Describe your room",
-      "modeLabel": "Room mode",
-      "passwordLabel": "Password",
-      "passwordHint": "Required when mode is Password-protected (4-64 characters)",
       "capacityLabel": "Max participants",
       "capacityHint": "Between 2 and 500",
       "scheduledLabel": "Scheduled start time",
@@ -848,6 +841,54 @@
       "submitting": "Saving...",
       "createSuccess": "Room created successfully",
       "updateSuccess": "Room updated successfully"
+    },
+    "askToJoin": {
+      "titleLabel": "Ask to join",
+      "subtitle": "Send a request to the host. They'll let you in when ready.",
+      "displayNameLabel": "Display name",
+      "displayNamePlaceholder": "How should we show you to the host?",
+      "messageLabel": "Message (optional)",
+      "messagePlaceholder": "Hi! I'd like to join.",
+      "submitBtn": "Ask to join",
+      "submitting": "Sending request...",
+      "success": "Request sent. Waiting for host..."
+    },
+    "waitingRoom": {
+      "title": "Waiting for host",
+      "subtitle": "Your request has been sent. The host will decide shortly.",
+      "cancelBtn": "Cancel request",
+      "cancelling": "Cancelling...",
+      "elapsedSeconds": "{seconds}s waiting",
+      "elapsedMinutes": "{minutes}m waiting",
+      "timeoutHint": "If the host doesn't respond, you can cancel and try again."
+    },
+    "rejected": {
+      "title": "Request declined",
+      "subtitle": "The host declined your request to join.",
+      "reasonLabel": "Reason from host",
+      "askAgainBtn": "Ask again",
+      "backBtn": "Back"
+    },
+    "hostWaitingRoom": {
+      "tabLabel": "Waiting room",
+      "title": "People waiting",
+      "empty": "No one is waiting right now.",
+      "count": "{count} waiting",
+      "admitBtn": "Admit",
+      "declineBtn": "Decline",
+      "admitting": "Admitting...",
+      "justNow": "just now",
+      "requestedAgo": "{time} ago",
+      "roleLabel": "Role",
+      "hostToastNewRequest": "{name} wants to join"
+    },
+    "declineDialog": {
+      "title": "Decline request",
+      "message": "Send a reason (optional) so {name} knows why.",
+      "reasonLabel": "Reason (optional)",
+      "reasonPlaceholder": "e.g. Wrong room, full capacity...",
+      "confirm": "Decline",
+      "cancel": "Cancel"
     },
     "endDialog": {
       "title": "End this room?",
@@ -870,43 +911,56 @@
       "joinedAt": "Joined {time}",
       "leftAt": "Left",
       "empty": "No listeners yet",
-      "displayNameLabel": "Display name (optional)",
-      "displayNamePlaceholder": "Leave blank to use your username"
-    },
-    "join": {
-      "joinBtn": "Join room",
-      "leaveBtn": "Leave room",
-      "joining": "Joining...",
+      "displayNameLabel": "Display name",
+      "displayNamePlaceholder": "How should we show you to the host?",
+      "joinedHeader": "You are in the room",
       "leaving": "Leaving...",
-      "joinSuccess": "Joined room",
-      "leaveSuccess": "Left room",
-      "joinDisabled": "Room is not joinable",
-      "full": "Room is at capacity",
-      "ended": "Room has ended"
+      "leaveRoom": "Leave room",
+      "ending": "Ending...",
+      "endRoom": "End room",
+      "hostInGuestTabHint": "You opened the room as a participant. To manage settings, waiting room, and participants, switch back to the dashboard tab.",
+      "roleLabel": "Role"
     },
     "errors": {
       "roomNotFound": "Room not found",
       "codeExists": "Room code already exists",
       "hostAlreadyActive": "You already have an active room",
-      "invalidMode": "Invalid room mode for the given configuration",
-      "passwordRequired": "Password is required for password-protected rooms",
       "notHost": "Only the host can modify this room",
       "alreadyEnded": "Room has already ended",
       "codeGenFailed": "Failed to generate a unique room code",
       "invalidCapacity": "Max participants must be between 2 and 500",
-      "modeNotJoinable": "This room mode does not allow joining",
       "full": "Room is at maximum capacity",
       "notJoined": "You have not joined this room",
       "alreadyJoined": "You have already joined this room",
+      "joinRequestNotFound": "Join request not found",
+      "joinRequestAlreadyDecided": "This request has already been decided",
+      "joinRequestNotPending": "This request is no longer pending",
+      "joinRequestNotOwner": "You can only cancel your own join request",
       "generic": "Something went wrong",
-      "proOnlyHost": "Live Rooms hosting is available to PRO accounts only. Upgrade your plan to create and manage rooms."
+      "proOnlyHost": "Live Rooms hosting is available to PRO accounts only. Upgrade your plan to create and manage rooms.",
+      "invalidCodeLength": "Room code must be 6 characters (letters and digits)"
+    },
+    "joinByCode": {
+      "title": "Join with a room code",
+      "subtitle": "Got a 6-character code from the host? Enter it here to ask to join.",
+      "inputLabel": "Room code",
+      "placeholder": "ABC123",
+      "submitBtn": "Join",
+      "hint": "Codes are case-insensitive. The host will see your request and let you in."
     },
     "actions": {
       "back": "Back",
       "edit": "Edit",
       "delete": "End",
       "cancel": "Cancel",
-      "save": "Save"
+      "save": "Save",
+      "admitted": "You've been admitted to the room",
+      "rejected": "Your join request was declined",
+      "openHostView": "Open host view",
+      "openRoom": "Open room",
+      "copyLink": "Copy link",
+      "linkCopied": "Link copied to clipboard",
+      "endRoomConfirm": "End this room? You won't be able to start it again."
     }
   }
 }

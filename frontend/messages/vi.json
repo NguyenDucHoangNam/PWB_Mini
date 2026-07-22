@@ -797,7 +797,9 @@
       "title": "Phòng Trực Tiếp",
       "subtitle": "Quản lý các phòng âm thanh trực tiếp của bạn.",
       "listenerTitle": "Phòng Trực Tiếp",
-      "listenerSubtitle": "Tham gia với vai trò người nghe và theo dõi theo thời gian thực."
+      "listenerSubtitle": "Tham gia với vai trò người nghe và theo dõi theo thời gian thực.",
+      "settingsTab": "Cài đặt",
+      "listenersTab": "Người nghe"
     },
     "list": {
       "filterAll": "Tất cả",
@@ -816,10 +818,7 @@
       "ended": "Đã kết thúc"
     },
     "mode": {
-      "PUBLIC": "Công khai",
-      "PRIVATE": "Riêng tư",
-      "INVITE_ONLY": "Chỉ mời",
-      "PASSWORD": "Có mật khẩu"
+      "PUBLIC": "Công khai"
     },
     "card": {
       "capacity": "{current}/{max} người nghe",
@@ -836,9 +835,6 @@
       "titlePlaceholder": "Nhập tiêu đề cho phòng của bạn",
       "descriptionLabel": "Mô tả",
       "descriptionPlaceholder": "Tùy chọn. Mô tả phòng của bạn",
-      "modeLabel": "Chế độ phòng",
-      "passwordLabel": "Mật khẩu",
-      "passwordHint": "Bắt buộc khi chọn chế độ Có mật khẩu (4-64 ký tự)",
       "capacityLabel": "Số người tham gia tối đa",
       "capacityHint": "Từ 2 đến 500",
       "scheduledLabel": "Thời gian bắt đầu hẹn trước",
@@ -848,6 +844,54 @@
       "submitting": "Đang lưu...",
       "createSuccess": "Tạo phòng thành công",
       "updateSuccess": "Đã cập nhật phòng"
+    },
+    "askToJoin": {
+      "titleLabel": "Xin vào phòng",
+      "subtitle": "Gửi yêu cầu đến chủ phòng. Họ sẽ cho bạn vào khi sẵn sàng.",
+      "displayNameLabel": "Tên hiển thị",
+      "displayNamePlaceholder": "Tên bạn muốn hiện với chủ phòng?",
+      "messageLabel": "Lời nhắn (tùy chọn)",
+      "messagePlaceholder": "Chào! Mình muốn tham gia.",
+      "submitBtn": "Xin vào phòng",
+      "submitting": "Đang gửi yêu cầu...",
+      "success": "Đã gửi yêu cầu. Đang chờ chủ phòng..."
+    },
+    "waitingRoom": {
+      "title": "Đang chờ chủ phòng",
+      "subtitle": "Yêu cầu của bạn đã được gửi. Chủ phòng sẽ quyết định trong giây lát.",
+      "cancelBtn": "Hủy yêu cầu",
+      "cancelling": "Đang hủy...",
+      "elapsedSeconds": "Đã chờ {seconds} giây",
+      "elapsedMinutes": "Đã chờ {minutes} phút",
+      "timeoutHint": "Nếu chủ phòng không phản hồi, bạn có thể hủy và thử lại."
+    },
+    "rejected": {
+      "title": "Yêu cầu bị từ chối",
+      "subtitle": "Chủ phòng đã từ chối yêu cầu vào phòng của bạn.",
+      "reasonLabel": "Lý do từ chủ phòng",
+      "askAgainBtn": "Xin vào lại",
+      "backBtn": "Quay lại"
+    },
+    "hostWaitingRoom": {
+      "tabLabel": "Phòng chờ",
+      "title": "Người đang chờ",
+      "empty": "Hiện không có ai đang chờ.",
+      "count": "{count} đang chờ",
+      "admitBtn": "Cho vào",
+      "declineBtn": "Từ chối",
+      "admitting": "Đang cho vào...",
+      "justNow": "vừa xong",
+      "requestedAgo": "{time} trước",
+      "roleLabel": "Vai trò",
+      "hostToastNewRequest": "{name} muốn vào phòng"
+    },
+    "declineDialog": {
+      "title": "Từ chối yêu cầu",
+      "message": "Gửi kèm lý do (tùy chọn) để {name} biết lý do.",
+      "reasonLabel": "Lý do (tùy chọn)",
+      "reasonPlaceholder": "VD: Nhầm phòng, hết chỗ...",
+      "confirm": "Từ chối",
+      "cancel": "Hủy"
     },
     "endDialog": {
       "title": "Kết thúc phòng này?",
@@ -870,43 +914,56 @@
       "joinedAt": "Tham gia {time}",
       "leftAt": "Đã rời",
       "empty": "Chưa có người nghe nào",
-      "displayNameLabel": "Tên hiển thị (tùy chọn)",
-      "displayNamePlaceholder": "Để trống sẽ dùng tên đăng nhập của bạn"
-    },
-    "join": {
-      "joinBtn": "Tham gia phòng",
-      "leaveBtn": "Rời phòng",
-      "joining": "Đang tham gia...",
+      "displayNameLabel": "Tên hiển thị",
+      "displayNamePlaceholder": "Tên bạn muốn hiện với chủ phòng?",
+      "joinedHeader": "Bạn đang ở trong phòng",
       "leaving": "Đang rời...",
-      "joinSuccess": "Đã tham gia phòng",
-      "leaveSuccess": "Đã rời phòng",
-      "joinDisabled": "Phòng không cho phép tham gia",
-      "full": "Phòng đã đầy",
-      "ended": "Phòng đã kết thúc"
+      "leaveRoom": "Rời phòng",
+      "ending": "Đang kết thúc...",
+      "endRoom": "Kết thúc phòng",
+      "hostInGuestTabHint": "Bạn đang mở phòng với vai trò người tham gia. Để chỉnh cài đặt, quản lý phòng chờ và người nghe, hãy chuyển lại tab dashboard.",
+      "roleLabel": "Vai trò"
     },
     "errors": {
       "roomNotFound": "Không tìm thấy phòng",
       "codeExists": "Mã phòng đã tồn tại",
       "hostAlreadyActive": "Bạn đã có một phòng đang hoạt động",
-      "invalidMode": "Chế độ phòng không hợp lệ cho cấu hình đã cho",
-      "passwordRequired": "Cần nhập mật khẩu cho phòng có mật khẩu",
       "notHost": "Chỉ chủ phòng mới có thể chỉnh sửa phòng này",
       "alreadyEnded": "Phòng đã kết thúc",
       "codeGenFailed": "Không thể tạo mã phòng duy nhất",
       "invalidCapacity": "Số người tham gia tối đa phải từ 2 đến 500",
-      "modeNotJoinable": "Chế độ phòng này không cho phép tham gia",
       "full": "Phòng đã đạt sức chứa tối đa",
       "notJoined": "Bạn chưa tham gia phòng này",
       "alreadyJoined": "Bạn đã tham gia phòng này rồi",
+      "joinRequestNotFound": "Không tìm thấy yêu cầu vào phòng",
+      "joinRequestAlreadyDecided": "Yêu cầu này đã được quyết định rồi",
+      "joinRequestNotPending": "Yêu cầu này không còn ở trạng thái chờ",
+      "joinRequestNotOwner": "Bạn chỉ có thể hủy yêu cầu vào phòng của chính bạn",
       "generic": "Đã có lỗi xảy ra",
-      "proOnlyHost": "Tính năng tạo và quản lý Phòng Trực Tiếp chỉ dành cho tài khoản PRO. Nâng cấp gói của bạn để sử dụng."
+      "proOnlyHost": "Tính năng tạo và quản lý Phòng Trực Tiếp chỉ dành cho tài khoản PRO. Nâng cấp gói của bạn để sử dụng.",
+      "invalidCodeLength": "Mã phòng phải gồm 6 ký tự (chữ cái và chữ số)"
+    },
+    "joinByCode": {
+      "title": "Vào phòng bằng mã",
+      "subtitle": "Có mã 6 ký tự từ chủ phòng? Nhập vào đây để gửi yêu cầu tham gia.",
+      "inputLabel": "Mã phòng",
+      "placeholder": "ABC123",
+      "submitBtn": "Tham gia",
+      "hint": "Mã không phân biệt hoa thường. Chủ phòng sẽ thấy yêu cầu và cho bạn vào."
     },
     "actions": {
       "back": "Quay lại",
       "edit": "Sửa",
       "delete": "Kết thúc",
       "cancel": "Hủy",
-      "save": "Lưu"
+      "save": "Lưu",
+      "admitted": "Bạn đã được cho vào phòng",
+      "rejected": "Yêu cầu vào phòng của bạn đã bị từ chối",
+      "openHostView": "Mở giao diện chủ phòng",
+      "openRoom": "Mở phòng",
+      "copyLink": "Sao chép liên kết",
+      "linkCopied": "Đã sao chép liên kết",
+      "endRoomConfirm": "Kết thúc phòng này? Bạn sẽ không thể bắt đầu lại."
     }
   }
 }
