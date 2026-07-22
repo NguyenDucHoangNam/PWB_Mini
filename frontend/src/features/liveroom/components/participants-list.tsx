@@ -38,12 +38,16 @@ export function ParticipantsList({ roomCode, hostUserId }: ParticipantsListProps
     if (!roomCode) return;
     const handle = subscribeRoomParticipants(roomCode, (event: ParticipantWsEvent) => {
       if (event.type === "PARTICIPANT_JOINED") {
+        const joinedAt = event.timestamp ?? new Date().toISOString();
         const newP: ParticipantSummary = {
           participantId: event.userId ?? String(Date.now()),
           userId: event.userId ?? "",
           displayName: event.displayName ?? "Listener",
           roleAtJoin: event.roleAtJoin ?? "USER",
-          joinedAt: event.timestamp ?? new Date().toISOString(),
+          joinedAt,
+          micMuted: true,
+          cameraOff: true,
+          lastSeenAt: joinedAt,
         };
         queryClient.setQueryData(liveRoomParticipantsKey(roomCode), (old: unknown) => {
           if (!old || typeof old !== "object" || !("data" in old)) {

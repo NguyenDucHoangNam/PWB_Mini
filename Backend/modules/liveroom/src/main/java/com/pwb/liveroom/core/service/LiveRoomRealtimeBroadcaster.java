@@ -15,6 +15,7 @@ public class LiveRoomRealtimeBroadcaster {
 
     private static final String ROOM_TOPIC_BASE = "/topic/room/";
     private static final String PARTICIPANTS_TOPIC_SUFFIX = "/participants";
+    private static final String PEERS_TOPIC_SUFFIX = "/peers";
     private static final String JOIN_REQUESTS_TOPIC_SUFFIX = "/join-requests";
     private static final String USER_QUEUE_BASE = "/queue/user/";
     private static final String JOIN_REQUESTS_USER_SUFFIX = "/join-requests";
@@ -65,6 +66,56 @@ public class LiveRoomRealtimeBroadcaster {
                 "timestamp", timestamp
         );
         send(destination, payload, "PARTICIPANT_LEFT", roomCode, userId);
+    }
+
+    public void broadcastPeerJoined(
+            String roomCode,
+            UUID userId,
+            String displayName,
+            String timestamp) {
+        String destination = ROOM_TOPIC_BASE + roomCode + PEERS_TOPIC_SUFFIX;
+        Object payload = Map.of(
+                "type", "PEER_JOINED",
+                "roomCode", roomCode,
+                "userId", userId,
+                "displayName", displayName,
+                "timestamp", timestamp
+        );
+        send(destination, payload, "PEER_JOINED", roomCode, userId);
+    }
+
+    public void broadcastPeerLeft(
+            String roomCode,
+            UUID userId,
+            String timestamp) {
+        String destination = ROOM_TOPIC_BASE + roomCode + PEERS_TOPIC_SUFFIX;
+        Object payload = Map.of(
+                "type", "PEER_LEFT",
+                "roomCode", roomCode,
+                "userId", userId,
+                "timestamp", timestamp
+        );
+        send(destination, payload, "PEER_LEFT", roomCode, userId);
+    }
+
+    public void broadcastMediaStateChanged(
+            String roomCode,
+            UUID userId,
+            String displayName,
+            boolean micMuted,
+            boolean cameraOff,
+            String timestamp) {
+        String destination = ROOM_TOPIC_BASE + roomCode + PARTICIPANTS_TOPIC_SUFFIX;
+        Object payload = Map.of(
+                "type", "MEDIA_STATE_CHANGED",
+                "roomCode", roomCode,
+                "userId", userId,
+                "displayName", displayName,
+                "micMuted", micMuted,
+                "cameraOff", cameraOff,
+                "timestamp", timestamp
+        );
+        send(destination, payload, "MEDIA_STATE_CHANGED", roomCode, userId);
     }
 
     public void broadcastJoinRequestCreated(

@@ -25,6 +25,16 @@ const sameOrigin =
   (isDev ? "http://localhost:3000" : "https://pwb-mini.example.com");
 
 /**
+ * When the site is running against a local backend during testing, the
+ * production CSP (which only allows `https://pwb-mini.example.com`) blocks
+ * `fetch` to `http://localhost:8080`. Including `http://localhost:8080`
+ * unconditionally is harmless in prod (the browser will simply not call
+ * it) and saves anyone doing a local prod smoke-test from a confusing
+ * CSP violation.
+ */
+const localBackendFallback = "http://localhost:8080";
+
+/**
  * Build the connect-src directive based on the configured backend origin.
  * - Always: 'self' (same-origin), https://accounts.google.com (Google Identity).
  * - Dev: ws:/wss: (Next.js HMR websocket).
@@ -36,6 +46,7 @@ const connectSrc = [
   "'self'",
   sameOrigin,
   backendOrigin,
+  localBackendFallback,
   "https://accounts.google.com",
   isDev ? "ws: wss:" : null,
 ]
@@ -145,7 +156,7 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           {
             key: "Permissions-Policy",
-            value: "microphone=(self), camera=(), geolocation=()",
+            value: "microphone=(self), camera=(self), geolocation=()",
           },
           {
             key: "Cross-Origin-Opener-Policy",

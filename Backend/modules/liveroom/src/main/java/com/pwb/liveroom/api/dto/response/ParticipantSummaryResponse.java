@@ -19,4 +19,7 @@ public class ParticipantSummaryResponse {
     private String displayName;
     private String roleAtJoin;
     private Instant joinedAt;
+    private boolean micMuted;
+    private boolean cameraOff;
+    private Instant lastSeenAt;
 }

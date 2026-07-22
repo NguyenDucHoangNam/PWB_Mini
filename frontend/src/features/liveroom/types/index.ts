@@ -70,6 +70,9 @@ export interface ParticipantSummary {
   displayName: string;
   roleAtJoin: string;
   joinedAt: string;
+  micMuted: boolean;
+  cameraOff: boolean;
+  lastSeenAt: string;
 }
 
 export interface ListMyRoomsParams {
@@ -102,7 +105,15 @@ export interface JoinRequestDecisionBody {
   reason?: string;
 }
 
-export type ParticipantWsEventType = "PARTICIPANT_JOINED" | "PARTICIPANT_LEFT";
+export interface MediaStateUpdateBody {
+  micMuted: boolean;
+  cameraOff: boolean;
+}
+
+export type ParticipantWsEventType =
+  | "PARTICIPANT_JOINED"
+  | "PARTICIPANT_LEFT"
+  | "MEDIA_STATE_CHANGED";
 
 export interface ParticipantWsEvent {
   type: ParticipantWsEventType;
@@ -114,7 +125,36 @@ export interface ParticipantWsEvent {
   maxParticipants?: number;
   availableSlots?: number;
   timestamp?: string;
+  micMuted?: boolean;
+  cameraOff?: boolean;
 }
+
+export interface MediaStateChangedWsEvent {
+  type: "MEDIA_STATE_CHANGED";
+  roomCode: string;
+  userId: string;
+  displayName: string;
+  micMuted: boolean;
+  cameraOff: boolean;
+  timestamp: string;
+}
+
+export interface PeerJoinedWsEvent {
+  type: "PEER_JOINED";
+  roomCode: string;
+  userId: string;
+  displayName: string;
+  timestamp: string;
+}
+
+export interface PeerLeftWsEvent {
+  type: "PEER_LEFT";
+  roomCode: string;
+  userId: string;
+  timestamp: string;
+}
+
+export type PeerWsEvent = PeerJoinedWsEvent | PeerLeftWsEvent;
 
 export interface JoinRequestCreatedWsEvent {
   type: "JOIN_REQUEST_CREATED";
@@ -135,4 +175,29 @@ export interface JoinRequestDecidedWsEvent {
   status: JoinRequestDecisionStatus;
   reason: string;
   timestamp: string;
+}
+
+export interface PeerSignalEnvelope {
+  type: "OFFER" | "ANSWER" | "ICE";
+  roomCode: string;
+  fromUserId: string;
+  toUserId: string;
+  payload: PeerSignalBody;
+}
+
+export interface PeerSignalBody {
+  sdp?: string;
+  candidate?: string;
+  sdpMid?: string | null;
+  sdpMLineIndex?: number | null;
+}
+
+export interface PeerSignalOutgoing {
+  toUserId: string;
+  payload: PeerSignalBody;
+}
+
+export interface MediaDeviceInfo {
+  deviceId: string;
+  label: string;
 }

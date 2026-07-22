@@ -47,4 +47,13 @@ public class LiveRoomParticipantJpaEntity extends LiveRoomBaseEntity {
 
     @Column(name = "left_at")
     private Instant leftAt;
+
+    @Column(name = "mic_muted", nullable = false)
+    private Boolean micMuted;
+
+    @Column(name = "camera_off", nullable = false)
+    private Boolean cameraOff;
+
+    @Column(name = "last_seen_at", nullable = false)
+    private Instant lastSeenAt;
 }

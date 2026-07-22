@@ -882,6 +882,26 @@
       "roleLabel": "Role",
       "hostToastNewRequest": "{name} wants to join"
     },
+    "media": {
+      "title": "Media",
+      "stage": "Stage",
+      "youBadge": "You",
+      "micOn": "Mic on",
+      "micOff": "Mic off",
+      "cameraOn": "Camera on",
+      "cameraOff": "Camera off",
+      "devices": "Devices",
+      "selectMic": "Microphone",
+      "selectCamera": "Camera",
+      "permissionDenied": "Camera or microphone access denied.",
+      "startMedia": "Start camera",
+      "stopMedia": "Stop camera",
+      "leave": "Leave room",
+      "connecting": "Connecting...",
+      "noParticipants": "No one else is here yet.",
+      "remoteCameraOff": "Camera is off",
+      "remoteMuted": "Muted"
+    },
     "declineDialog": {
       "title": "Decline request",
       "message": "Send a reason (optional) so {name} knows why.",

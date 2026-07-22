@@ -1,0 +1,96 @@
+"use client";
+
+import { create } from "zustand";
+
+export interface RemotePeerStream {
+  userId: string;
+  displayName: string;
+  stream: MediaStream;
+}
+
+export interface MediaSocket {
+  sendOffer: (toUserId: string, sdp: RTCSessionDescriptionInit) => void;
+  sendAnswer: (toUserId: string, sdp: RTCSessionDescriptionInit) => void;
+  sendIce: (
+    toUserId: string,
+    candidate: RTCIceCandidateInit,
+  ) => void;
+}
+
+export interface PeerManagerHandle {
+  addPeer: (remoteUserId: string, remoteDisplayName: string) => Promise<void>;
+  removePeer: (remoteUserId: string) => void;
+  close: () => void;
+  onRemoteStream: (handler: (userId: string, displayName: string, stream: MediaStream) => void) => () => void;
+  onPeerLeft: (handler: (userId: string) => void) => () => void;
+}
+
+interface LiveRoomMediaState {
+  localStream: MediaStream | null;
+  micMuted: boolean;
+  cameraOff: boolean;
+  errorMessage: string | null;
+  remotePeers: RemotePeerStream[];
+  peerManager: PeerManagerHandle | null;
+  mediaSocket: MediaSocket | null;
+
+  setLocalStream: (stream: MediaStream | null) => void;
+  setMicMuted: (muted: boolean) => void;
+  setCameraOff: (off: boolean) => void;
+  setErrorMessage: (msg: string | null) => void;
+  setPeerManager: (manager: PeerManagerHandle | null) => void;
+  setMediaSocket: (socket: MediaSocket | null) => void;
+  upsertRemotePeer: (peer: RemotePeerStream) => void;
+  removeRemotePeer: (userId: string) => void;
+  reset: () => void;
+}
+
+export const useLiveRoomMediaStore = create<LiveRoomMediaState>((set) => ({
+  localStream: null,
+  micMuted: false,
+  cameraOff: false,
+  errorMessage: null,
+  remotePeers: [],
+  peerManager: null,
+  mediaSocket: null,
+
+  setLocalStream: (stream) => set({ localStream: stream }),
+  setMicMuted: (muted) => set({ micMuted: muted }),
+  setCameraOff: (off) => set({ cameraOff: off }),
+  setErrorMessage: (msg) => set({ errorMessage: msg }),
+  setPeerManager: (manager) => set({ peerManager: manager }),
+  setMediaSocket: (socket) => set({ mediaSocket: socket }),
+  upsertRemotePeer: (peer) =>
+    set((state) => {
+      const existing = state.remotePeers.findIndex((p) => p.userId === peer.userId);
+      if (existing >= 0) {
+        const next = state.remotePeers.slice();
+        next[existing] = peer;
+        return { remotePeers: next };
+      }
+      return { remotePeers: [...state.remotePeers, peer] };
+    }),
+  removeRemotePeer: (userId) =>
+    set((state) => ({
+      remotePeers: state.remotePeers.filter((p) => p.userId !== userId),
+    })),
+  reset: () =>
+    set({
+      localStream: null,
+      micMuted: false,
+      cameraOff: false,
+      errorMessage: null,
+      remotePeers: [],
+      peerManager: null,
+      mediaSocket: null,
+    }),
+}));
+
+export function applyTrackMutedFlag(stream: MediaStream | null, kind: "audio" | "video", muted: boolean): void {
+  if (!stream) return;
+  for (const track of stream.getTracks()) {
+    if (track.kind === kind) {
+      track.enabled = !muted;
+    }
+  }
+}

@@ -33,6 +33,14 @@ public class LiveRoomParticipantFacadeImpl implements LiveRoomParticipantFacade 
                 .toList();
     }
 
+    @Override
+    public ParticipantSummaryResponse updateMediaState(UUID userId, String roomCode, boolean micMuted, boolean cameraOff) {
+        log.info("Facade updateMediaState: userId={}, roomCode={}, micMuted={}, cameraOff={}",
+                userId, roomCode, micMuted, cameraOff);
+        LiveRoomParticipant updated = participantService.updateMediaState(userId, roomCode, micMuted, cameraOff);
+        return toParticipantSummary(updated);
+    }
+
     private ParticipantSummaryResponse toParticipantSummary(LiveRoomParticipant participant) {
         if (participant == null) {
             return null;
@@ -43,6 +51,9 @@ public class LiveRoomParticipantFacadeImpl implements LiveRoomParticipantFacade 
                 .displayName(participant.getDisplayName())
                 .roleAtJoin(participant.getRoleAtJoin())
                 .joinedAt(participant.getJoinedAt())
+                .micMuted(participant.isMicMuted())
+                .cameraOff(participant.isCameraOff())
+                .lastSeenAt(participant.getLastSeenAt())
                 .build();
     }
 }

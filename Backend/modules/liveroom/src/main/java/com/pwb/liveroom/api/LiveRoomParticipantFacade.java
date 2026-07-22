@@ -10,4 +10,6 @@ public interface LiveRoomParticipantFacade {
     void leaveRoom(UUID userId, String roomCode);
 
     List<ParticipantSummaryResponse> listParticipants(String roomCode);
+
+    ParticipantSummaryResponse updateMediaState(UUID userId, String roomCode, boolean micMuted, boolean cameraOff);
 }

@@ -5,7 +5,10 @@ import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import type {
   JoinRequestCreatedWsEvent,
   JoinRequestDecidedWsEvent,
+  MediaStateChangedWsEvent,
   ParticipantWsEvent,
+  PeerSignalEnvelope,
+  PeerWsEvent,
 } from "../types";
 
 const WS_PATH = "/ws/liveroom";
@@ -26,6 +29,15 @@ const WS_URL = resolveWsUrl();
 let sharedClient: Client | null = null;
 let currentToken: string | null = null;
 
+interface TrackedSubscription {
+  destination: string;
+  handleFrame: (frame: IMessage) => void;
+  subscription: StompSubscription | null;
+  filter?: (raw: unknown) => boolean;
+}
+
+const trackedSubs: Set<TrackedSubscription> = new Set();
+
 export function getStompClient(accessToken: string): Client {
   if (sharedClient && currentToken === accessToken) {
     return sharedClient;
@@ -45,10 +57,22 @@ export function getStompClient(accessToken: string): Client {
     heartbeatIncoming: 10000,
     heartbeatOutgoing: 10000,
     debug: () => {},
+    onConnect: () => {
+      reattachAllSubscriptions();
+    },
   });
   currentToken = accessToken;
   sharedClient.activate();
   return sharedClient;
+}
+
+function reattachAllSubscriptions(): void {
+  const client = sharedClient;
+  if (!client || !client.connected) return;
+  for (const tracked of trackedSubs) {
+    if (tracked.subscription) continue;
+    tracked.subscription = client.subscribe(tracked.destination, tracked.handleFrame);
+  }
 }
 
 function ensureClient(): Client | null {
@@ -68,46 +92,57 @@ export interface Subscription {
 function subscribeTopic<T>(
   destination: string,
   onEvent: (event: T) => void,
+  filter?: (raw: unknown) => boolean,
 ): Subscription {
   const client = ensureClient();
   if (!client) {
     return { unsubscribe: () => {} };
   }
 
-  let subscription: StompSubscription | null = null;
-
-  const handleFrame = (frame: IMessage) => {
-    try {
-      const payload = JSON.parse(frame.body) as T;
-      onEvent(payload);
-    } catch {
-      /* ignore malformed frames */
-    }
+  const tracked: TrackedSubscription = {
+    destination,
+    handleFrame: (frame: IMessage) => {
+      try {
+        const parsed: unknown = JSON.parse(frame.body);
+        if (filter && !filter(parsed)) return;
+        onEvent(parsed as T);
+      } catch {
+        /* ignore malformed frames */
+      }
+    },
+    subscription: null,
+    filter,
   };
 
   const attach = () => {
-    if (subscription) return;
-    subscription = client.subscribe(destination, handleFrame);
+    if (tracked.subscription) return;
+    tracked.subscription = client.subscribe(tracked.destination, tracked.handleFrame);
   };
 
+  trackedSubs.add(tracked);
   if (client.connected) {
     attach();
-  } else {
-    const originalOnConnect = client.onConnect;
-    client.onConnect = (frame) => {
-      originalOnConnect?.(frame);
-      attach();
-    };
   }
 
   return {
     unsubscribe: () => {
-      if (subscription) {
-        subscription.unsubscribe();
-        subscription = null;
+      if (tracked.subscription) {
+        tracked.subscription.unsubscribe();
+        tracked.subscription = null;
       }
+      trackedSubs.delete(tracked);
     },
   };
+}
+
+export function publishSignal(destination: string, body: unknown): boolean {
+  const client = ensureClient();
+  if (!client || !client.connected) return false;
+  client.publish({
+    destination,
+    body: JSON.stringify(body),
+  });
+  return true;
 }
 
 export function subscribeRoomParticipants(
@@ -116,6 +151,65 @@ export function subscribeRoomParticipants(
 ): Subscription {
   return subscribeTopic<ParticipantWsEvent>(
     `/topic/room/${roomCode}/participants`,
+    onEvent,
+  );
+}
+
+export function subscribeRoomMediaState(
+  roomCode: string,
+  onEvent: (event: MediaStateChangedWsEvent) => void,
+): Subscription {
+  return subscribeTopic<MediaStateChangedWsEvent>(
+    `/topic/room/${roomCode}/participants`,
+    onEvent,
+    (raw) =>
+      typeof raw === "object" &&
+      raw !== null &&
+      (raw as { type?: string }).type === "MEDIA_STATE_CHANGED",
+  );
+}
+
+export function subscribeRoomPeerEvents(
+  roomCode: string,
+  onEvent: (event: PeerWsEvent) => void,
+): Subscription {
+  return subscribeTopic<PeerWsEvent>(
+    `/topic/room/${roomCode}/peers`,
+    onEvent,
+    (raw) => {
+      if (typeof raw !== "object" || raw === null) return false;
+      const type = (raw as { type?: string }).type;
+      return type === "PEER_JOINED" || type === "PEER_LEFT";
+    },
+  );
+}
+
+export function subscribeSignalingOffers(
+  roomCode: string,
+  onEvent: (event: PeerSignalEnvelope) => void,
+): Subscription {
+  return subscribeTopic<PeerSignalEnvelope>(
+    `/user/queue/room/${roomCode}/signal/offer`,
+    onEvent,
+  );
+}
+
+export function subscribeSignalingAnswers(
+  roomCode: string,
+  onEvent: (event: PeerSignalEnvelope) => void,
+): Subscription {
+  return subscribeTopic<PeerSignalEnvelope>(
+    `/user/queue/room/${roomCode}/signal/answer`,
+    onEvent,
+  );
+}
+
+export function subscribeSignalingIce(
+  roomCode: string,
+  onEvent: (event: PeerSignalEnvelope) => void,
+): Subscription {
+  return subscribeTopic<PeerSignalEnvelope>(
+    `/user/queue/room/${roomCode}/signal/ice`,
     onEvent,
   );
 }
@@ -139,7 +233,47 @@ export function subscribeUserJoinRequestDecisions(
   );
 }
 
+export function sendSignalOffer(
+  roomCode: string,
+  toUserId: string,
+  payload: PeerSignalEnvelope["payload"],
+): boolean {
+  return publishSignal(`/app/room/${roomCode}/signal/offer`, {
+    toUserId,
+    payload,
+  });
+}
+
+export function sendSignalAnswer(
+  roomCode: string,
+  toUserId: string,
+  payload: PeerSignalEnvelope["payload"],
+): boolean {
+  return publishSignal(`/app/room/${roomCode}/signal/answer`, {
+    toUserId,
+    payload,
+  });
+}
+
+export function sendSignalIce(
+  roomCode: string,
+  toUserId: string,
+  payload: PeerSignalEnvelope["payload"],
+): boolean {
+  return publishSignal(`/app/room/${roomCode}/signal/ice`, {
+    toUserId,
+    payload,
+  });
+}
+
 export function disconnectStompClient(): void {
+  for (const tracked of trackedSubs) {
+    if (tracked.subscription) {
+      tracked.subscription.unsubscribe();
+      tracked.subscription = null;
+    }
+  }
+  trackedSubs.clear();
   if (sharedClient) {
     sharedClient.deactivate();
     sharedClient = null;

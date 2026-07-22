@@ -15,7 +15,7 @@ import { resolveVoiceErrorMessage } from "../lib/resolve-voice-error-message";
 import { useUploadSong } from "../api/songs";
 import { useListVoiceTags } from "../api/voice-tags";
 import { useFileValidation } from "../hooks/use-file-validation";
-import { uploadSongFormSchema, type UploadSongFormValues } from "../schemas/song-schema";
+import { uploadSongFormSchema, type UploadSongFormValues, type UploadSongFormInput } from "../schemas/song-schema";
 
 interface SongUploadFormProps {
   onCancel?: () => void;
@@ -42,7 +42,7 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
     handleSubmit,
     control,
     formState: { errors },
-  } = useForm<UploadSongFormValues>({
+  } = useForm<UploadSongFormInput, unknown, UploadSongFormValues>({
     resolver: zodResolver(uploadSongFormSchema),
     defaultValues: {
       title: "",

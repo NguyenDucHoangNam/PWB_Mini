@@ -92,6 +92,33 @@ public class LiveRoomParticipantServiceImpl implements LiveRoomParticipantServic
                 .toList();
     }
 
+    @Override
+    @Transactional
+    public LiveRoomParticipant updateMediaState(UUID userId, String roomCode, boolean micMuted, boolean cameraOff) {
+        log.info("Updating media state: userId={}, roomCode={}, micMuted={}, cameraOff={}",
+                userId, roomCode, micMuted, cameraOff);
+
+        LiveRoomParticipantJpaEntity participantEntity =
+                participantJpaRepository.findActiveByRoomAndUser(roomCode, userId)
+                        .orElseThrow(() -> new BusinessException(ErrorCode.LIVEROOM_NOT_JOINED));
+
+        LiveRoomParticipant participant = participantMapper.toDomain(participantEntity);
+        participant.updateMediaState(micMuted, cameraOff);
+        participantMapper.toEntity(participant, participantEntity);
+        participantJpaRepository.save(participantEntity);
+
+        LiveRoomParticipant updated = participantMapper.toDomain(participantEntity);
+        eventPublisher.publishEvent(new MediaStateChangedEvent(
+                roomCode,
+                userId,
+                updated.getDisplayName(),
+                updated.isMicMuted(),
+                updated.isCameraOff(),
+                updated.getLastSeenAt()));
+
+        return updated;
+    }
+
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onParticipantJoined(ParticipantJoinedEvent event) {
         broadcaster.broadcastParticipantJoined(
@@ -117,6 +144,17 @@ public class LiveRoomParticipantServiceImpl implements LiveRoomParticipantServic
                 event.leftAt().toString());
     }
 
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onMediaStateChanged(MediaStateChangedEvent event) {
+        broadcaster.broadcastMediaStateChanged(
+                event.roomCode(),
+                event.userId(),
+                event.displayName(),
+                event.micMuted(),
+                event.cameraOff(),
+                event.lastSeenAt().toString());
+    }
+
     public record ParticipantJoinedEvent(
             String roomCode,
             UUID hostUserId,
@@ -138,5 +176,14 @@ public class LiveRoomParticipantServiceImpl implements LiveRoomParticipantServic
             int maxParticipants,
             int availableSlots,
             Instant leftAt
+    ) {}
+
+    public record MediaStateChangedEvent(
+            String roomCode,
+            UUID userId,
+            String displayName,
+            boolean micMuted,
+            boolean cameraOff,
+            Instant lastSeenAt
     ) {}
 }

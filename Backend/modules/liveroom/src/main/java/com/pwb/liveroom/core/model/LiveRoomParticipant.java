@@ -10,6 +10,8 @@ public final class LiveRoomParticipant {
 
     private static final int MIN_DISPLAY_NAME_LENGTH = 1;
     private static final int MAX_DISPLAY_NAME_LENGTH = 100;
+    private static final boolean DEFAULT_MIC_MUTED = true;
+    private static final boolean DEFAULT_CAMERA_OFF = true;
 
     private final UUID id;
     private final String roomCode;
@@ -18,6 +20,9 @@ public final class LiveRoomParticipant {
     private final String roleAtJoin;
     private final Instant joinedAt;
     private Instant leftAt;
+    private boolean micMuted;
+    private boolean cameraOff;
+    private Instant lastSeenAt;
 
     private LiveRoomParticipant(
             UUID id,
@@ -26,7 +31,10 @@ public final class LiveRoomParticipant {
             String displayName,
             String roleAtJoin,
             Instant joinedAt,
-            Instant leftAt
+            Instant leftAt,
+            boolean micMuted,
+            boolean cameraOff,
+            Instant lastSeenAt
     ) {
         this.id = id;
         this.roomCode = roomCode;
@@ -35,6 +43,9 @@ public final class LiveRoomParticipant {
         this.roleAtJoin = roleAtJoin;
         this.joinedAt = joinedAt;
         this.leftAt = leftAt;
+        this.micMuted = micMuted;
+        this.cameraOff = cameraOff;
+        this.lastSeenAt = lastSeenAt;
     }
 
     public static LiveRoomParticipant join(
@@ -50,14 +61,18 @@ public final class LiveRoomParticipant {
         validateDisplayName(displayName);
         validateRole(cleanRole);
 
+        Instant now = joinedAt == null ? Instant.now() : joinedAt;
         return new LiveRoomParticipant(
                 UUID.randomUUID(),
                 roomCode,
                 userId,
                 displayName.trim(),
                 cleanRole,
-                joinedAt == null ? Instant.now() : joinedAt,
-                null
+                now,
+                null,
+                DEFAULT_MIC_MUTED,
+                DEFAULT_CAMERA_OFF,
+                now
         );
     }
 
@@ -68,7 +83,10 @@ public final class LiveRoomParticipant {
             String displayName,
             String roleAtJoin,
             Instant joinedAt,
-            Instant leftAt
+            Instant leftAt,
+            boolean micMuted,
+            boolean cameraOff,
+            Instant lastSeenAt
     ) {
         return new LiveRoomParticipant(
                 id,
@@ -77,7 +95,10 @@ public final class LiveRoomParticipant {
                 displayName,
                 roleAtJoin,
                 joinedAt,
-                leftAt
+                leftAt,
+                micMuted,
+                cameraOff,
+                lastSeenAt
         );
     }
 
@@ -90,6 +111,19 @@ public final class LiveRoomParticipant {
             throw new IllegalArgumentException("Left time cannot be before joined time");
         }
         this.leftAt = now;
+    }
+
+    public void updateMediaState(boolean micMuted, boolean cameraOff) {
+        if (this.leftAt != null) {
+            throw new IllegalStateException("Cannot update media state of a participant who has left");
+        }
+        this.micMuted = micMuted;
+        this.cameraOff = cameraOff;
+        this.lastSeenAt = Instant.now();
+    }
+
+    public void touchLastSeen() {
+        this.lastSeenAt = Instant.now();
     }
 
     public boolean isActive() {

@@ -18,6 +18,9 @@ public class LiveRoomParticipantMapper {
                 .roleAtJoin(domain.getRoleAtJoin())
                 .joinedAt(domain.getJoinedAt())
                 .leftAt(domain.getLeftAt())
+                .micMuted(domain.isMicMuted())
+                .cameraOff(domain.isCameraOff())
+                .lastSeenAt(domain.getLastSeenAt())
                 .build();
     }
 
@@ -31,6 +34,9 @@ public class LiveRoomParticipantMapper {
         existing.setRoleAtJoin(domain.getRoleAtJoin());
         existing.setJoinedAt(domain.getJoinedAt());
         existing.setLeftAt(domain.getLeftAt());
+        existing.setMicMuted(domain.isMicMuted());
+        existing.setCameraOff(domain.isCameraOff());
+        existing.setLastSeenAt(domain.getLastSeenAt());
         return existing;
     }
 
@@ -45,7 +51,10 @@ public class LiveRoomParticipantMapper {
                 entity.getDisplayName(),
                 entity.getRoleAtJoin(),
                 entity.getJoinedAt(),
-                entity.getLeftAt()
+                entity.getLeftAt(),
+                Boolean.TRUE.equals(entity.getMicMuted()),
+                Boolean.TRUE.equals(entity.getCameraOff()),
+                entity.getLastSeenAt()
         );
     }
 }

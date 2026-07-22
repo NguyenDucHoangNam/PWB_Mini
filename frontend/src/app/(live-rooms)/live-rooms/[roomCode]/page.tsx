@@ -15,6 +15,9 @@ import { AskToJoinCard } from "@/features/liveroom/components/ask-to-join-card";
 import { WaitingRoomCard } from "@/features/liveroom/components/waiting-room-card";
 import { RejectedCard } from "@/features/liveroom/components/rejected-card";
 import { ParticipantsList } from "@/features/liveroom/components/participants-list";
+import { MediaStage } from "@/features/liveroom/components/media-stage";
+import { MediaControls } from "@/features/liveroom/components/media-controls";
+import { useLiveRoomMedia } from "@/features/liveroom/hooks/use-live-room-media";
 import {
   useLeaveRoom,
   useRoom,
@@ -210,6 +213,8 @@ export default function ListenerLiveRoomPage() {
     leaveRoom({ roomCode: room.roomCode });
   };
 
+  const localDisplayName = useAuthStore.getState().user?.username ?? "Guest";
+
   return (
     <div className="flex flex-col gap-6 font-sans">
       <div className="flex flex-col gap-2">
@@ -273,35 +278,23 @@ export default function ListenerLiveRoomPage() {
             />
           )}
 
-          {phase.kind === "IN_ROOM" && (
-            <div className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-black">
-              <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
-                <span className="inline-flex size-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="font-semibold">{tParticipant("joinedHeader")}</span>
-              </div>
-              <Button
-                variant="destructive"
-                onClick={handleLeave}
-                disabled={isLeaving || isEnding}
-              >
-                {isLeaving || isEnding ? (
-                  <span className="flex items-center gap-2">
-                    <Spinner size="sm" />
-                    {isHost ? tParticipant("ending") : tParticipant("leaving")}
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-2">
-                    <LogOut className="size-4" />
-                    {isHost ? tParticipant("endRoom") : tParticipant("leaveRoom")}
-                  </span>
-                )}
-              </Button>
-              {isHost && (
-                <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                  {tParticipant("hostInGuestTabHint")}
-                </p>
-              )}
-            </div>
+          {phase.kind === "IN_ROOM" && currentUserId && (
+            <InRoomStage
+              roomCode={room.roomCode}
+              localUserId={currentUserId}
+              localDisplayName={localDisplayName}
+              onLeave={handleLeave}
+              isLeaving={isLeaving || isEnding}
+              isHost={isHost}
+              tParticipantLeave={isHost ? tParticipant("endRoom") : tParticipant("leaveRoom")}
+              tParticipantEnding={
+                isLeaving || isEnding
+                  ? isHost
+                    ? tParticipant("ending")
+                    : tParticipant("leaving")
+                  : null
+              }
+            />
           )}
         </div>
 
@@ -309,6 +302,90 @@ export default function ListenerLiveRoomPage() {
           <ParticipantsList roomCode={room.roomCode} hostUserId={room.hostUserId} />
         </div>
       </div>
+    </div>
+  );
+}
+
+interface InRoomStageProps {
+  roomCode: string;
+  localUserId: string;
+  localDisplayName: string;
+  onLeave: () => void;
+  isLeaving: boolean;
+  isHost: boolean;
+  tParticipantLeave: string;
+  tParticipantEnding: string | null;
+}
+
+function InRoomStage({
+  roomCode,
+  localUserId,
+  localDisplayName,
+  onLeave,
+  isLeaving,
+  isHost,
+  tParticipantLeave,
+  tParticipantEnding,
+}: InRoomStageProps) {
+  const tParticipant = useTranslations("liveroom.participant");
+  const media = useLiveRoomMedia({
+    roomCode,
+    localUserId,
+    localDisplayName,
+    enabled: true,
+  });
+
+  return (
+    <div className="flex flex-col gap-4 rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-black">
+      <div className="flex items-center justify-between text-sm text-green-700 dark:text-green-300">
+        <span className="flex items-center gap-2 font-semibold">
+          <span className="inline-flex size-2 rounded-full bg-green-500 animate-pulse" />
+          {tParticipant("joinedHeader")}
+        </span>
+      </div>
+      <MediaStage
+        roomCode={roomCode}
+        localUserId={localUserId}
+        localDisplayName={localDisplayName}
+        enabled
+      />
+      <MediaControls
+        micMuted={media.micMuted}
+        cameraOff={media.cameraOff}
+        selectingDevice={media.selectingDevice}
+        audioDevices={media.audioDevices}
+        videoDevices={media.videoDevices}
+        currentAudioId={media.currentAudioId}
+        currentVideoId={media.currentVideoId}
+        onToggleMic={media.toggleMic}
+        onToggleCamera={media.toggleCamera}
+        onSelectAudio={media.setAudioDevice}
+        onSelectVideo={media.setVideoDevice}
+        onLeave={onLeave}
+      />
+      <Button
+        variant="destructive"
+        onClick={onLeave}
+        disabled={isLeaving}
+        className="self-start"
+      >
+        {isLeaving ? (
+          <span className="flex items-center gap-2">
+            <Spinner size="sm" />
+            {tParticipantEnding ?? tParticipantLeave}
+          </span>
+        ) : (
+          <span className="flex items-center gap-2">
+            <LogOut className="size-4" />
+            {tParticipantLeave}
+          </span>
+        )}
+      </Button>
+      {isHost && (
+        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+          {tParticipant("hostInGuestTabHint")}
+        </p>
+      )}
     </div>
   );
 }

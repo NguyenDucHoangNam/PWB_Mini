@@ -14,6 +14,9 @@ import { RoomModeBadge } from "@/features/liveroom/components/room-mode-badge";
 import { UpdateRoomForm } from "@/features/liveroom/components/update-room-form";
 import { ParticipantsList } from "@/features/liveroom/components/participants-list";
 import { JoinRequestQueuePanel } from "@/features/liveroom/components/join-request-queue-panel";
+import { MediaStage } from "@/features/liveroom/components/media-stage";
+import { MediaControls } from "@/features/liveroom/components/media-controls";
+import { useLiveRoomMedia } from "@/features/liveroom/hooks/use-live-room-media";
 import { useProGuard } from "@/features/auth/hooks/use-pro-guard";
 import {
   useEndRoom,
@@ -28,7 +31,7 @@ import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { asApiError } from "@/lib/api-client";
 import { resolveLiveroomErrorMessage } from "@/features/liveroom/lib/resolve-liveroom-error-message";
 
-type HostTab = "settings" | "waiting" | "listeners";
+type HostTab = "settings" | "waiting" | "listeners" | "stage";
 
 export default function LiveRoomDetailPage() {
   const params = useParams();
@@ -42,6 +45,7 @@ export default function LiveRoomDetailPage() {
   const tCard = useTranslations("liveroom.card");
   const tNav = useTranslations("liveroom.nav");
   const tHost = useTranslations("liveroom.hostWaitingRoom");
+  const tMedia = useTranslations("liveroom.media");
 
   const currentUserId = useAuthStore((state) => state.user?.userId ?? null);
   const queryClient = useQueryClient();
@@ -148,6 +152,7 @@ export default function LiveRoomDetailPage() {
   };
 
   const tabs: { id: HostTab; label: string; badge?: number }[] = [
+    { id: "stage", label: tMedia("title") },
     { id: "settings", label: tNav("settingsTab") },
     { id: "waiting", label: tHost("tabLabel"), badge: pendingCount },
     { id: "listeners", label: tNav("listenersTab") },
@@ -244,6 +249,60 @@ export default function LiveRoomDetailPage() {
           <ParticipantsList roomCode={room.roomCode} hostUserId={room.hostUserId} />
         </div>
       )}
+
+      {tab === "stage" && !isTerminal && currentUserId && (
+        <HostStagePanel
+          roomCode={room.roomCode}
+          localUserId={currentUserId}
+          localDisplayName={useAuthStore.getState().user?.username ?? "Host"}
+        />
+      )}
+    </div>
+  );
+}
+
+interface HostStagePanelProps {
+  roomCode: string;
+  localUserId: string;
+  localDisplayName: string;
+}
+
+function HostStagePanel({ roomCode, localUserId, localDisplayName }: HostStagePanelProps) {
+  const media = useLiveRoomMedia({
+    roomCode,
+    localUserId,
+    localDisplayName,
+    enabled: true,
+  });
+
+  const handleLeave = () => {
+    if (typeof window !== "undefined") {
+      window.open(`/live-rooms/${roomCode}`, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4 rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-black">
+      <MediaStage
+        roomCode={roomCode}
+        localUserId={localUserId}
+        localDisplayName={localDisplayName}
+        enabled
+      />
+      <MediaControls
+        micMuted={media.micMuted}
+        cameraOff={media.cameraOff}
+        selectingDevice={media.selectingDevice}
+        audioDevices={media.audioDevices}
+        videoDevices={media.videoDevices}
+        currentAudioId={media.currentAudioId}
+        currentVideoId={media.currentVideoId}
+        onToggleMic={media.toggleMic}
+        onToggleCamera={media.toggleCamera}
+        onSelectAudio={media.setAudioDevice}
+        onSelectVideo={media.setVideoDevice}
+        onLeave={handleLeave}
+      />
     </div>
   );
 }

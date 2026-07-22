@@ -11,4 +11,6 @@ public interface LiveRoomParticipantService {
     Optional<LiveRoomParticipant> leaveRoom(UUID userId, String roomCode);
 
     List<LiveRoomParticipant> listActiveParticipants(String roomCode);
+
+    LiveRoomParticipant updateMediaState(UUID userId, String roomCode, boolean micMuted, boolean cameraOff);
 }

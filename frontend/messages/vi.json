@@ -885,6 +885,26 @@
       "roleLabel": "Vai trò",
       "hostToastNewRequest": "{name} muốn vào phòng"
     },
+    "media": {
+      "title": "Media",
+      "stage": "Sân khấu",
+      "youBadge": "Bạn",
+      "micOn": "Mic đang bật",
+      "micOff": "Mic đang tắt",
+      "cameraOn": "Camera đang bật",
+      "cameraOff": "Camera đang tắt",
+      "devices": "Thiết bị",
+      "selectMic": "Microphone",
+      "selectCamera": "Camera",
+      "permissionDenied": "Quyền truy cập camera hoặc mic bị từ chối.",
+      "startMedia": "Bật camera",
+      "stopMedia": "Tắt camera",
+      "leave": "Rời phòng",
+      "connecting": "Đang kết nối...",
+      "noParticipants": "Chưa có ai trong phòng.",
+      "remoteCameraOff": "Camera đang tắt",
+      "remoteMuted": "Đang tắt mic"
+    },
     "declineDialog": {
       "title": "Từ chối yêu cầu",
       "message": "Gửi kèm lý do (tùy chọn) để {name} biết lý do.",

@@ -17,14 +17,15 @@ export const uploadSongFormSchema = z.object({
     .or(z.literal("")),
   attachVoiceTag: z.boolean().default(false),
   voiceTagId: z.string().optional().or(z.literal("")),
-  intervalSeconds: z.coerce.number().min(1, { message: "validation.interval.min" }).default(10),
-  volumePercentage: z.coerce.number().min(0).max(100).default(80),
-  fadeInDurationMs: z.coerce.number().min(0).default(0),
-  fadeOutDurationMs: z.coerce.number().min(0).default(0),
-  startOffsetSeconds: z.coerce.number().min(0).default(0),
+  intervalSeconds: z.number().min(1, { message: "validation.interval.min" }).default(10),
+  volumePercentage: z.number().min(0).max(100).default(80),
+  fadeInDurationMs: z.number().min(0).default(0),
+  fadeOutDurationMs: z.number().min(0).default(0),
+  startOffsetSeconds: z.number().min(0).default(0),
 });
 
 export type UploadSongFormValues = z.infer<typeof uploadSongFormSchema>;
+export type UploadSongFormInput = z.input<typeof uploadSongFormSchema>;
 
 export const updateSongFormSchema = z.object({
   title: z
