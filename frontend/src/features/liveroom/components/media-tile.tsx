@@ -43,9 +43,9 @@ export function MediaTile({
 
   return (
     <div
-      className={`relative aspect-video w-full overflow-hidden rounded-xl border ${
+      className={`relative aspect-video w-full overflow-hidden rounded-xl border-2 ${
         showSpeakingRing
-          ? "border-emerald-400 ring-2 ring-emerald-400/50"
+          ? "border-green-400 ring-4 ring-green-400/60 shadow-[0_0_16px_4px_rgba(74,222,128,0.45)]"
           : "border-neutral-200 dark:border-neutral-800"
       } bg-black transition-all duration-200`}
     >

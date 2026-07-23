@@ -44,6 +44,8 @@ interface LiveRoomMediaState {
   upsertRemotePeer: (peer: RemotePeerStream) => void;
   removeRemotePeer: (userId: string) => void;
   setSpeakingUsers: (users: Set<string>) => void;
+  addSpeaker: (userId: string) => void;
+  removeSpeaker: (userId: string) => void;
   reset: () => void;
 }
 
@@ -78,6 +80,20 @@ export const useLiveRoomMediaStore = create<LiveRoomMediaState>((set) => ({
       remotePeers: state.remotePeers.filter((p) => p.userId !== userId),
     })),
   setSpeakingUsers: (users) => set({ speakingUsers: users }),
+  addSpeaker: (userId) =>
+    set((state) => {
+      if (state.speakingUsers.has(userId)) return state;
+      const next = new Set(state.speakingUsers);
+      next.add(userId);
+      return { speakingUsers: next };
+    }),
+  removeSpeaker: (userId) =>
+    set((state) => {
+      if (!state.speakingUsers.has(userId)) return state;
+      const next = new Set(state.speakingUsers);
+      next.delete(userId);
+      return { speakingUsers: next };
+    }),
   reset: () =>
     set({
       localStream: null,

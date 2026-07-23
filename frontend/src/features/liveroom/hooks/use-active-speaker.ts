@@ -3,130 +3,115 @@
 import { useEffect, useRef } from "react";
 import { useLiveRoomMediaStore } from "../stores/use-live-room-media-store";
 
-interface UseActiveSpeakerOptions {
-  threshold?: number;
-  smoothingTimeConstant?: number;
+const SPEAKING_THRESHOLD_DB = -50;
+const HOLD_MS = 500;
+const POLL_INTERVAL_MS = 100;
+
+function createAudioAnalyser(
+  stream: MediaStream,
+): { analyser: AnalyserNode; ctx: AudioContext; source: MediaStreamAudioSourceNode } | null {
+  const audioTracks = stream.getAudioTracks();
+  if (audioTracks.length === 0) return null;
+
+  const ctx = new AudioContext();
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 256;
+  analyser.smoothingTimeConstant = 0.8;
+
+  const source = ctx.createMediaStreamSource(stream);
+  source.connect(analyser);
+
+  return { analyser, ctx, source };
 }
 
-export function useActiveSpeaker(
-  localUserId: string,
-  options: UseActiveSpeakerOptions = {},
-): void {
-  const { threshold = -50, smoothingTimeConstant = 0.8 } = options;
-  const setSpeakingUsers = useLiveRoomMediaStore((state) => state.setSpeakingUsers);
-  const localStream = useLiveRoomMediaStore((state) => state.localStream);
-  const remotePeers = useLiveRoomMediaStore((state) => state.remotePeers);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const animationRef = useRef<number | null>(null);
-  const lastSpeakingRef = useRef<Map<string, number>>(new Map());
+function measureDb(analyser: AnalyserNode, buffer: Uint8Array<ArrayBuffer>): number {
+  analyser.getByteFrequencyData(buffer);
+  let sum = 0;
+  for (let i = 0; i < buffer.length; i++) {
+    sum += buffer[i];
+  }
+  const average = sum / buffer.length;
+  return average > 0 ? 20 * Math.log10(average / 255) : -100;
+}
+
+export function useActiveSpeaker(localUserId: string): void {
+  const addSpeaker = useLiveRoomMediaStore((s) => s.addSpeaker);
+  const removeSpeaker = useLiveRoomMediaStore((s) => s.removeSpeaker);
 
   useEffect(() => {
-    if (!localStream || localStream.getAudioTracks().length === 0) return;
+    const analysers = new Map<
+      string,
+      { analyser: AnalyserNode; ctx: AudioContext; source: MediaStreamAudioSourceNode; buffer: Uint8Array<ArrayBuffer>; lastSpokeAt: number }
+    >();
 
-    const audioContext = new AudioContext();
-    audioContextRef.current = audioContext;
-    const analyser = audioContext.createAnalyser();
-    analyser.fftSize = 256;
-    analyser.smoothingTimeConstant = smoothingTimeConstant;
-    analyserRef.current = analyser;
+    const attach = (userId: string, stream: MediaStream) => {
+      if (analysers.has(userId)) return;
+      const result = createAudioAnalyser(stream);
+      if (!result) return;
+      analysers.set(userId, {
+        ...result,
+        buffer: new Uint8Array(result.analyser.frequencyBinCount),
+        lastSpokeAt: 0,
+      });
+    };
 
-    const source = audioContext.createMediaStreamSource(localStream);
-    source.connect(analyser);
-    sourceRef.current = source;
+    const detach = (userId: string) => {
+      const entry = analysers.get(userId);
+      if (!entry) return;
+      entry.source.disconnect();
+      entry.analyser.disconnect();
+      if (entry.ctx.state !== "closed") {
+        void entry.ctx.close();
+      }
+      analysers.delete(userId);
+      removeSpeaker(userId);
+    };
 
-    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    const syncStreams = () => {
+      const state = useLiveRoomMediaStore.getState();
+      const activeIds = new Set<string>();
 
-    const detect = () => {
-      if (!analyser) return;
-      analyser.getByteFrequencyData(dataArray);
-      const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-      const db = average > 0 ? 20 * Math.log10(average / 255) : -100;
-      const isSpeaking = db > threshold;
-
-      const now = Date.now();
-      const speakingUsers = new Set<string>();
-
-      if (isSpeaking) {
-        speakingUsers.add(localUserId);
-        lastSpeakingRef.current.set(localUserId, now);
+      if (state.localStream && state.localStream.getAudioTracks().length > 0) {
+        activeIds.add(localUserId);
+        attach(localUserId, state.localStream);
       }
 
-      for (const peer of remotePeers) {
-        const lastSpoke = lastSpeakingRef.current.get(peer.userId) ?? 0;
-        if (now - lastSpoke < 1000) {
-          speakingUsers.add(peer.userId);
+      for (const peer of state.remotePeers) {
+        if (peer.stream && peer.stream.getAudioTracks().length > 0) {
+          activeIds.add(peer.userId);
+          attach(peer.userId, peer.stream);
         }
       }
 
-      setSpeakingUsers(speakingUsers);
-      animationRef.current = requestAnimationFrame(detect);
-    };
-
-    animationRef.current = requestAnimationFrame(detect);
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-      source.disconnect();
-      analyser.disconnect();
-      if (audioContext.state !== "closed") {
-        void audioContext.close();
+      for (const userId of analysers.keys()) {
+        if (!activeIds.has(userId)) {
+          detach(userId);
+        }
       }
     };
-  }, [localStream, localUserId, remotePeers, threshold, smoothingTimeConstant, setSpeakingUsers]);
-}
 
-export function useRemoteSpeakerDetection(
-  peerUserId: string,
-  stream: MediaStream,
-): void {
-  const setSpeakingUsers = useLiveRoomMediaStore((state) => state.setSpeakingUsers);
-  const lastSpeakingRef = useRef<number>(0);
+    syncStreams();
 
-  useEffect(() => {
-    if (!stream || stream.getAudioTracks().length === 0) return;
+    const interval = setInterval(() => {
+      syncStreams();
 
-    const audioContext = new AudioContext();
-    const analyser = audioContext.createAnalyser();
-    analyser.fftSize = 256;
-    analyser.smoothingTimeConstant = 0.8;
-
-    const source = audioContext.createMediaStreamSource(stream);
-    source.connect(analyser);
-
-    const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-    const detect = () => {
-      analyser.getByteFrequencyData(dataArray);
-      const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-      const db = average > 0 ? 20 * Math.log10(average / 255) : -100;
       const now = Date.now();
-
-      if (db > -50) {
-        lastSpeakingRef.current = now;
+      for (const [userId, entry] of analysers) {
+        const db = measureDb(entry.analyser, entry.buffer);
+        if (db > SPEAKING_THRESHOLD_DB) {
+          entry.lastSpokeAt = now;
+          addSpeaker(userId);
+        } else if (now - entry.lastSpokeAt > HOLD_MS) {
+          removeSpeaker(userId);
+        }
       }
-
-      const speakingUsers = new Set<string>();
-      if (now - lastSpeakingRef.current < 500) {
-        speakingUsers.add(peerUserId);
-      }
-      setSpeakingUsers(speakingUsers);
-
-      requestAnimationFrame(detect);
-    };
-
-    const animationId = requestAnimationFrame(detect);
+    }, POLL_INTERVAL_MS);
 
     return () => {
-      cancelAnimationFrame(animationId);
-      source.disconnect();
-      analyser.disconnect();
-      if (audioContext.state !== "closed") {
-        void audioContext.close();
+      clearInterval(interval);
+      for (const userId of [...analysers.keys()]) {
+        detach(userId);
       }
     };
-  }, [stream, peerUserId, setSpeakingUsers]);
+  }, [localUserId, addSpeaker, removeSpeaker]);
 }
