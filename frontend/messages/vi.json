@@ -856,7 +856,8 @@
       "messagePlaceholder": "Chào! Mình muốn tham gia.",
       "submitBtn": "Xin vào phòng",
       "submitting": "Đang gửi yêu cầu...",
-      "success": "Đã gửi yêu cầu. Đang chờ chủ phòng..."
+      "success": "Đã gửi yêu cầu. Đang chờ chủ phòng...",
+      "startPreview": "Kiểm tra camera và micro"
     },
     "waitingRoom": {
       "title": "Đang chờ chủ phòng",
@@ -963,7 +964,9 @@
       "joinRequestNotOwner": "Bạn chỉ có thể hủy yêu cầu vào phòng của chính bạn",
       "generic": "Đã có lỗi xảy ra",
       "proOnlyHost": "Tính năng tạo và quản lý Phòng Trực Tiếp chỉ dành cho tài khoản PRO. Nâng cấp gói của bạn để sử dụng.",
-      "invalidCodeLength": "Mã phòng phải gồm 6 ký tự (chữ cái và chữ số)"
+      "invalidCodeLength": "Mã phòng phải gồm 6 ký tự (chữ cái và chữ số)",
+      "screenShareNotSupported": "Trình duyệt này không hỗ trợ chia sẻ màn hình",
+      "screenShareFailed": "Không thể bắt đầu chia sẻ màn hình"
     },
     "joinByCode": {
       "title": "Vào phòng bằng mã",
@@ -991,7 +994,10 @@
       "chatPlaceholder": "Nhập tin nhắn...",
       "chatEmpty": "Chưa có tin nhắn nào. Hãy bắt đầu cuộc trò chuyện!",
       "chatSend": "Gửi",
-      "leaveConfirm": "Rời khỏi phòng này?"
+      "leaveConfirm": "Rời khỏi phòng này?",
+      "handRaise": "Giơ tay xin phát biểu",
+      "screenShareStart": "Chia sẻ màn hình",
+      "screenShareStop": "Dừng chia sẻ"
     }
   }
 }

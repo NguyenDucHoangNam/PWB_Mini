@@ -26,6 +26,22 @@ public interface LiveRoomParticipantJpaRepository
     @Query("""
             SELECT p FROM LiveRoomParticipantJpaEntity p
             WHERE p.roomCode = :roomCode
+              AND p.userId = :userId
+              AND p.deleted = false
+            ORDER BY p.joinedAt DESC
+            """)
+    List<LiveRoomParticipantJpaEntity> findByRoomCodeAndUserIdIncludeLeft(
+            @Param("roomCode") String roomCode,
+            @Param("userId") UUID userId);
+
+    default Optional<LiveRoomParticipantJpaEntity> findFirstByRoomCodeAndUserIdIncludeLeft(
+            String roomCode, UUID userId) {
+        return findByRoomCodeAndUserIdIncludeLeft(roomCode, userId).stream().findFirst();
+    }
+
+    @Query("""
+            SELECT p FROM LiveRoomParticipantJpaEntity p
+            WHERE p.roomCode = :roomCode
               AND p.deleted = false
               AND p.leftAt IS NULL
             ORDER BY p.joinedAt ASC

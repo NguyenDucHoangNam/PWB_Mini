@@ -24,6 +24,7 @@ export {
   leaveRoom,
   listParticipants,
   updateMyMedia,
+  useJoinPublicRoom,
   useLeaveRoom,
   useUpdateMyMedia,
   useParticipants,
@@ -66,6 +67,7 @@ export {
   type DeclineRequestFormValues,
 } from "./schemas/room-schema";
 export { resolveLiveroomErrorMessage } from "./lib/resolve-liveroom-error-message";
+export { buildPendingRequestFromStatus } from "./lib/build-pending-request";
 export { ProUpgradePrompt } from "./components/pro-upgrade-prompt";
 export { RoomCard } from "./components/room-card";
 export { RoomStatusBadge } from "./components/room-status-badge";
@@ -80,11 +82,15 @@ export { RejectedCard } from "./components/rejected-card";
 export { DeclineRequestDialog } from "./components/decline-request-dialog";
 export { JoinRequestQueuePanel } from "./components/join-request-queue-panel";
 export { JoinRoomByCodeCard } from "./components/join-room-by-code-card";
+export { ScreenShareControl } from "./components/screenshare-control";
+export { HandRaiseButton } from "./components/hand-raise-button";
+export { LiveRoomHeader } from "./components/live-room-header";
 export { MediaTile } from "./components/media-tile";
 export { MediaStage } from "./components/media-stage";
 export { MediaControls } from "./components/media-controls";
 export { DevicePicker } from "./components/device-picker";
 export { useMediaDevices, MediaPermissionException } from "./hooks/use-media-devices";
+export { useMediaSessionLifecycle } from "./hooks/use-media-session-lifecycle";
 export { usePeerSignaling } from "./hooks/use-peer-signaling";
 export { useLiveRoomMedia } from "./hooks/use-live-room-media";
 export { WebRTCPeerManager } from "./lib/webrtc-peer-manager";

@@ -853,7 +853,8 @@
       "messagePlaceholder": "Hi! I'd like to join.",
       "submitBtn": "Ask to join",
       "submitting": "Sending request...",
-      "success": "Request sent. Waiting for host..."
+      "success": "Request sent. Waiting for host...",
+      "startPreview": "Test camera and microphone"
     },
     "waitingRoom": {
       "title": "Waiting for host",
@@ -960,7 +961,9 @@
       "joinRequestNotOwner": "You can only cancel your own join request",
       "generic": "Something went wrong",
       "proOnlyHost": "Live Rooms hosting is available to PRO accounts only. Upgrade your plan to create and manage rooms.",
-      "invalidCodeLength": "Room code must be 6 characters (letters and digits)"
+      "invalidCodeLength": "Room code must be 6 characters (letters and digits)",
+      "screenShareNotSupported": "Screen sharing is not supported in this browser",
+      "screenShareFailed": "Could not start screen sharing"
     },
     "joinByCode": {
       "title": "Join with a room code",
@@ -988,7 +991,10 @@
       "chatPlaceholder": "Type a message...",
       "chatEmpty": "No messages yet. Start the conversation!",
       "chatSend": "Send",
-      "leaveConfirm": "Leave this room?"
+      "leaveConfirm": "Leave this room?",
+      "handRaise": "Raise hand",
+      "screenShareStart": "Share screen",
+      "screenShareStop": "Stop sharing"
     }
   }
 }

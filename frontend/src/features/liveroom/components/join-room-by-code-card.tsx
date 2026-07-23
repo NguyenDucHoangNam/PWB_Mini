@@ -43,7 +43,7 @@ export function JoinRoomByCodeCard() {
       setChecking(false);
       if (res.success && res.data?.exists && res.data?.active) {
         startTransition(() => {
-          router.push(`/live-rooms/${trimmed}`);
+          router.push(`/live-room/${trimmed}`);
         });
       } else {
         toast.error(tErrors("roomNotFound"));

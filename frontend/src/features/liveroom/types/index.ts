@@ -108,7 +108,9 @@ export type ParticipantWsEventType =
   | "PARTICIPANT_JOINED"
   | "PARTICIPANT_LEFT"
   | "MEDIA_STATE_CHANGED"
-  | "ROOM_ENDED";
+  | "ROOM_ENDED"
+  | "HAND_RAISED"
+  | "HAND_LOWERED";
 
 export interface ParticipantWsEvent {
   type: ParticipantWsEventType;
@@ -208,3 +210,9 @@ export interface MediaDeviceInfo {
   deviceId: string;
   label: string;
 }
+
+export type GuestPhase =
+  | { kind: "ASK" }
+  | { kind: "WAITING"; request: LiveRoomJoinRequest }
+  | { kind: "REJECTED"; request: LiveRoomJoinRequest; reason: string }
+  | { kind: "IN_ROOM" };

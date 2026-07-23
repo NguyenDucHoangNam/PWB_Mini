@@ -3,10 +3,12 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
+import { Hand } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useParticipants, liveRoomParticipantsKey } from "../api/participants";
 import { subscribeRoomParticipants } from "../api/ws";
+import { useHandRaiseStore } from "../stores/hand-raise-store";
 import {
   type ParticipantSummary,
   type ParticipantWsEvent,
@@ -30,6 +32,7 @@ export function ParticipantsList({ roomCode, hostUserId }: ParticipantsListProps
   const tExists = useTranslations("liveroom.existsCheck");
   const currentUserId = useAuthStore((state) => state.user?.userId ?? null);
   const queryClient = useQueryClient();
+  const raisedBy = useHandRaiseStore((state) => state.raisedBy);
 
   const { data, isLoading, isError } = useParticipants({ roomCode });
   const participants: ParticipantSummary[] = data?.data ?? [];
@@ -111,38 +114,53 @@ export function ParticipantsList({ roomCode, hostUserId }: ParticipantsListProps
         </div>
       ) : (
         <ul className="flex flex-col divide-y divide-neutral-200 rounded-lg border border-neutral-200 dark:divide-neutral-800 dark:border-neutral-800">
-          {participants.map((p) => {
-            const isHost = hostUserId && p.userId === hostUserId;
-            const isCurrent = currentUserId && p.userId === currentUserId;
-            return (
-              <li
-                key={`${p.participantId}-${p.userId}`}
-                className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
-              >
-                <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="truncate font-medium text-black dark:text-white">
-                    {p.displayName}
-                    {isHost && (
-                      <span className="ml-2 inline-flex items-center rounded border border-purple-300 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-purple-700 dark:border-purple-700 dark:text-purple-300">
-                        {t("hostBadge")}
-                      </span>
-                    )}
-                    {isCurrent && (
-                      <span className="ml-2 inline-flex items-center rounded border border-blue-300 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-blue-700 dark:border-blue-700 dark:text-blue-300">
-                        {t("youBadge")}
-                      </span>
-                    )}
+          {[...participants]
+            .sort((a, b) => {
+              const aRaised = raisedBy.has(a.userId) ? 1 : 0;
+              const bRaised = raisedBy.has(b.userId) ? 1 : 0;
+              return bRaised - aRaised;
+            })
+            .map((p) => {
+              const isHost = hostUserId && p.userId === hostUserId;
+              const isCurrent = currentUserId && p.userId === currentUserId;
+              const isRaised = raisedBy.has(p.userId);
+              return (
+                <li
+                  key={`${p.participantId}-${p.userId}`}
+                  className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
+                >
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="truncate font-medium text-black dark:text-white">
+                      {p.displayName}
+                      {isHost && (
+                        <span className="ml-2 inline-flex items-center rounded border border-purple-300 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-purple-700 dark:border-purple-700 dark:text-purple-300">
+                          {t("hostBadge")}
+                        </span>
+                      )}
+                      {isCurrent && (
+                        <span className="ml-2 inline-flex items-center rounded border border-blue-300 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-blue-700 dark:border-blue-700 dark:text-blue-300">
+                          {t("youBadge")}
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                      {p.roleAtJoin}
+                    </span>
+                  </div>
+                  <span className="flex shrink-0 items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
+                    {isRaised ? (
+                      <Hand
+                        className="size-4 text-amber-500"
+                        aria-label="Hand raised"
+                      />
+                    ) : null}
+                    <span>
+                      {t("joinedAt", { time: formatTime(p.joinedAt) })}
+                    </span>
                   </span>
-                  <span className="text-xs text-neutral-500 dark:text-neutral-400">
-                    {p.roleAtJoin}
-                  </span>
-                </div>
-                <span className="shrink-0 text-xs text-neutral-500 dark:text-neutral-400">
-                  {t("joinedAt", { time: formatTime(p.joinedAt) })}
-                </span>
-              </li>
-            );
-          })}
+                </li>
+              );
+            })}
         </ul>
       )}
     </div>

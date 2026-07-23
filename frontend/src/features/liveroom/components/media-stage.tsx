@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLiveRoomMedia } from "../hooks/use-live-room-media";
 import { MediaTile } from "./media-tile";
 import { MediaControls } from "./media-controls";
 import { subscribeRoomMediaState } from "../api/ws";
-import { useLiveRoomMediaStore } from "../stores/use-live-room-media-store";
 import type { MediaStateChangedWsEvent } from "../types";
 
 interface MediaStageProps {
@@ -32,23 +31,22 @@ export function MediaStage({
     enabled,
   });
 
+  const [remoteMediaState, setRemoteMediaState] = useState<Record<string, { micMuted: boolean; cameraOff: boolean }>>({});
+
   useEffect(() => {
     if (!roomCode) return undefined;
     const subscription = subscribeRoomMediaState(roomCode, (event: MediaStateChangedWsEvent) => {
       if (event.userId === localUserId) {
-        const nextMic = event.micMuted;
-        const nextCamera = event.cameraOff;
-        const current = useLiveRoomMediaStore.getState();
-        if (current.micMuted !== nextMic) {
-          useLiveRoomMediaStore.getState().setMicMuted(nextMic);
-        }
-        if (current.cameraOff !== nextCamera) {
-          useLiveRoomMediaStore.getState().setCameraOff(nextCamera);
-        }
+        media.syncFromServer({ micMuted: event.micMuted, cameraOff: event.cameraOff });
+        return;
       }
+      setRemoteMediaState((prev) => ({
+        ...prev,
+        [event.userId]: { micMuted: event.micMuted, cameraOff: event.cameraOff },
+      }));
     });
     return () => subscription.unsubscribe();
-  }, [roomCode, localUserId]);
+  }, [roomCode, localUserId, media]);
 
   const peers = media.remotePeers;
 
@@ -76,16 +74,19 @@ export function MediaStage({
           displayName={localDisplayName}
           isLocal
         />
-        {peers.map((peer) => (
-          <MediaTile
-            key={peer.userId}
-            stream={peer.stream}
-            cameraOff={false}
-            micMuted={false}
-            displayName={peer.displayName || peer.userId}
-            isLocal={false}
-          />
-        ))}
+        {peers.map((peer) => {
+          const remoteState = remoteMediaState[peer.userId];
+          return (
+            <MediaTile
+              key={peer.userId}
+              stream={peer.stream}
+              cameraOff={remoteState?.cameraOff ?? false}
+              micMuted={remoteState?.micMuted ?? false}
+              displayName={peer.displayName || peer.userId}
+              isLocal={false}
+            />
+          );
+        })}
       </div>
       {showControls ? (
         <div className="absolute inset-x-0 bottom-0 z-10">

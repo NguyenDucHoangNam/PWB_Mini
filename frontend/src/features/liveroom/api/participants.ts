@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, ApiError } from "@/lib/api-client";
 import type { QueryConfig, MutationConfig } from "@/lib/react-query";
 import type { ApiResponse } from "@/types/api";
-import { liveRoomKey } from "./rooms";
+import { LIVE_ROOMS_KEY, liveRoomKey } from "./rooms";
 import type { MediaStateUpdateBody, ParticipantSummary } from "../types";
 
 export const LIVE_ROOM_PARTICIPANTS_KEY = "live-room-participants" as const;
@@ -36,10 +36,43 @@ export const updateMyMedia = ({
 }: {
   roomCode: string;
   body: MediaStateUpdateBody;
-}): Promise<ApiResponse<ParticipantSummary>> =>
-  apiClient
-    .patch(`/live-rooms/${roomCode}/participants/me/media`, body)
-    .then((res) => res.data);
+}): Promise<ApiResponse<ParticipantSummary>> => {
+  const send = () =>
+    apiClient
+      .patch(`/live-rooms/${roomCode}/participants/me/media`, body)
+      .then((res) => res.data);
+
+  return send().catch((err: unknown) => {
+    if (err instanceof ApiError && err.status === 404) {
+      return new Promise<ApiResponse<ParticipantSummary>>((resolve) => {
+        setTimeout(() => {
+          resolve(send());
+        }, 400);
+      });
+    }
+    throw err;
+  });
+};
+
+type UseJoinPublicRoomOptions = {
+  mutationConfig?: MutationConfig<typeof joinPublicRoom>;
+};
+
+export const useJoinPublicRoom = ({ mutationConfig }: UseJoinPublicRoomOptions = {}) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    onSuccess: (response, variables) => {
+      if (response.success) {
+        queryClient.invalidateQueries({
+          queryKey: liveRoomParticipantsKey(variables.roomCode),
+        });
+        queryClient.invalidateQueries({ queryKey: liveRoomKey(variables.roomCode) });
+      }
+    },
+    ...mutationConfig,
+    mutationFn: joinPublicRoom,
+  });
+};
 
 type UseLeaveRoomOptions = {
   mutationConfig?: MutationConfig<typeof leaveRoom>;
@@ -54,6 +87,7 @@ export const useLeaveRoom = ({ mutationConfig }: UseLeaveRoomOptions = {}) => {
           queryKey: liveRoomParticipantsKey(variables.roomCode),
         });
         queryClient.invalidateQueries({ queryKey: liveRoomKey(variables.roomCode) });
+        queryClient.invalidateQueries({ queryKey: [LIVE_ROOMS_KEY] });
       }
     },
     ...mutationConfig,

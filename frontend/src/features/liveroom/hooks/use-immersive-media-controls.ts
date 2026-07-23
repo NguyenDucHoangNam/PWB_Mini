@@ -1,10 +1,8 @@
 "use client";
 
 import { useCallback } from "react";
-import {
-  applyTrackMutedFlag,
-  useLiveRoomMediaStore,
-} from "../stores/use-live-room-media-store";
+import { useLiveRoomMediaStore } from "../stores/use-live-room-media-store";
+import { useMediaDevices } from "./use-media-devices";
 import { useUpdateMyMedia } from "../api/participants";
 
 interface UseImmersiveMediaControlsParams {
@@ -14,13 +12,19 @@ interface UseImmersiveMediaControlsParams {
 export function useImmersiveMediaControls({ roomCode }: UseImmersiveMediaControlsParams) {
   const setMicMuted = useLiveRoomMediaStore((state) => state.setMicMuted);
   const setCameraOff = useLiveRoomMediaStore((state) => state.setCameraOff);
+  const devices = useMediaDevices();
   const updateMyMediaMutation = useUpdateMyMedia();
 
   const toggleMic = useCallback(() => {
     const store = useLiveRoomMediaStore.getState();
     const next = !store.micMuted;
     setMicMuted(next);
-    applyTrackMutedFlag(store.localStream, "audio", next);
+    const stream = devices.stream;
+    if (stream) {
+      for (const track of stream.getAudioTracks()) {
+        track.enabled = !next;
+      }
+    }
     if (!roomCode) return;
     updateMyMediaMutation.mutate({
       roomCode,
@@ -29,13 +33,22 @@ export function useImmersiveMediaControls({ roomCode }: UseImmersiveMediaControl
         cameraOff: store.cameraOff,
       },
     });
-  }, [roomCode, setMicMuted, updateMyMediaMutation]);
+  }, [devices.stream, roomCode, setMicMuted, updateMyMediaMutation]);
 
-  const toggleCamera = useCallback(() => {
+  const toggleCamera = useCallback(async () => {
     const store = useLiveRoomMediaStore.getState();
     const next = !store.cameraOff;
     setCameraOff(next);
-    applyTrackMutedFlag(store.localStream, "video", next);
+    try {
+      if (next) {
+        await devices.disableCamera();
+      } else {
+        await devices.enableCamera();
+      }
+    } catch {
+      setCameraOff(!next);
+      return;
+    }
     if (!roomCode) return;
     updateMyMediaMutation.mutate({
       roomCode,
@@ -44,7 +57,7 @@ export function useImmersiveMediaControls({ roomCode }: UseImmersiveMediaControl
         cameraOff: next,
       },
     });
-  }, [roomCode, setCameraOff, updateMyMediaMutation]);
+  }, [devices, roomCode, setCameraOff, updateMyMediaMutation]);
 
   return {
     micMuted: useLiveRoomMediaStore((state) => state.micMuted),

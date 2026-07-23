@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { MediaStage } from "./media-stage";
-import { ImmersiveTopBar } from "./immersive-top-bar";
+import { LiveRoomHeader } from "./live-room-header";
 import {
   ImmersiveBottomBar,
   type ImmersivePanelTab,
@@ -19,7 +20,9 @@ import { useLeaveRoom } from "../api/participants";
 import { useListJoinRequests } from "../api/join-requests";
 import { liveRoomParticipantsKey } from "../api/participants";
 import { useLiveRoomRealtime } from "../hooks/use-live-room-realtime";
+import { useMediaSessionLifecycle } from "../hooks/use-media-session-lifecycle";
 import { useImmersiveMediaControls } from "../hooks/use-immersive-media-controls";
+import { useScreenShare } from "../hooks/use-screenshare";
 import { asApiError } from "@/lib/api-client";
 import { resolveLiveroomErrorMessage } from "../lib/resolve-liveroom-error-message";
 import type { LiveRoom } from "../types";
@@ -37,14 +40,17 @@ export function ImmersiveMeetingRoom({
   localUserId,
   localDisplayName,
 }: ImmersiveMeetingRoomProps) {
+  useMediaSessionLifecycle();
   const tErrors = useTranslations("liveroom.errors");
   const tCommon = useTranslations("common");
   const tActions = useTranslations("liveroom.actions");
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const [panelTab, setPanelTab] = useState<ImmersivePanelTab>(null);
 
   const mediaControls = useImmersiveMediaControls({ roomCode });
+  const screenShare = useScreenShare();
 
   const { data: pendingRes } = useListJoinRequests({ roomCode, status: "PENDING" });
   const pendingCount =
@@ -59,7 +65,12 @@ export function ImmersiveMeetingRoom({
     roomCode,
     isHost: true,
     onJoinRequestCreated: invalidateQueries,
-    onParticipantChanged: invalidateQueries,
+    onParticipantChanged: (event) => {
+      invalidateQueries();
+      if (event.type === "ROOM_ENDED") {
+        router.replace("/dashboard/live-rooms");
+      }
+    },
   });
 
   const showError = useCallback(
@@ -93,22 +104,12 @@ export function ImmersiveMeetingRoom({
       {
         onSuccess: (response: { success: boolean }) => {
           if (response.success) {
-            window.location.href = "/dashboard/live-rooms";
+            router.replace("/dashboard/live-rooms");
           }
         },
       },
     );
-  }, [leaveRoomMutate, roomCode]);
-
-  useEffect(() => {
-    if (room.status === "ENDED") {
-      const timer = setTimeout(() => {
-        window.location.href = "/dashboard/live-rooms";
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-    return undefined;
-  }, [room.status]);
+  }, [leaveRoomMutate, roomCode, router]);
 
   const handleToggleMic = useCallback(() => {
     mediaControls.toggleMic();
@@ -148,7 +149,14 @@ export function ImmersiveMeetingRoom({
 
   return (
     <div className="fixed inset-0 flex flex-col bg-neutral-950 text-white">
-      <ImmersiveTopBar room={room} onClose={handleLeave} />
+      <LiveRoomHeader
+        title={room.title}
+        roomCode={room.roomCode}
+        status={room.status}
+        mode={room.mode}
+        onClose={handleLeave}
+        variant="immersive"
+      />
 
       <main className="relative flex-1 overflow-hidden">
         {renderContent}
@@ -171,8 +179,14 @@ export function ImmersiveMeetingRoom({
           participantCount={room.currentParticipantCount}
           unreadMessageCount={0}
           activeTab={panelTab}
+          isSharingScreen={screenShare.isSharing}
+          roomCode={roomCode}
+          localUserId={localUserId}
           onToggleMic={handleToggleMic}
           onToggleCamera={handleToggleCamera}
+          onToggleScreenShare={() => {
+            void screenShare.toggle();
+          }}
           onSelectTab={handleSelectTab}
           onLeave={handleEnd}
         />

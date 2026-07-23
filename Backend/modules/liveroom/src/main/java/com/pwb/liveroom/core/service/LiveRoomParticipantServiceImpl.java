@@ -55,8 +55,27 @@ public class LiveRoomParticipantServiceImpl implements LiveRoomParticipantServic
         Optional<LiveRoomParticipantJpaEntity> existing =
                 participantJpaRepository.findActiveByRoomAndUser(roomCode, userId);
         if (existing.isPresent()) {
-            log.debug("joinPublicRoom idempotent: already joined userId={}, roomCode={}", userId, roomCode);
-            return participantMapper.toDomain(existing.get());
+            LiveRoomParticipantJpaEntity existingEntity = existing.get();
+            log.debug("joinPublicRoom idempotent: already joined userId={}, roomCode={}, participantId={}",
+                    userId, roomCode, existingEntity.getId());
+
+            Instant refreshAt = Instant.now();
+            existingEntity.setLastSeenAt(refreshAt);
+            participantJpaRepository.save(existingEntity);
+
+            LiveRoomParticipant refreshed = participantMapper.toDomain(existingEntity);
+            eventPublisher.publishEvent(new ParticipantJoinedEvent(
+                    existingEntity.getRoomCode(),
+                    roomEntity.getHostUserId(),
+                    existingEntity.getUserId(),
+                    refreshed.getDisplayName(),
+                    refreshed.getRoleAtJoin(),
+                    roomEntity.getCurrentParticipantCount(),
+                    roomEntity.getMaxParticipants(),
+                    Math.max(0, roomEntity.getMaxParticipants() - roomEntity.getCurrentParticipantCount()),
+                    refreshed.getJoinedAt() != null ? refreshed.getJoinedAt() : refreshAt));
+
+            return refreshed;
         }
 
         if (roomEntity.getCurrentParticipantCount() >= roomEntity.getMaxParticipants()) {
@@ -155,9 +174,16 @@ public class LiveRoomParticipantServiceImpl implements LiveRoomParticipantServic
         log.info("Updating media state: userId={}, roomCode={}, micMuted={}, cameraOff={}",
                 userId, roomCode, micMuted, cameraOff);
 
-        LiveRoomParticipantJpaEntity participantEntity =
-                participantJpaRepository.findActiveByRoomAndUser(roomCode, userId)
-                        .orElseThrow(() -> new BusinessException(ErrorCode.LIVEROOM_NOT_JOINED));
+        Optional<LiveRoomParticipantJpaEntity> existingOpt =
+                participantJpaRepository.findActiveByRoomAndUser(roomCode, userId);
+        LiveRoomParticipantJpaEntity participantEntity = existingOpt.orElse(null);
+
+        if (participantEntity == null) {
+            participantEntity = rejoinStaleHostAsParticipant(userId, roomCode);
+            if (participantEntity == null) {
+                throw new BusinessException(ErrorCode.LIVEROOM_NOT_JOINED);
+            }
+        }
 
         LiveRoomParticipant participant = participantMapper.toDomain(participantEntity);
         participant.updateMediaState(micMuted, cameraOff);
@@ -174,6 +200,69 @@ public class LiveRoomParticipantServiceImpl implements LiveRoomParticipantServic
                 updated.getLastSeenAt()));
 
         return updated;
+    }
+
+    private LiveRoomParticipantJpaEntity rejoinStaleHostAsParticipant(UUID userId, String roomCode) {
+        Optional<LiveRoomJpaEntity> roomOpt =
+                liveRoomJpaRepository.findByRoomCodeForUpdate(roomCode);
+        if (roomOpt.isEmpty()) {
+            return null;
+        }
+        LiveRoomJpaEntity roomEntity = roomOpt.get();
+        if (!roomEntity.getHostUserId().equals(userId)) {
+            return null;
+        }
+        if (roomEntity.getStatus() != com.pwb.liveroom.core.model.LiveRoomStatus.ACTIVE) {
+            return null;
+        }
+
+        Optional<LiveRoomParticipantJpaEntity> softExisting =
+                participantJpaRepository.findFirstByRoomCodeAndUserIdIncludeLeft(roomCode, userId);
+
+        boolean shouldIncrement = true;
+        LiveRoomParticipantJpaEntity rejoined;
+        if (softExisting.isPresent()) {
+            LiveRoomParticipantJpaEntity entity = softExisting.get();
+            if (entity.getLeftAt() == null) {
+                return entity;
+            }
+            entity.setLeftAt(null);
+            entity.setLastSeenAt(Instant.now());
+            participantJpaRepository.save(entity);
+            rejoined = entity;
+            shouldIncrement = false;
+        } else {
+            LiveRoomParticipant hostParticipant = LiveRoomParticipant.join(
+                    roomCode, userId, "Host", "PRO", Instant.now());
+            rejoined = participantJpaRepository.save(participantMapper.toEntity(hostParticipant));
+        }
+
+        if (shouldIncrement) {
+            try {
+                LiveRoom liveRoomDomain = liveRoomMapper.toDomain(roomEntity);
+                liveRoomDomain.incrementParticipants();
+                liveRoomMapper.toEntity(liveRoomDomain, roomEntity);
+                liveRoomJpaRepository.save(roomEntity);
+            } catch (IllegalStateException ex) {
+                log.warn("Skip count increment while host auto-rejoining: roomCode={}, reason={}",
+                        roomCode, ex.getMessage());
+            }
+        }
+
+        LiveRoomParticipant rejoinedDomain = participantMapper.toDomain(rejoined);
+        eventPublisher.publishEvent(new ParticipantJoinedEvent(
+                rejoined.getRoomCode(),
+                roomEntity.getHostUserId(),
+                rejoined.getUserId(),
+                rejoinedDomain.getDisplayName(),
+                rejoinedDomain.getRoleAtJoin(),
+                roomEntity.getCurrentParticipantCount(),
+                roomEntity.getMaxParticipants(),
+                Math.max(0, roomEntity.getMaxParticipants() - roomEntity.getCurrentParticipantCount()),
+                rejoinedDomain.getJoinedAt() != null ? rejoinedDomain.getJoinedAt() : Instant.now()));
+
+        log.info("Host auto-rejoined as participant: userId={}, roomCode={}", userId, roomCode);
+        return rejoined;
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

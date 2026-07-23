@@ -15,6 +15,7 @@ interface PeerEntry {
   iceBuffer: RTCIceCandidateInit[];
   hasRemoteDescription: boolean;
   pendingIceFlushTimer: ReturnType<typeof setTimeout> | null;
+  reconnectAttempts?: number;
 }
 
 export interface WebRTCPeerManagerOptions {
@@ -31,6 +32,31 @@ interface RemoteStreamHandler {
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
 ];
+
+const BASE_RECONNECT_DELAY_MS = 1_000;
+const MAX_RECONNECT_DELAY_MS = 8_000;
+const MAX_RECONNECT_ATTEMPTS = 3;
+
+const peerManagerRegistry = new Map<string, WebRTCPeerManager>();
+
+export function getOrCreatePeerManager(
+  options: WebRTCPeerManagerOptions,
+): WebRTCPeerManager {
+  const existing = peerManagerRegistry.get(options.roomCode);
+  if (existing && !existing.isDisposed) {
+    return existing;
+  }
+  const manager = new WebRTCPeerManager(options);
+  peerManagerRegistry.set(options.roomCode, manager);
+  return manager;
+}
+
+export function disposePeerManager(roomCode: string): void {
+  const manager = peerManagerRegistry.get(roomCode);
+  if (!manager) return;
+  manager.close();
+  peerManagerRegistry.delete(roomCode);
+}
 
 export class WebRTCPeerManager {
   private readonly roomCode: string;
@@ -154,6 +180,10 @@ export class WebRTCPeerManager {
   onPeerLeft(handler: RemoteStreamHandler["onPeerLeft"]): () => void {
     this.peerLeftHandlers.add(handler);
     return () => this.peerLeftHandlers.delete(handler);
+  }
+
+  get isDisposed(): boolean {
+    return this.disposed;
   }
 
   close(): void {
@@ -317,17 +347,59 @@ export class WebRTCPeerManager {
           `peer ${remoteUserId} connection failed`,
           new Error(peerConnection.connectionState ?? "unknown"),
         );
+        this.scheduleReconnect(remoteUserId);
       }
     };
   }
 
+  private scheduleReconnect(remoteUserId: string): void {
+    const entry = this.peers.get(remoteUserId);
+    if (!entry) return;
+    const attempts = (entry.reconnectAttempts ?? 0) + 1;
+    if (attempts > MAX_RECONNECT_ATTEMPTS) {
+      this.removePeer(remoteUserId);
+      return;
+    }
+    entry.reconnectAttempts = attempts;
+    const delay = Math.min(BASE_RECONNECT_DELAY_MS * 2 ** (attempts - 1), MAX_RECONNECT_DELAY_MS);
+    setTimeout(() => {
+      const current = this.peers.get(remoteUserId);
+      if (!current || !this.localStream) return;
+      try {
+        current.connection.close();
+      } catch {
+        /* ignore */
+      }
+      this.peers.delete(remoteUserId);
+      void this.addPeer(this.localStream, remoteUserId).catch((err) =>
+        this.logError(`reconnect ${remoteUserId}`, err),
+      );
+    }, delay);
+  }
+
   private replaceLocalTracks(connection: RTCPeerConnection, stream: MediaStream): void {
+    const senders = connection.getSenders();
+
+    for (const sender of senders) {
+      if (!sender.track) continue;
+      const kind = sender.track.kind;
+      const replacement = stream.getTracks().find((track) => track.kind === kind);
+      if (!replacement) {
+        void sender.replaceTrack(null);
+      }
+    }
+
     for (const track of stream.getTracks()) {
-      const sender = connection.getSenders().find((s) => s.track?.kind === track.kind);
+      const sender = senders.find((s) => s.track?.kind === track.kind && s.track?.id !== track.id);
       if (sender) {
         void sender.replaceTrack(track);
       } else {
-        connection.addTrack(track, stream);
+        const existingOfKind = senders.find((s) => s.track?.kind === track.kind);
+        if (existingOfKind) {
+          void existingOfKind.replaceTrack(track);
+        } else {
+          connection.addTrack(track, stream);
+        }
       }
     }
   }

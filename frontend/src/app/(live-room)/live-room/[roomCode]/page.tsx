@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -13,12 +14,14 @@ import { AskToJoinCard } from "@/features/liveroom/components/ask-to-join-card";
 import { WaitingRoomCard } from "@/features/liveroom/components/waiting-room-card";
 import { RejectedCard } from "@/features/liveroom/components/rejected-card";
 import {
+  useJoinPublicRoom,
   useLeaveRoom,
   useRoom,
   useCheckRoomExists,
   useViewerStatus,
 } from "@/features/liveroom";
 import { useLiveRoomRealtime } from "@/features/liveroom/hooks/use-live-room-realtime";
+import { useMediaSessionLifecycle } from "@/features/liveroom/hooks/use-media-session-lifecycle";
 import { asApiError } from "@/lib/api-client";
 import { resolveLiveroomErrorMessage } from "@/features/liveroom/lib/resolve-liveroom-error-message";
 import type { LiveRoomJoinRequest } from "@/features/liveroom/types";
@@ -30,9 +33,11 @@ type GuestPhase =
   | { kind: "IN_ROOM" };
 
 export default function UnifiedLiveRoomPage() {
+  useMediaSessionLifecycle();
   const params = useParams();
   const router = useRouter();
   const roomCode = (params?.roomCode as string) ?? "";
+  const queryClient = useQueryClient();
 
   const tActions = useTranslations("liveroom.actions");
   const tErrors = useTranslations("liveroom.errors");
@@ -63,6 +68,21 @@ export default function UnifiedLiveRoomPage() {
 
   const serverStatus = viewerStatusRes?.data;
   const isHost = !authBootstrapping && serverStatus?.host === true;
+
+  const { mutate: joinPublicRoom } = useJoinPublicRoom({
+    mutationConfig: {
+      onSuccess: (response) => {
+        if (response.success) {
+          setPhase({ kind: "IN_ROOM" });
+        } else {
+          toast.error(response.message || tCommon("error"));
+        }
+      },
+      onError: asApiError((err) => {
+        toast.error(resolveLiveroomErrorMessage(err, tErrors, tCommon));
+      }),
+    },
+  });
 
   const { mutate: leaveRoom } = useLeaveRoom({
     mutationConfig: {
@@ -100,6 +120,7 @@ export default function UnifiedLiveRoomPage() {
         toast.info(tActions("notActive"));
         setPhase({ kind: "ASK" });
         setPendingRequest(null);
+        queryClient.invalidateQueries({ queryKey: ["live-rooms"] });
       }
       void refetchViewerStatus();
     },
@@ -231,7 +252,10 @@ export default function UnifiedLiveRoomPage() {
               <p className="mt-1 text-xs text-neutral-500">
                 {tExists("existsActive")} • {room.currentParticipantCount}/{room.maxParticipants} participants
               </p>
-              <Button className="mt-6" onClick={() => setPhase({ kind: "IN_ROOM" })}>
+              <Button
+                className="mt-6"
+                onClick={() => joinPublicRoom({ roomCode })}
+              >
                 {tActions("joinRoom")}
               </Button>
             </div>

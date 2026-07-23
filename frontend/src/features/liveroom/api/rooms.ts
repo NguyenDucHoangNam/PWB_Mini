@@ -90,6 +90,7 @@ export const useMyRooms = ({
   useQuery({
     queryKey: [LIVE_ROOMS_KEY, "me", { page, size, status }],
     queryFn: () => listMyRooms({ page, size, status }),
+    staleTime: 0,
     ...queryConfig,
   });
 

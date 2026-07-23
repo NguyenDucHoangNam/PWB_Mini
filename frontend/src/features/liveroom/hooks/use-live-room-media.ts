@@ -17,7 +17,7 @@ import {
 } from "../api/participants";
 import { liveRoomKey } from "../api/rooms";
 import { WebRTCPeerManager } from "../lib/webrtc-peer-manager";
-import { disconnectStompClient } from "../api/ws";
+import { disconnectStompClient, subscribeRoomParticipants } from "../api/ws";
 import { resolveLiveroomErrorMessage } from "../lib/resolve-liveroom-error-message";
 
 export interface UseLiveRoomMediaParams {
@@ -110,7 +110,7 @@ export function useLiveRoomMedia({
         managerApiRef.current = null;
       }
     };
-  }, [enabled, roomCode, localUserId, localDisplayName, upsertRemotePeer, removeRemotePeer]);
+  }, [enabled, roomCode, localUserId, localDisplayName, upsertRemotePeer, removeRemotePeer, devices.stream]);
 
   useEffect(() => {
     if (!devices.stream) {
@@ -135,6 +135,26 @@ export function useLiveRoomMedia({
     },
   });
 
+  const joinedReadyRef = useRef(false);
+
+  useEffect(() => {
+    if (!roomCode) return undefined;
+    if (!localUserId) return undefined;
+    const subscription = subscribeRoomParticipants(roomCode, (event) => {
+      if (event.type === "PARTICIPANT_JOINED" && event.userId === localUserId) {
+        joinedReadyRef.current = true;
+      }
+    });
+    const fallback = setTimeout(() => {
+      joinedReadyRef.current = true;
+    }, 1500);
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(fallback);
+      joinedReadyRef.current = false;
+    };
+  }, [roomCode, localUserId]);
+
   const showErrorToast = useCallback(
     (err: unknown) => {
       toast.error(
@@ -148,33 +168,77 @@ export function useLiveRoomMedia({
     [tErrors, tCommon],
   );
 
+  const applyLocalMediaState = useCallback(
+    async (next: { micMuted: boolean; cameraOff: boolean }) => {
+      const before = useLiveRoomMediaStore.getState();
+      const micChanged = before.micMuted !== next.micMuted;
+      const cameraChanged = before.cameraOff !== next.cameraOff;
+      if (!micChanged && !cameraChanged) return;
+      setMicMuted(next.micMuted);
+      setCameraOff(next.cameraOff);
+      try {
+        if (micChanged) {
+          applyTrackMutedFlag(devices.stream, "audio", next.micMuted);
+        }
+        if (cameraChanged) {
+          if (next.cameraOff) {
+            await devices.disableCamera();
+          } else {
+            await devices.enableCamera();
+          }
+        }
+      } catch (err) {
+        setMicMuted(before.micMuted);
+        setCameraOff(before.cameraOff);
+        throw err;
+      }
+      managerRef.current?.setLocalStreamForAllPeers(devices.stream);
+    },
+    [devices, managerRef, setMicMuted, setCameraOff],
+  );
+
   const toggleMic = useCallback(() => {
-    const next = !useLiveRoomMediaStore.getState().micMuted;
-    setMicMuted(next);
-    applyTrackMutedFlag(devices.stream, "audio", next);
-    if (!roomCode) return;
-    updateMyMediaMutation.mutate({
-      roomCode,
-      body: {
-        micMuted: next,
-        cameraOff: useLiveRoomMediaStore.getState().cameraOff,
-      },
-    });
-  }, [devices.stream, roomCode, setMicMuted, updateMyMediaMutation]);
+    void (async () => {
+      const before = useLiveRoomMediaStore.getState();
+      const next = { micMuted: !before.micMuted, cameraOff: before.cameraOff };
+      try {
+        await applyLocalMediaState(next);
+      } catch (err) {
+        showErrorToast(err);
+        return;
+      }
+      if (!roomCode) return;
+      if (!joinedReadyRef.current) {
+        await waitForJoinReady(joinedReadyRef, 1500);
+      }
+      updateMyMediaMutation.mutate({ roomCode, body: next });
+    })();
+  }, [applyLocalMediaState, roomCode, showErrorToast, updateMyMediaMutation]);
 
   const toggleCamera = useCallback(() => {
-    const next = !useLiveRoomMediaStore.getState().cameraOff;
-    setCameraOff(next);
-    applyTrackMutedFlag(devices.stream, "video", next);
-    if (!roomCode) return;
-    updateMyMediaMutation.mutate({
-      roomCode,
-      body: {
-        micMuted: useLiveRoomMediaStore.getState().micMuted,
-        cameraOff: next,
-      },
-    });
-  }, [devices.stream, roomCode, setCameraOff, updateMyMediaMutation]);
+    void (async () => {
+      const before = useLiveRoomMediaStore.getState();
+      const next = { micMuted: before.micMuted, cameraOff: !before.cameraOff };
+      try {
+        await applyLocalMediaState(next);
+      } catch (err) {
+        showErrorToast(err);
+        return;
+      }
+      if (!roomCode) return;
+      if (!joinedReadyRef.current) {
+        await waitForJoinReady(joinedReadyRef, 1500);
+      }
+      updateMyMediaMutation.mutate({ roomCode, body: next });
+    })();
+  }, [applyLocalMediaState, roomCode, showErrorToast, updateMyMediaMutation]);
+
+  const syncFromServer = useCallback(
+    (next: { micMuted: boolean; cameraOff: boolean }) => {
+      void applyLocalMediaState(next).catch((err) => showErrorToast(err));
+    },
+    [applyLocalMediaState, showErrorToast],
+  );
 
   const setAudioDevice = useCallback(
     async (deviceId: string) => {
@@ -255,5 +319,22 @@ export function useLiveRoomMedia({
     setVideoDevice,
     stop: stopAndDisconnect,
     localStreamLiveRef: localStreamState,
+    syncFromServer,
   };
+}
+
+function waitForJoinReady(
+  flagRef: { current: boolean },
+  timeoutMs: number,
+): Promise<void> {
+  if (flagRef.current) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    const start = Date.now();
+    const check = () => {
+      if (flagRef.current) return resolve();
+      if (Date.now() - start >= timeoutMs) return resolve();
+      setTimeout(check, 50);
+    };
+    check();
+  });
 }
