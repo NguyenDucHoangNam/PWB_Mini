@@ -21,6 +21,7 @@ function serializeCameraOp<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 let lastVideoDeviceId: string | null = null;
+let beforeDetachVideoHandler: (() => void) | null = null;
 
 function readErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -322,11 +323,22 @@ export const mediaSessionController = {
     });
   },
 
+  setBeforeDetachVideoHandler(fn: (() => void) | null): void {
+    beforeDetachVideoHandler = fn;
+  },
+
   async disableCamera(): Promise<void> {
     return serializeCameraOp(async () => {
       const store = useMediaSessionStore.getState();
       store.setCameraBusy(true, false);
       try {
+        if (beforeDetachVideoHandler) {
+          try {
+            beforeDetachVideoHandler();
+          } catch {
+            /* ignore */
+          }
+        }
         const current = store.stream;
         const currentVideoId = store.currentVideoId;
         if (currentVideoId) {

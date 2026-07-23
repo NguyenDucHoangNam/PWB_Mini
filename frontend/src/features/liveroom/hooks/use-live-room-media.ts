@@ -18,6 +18,7 @@ import {
 } from "../api/participants";
 import { liveRoomKey } from "../api/rooms";
 import { WebRTCPeerManager } from "../lib/webrtc-peer-manager";
+import { mediaSessionController } from "../lib/media-session";
 import { disconnectStompClient, subscribeRoomParticipants } from "../api/ws";
 import { resolveLiveroomErrorMessage } from "../lib/resolve-liveroom-error-message";
 
@@ -108,6 +109,15 @@ export function useLiveRoomMedia({
       }
     };
   }, [enabled, roomCode, localUserId, localDisplayName, upsertRemotePeer, removeRemotePeer]);
+
+  useEffect(() => {
+    mediaSessionController.setBeforeDetachVideoHandler(() => {
+      managerRef.current?.replaceVideoTrackForAllPeers(null);
+    });
+    return () => {
+      mediaSessionController.setBeforeDetachVideoHandler(null);
+    };
+  }, []);
 
   const streamRevision = useMediaSessionStore((s) => s.streamRevision);
 
