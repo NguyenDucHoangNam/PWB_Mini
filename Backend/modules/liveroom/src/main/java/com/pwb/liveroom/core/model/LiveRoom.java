@@ -134,7 +134,8 @@ public final class LiveRoom {
         if (maxParticipants != null) {
             validateCapacity(maxParticipants);
             if (maxParticipants < this.currentParticipantCount) {
-                throw new IllegalArgumentException(
+                throw new LiveroomDomainException(
+                        "LIVEROOM_CAPACITY_LOWER_THAN_CURRENT",
                         "Max participants cannot be lower than current participant count");
             }
             this.maxParticipants = maxParticipants;
@@ -143,7 +144,7 @@ public final class LiveRoom {
 
     public void markStarted() {
         if (status != LiveRoomStatus.ACTIVE) {
-            throw new IllegalStateException("Room is not active");
+            throw new LiveroomDomainException("LIVEROOM_NOT_ACTIVE", "Room is not active");
         }
         if (startedAt == null) {
             this.startedAt = Instant.now();
@@ -161,7 +162,7 @@ public final class LiveRoom {
         ensureNotEnded();
         ensureNotPaused();
         if (currentParticipantCount >= maxParticipants) {
-            throw new IllegalStateException("Room is at maximum capacity");
+            throw new LiveroomDomainException("LIVEROOM_FULL", "Room is at maximum capacity");
         }
         this.currentParticipantCount++;
         if (startedAt == null) {
@@ -191,42 +192,44 @@ public final class LiveRoom {
 
     private void ensureNotEnded() {
         if (status == LiveRoomStatus.ENDED) {
-            throw new IllegalStateException("Room has already ended");
+            throw new LiveroomDomainException("LIVEROOM_ALREADY_ENDED", "Room has already ended");
         }
     }
 
     private void ensureNotPaused() {
         if (status == LiveRoomStatus.PAUSED) {
-            throw new IllegalStateException("Room is paused");
+            throw new LiveroomDomainException("LIVEROOM_PAUSED", "Room is paused");
         }
     }
 
     private static void validateTitle(String title) {
         if (title == null || title.isBlank()) {
-            throw new IllegalArgumentException("Title is required");
+            throw new LiveroomDomainException("LIVEROOM_TITLE_REQUIRED", "Title is required");
         }
         if (title.length() > 200) {
-            throw new IllegalArgumentException("Title must not exceed 200 characters");
+            throw new LiveroomDomainException("LIVEROOM_TITLE_TOO_LONG", "Title must not exceed 200 characters");
         }
     }
 
     private static void validateCapacity(int maxParticipants) {
         if (maxParticipants < MIN_PARTICIPANTS || maxParticipants > MAX_PARTICIPANTS) {
-            throw new IllegalArgumentException(
+            throw new LiveroomDomainException(
+                    "LIVEROOM_CAPACITY_INVALID",
                     "Max participants must be between " + MIN_PARTICIPANTS + " and " + MAX_PARTICIPANTS);
         }
     }
 
     private static void validateRoomCode(String roomCode) {
         if (roomCode == null || roomCode.length() != 6) {
-            throw new IllegalArgumentException("Room code must be exactly 6 characters");
+            throw new LiveroomDomainException("LIVEROOM_CODE_INVALID_LENGTH", "Room code must be exactly 6 characters");
         }
         for (int i = 0; i < roomCode.length(); i++) {
             char c = roomCode.charAt(i);
             boolean isUpperAlpha = c >= 'A' && c <= 'Z';
             boolean isDigit = c >= '2' && c <= '9';
             if (!isUpperAlpha && !isDigit) {
-                throw new IllegalArgumentException(
+                throw new LiveroomDomainException(
+                        "LIVEROOM_CODE_INVALID_CHARS",
                         "Room code must contain only uppercase letters and digits (2-9)");
             }
         }

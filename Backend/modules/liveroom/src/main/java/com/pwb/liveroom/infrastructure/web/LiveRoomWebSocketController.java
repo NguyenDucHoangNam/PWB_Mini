@@ -1,11 +1,13 @@
 package com.pwb.liveroom.infrastructure.web;
 
+import com.pwb.backend.exception.WsAuthException;
 import com.pwb.liveroom.core.service.LiveRoomParticipantService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
@@ -79,8 +81,22 @@ public class LiveRoomWebSocketController {
             log.warn("ROOM_STATE request rejected: bad principal name={}", principal.getName());
             return;
         }
+        if (!participantService.isActiveParticipant(roomCode, userId)) {
+            log.warn("ROOM_STATE request rejected: user not in room, roomCode={}, userId={}", roomCode, userId);
+            return;
+        }
         log.debug("ROOM_STATE request: roomCode={}, userId={}", roomCode, userId);
         participantService.requestRoomState(userId, roomCode);
+    }
+
+    @org.springframework.messaging.handler.annotation.MessageExceptionHandler(WsAuthException.class)
+    public Map<String, Object> handleWsAuthException(WsAuthException ex) {
+        log.warn("WS auth exception: code={}, message={}", ex.getCode(), ex.getMessage());
+        return Map.of(
+                "type", "ERROR",
+                "code", ex.getCode(),
+                "message", ex.getMessage()
+        );
     }
 
     private void relaySignal(
@@ -117,6 +133,12 @@ public class LiveRoomWebSocketController {
         if (toUserId.equals(userId)) {
             log.warn("Signal {} rejected: self-send, userId={}", type, userId);
             return;
+        }
+        if (!participantService.isActiveParticipant(roomCode, userId)) {
+            throw new WsAuthException("WS_001", "User is not an active participant of this room");
+        }
+        if (!participantService.isActiveParticipant(roomCode, toUserId)) {
+            throw new WsAuthException("WS_002", "Target user is not an active participant of this room");
         }
 
         Map<String, Object> forwarded = Map.of(

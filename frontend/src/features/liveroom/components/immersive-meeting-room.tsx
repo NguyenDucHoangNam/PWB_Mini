@@ -161,6 +161,7 @@ export function ImmersiveMeetingRoom({
           open={panelTab !== null}
           roomCode={roomCode}
           hostUserId={room.hostUserId}
+          isHost={true}
           onClose={handleClosePanel}
         />
       </main>

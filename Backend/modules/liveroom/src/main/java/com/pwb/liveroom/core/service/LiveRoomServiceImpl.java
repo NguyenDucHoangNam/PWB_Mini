@@ -4,6 +4,7 @@ import com.pwb.backend.exception.BusinessException;
 import com.pwb.backend.exception.ErrorCode;
 import com.pwb.liveroom.api.enums.LiveRoomMode;
 import com.pwb.liveroom.core.model.LiveRoom;
+import com.pwb.liveroom.core.model.LiveroomDomainException;
 import com.pwb.liveroom.core.model.LiveRoomParticipant;
 import com.pwb.liveroom.core.model.LiveRoomStatus;
 import com.pwb.liveroom.infrastructure.config.LiveRoomProperties;
@@ -14,14 +15,19 @@ import com.pwb.liveroom.infrastructure.persistence.repository.LiveRoomJpaReposit
 import com.pwb.liveroom.infrastructure.persistence.repository.LiveRoomParticipantJpaRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.security.SecureRandom;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
+import static java.util.Map.entry;
 
 @Slf4j
 @Service
@@ -29,6 +35,7 @@ import java.util.UUID;
 public class LiveRoomServiceImpl implements LiveRoomService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
+    private static final String HOST_DISPLAY_NAME_FALLBACK = "Host";
 
     private final LiveRoomJpaRepository liveRoomJpaRepository;
     private final LiveRoomParticipantJpaRepository participantJpaRepository;
@@ -36,11 +43,13 @@ public class LiveRoomServiceImpl implements LiveRoomService {
     private final LiveRoomParticipantMapper participantMapper;
     private final LiveRoomProperties liveRoomProperties;
     private final LiveRoomRealtimeBroadcaster broadcaster;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
     public LiveRoom createRoom(
             UUID hostUserId,
+            String hostDisplayName,
             String title,
             String description,
             LiveRoomMode mode,
@@ -53,21 +62,34 @@ public class LiveRoomServiceImpl implements LiveRoomService {
         int capacity = resolveCapacity(maxParticipants);
         String roomCode = generateUniqueRoomCode();
 
-        LiveRoom domain = LiveRoom.create(
-                hostUserId,
-                roomCode,
-                title,
-                description,
-                mode,
-                capacity
-        );
+        LiveRoom domain;
+        try {
+            domain = LiveRoom.create(
+                    hostUserId,
+                    roomCode,
+                    title,
+                    description,
+                    mode,
+                    capacity
+            );
+        } catch (LiveroomDomainException ex) {
+            throw mapDomainException(ex);
+        }
 
         LiveRoomJpaEntity entity = liveRoomMapper.toEntity(domain);
         LiveRoomJpaEntity saved = liveRoomJpaRepository.save(entity);
 
+        String resolvedHostDisplayName = (hostDisplayName == null || hostDisplayName.isBlank())
+                ? HOST_DISPLAY_NAME_FALLBACK
+                : hostDisplayName.trim();
+        if (resolvedHostDisplayName.equals(HOST_DISPLAY_NAME_FALLBACK)) {
+            log.warn("Host display name missing, fallback applied: hostUserId={}, roomCode={}",
+                    hostUserId, saved.getRoomCode());
+        }
+
         Instant now = Instant.now();
         LiveRoomParticipant hostParticipant = LiveRoomParticipant.join(
-                roomCode, hostUserId, "Host", "PRO", now);
+                roomCode, hostUserId, resolvedHostDisplayName, "PRO", now);
         participantJpaRepository.save(participantMapper.toEntity(hostParticipant));
 
         domain.incrementParticipants();
@@ -94,7 +116,20 @@ public class LiveRoomServiceImpl implements LiveRoomService {
     }
 
     @Override
-    public LiveRoom getRoomByCode(UUID hostUserId, String roomCode) {
+    @Transactional(readOnly = true)
+    public LiveRoom getRoomAsHost(UUID hostUserId, String roomCode) {
+        LiveRoomJpaEntity entity = liveRoomJpaRepository
+                .findByRoomCodeAndDeletedFalse(roomCode)
+                .orElseThrow(() -> new BusinessException(ErrorCode.LIVEROOM_NOT_FOUND));
+        if (!entity.getHostUserId().equals(hostUserId)) {
+            throw new BusinessException(ErrorCode.LIVEROOM_NOT_HOST);
+        }
+        return liveRoomMapper.toDomain(entity);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public LiveRoom getRoomPublicInfo(String roomCode) {
         LiveRoomJpaEntity entity = liveRoomJpaRepository
                 .findByRoomCodeAndDeletedFalse(roomCode)
                 .orElseThrow(() -> new BusinessException(ErrorCode.LIVEROOM_NOT_FOUND));
@@ -106,13 +141,7 @@ public class LiveRoomServiceImpl implements LiveRoomService {
     public void endRoom(UUID hostUserId, String roomCode) {
         log.info("Ending live room: hostUserId={}, roomCode={}", hostUserId, roomCode);
 
-        LiveRoomJpaEntity entity = liveRoomJpaRepository
-                .findByRoomCodeForUpdate(roomCode)
-                .orElseThrow(() -> new BusinessException(ErrorCode.LIVEROOM_NOT_FOUND));
-
-        if (!entity.getHostUserId().equals(hostUserId)) {
-            throw new BusinessException(ErrorCode.LIVEROOM_NOT_HOST);
-        }
+        LiveRoomJpaEntity entity = loadActiveRoomForHostForUpdate(roomCode, hostUserId);
 
         if (entity.getStatus() == LiveRoomStatus.ENDED) {
             throw new BusinessException(ErrorCode.LIVEROOM_ALREADY_ENDED);
@@ -120,7 +149,11 @@ public class LiveRoomServiceImpl implements LiveRoomService {
 
         LiveRoom domain = liveRoomMapper.toDomain(entity);
         Instant endedAt = Instant.now();
-        domain.markEnded();
+        try {
+            domain.markEnded();
+        } catch (LiveroomDomainException ex) {
+            throw mapDomainException(ex);
+        }
 
         LiveRoomJpaEntity merged = liveRoomMapper.toEntity(domain, entity);
         liveRoomJpaRepository.save(merged);
@@ -130,9 +163,17 @@ public class LiveRoomServiceImpl implements LiveRoomService {
             log.info("Evicted {} active participants on room end: roomCode={}", evicted, roomCode);
         }
 
-        broadcaster.broadcastRoomEnded(roomCode, hostUserId, endedAt.toString());
+        eventPublisher.publishEvent(new RoomEndedEvent(roomCode, hostUserId, endedAt));
 
         log.info("Live room ended: hostUserId={}, roomCode={}", hostUserId, roomCode);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onRoomEnded(RoomEndedEvent event) {
+        broadcaster.broadcastRoomEnded(event.roomCode(), event.hostUserId(), event.endedAt().toString());
+    }
+
+    public record RoomEndedEvent(String roomCode, UUID hostUserId, Instant endedAt) {
     }
 
     @Override
@@ -142,18 +183,6 @@ public class LiveRoomServiceImpl implements LiveRoomService {
                 .isPresent();
     }
 
-    @Override
-    public LiveRoom getRoomAsParticipant(String roomCode) {
-        LiveRoomJpaEntity entity = liveRoomJpaRepository.findByRoomCodeAndDeletedFalse(roomCode)
-                .orElseThrow(() -> new BusinessException(ErrorCode.LIVEROOM_NOT_FOUND));
-        return liveRoomMapper.toDomain(entity);
-    }
-
-    @Override
-    public LiveRoomJpaEntity loadRoomEntityAsHost(UUID hostUserId, String roomCode) {
-        return loadRoomAsHost(hostUserId, roomCode);
-    }
-
     private void ensureHostHasNoActiveRoom(UUID hostUserId) {
         if (liveRoomJpaRepository.existsByHostUserIdAndStatusAndDeletedFalse(
                 hostUserId, LiveRoomStatus.ACTIVE)) {
@@ -161,11 +190,20 @@ public class LiveRoomServiceImpl implements LiveRoomService {
         }
     }
 
-    private LiveRoomJpaEntity loadRoomAsHost(UUID hostUserId, String roomCode) {
+    private LiveRoomJpaEntity loadActiveRoomForHost(String roomCode, UUID hostUserId) {
         LiveRoomJpaEntity entity = liveRoomJpaRepository
                 .findByRoomCodeAndDeletedFalse(roomCode)
                 .orElseThrow(() -> new BusinessException(ErrorCode.LIVEROOM_NOT_FOUND));
+        if (!entity.getHostUserId().equals(hostUserId)) {
+            throw new BusinessException(ErrorCode.LIVEROOM_NOT_HOST);
+        }
+        return entity;
+    }
 
+    private LiveRoomJpaEntity loadActiveRoomForHostForUpdate(String roomCode, UUID hostUserId) {
+        LiveRoomJpaEntity entity = liveRoomJpaRepository
+                .findByRoomCodeForUpdate(roomCode)
+                .orElseThrow(() -> new BusinessException(ErrorCode.LIVEROOM_NOT_FOUND));
         if (!entity.getHostUserId().equals(hostUserId)) {
             throw new BusinessException(ErrorCode.LIVEROOM_NOT_HOST);
         }
@@ -208,5 +246,23 @@ public class LiveRoomServiceImpl implements LiveRoomService {
             builder.append(charset.charAt(RANDOM.nextInt(charset.length())));
         }
         return builder.toString();
+    }
+
+    private static final Map<String, ErrorCode> DOMAIN_ERROR_CODE_MAP = Map.ofEntries(
+            entry("LIVEROOM_TITLE_REQUIRED", ErrorCode.INVALID_INPUT),
+            entry("LIVEROOM_TITLE_TOO_LONG", ErrorCode.INVALID_INPUT),
+            entry("LIVEROOM_CAPACITY_INVALID", ErrorCode.LIVEROOM_INVALID_CAPACITY),
+            entry("LIVEROOM_CODE_INVALID_LENGTH", ErrorCode.INVALID_INPUT),
+            entry("LIVEROOM_CODE_INVALID_CHARS", ErrorCode.INVALID_INPUT),
+            entry("LIVEROOM_FULL", ErrorCode.LIVEROOM_FULL),
+            entry("LIVEROOM_NOT_ACTIVE", ErrorCode.LIVEROOM_ALREADY_ENDED),
+            entry("LIVEROOM_PAUSED", ErrorCode.LIVEROOM_ALREADY_ENDED),
+            entry("LIVEROOM_ALREADY_ENDED", ErrorCode.LIVEROOM_ALREADY_ENDED),
+            entry("LIVEROOM_CAPACITY_LOWER_THAN_CURRENT", ErrorCode.LIVEROOM_INVALID_CAPACITY)
+    );
+
+    private BusinessException mapDomainException(LiveroomDomainException ex) {
+        ErrorCode ec = DOMAIN_ERROR_CODE_MAP.getOrDefault(ex.getErrorKey(), ErrorCode.INVALID_INPUT);
+        return new BusinessException(ec);
     }
 }

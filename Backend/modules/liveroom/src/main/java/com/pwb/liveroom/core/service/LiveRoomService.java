@@ -13,6 +13,7 @@ public interface LiveRoomService {
 
     LiveRoom createRoom(
             UUID hostUserId,
+            String hostDisplayName,
             String title,
             String description,
             LiveRoomMode mode,
@@ -20,13 +21,11 @@ public interface LiveRoomService {
 
     Page<LiveRoom> listMyRooms(UUID hostUserId, LiveRoomStatus status, Pageable pageable);
 
-    LiveRoom getRoomByCode(UUID hostUserId, String roomCode);
+    LiveRoom getRoomAsHost(UUID hostUserId, String roomCode);
+
+    LiveRoom getRoomPublicInfo(String roomCode);
 
     void endRoom(UUID hostUserId, String roomCode);
 
     boolean existsActiveRoomByCode(String roomCode);
-
-    LiveRoom getRoomAsParticipant(String roomCode);
-
-    LiveRoomJpaEntity loadRoomEntityAsHost(UUID hostUserId, String roomCode);
 }

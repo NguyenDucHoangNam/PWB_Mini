@@ -10,7 +10,7 @@ public interface LiveRoomParticipantService {
 
     LiveRoomParticipant joinPublicRoom(UUID userId, String roomCode, String displayName, String role);
 
-    Optional<LiveRoomParticipant> joinAsHost(UUID userId, String roomCode);
+    Optional<LiveRoomParticipant> joinAsHost(UUID userId, String hostDisplayName, String roomCode);
 
     Optional<LiveRoomParticipant> leaveRoom(UUID userId, String roomCode);
 
@@ -19,4 +19,6 @@ public interface LiveRoomParticipantService {
     LiveRoomParticipant updateMediaState(UUID userId, String roomCode, boolean micMuted, boolean cameraOff);
 
     void requestRoomState(UUID userId, String roomCode);
+
+    boolean isActiveParticipant(String roomCode, UUID userId);
 }

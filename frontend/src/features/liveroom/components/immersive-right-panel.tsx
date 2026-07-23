@@ -3,11 +3,13 @@
 import { useTranslations } from "next-intl";
 import { X } from "lucide-react";
 import { ParticipantsList } from "./participants-list";
+import { JoinRequestQueuePanel } from "./join-request-queue-panel";
 
 interface ImmersiveRightPanelProps {
   open: boolean;
   roomCode: string;
   hostUserId: string;
+  isHost: boolean;
   onClose: () => void;
 }
 
@@ -15,6 +17,7 @@ export function ImmersiveRightPanel({
   open,
   roomCode,
   hostUserId,
+  isHost,
   onClose,
 }: ImmersiveRightPanelProps) {
   const tImmersive = useTranslations("liveroom.immersive");
@@ -41,6 +44,11 @@ export function ImmersiveRightPanel({
       </div>
       <div className="flex-1 overflow-y-auto p-4">
         <ParticipantsList roomCode={roomCode} hostUserId={hostUserId} />
+        {isHost && (
+          <div className="mt-6 border-t border-white/5 pt-6">
+            <JoinRequestQueuePanel roomCode={roomCode} />
+          </div>
+        )}
       </div>
     </aside>
   );

@@ -3,6 +3,7 @@ package com.pwb.liveroom.core.service;
 import com.pwb.backend.exception.BusinessException;
 import com.pwb.backend.exception.ErrorCode;
 import com.pwb.liveroom.core.model.JoinRequestStatus;
+import com.pwb.liveroom.core.model.LiveroomDomainException;
 import com.pwb.liveroom.core.model.LiveRoom;
 import com.pwb.liveroom.core.model.LiveRoomJoinRequest;
 import com.pwb.liveroom.core.model.LiveRoomParticipant;
@@ -26,9 +27,10 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import static java.util.Map.entry;
 
 @Slf4j
 @Service
@@ -59,6 +61,10 @@ public class LiveRoomJoinRequestServiceImpl implements LiveRoomJoinRequestServic
             throw new BusinessException(ErrorCode.LIVEROOM_ALREADY_ENDED);
         }
 
+        if (roomEntity.getMode() == com.pwb.liveroom.api.enums.LiveRoomMode.PUBLIC) {
+            throw new BusinessException(ErrorCode.LIVEROOM_NOT_REQUIRE_APPROVAL);
+        }
+
         if (roomEntity.getHostUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.LIVEROOM_JOIN_REQUEST_INVALID_DECISION);
         }
@@ -73,8 +79,8 @@ public class LiveRoomJoinRequestServiceImpl implements LiveRoomJoinRequestServic
         LiveRoomJoinRequest domain;
         try {
             domain = LiveRoomJoinRequest.create(roomCode, userId, displayName, message);
-        } catch (IllegalArgumentException ex) {
-            throw mapValidationFailure(ex);
+        } catch (LiveroomDomainException ex) {
+            throw mapDomainException(ex);
         }
 
         LiveRoomJoinRequestJpaEntity saved = joinRequestJpaRepository.save(joinRequestMapper.toEntity(domain));
@@ -125,15 +131,13 @@ public class LiveRoomJoinRequestServiceImpl implements LiveRoomJoinRequestServic
 
         try {
             domain.approve(hostUserId, reason);
-        } catch (IllegalStateException ex) {
-            throw new BusinessException(ErrorCode.LIVEROOM_JOIN_REQUEST_NOT_PENDING);
-        } catch (IllegalArgumentException ex) {
-            throw mapValidationFailure(ex);
+        } catch (LiveroomDomainException ex) {
+            throw mapDomainException(ex);
         }
 
         joinRequestJpaRepository.save(joinRequestMapper.toEntity(domain, entity));
 
-        promoteToParticipant(hostUserId, domain);
+        promoteToParticipant(domain);
 
         eventPublisher.publishEvent(new JoinRequestDecidedEvent(
                 domain.getRoomCode(),
@@ -160,10 +164,8 @@ public class LiveRoomJoinRequestServiceImpl implements LiveRoomJoinRequestServic
 
         try {
             domain.reject(hostUserId, reason);
-        } catch (IllegalStateException ex) {
-            throw new BusinessException(ErrorCode.LIVEROOM_JOIN_REQUEST_NOT_PENDING);
-        } catch (IllegalArgumentException ex) {
-            throw mapValidationFailure(ex);
+        } catch (LiveroomDomainException ex) {
+            throw mapDomainException(ex);
         }
 
         joinRequestJpaRepository.save(joinRequestMapper.toEntity(domain, entity));
@@ -199,8 +201,8 @@ public class LiveRoomJoinRequestServiceImpl implements LiveRoomJoinRequestServic
 
         try {
             domain.cancel(ownerUserId);
-        } catch (IllegalStateException ex) {
-            throw new BusinessException(ErrorCode.LIVEROOM_JOIN_REQUEST_NOT_PENDING);
+        } catch (LiveroomDomainException ex) {
+            throw mapDomainException(ex);
         }
 
         joinRequestJpaRepository.save(joinRequestMapper.toEntity(domain, entity));
@@ -255,7 +257,7 @@ public class LiveRoomJoinRequestServiceImpl implements LiveRoomJoinRequestServic
         return entity;
     }
 
-    private void promoteToParticipant(UUID hostUserId, LiveRoomJoinRequest domain) {
+    private void promoteToParticipant(LiveRoomJoinRequest domain) {
         String roomCode = domain.getRoomCode();
         UUID userId = domain.getUserId();
         String displayName = domain.getDisplayName();
@@ -279,8 +281,8 @@ public class LiveRoomJoinRequestServiceImpl implements LiveRoomJoinRequestServic
         LiveRoomParticipant participant;
         try {
             participant = LiveRoomParticipant.join(roomCode, userId, displayName, role, Instant.now());
-        } catch (IllegalArgumentException ex) {
-            throw mapValidationFailure(ex);
+        } catch (LiveroomDomainException ex) {
+            throw mapDomainException(ex);
         }
 
         LiveRoomParticipantJpaEntity participantEntity =
@@ -289,8 +291,8 @@ public class LiveRoomJoinRequestServiceImpl implements LiveRoomJoinRequestServic
         LiveRoom liveRoomDomain = liveRoomMapper.toDomain(roomEntity);
         try {
             liveRoomDomain.incrementParticipants();
-        } catch (IllegalStateException ex) {
-            throw new BusinessException(ErrorCode.LIVEROOM_FULL);
+        } catch (LiveroomDomainException ex) {
+            throw mapDomainException(ex);
         }
         liveRoomMapper.toEntity(liveRoomDomain, roomEntity);
         liveRoomJpaRepository.save(roomEntity);
@@ -311,16 +313,32 @@ public class LiveRoomJoinRequestServiceImpl implements LiveRoomJoinRequestServic
                 userId, roomCode, domain.getId());
     }
 
-    private BusinessException mapValidationFailure(IllegalArgumentException ex) {
-        String message = ex.getMessage();
-        if (message == null) {
-            return new BusinessException(ErrorCode.INVALID_INPUT);
-        }
-        String lower = message.toLowerCase(Locale.ROOT);
-        if (lower.contains("display") || lower.contains("message") || lower.contains("reason")) {
-            return new BusinessException(ErrorCode.INVALID_INPUT);
-        }
-        return new BusinessException(ErrorCode.INVALID_INPUT);
+    private static final Map<String, ErrorCode> DOMAIN_ERROR_CODE_MAP = Map.ofEntries(
+            entry("LIVEROOM_FULL", ErrorCode.LIVEROOM_FULL),
+            entry("LIVEROOM_NOT_ACTIVE", ErrorCode.LIVEROOM_ALREADY_ENDED),
+            entry("LIVEROOM_PAUSED", ErrorCode.LIVEROOM_ALREADY_ENDED),
+            entry("LIVEROOM_ALREADY_ENDED", ErrorCode.LIVEROOM_ALREADY_ENDED),
+            entry("LIVEROOM_CAPACITY_INVALID", ErrorCode.LIVEROOM_INVALID_CAPACITY),
+            entry("LIVEROOM_CODE_INVALID_LENGTH", ErrorCode.INVALID_INPUT),
+            entry("LIVEROOM_CODE_INVALID_CHARS", ErrorCode.INVALID_INPUT),
+            entry("LIVEROOM_DISPLAY_NAME_REQUIRED", ErrorCode.INVALID_INPUT),
+            entry("LIVEROOM_DISPLAY_NAME_TOO_LONG", ErrorCode.INVALID_INPUT),
+            entry("LIVEROOM_ROLE_REQUIRED", ErrorCode.INVALID_INPUT),
+            entry("LIVEROOM_ROLE_INVALID", ErrorCode.INVALID_INPUT),
+            entry("LIVEROOM_LEFT_BEFORE_JOIN", ErrorCode.INVALID_INPUT),
+            entry("LIVEROOM_ALREADY_LEFT_MEDIA", ErrorCode.INVALID_INPUT),
+            entry("LIVEROOM_USER_ID_REQUIRED", ErrorCode.INVALID_INPUT),
+            entry("LIVEROOM_CAPACITY_LOWER_THAN_CURRENT", ErrorCode.LIVEROOM_INVALID_CAPACITY),
+            entry("LIVEROOM_DECIDED_BY_REQUIRED", ErrorCode.INVALID_INPUT),
+            entry("LIVEROOM_JOIN_REQUEST_NOT_OWNER", ErrorCode.LIVEROOM_JOIN_REQUEST_NOT_OWNER),
+            entry("LIVEROOM_JOIN_REQUEST_NOT_PENDING", ErrorCode.LIVEROOM_JOIN_REQUEST_NOT_PENDING),
+            entry("LIVEROOM_JOIN_REQUEST_MESSAGE_TOO_LONG", ErrorCode.INVALID_INPUT),
+            entry("LIVEROOM_JOIN_REQUEST_REASON_TOO_LONG", ErrorCode.INVALID_INPUT)
+    );
+
+    private BusinessException mapDomainException(LiveroomDomainException ex) {
+        ErrorCode ec = DOMAIN_ERROR_CODE_MAP.getOrDefault(ex.getErrorKey(), ErrorCode.INVALID_INPUT);
+        return new BusinessException(ec);
     }
 
     public record JoinRequestCreatedEvent(

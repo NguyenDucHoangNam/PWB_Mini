@@ -34,7 +34,6 @@ export function ImmersiveBottomBar({
   onLeave,
 }: ImmersiveBottomBarProps) {
   const tImmersive = useTranslations("liveroom.immersive");
-  const tHost = useTranslations("liveroom.hostWaitingRoom");
   const tMedia = useTranslations("liveroom.media");
 
   const renderBadge = (count: number) =>
@@ -95,16 +94,12 @@ export function ImmersiveBottomBar({
         >
           <Users className="size-5" />
           {renderBadge(participantCount)}
+          {pendingRequestCount > 0 && (
+            <span className="absolute -right-1 -top-1 flex min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-semibold text-white">
+              {pendingRequestCount > 9 ? "9+" : pendingRequestCount}
+            </span>
+          )}
         </button>
-
-        {pendingRequestCount > 0 ? (
-          <span
-            className="ml-1 inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-1 text-[11px] font-medium text-amber-300"
-            title={tHost("count", { count: pendingRequestCount })}
-          >
-            {tHost("count", { count: pendingRequestCount })}
-          </span>
-        ) : null}
 
         <div className="mx-1 h-8 w-px bg-white/10" />
 

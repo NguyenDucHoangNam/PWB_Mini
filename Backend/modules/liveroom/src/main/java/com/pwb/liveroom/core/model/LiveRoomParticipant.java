@@ -108,14 +108,14 @@ public final class LiveRoomParticipant {
         }
         Instant now = leftAt == null ? Instant.now() : leftAt;
         if (now.isBefore(this.joinedAt)) {
-            throw new IllegalArgumentException("Left time cannot be before joined time");
+            throw new LiveroomDomainException("LIVEROOM_LEFT_BEFORE_JOIN", "Left time cannot be before joined time");
         }
         this.leftAt = now;
     }
 
     public void updateMediaState(boolean micMuted, boolean cameraOff) {
         if (this.leftAt != null) {
-            throw new IllegalStateException("Cannot update media state of a participant who has left");
+            throw new LiveroomDomainException("LIVEROOM_ALREADY_LEFT_MEDIA", "Cannot update media state of a participant who has left");
         }
         this.micMuted = micMuted;
         this.cameraOff = cameraOff;
@@ -136,23 +136,24 @@ public final class LiveRoomParticipant {
 
     private static void validateRoomCode(String roomCode) {
         if (roomCode == null || roomCode.length() != 6) {
-            throw new IllegalArgumentException("Room code must be exactly 6 characters");
+            throw new LiveroomDomainException("LIVEROOM_CODE_INVALID_LENGTH", "Room code must be exactly 6 characters");
         }
     }
 
     private static void validateUserId(UUID userId) {
         if (userId == null) {
-            throw new IllegalArgumentException("User ID is required");
+            throw new LiveroomDomainException("LIVEROOM_USER_ID_REQUIRED", "User ID is required");
         }
     }
 
     private static void validateDisplayName(String displayName) {
         if (displayName == null || displayName.isBlank()) {
-            throw new IllegalArgumentException("Display name is required");
+            throw new LiveroomDomainException("LIVEROOM_DISPLAY_NAME_REQUIRED", "Display name is required");
         }
         int length = displayName.length();
         if (length < MIN_DISPLAY_NAME_LENGTH || length > MAX_DISPLAY_NAME_LENGTH) {
-            throw new IllegalArgumentException(
+            throw new LiveroomDomainException(
+                    "LIVEROOM_DISPLAY_NAME_TOO_LONG",
                     "Display name must be between " + MIN_DISPLAY_NAME_LENGTH
                             + " and " + MAX_DISPLAY_NAME_LENGTH + " characters");
         }
@@ -160,11 +161,12 @@ public final class LiveRoomParticipant {
 
     private static void validateRole(String roleAtJoin) {
         if (roleAtJoin == null || roleAtJoin.isBlank()) {
-            throw new IllegalArgumentException("Role at join is required");
+            throw new LiveroomDomainException("LIVEROOM_ROLE_REQUIRED", "Role at join is required");
         }
         String cleanRole = roleAtJoin.startsWith("ROLE_") ? roleAtJoin.substring(5) : roleAtJoin;
         if (!"USER".equals(cleanRole) && !"PRO".equals(cleanRole) && !"ADMIN".equals(cleanRole)) {
-            throw new IllegalArgumentException(
+            throw new LiveroomDomainException(
+                    "LIVEROOM_ROLE_INVALID",
                     "Role at join must be one of USER, PRO, ADMIN");
         }
     }

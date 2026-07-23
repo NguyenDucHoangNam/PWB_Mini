@@ -122,7 +122,7 @@ public final class LiveRoomJoinRequest {
     public void cancel(UUID ownerId) {
         ensurePending();
         if (!this.userId.equals(ownerId)) {
-            throw new IllegalStateException("Only the request owner can cancel this request");
+            throw new LiveroomDomainException("LIVEROOM_JOIN_REQUEST_NOT_OWNER", "Only the request owner can cancel this request");
         }
         this.status = JoinRequestStatus.CANCELLED;
         this.decidedAt = Instant.now();
@@ -134,29 +134,30 @@ public final class LiveRoomJoinRequest {
 
     private void ensurePending() {
         if (status != JoinRequestStatus.PENDING) {
-            throw new IllegalStateException("Join request is no longer pending");
+            throw new LiveroomDomainException("LIVEROOM_JOIN_REQUEST_NOT_PENDING", "Join request is no longer pending");
         }
     }
 
     private static void validateRoomCode(String roomCode) {
         if (roomCode == null || roomCode.length() != 6) {
-            throw new IllegalArgumentException("Room code must be exactly 6 characters");
+            throw new LiveroomDomainException("LIVEROOM_CODE_INVALID_LENGTH", "Room code must be exactly 6 characters");
         }
     }
 
     private static void validateUserId(UUID userId) {
         if (userId == null) {
-            throw new IllegalArgumentException("User ID is required");
+            throw new LiveroomDomainException("LIVEROOM_USER_ID_REQUIRED", "User ID is required");
         }
     }
 
     private static void validateDisplayName(String displayName) {
         if (displayName == null || displayName.isBlank()) {
-            throw new IllegalArgumentException("Display name is required");
+            throw new LiveroomDomainException("LIVEROOM_DISPLAY_NAME_REQUIRED", "Display name is required");
         }
         int length = displayName.length();
         if (length < MIN_DISPLAY_NAME_LENGTH || length > MAX_DISPLAY_NAME_LENGTH) {
-            throw new IllegalArgumentException(
+            throw new LiveroomDomainException(
+                    "LIVEROOM_DISPLAY_NAME_TOO_LONG",
                     "Display name must be between " + MIN_DISPLAY_NAME_LENGTH
                             + " and " + MAX_DISPLAY_NAME_LENGTH + " characters");
         }
@@ -164,21 +165,23 @@ public final class LiveRoomJoinRequest {
 
     private static void validateMessage(String message) {
         if (message != null && message.length() > MAX_MESSAGE_LENGTH) {
-            throw new IllegalArgumentException(
+            throw new LiveroomDomainException(
+                    "LIVEROOM_JOIN_REQUEST_MESSAGE_TOO_LONG",
                     "Request message must not exceed " + MAX_MESSAGE_LENGTH + " characters");
         }
     }
 
     private static void validateReason(String reason) {
         if (reason != null && reason.length() > MAX_REASON_LENGTH) {
-            throw new IllegalArgumentException(
+            throw new LiveroomDomainException(
+                    "LIVEROOM_JOIN_REQUEST_REASON_TOO_LONG",
                     "Decision reason must not exceed " + MAX_REASON_LENGTH + " characters");
         }
     }
 
     private static void validateDecidedBy(UUID decidedBy) {
         if (decidedBy == null) {
-            throw new IllegalArgumentException("Decided by user is required");
+            throw new LiveroomDomainException("LIVEROOM_DECIDED_BY_REQUIRED", "Decided by user is required");
         }
     }
 }

@@ -43,6 +43,7 @@ public class LiveRoomFacadeImpl implements LiveRoomFacade {
 
         LiveRoom domain = liveRoomService.createRoom(
                 hostUserId,
+                request.getHostDisplayName(),
                 request.getTitle(),
                 request.getDescription(),
                 request.getMode(),
@@ -61,8 +62,14 @@ public class LiveRoomFacadeImpl implements LiveRoomFacade {
 
     @Override
     public LiveRoomResponse getRoom(UUID hostUserId, String roomCode) {
-        LiveRoom domain = liveRoomService.getRoomByCode(hostUserId, roomCode);
-        return toResponse(domain);
+        LiveRoomJpaEntity entity = liveRoomJpaRepository
+                .findByRoomCodeAndDeletedFalse(roomCode)
+                .orElseThrow(() -> new BusinessException(ErrorCode.LIVEROOM_NOT_FOUND));
+        boolean isHost = entity.getHostUserId().equals(hostUserId);
+        if (isHost) {
+            return toResponse(liveRoomService.getRoomAsHost(hostUserId, roomCode));
+        }
+        return toResponse(liveRoomService.getRoomPublicInfo(roomCode));
     }
 
     @Override

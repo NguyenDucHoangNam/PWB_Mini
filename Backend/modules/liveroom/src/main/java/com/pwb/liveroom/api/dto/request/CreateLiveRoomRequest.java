@@ -24,6 +24,9 @@ public class CreateLiveRoomRequest {
     @Size(max = 1000, message = "{validation.liveroom.description.maxlength}")
     private String description;
 
+    @Size(max = 100, message = "{validation.liveroom.hostDisplayName.maxlength}")
+    private String hostDisplayName;
+
     @NotNull(message = "{validation.liveroom.mode.required}")
     private LiveRoomMode mode;
 
