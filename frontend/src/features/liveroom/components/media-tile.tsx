@@ -54,7 +54,7 @@ export function MediaTile({
         autoPlay
         playsInline
         muted={isLocal}
-        className={`h-full w-full object-cover ${showVideo ? "block" : "hidden"}`}
+        className={`h-full w-full object-cover ${isLocal ? "-scale-x-100" : ""} ${showVideo ? "block" : "hidden"}`}
       />
       {!showVideo ? (
         <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-neutral-900 text-neutral-200">
