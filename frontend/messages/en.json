@@ -919,6 +919,12 @@
       "confirm": "End room",
       "success": "Room ended"
     },
+    "leaveDialog": {
+      "title": "Leave this room?",
+      "message": "You will leave the room but it stays active. Other listeners can continue. You can rejoin anytime.",
+      "confirm": "Leave room",
+      "cancel": "Stay"
+    },
     "existsCheck": {
       "checking": "Checking...",
       "existsActive": "Room is live",

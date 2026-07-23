@@ -175,6 +175,16 @@ public final class LiveRoom {
         }
     }
 
+    public void syncParticipantCount(int authoritiveCount) {
+        if (authoritiveCount < 0) {
+            authoritiveCount = 0;
+        }
+        if (authoritiveCount > maxParticipants) {
+            authoritiveCount = maxParticipants;
+        }
+        this.currentParticipantCount = authoritiveCount;
+    }
+
     public boolean isHost(UUID userId) {
         return hostUserId.equals(userId);
     }

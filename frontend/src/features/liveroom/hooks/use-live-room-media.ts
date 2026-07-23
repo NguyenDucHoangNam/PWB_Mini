@@ -124,7 +124,7 @@ export function useLiveRoomMedia({
   usePeerSignaling({
     roomCode,
     managerRef: managerApiRef,
-    enabled: enabled && Boolean(devices.stream),
+    enabled: enabled,
   });
 
   const updateMyMediaMutation = useUpdateMyMedia({
@@ -143,6 +143,12 @@ export function useLiveRoomMedia({
     const subscription = subscribeRoomParticipants(roomCode, (event) => {
       if (event.type === "PARTICIPANT_JOINED" && event.userId === localUserId) {
         joinedReadyRef.current = true;
+        return;
+      }
+      if (event.type === "PARTICIPANT_LEFT" && event.userId && event.userId !== localUserId) {
+        const leftUserId = event.userId;
+        managerApiRef.current?.removePeer(leftUserId);
+        removeRemotePeer(leftUserId);
       }
     });
     const fallback = setTimeout(() => {
@@ -153,7 +159,7 @@ export function useLiveRoomMedia({
       clearTimeout(fallback);
       joinedReadyRef.current = false;
     };
-  }, [roomCode, localUserId]);
+  }, [roomCode, localUserId, removeRemotePeer]);
 
   const showErrorToast = useCallback(
     (err: unknown) => {

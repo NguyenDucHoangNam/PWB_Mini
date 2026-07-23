@@ -922,6 +922,12 @@
       "confirm": "Kết thúc phòng",
       "success": "Đã kết thúc phòng"
     },
+    "leaveDialog": {
+      "title": "Rời khỏi phòng?",
+      "message": "Bạn sẽ rời phòng nhưng phòng vẫn hoạt động. Người nghe khác vẫn có thể tiếp tục. Bạn có thể vào lại bất kỳ lúc nào.",
+      "confirm": "Rời phòng",
+      "cancel": "Ở lại"
+    },
     "existsCheck": {
       "checking": "Đang kiểm tra...",
       "existsActive": "Phòng đang phát trực tiếp",

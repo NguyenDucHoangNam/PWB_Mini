@@ -12,10 +12,8 @@ import {
   type ImmersivePanelTab,
 } from "./immersive-bottom-bar";
 import { ImmersiveRightPanel } from "./immersive-right-panel";
-import {
-  useEndRoom,
-  liveRoomKey,
-} from "../api/rooms";
+import { HostLeaveConfirmDialog } from "./host-leave-confirm-dialog";
+import { liveRoomKey } from "../api/rooms";
 import { useLeaveRoom } from "../api/participants";
 import { useListJoinRequests } from "../api/join-requests";
 import { liveRoomParticipantsKey } from "../api/participants";
@@ -48,8 +46,9 @@ export function ImmersiveMeetingRoom({
   const router = useRouter();
 
   const [panelTab, setPanelTab] = useState<ImmersivePanelTab>(null);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
 
-  const mediaControls = useImmersiveMediaControls({ roomCode });
+  const mediaControls = useImmersiveMediaControls({ roomCode, localUserId });
   const screenShare = useScreenShare();
 
   const { data: pendingRes } = useListJoinRequests({ roomCode, status: "PENDING" });
@@ -86,17 +85,9 @@ export function ImmersiveMeetingRoom({
     [tErrors, tCommon],
   );
 
-  const { mutate: endRoomMutate } = useEndRoom({
-    mutationConfig: { onError: asApiError(showError) },
-  });
-
   const { mutate: leaveRoomMutate } = useLeaveRoom({
     mutationConfig: { onError: asApiError(showError) },
   });
-
-  const handleEnd = useCallback(() => {
-    endRoomMutate({ roomCode });
-  }, [endRoomMutate, roomCode]);
 
   const handleLeave = useCallback(() => {
     leaveRoomMutate(
@@ -110,6 +101,14 @@ export function ImmersiveMeetingRoom({
       },
     );
   }, [leaveRoomMutate, roomCode, router]);
+
+  const requestLeave = useCallback(() => {
+    setLeaveDialogOpen(true);
+  }, []);
+
+  const confirmLeave = useCallback(() => {
+    handleLeave();
+  }, [handleLeave]);
 
   const handleToggleMic = useCallback(() => {
     mediaControls.toggleMic();
@@ -154,7 +153,7 @@ export function ImmersiveMeetingRoom({
         roomCode={room.roomCode}
         status={room.status}
         mode={room.mode}
-        onClose={handleLeave}
+        onClose={requestLeave}
         variant="immersive"
       />
 
@@ -188,9 +187,15 @@ export function ImmersiveMeetingRoom({
             void screenShare.toggle();
           }}
           onSelectTab={handleSelectTab}
-          onLeave={handleEnd}
+          onLeave={requestLeave}
         />
       ) : null}
+
+      <HostLeaveConfirmDialog
+        open={leaveDialogOpen}
+        onOpenChange={setLeaveDialogOpen}
+        onConfirm={confirmLeave}
+      />
     </div>
   );
 }
