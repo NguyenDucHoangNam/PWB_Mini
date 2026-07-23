@@ -10,6 +10,7 @@ interface MediaTileProps {
   micMuted: boolean;
   displayName: string;
   isLocal: boolean;
+  isSpeaking?: boolean;
   hint?: string;
 }
 
@@ -19,6 +20,7 @@ export function MediaTile({
   micMuted,
   displayName,
   isLocal,
+  isSpeaking = false,
   hint,
 }: MediaTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -34,8 +36,16 @@ export function MediaTile({
     }
   }, [stream, cameraOff]);
 
+  const showSpeakingRing = isSpeaking && !micMuted;
+
   return (
-    <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-neutral-200 bg-black dark:border-neutral-800">
+    <div
+      className={`relative aspect-video w-full overflow-hidden rounded-xl border ${
+        showSpeakingRing
+          ? "border-emerald-400 ring-2 ring-emerald-400/50"
+          : "border-neutral-200 dark:border-neutral-800"
+      } bg-black transition-all duration-200`}
+    >
       {!cameraOff && stream ? (
         <video
           ref={videoRef}

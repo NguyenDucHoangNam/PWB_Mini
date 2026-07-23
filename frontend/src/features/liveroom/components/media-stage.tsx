@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useLiveRoomMedia } from "../hooks/use-live-room-media";
+import { useActiveSpeaker } from "../hooks/use-active-speaker";
 import { MediaTile } from "./media-tile";
 import { MediaControls } from "./media-controls";
 import { subscribeRoomMediaState } from "../api/ws";
 import { useParticipants } from "../api/participants";
+import { useLiveRoomMediaStore } from "../stores/use-live-room-media-store";
 import type { MediaStateChangedWsEvent } from "../types";
 
 interface MediaStageProps {
@@ -31,6 +33,9 @@ export function MediaStage({
     localDisplayName,
     enabled,
   });
+
+  useActiveSpeaker(localUserId);
+  const speakingUsers = useLiveRoomMediaStore((state) => state.speakingUsers);
 
   const { data: participantsRes } = useParticipants({ roomCode });
   const participantMap = useMemo(() => {
@@ -83,6 +88,7 @@ export function MediaStage({
           micMuted={media.micMuted}
           displayName={localDisplayName}
           isLocal
+          isSpeaking={speakingUsers.has(localUserId)}
         />
         {peers.map((peer) => {
           const remoteState = remoteMediaState[peer.userId];
@@ -97,6 +103,7 @@ export function MediaStage({
               micMuted={remoteState?.micMuted ?? false}
               displayName={name}
               isLocal={false}
+              isSpeaking={speakingUsers.has(peer.userId)}
             />
           );
         })}

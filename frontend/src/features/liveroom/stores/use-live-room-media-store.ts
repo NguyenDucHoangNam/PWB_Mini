@@ -33,6 +33,7 @@ interface LiveRoomMediaState {
   remotePeers: RemotePeerStream[];
   peerManager: PeerManagerHandle | null;
   mediaSocket: MediaSocket | null;
+  speakingUsers: Set<string>;
 
   setLocalStream: (stream: MediaStream | null) => void;
   setMicMuted: (muted: boolean) => void;
@@ -42,6 +43,7 @@ interface LiveRoomMediaState {
   setMediaSocket: (socket: MediaSocket | null) => void;
   upsertRemotePeer: (peer: RemotePeerStream) => void;
   removeRemotePeer: (userId: string) => void;
+  setSpeakingUsers: (users: Set<string>) => void;
   reset: () => void;
 }
 
@@ -53,6 +55,7 @@ export const useLiveRoomMediaStore = create<LiveRoomMediaState>((set) => ({
   remotePeers: [],
   peerManager: null,
   mediaSocket: null,
+  speakingUsers: new Set(),
 
   setLocalStream: (stream) => set({ localStream: stream }),
   setMicMuted: (muted) => set({ micMuted: muted }),
@@ -74,6 +77,7 @@ export const useLiveRoomMediaStore = create<LiveRoomMediaState>((set) => ({
     set((state) => ({
       remotePeers: state.remotePeers.filter((p) => p.userId !== userId),
     })),
+  setSpeakingUsers: (users) => set({ speakingUsers: users }),
   reset: () =>
     set({
       localStream: null,
@@ -83,6 +87,7 @@ export const useLiveRoomMediaStore = create<LiveRoomMediaState>((set) => ({
       remotePeers: [],
       peerManager: null,
       mediaSocket: null,
+      speakingUsers: new Set(),
     }),
 }));
 
