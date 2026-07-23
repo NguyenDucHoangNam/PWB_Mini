@@ -14,9 +14,11 @@ interface ImmersiveBottomBarProps {
   activeTab: ImmersivePanelTab;
   roomCode: string;
   localUserId: string;
+  isHost: boolean;
   onToggleMic: () => void;
   onToggleCamera: () => void;
   onSelectTab: (tab: ImmersivePanelTab) => void;
+  onLeaveAsHost: () => void;
   onLeave: () => void;
 }
 
@@ -28,9 +30,11 @@ export function ImmersiveBottomBar({
   activeTab,
   roomCode,
   localUserId,
+  isHost,
   onToggleMic,
   onToggleCamera,
   onSelectTab,
+  onLeaveAsHost,
   onLeave,
 }: ImmersiveBottomBarProps) {
   const tImmersive = useTranslations("liveroom.immersive");
@@ -105,7 +109,7 @@ export function ImmersiveBottomBar({
 
         <button
           type="button"
-          onClick={onLeave}
+          onClick={isHost ? onLeaveAsHost : onLeave}
           aria-label={tMedia("leave")}
           title={tMedia("leave")}
           className="inline-flex size-12 items-center justify-center rounded-full bg-red-500 text-white transition hover:bg-red-600"

@@ -9,6 +9,7 @@ import {
   useLiveRoomMediaStore,
   type RemotePeerStream,
 } from "../stores/use-live-room-media-store";
+import { useMediaSessionStore } from "../stores/use-media-session-store";
 import { useMediaDevices, MediaPermissionException } from "./use-media-devices";
 import { usePeerSignaling } from "./use-peer-signaling";
 import {
@@ -69,8 +70,8 @@ export function useLiveRoomMedia({
 
   const managerRef = useRef<WebRTCPeerManager | null>(null);
   const managerApiRef = useRef<{
-    addPeer: (remoteUserId: string) => Promise<void>;
-    queuePeerIfNeeded: (remoteUserId: string) => Promise<void>;
+    addPeer: (remoteUserId: string, displayName?: string) => Promise<void>;
+    queuePeerIfNeeded: (remoteUserId: string, displayName?: string) => Promise<void>;
     removePeer: (remoteUserId: string) => void;
   } | null>(null);
 
@@ -83,14 +84,10 @@ export function useLiveRoomMedia({
     });
     managerRef.current = manager;
     managerApiRef.current = {
-      addPeer: async (remoteUserId) => {
-        if (!devices.stream) {
-          await manager.queuePeerIfNeeded(remoteUserId);
-          return;
-        }
-        await manager.addPeer(devices.stream, remoteUserId);
+      addPeer: async (remoteUserId, displayName) => {
+        await manager.queuePeerIfNeeded(remoteUserId, displayName);
       },
-      queuePeerIfNeeded: (remoteUserId) => manager.queuePeerIfNeeded(remoteUserId),
+      queuePeerIfNeeded: (remoteUserId, displayName) => manager.queuePeerIfNeeded(remoteUserId, displayName),
       removePeer: (remoteUserId) => {
         manager.removePeer(remoteUserId);
       },
@@ -110,7 +107,7 @@ export function useLiveRoomMedia({
         managerApiRef.current = null;
       }
     };
-  }, [enabled, roomCode, localUserId, localDisplayName, upsertRemotePeer, removeRemotePeer, devices.stream]);
+  }, [enabled, roomCode, localUserId, localDisplayName, upsertRemotePeer, removeRemotePeer]);
 
   useEffect(() => {
     if (!devices.stream) {
@@ -136,6 +133,7 @@ export function useLiveRoomMedia({
   });
 
   const joinedReadyRef = useRef(false);
+  const pendingMediaRef = useRef<{ micMuted: boolean; cameraOff: boolean } | null>(null);
 
   useEffect(() => {
     if (!roomCode) return undefined;
@@ -143,6 +141,11 @@ export function useLiveRoomMedia({
     const subscription = subscribeRoomParticipants(roomCode, (event) => {
       if (event.type === "PARTICIPANT_JOINED" && event.userId === localUserId) {
         joinedReadyRef.current = true;
+        const pending = pendingMediaRef.current;
+        if (pending) {
+          pendingMediaRef.current = null;
+          updateMyMediaMutation.mutate({ roomCode, body: pending });
+        }
         return;
       }
       if (event.type === "PARTICIPANT_LEFT" && event.userId && event.userId !== localUserId) {
@@ -153,13 +156,14 @@ export function useLiveRoomMedia({
     });
     const fallback = setTimeout(() => {
       joinedReadyRef.current = true;
-    }, 1500);
+    }, 800);
     return () => {
       subscription.unsubscribe();
       clearTimeout(fallback);
       joinedReadyRef.current = false;
+      pendingMediaRef.current = null;
     };
-  }, [roomCode, localUserId, removeRemotePeer]);
+  }, [roomCode, localUserId, removeRemotePeer, updateMyMediaMutation]);
 
   const showErrorToast = useCallback(
     (err: unknown) => {
@@ -184,7 +188,8 @@ export function useLiveRoomMedia({
       setCameraOff(next.cameraOff);
       try {
         if (micChanged) {
-          applyTrackMutedFlag(devices.stream, "audio", next.micMuted);
+          const currentStream = useMediaSessionStore.getState().stream;
+          applyTrackMutedFlag(currentStream, "audio", next.micMuted);
         }
         if (cameraChanged) {
           if (next.cameraOff) {
@@ -198,7 +203,8 @@ export function useLiveRoomMedia({
         setCameraOff(before.cameraOff);
         throw err;
       }
-      managerRef.current?.setLocalStreamForAllPeers(devices.stream);
+      const updatedStream = useMediaSessionStore.getState().stream;
+      managerRef.current?.setLocalStreamForAllPeers(updatedStream);
     },
     [devices, managerRef, setMicMuted, setCameraOff],
   );
@@ -214,10 +220,11 @@ export function useLiveRoomMedia({
         return;
       }
       if (!roomCode) return;
-      if (!joinedReadyRef.current) {
-        await waitForJoinReady(joinedReadyRef, 1500);
+      if (joinedReadyRef.current) {
+        updateMyMediaMutation.mutate({ roomCode, body: next });
+      } else {
+        pendingMediaRef.current = next;
       }
-      updateMyMediaMutation.mutate({ roomCode, body: next });
     })();
   }, [applyLocalMediaState, roomCode, showErrorToast, updateMyMediaMutation]);
 
@@ -232,10 +239,11 @@ export function useLiveRoomMedia({
         return;
       }
       if (!roomCode) return;
-      if (!joinedReadyRef.current) {
-        await waitForJoinReady(joinedReadyRef, 1500);
+      if (joinedReadyRef.current) {
+        updateMyMediaMutation.mutate({ roomCode, body: next });
+      } else {
+        pendingMediaRef.current = next;
       }
-      updateMyMediaMutation.mutate({ roomCode, body: next });
     })();
   }, [applyLocalMediaState, roomCode, showErrorToast, updateMyMediaMutation]);
 
@@ -327,20 +335,4 @@ export function useLiveRoomMedia({
     localStreamLiveRef: localStreamState,
     syncFromServer,
   };
-}
-
-function waitForJoinReady(
-  flagRef: { current: boolean },
-  timeoutMs: number,
-): Promise<void> {
-  if (flagRef.current) return Promise.resolve();
-  return new Promise<void>((resolve) => {
-    const start = Date.now();
-    const check = () => {
-      if (flagRef.current) return resolve();
-      if (Date.now() - start >= timeoutMs) return resolve();
-      setTimeout(check, 50);
-    };
-    check();
-  });
 }

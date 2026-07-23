@@ -7,8 +7,8 @@ import type { PeerJoinedWsEvent, PeerLeftWsEvent, RoomStateWsEvent } from "../ty
 interface UsePeerSignalingParams {
   roomCode: string;
   managerRef: React.MutableRefObject<{
-    addPeer: (remoteUserId: string) => Promise<void>;
-    queuePeerIfNeeded: (remoteUserId: string) => Promise<void>;
+    addPeer: (remoteUserId: string, displayName?: string) => Promise<void>;
+    queuePeerIfNeeded: (remoteUserId: string, displayName?: string) => Promise<void>;
     removePeer: (remoteUserId: string) => void;
   } | null>;
   enabled: boolean;
@@ -41,7 +41,7 @@ export function usePeerSignaling({
     const peerSubscription = subscribeRoomPeerEvents(roomCode, (event) => {
       if (event.type === "PEER_JOINED") {
         joinedHandlerRef.current?.(event);
-        void managerRef.current?.queuePeerIfNeeded(event.userId);
+        void managerRef.current?.queuePeerIfNeeded(event.userId, event.displayName);
         return;
       }
       if (event.type === "PEER_LEFT") {
@@ -53,7 +53,7 @@ export function usePeerSignaling({
     const stateSubscription = subscribeRoomState(roomCode, (event) => {
       roomStateHandlerRef.current?.(event);
       for (const peer of event.participants) {
-        void managerRef.current?.queuePeerIfNeeded(peer.userId);
+        void managerRef.current?.queuePeerIfNeeded(peer.userId, peer.displayName);
       }
     });
 

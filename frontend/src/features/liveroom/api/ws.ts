@@ -29,6 +29,7 @@ const WS_URL = resolveWsUrl();
 
 let sharedClient: Client | null = null;
 let currentToken: string | null = null;
+let isReconnecting = false;
 
 interface TrackedSubscription {
   destination: string;
@@ -41,7 +42,20 @@ const trackedSubs: Set<TrackedSubscription> = new Set();
 
 export function getStompClient(accessToken: string): Client {
   if (sharedClient && currentToken === accessToken) {
-    return sharedClient;
+    if (sharedClient.connected || isReconnecting) {
+      return sharedClient;
+    }
+  }
+
+  for (const tracked of trackedSubs) {
+    if (tracked.subscription) {
+      try {
+        tracked.subscription.unsubscribe();
+      } catch {
+        /* ignore */
+      }
+      tracked.subscription = null;
+    }
   }
 
   if (sharedClient) {
@@ -49,6 +63,7 @@ export function getStompClient(accessToken: string): Client {
     sharedClient = null;
   }
 
+  isReconnecting = true;
   sharedClient = new Client({
     webSocketFactory: () => new SockJS(WS_URL) as unknown as WebSocket,
     connectHeaders: {
@@ -59,7 +74,14 @@ export function getStompClient(accessToken: string): Client {
     heartbeatOutgoing: 10000,
     debug: () => {},
     onConnect: () => {
+      isReconnecting = false;
       reattachAllSubscriptions();
+    },
+    onDisconnect: () => {
+      isReconnecting = true;
+    },
+    onWebSocketError: () => {
+      isReconnecting = true;
     },
   });
   currentToken = accessToken;
@@ -80,7 +102,7 @@ function ensureClient(): Client | null {
   const token = useAuthStore.getState().accessToken;
   if (!token) return null;
   const client = getStompClient(token);
-  if (!client.connected) {
+  if (!client.connected && !isReconnecting) {
     client.activate();
   }
   return client;

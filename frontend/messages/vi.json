@@ -922,6 +922,22 @@
       "confirm": "Kết thúc phòng",
       "success": "Đã kết thúc phòng"
     },
+    "leaveConfirm": {
+      "title": "Rời khỏi phòng?",
+      "message": "Bạn sẽ rời phòng. Phòng vẫn hoạt động cho những người khác.",
+      "confirm": "Rời phòng",
+      "cancel": "Ở lại",
+      "leaving": "Đang rời..."
+    },
+    "hostLeaveDialog": {
+      "title": "Rời hay kết thúc?",
+      "message": "Bạn có thể rời để người khác tiếp tục, hoặc kết thúc phòng cho tất cả mọi người.",
+      "leaveOnly": "Rời thôi",
+      "endRoom": "Kết thúc phòng",
+      "cancel": "Ở lại",
+      "leaving": "Đang rời...",
+      "ending": "Đang kết thúc..."
+    },
     "leaveDialog": {
       "title": "Rời khỏi phòng?",
       "message": "Bạn sẽ rời phòng nhưng phòng vẫn hoạt động. Người nghe khác vẫn có thể tiếp tục. Bạn có thể vào lại bất kỳ lúc nào.",

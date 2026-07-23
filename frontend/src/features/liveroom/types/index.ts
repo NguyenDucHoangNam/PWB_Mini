@@ -62,6 +62,7 @@ export interface ParticipantSummary {
   participantId: string;
   userId: string;
   displayName: string;
+  email: string | null;
   roleAtJoin: string;
   joinedAt: string;
   micMuted: boolean;
@@ -199,6 +200,7 @@ export interface PeerSignalBody {
   candidate?: string;
   sdpMid?: string | null;
   sdpMLineIndex?: number | null;
+  usernameFragment?: string | null;
 }
 
 export interface PeerSignalOutgoing {

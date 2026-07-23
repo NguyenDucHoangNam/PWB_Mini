@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { ImmersiveMeetingRoom } from "@/features/liveroom/components/immersive-meeting-room";
-import { MediaStage } from "@/features/liveroom/components/media-stage";
 import { AskToJoinCard } from "@/features/liveroom/components/ask-to-join-card";
 import { WaitingRoomCard } from "@/features/liveroom/components/waiting-room-card";
 import { RejectedCard } from "@/features/liveroom/components/rejected-card";
@@ -204,7 +203,7 @@ export default function UnifiedLiveRoomPage() {
     );
   }
 
-  if (isHost && currentUserId) {
+  if ((isHost || phase.kind === "IN_ROOM") && currentUserId) {
     return (
       <ImmersiveMeetingRoom
         roomCode={roomCode}
@@ -224,14 +223,6 @@ export default function UnifiedLiveRoomPage() {
           <span className="text-sm font-medium text-white">{room.title}</span>
           <span className="font-mono text-xs text-neutral-400">{room.roomCode}</span>
         </div>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => router.push("/dashboard/live-rooms")}
-          className="rounded-full bg-black/60 px-3 text-xs text-white backdrop-blur-sm hover:bg-black/80"
-        >
-          ✕
-        </Button>
       </div>
 
       {!isActive ? (
@@ -288,14 +279,6 @@ export default function UnifiedLiveRoomPage() {
             onBack={() => router.push("/dashboard/live-rooms")}
           />
         </div>
-      ) : phase.kind === "IN_ROOM" && currentUserId ? (
-        <MediaStage
-          roomCode={roomCode}
-          localUserId={currentUserId}
-          localDisplayName={localDisplayName}
-          enabled
-          onLeave={handleLeave}
-        />
       ) : null}
     </div>
   );

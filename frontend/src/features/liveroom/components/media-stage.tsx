@@ -5,6 +5,7 @@ import { useLiveRoomMedia } from "../hooks/use-live-room-media";
 import { MediaTile } from "./media-tile";
 import { MediaControls } from "./media-controls";
 import { subscribeRoomMediaState } from "../api/ws";
+import { useParticipants } from "../api/participants";
 import type { MediaStateChangedWsEvent } from "../types";
 
 interface MediaStageProps {
@@ -30,6 +31,15 @@ export function MediaStage({
     localDisplayName,
     enabled,
   });
+
+  const { data: participantsRes } = useParticipants({ roomCode });
+  const participantMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of participantsRes?.data ?? []) {
+      map.set(p.userId, p.displayName || p.email || p.userId);
+    }
+    return map;
+  }, [participantsRes]);
 
   const [remoteMediaState, setRemoteMediaState] = useState<Record<string, { micMuted: boolean; cameraOff: boolean }>>({});
 
@@ -76,13 +86,16 @@ export function MediaStage({
         />
         {peers.map((peer) => {
           const remoteState = remoteMediaState[peer.userId];
+          const name =
+            participantMap.get(peer.userId) ||
+            (peer.displayName && peer.displayName !== peer.userId ? peer.displayName : peer.userId);
           return (
             <MediaTile
               key={peer.userId}
               stream={peer.stream}
               cameraOff={remoteState?.cameraOff ?? false}
               micMuted={remoteState?.micMuted ?? false}
-              displayName={peer.displayName || peer.userId}
+              displayName={name}
               isLocal={false}
             />
           );

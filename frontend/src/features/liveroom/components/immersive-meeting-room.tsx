@@ -12,8 +12,9 @@ import {
   type ImmersivePanelTab,
 } from "./immersive-bottom-bar";
 import { ImmersiveRightPanel } from "./immersive-right-panel";
-import { HostLeaveConfirmDialog } from "./host-leave-confirm-dialog";
-import { liveRoomKey } from "../api/rooms";
+import { LeaveConfirmDialog } from "./leave-confirm-dialog";
+import { HostLeaveDialog } from "./host-leave-dialog";
+import { liveRoomKey, useEndRoom } from "../api/rooms";
 import { useLeaveRoom } from "../api/participants";
 import { useListJoinRequests } from "../api/join-requests";
 import { liveRoomParticipantsKey } from "../api/participants";
@@ -44,12 +45,19 @@ export function ImmersiveMeetingRoom({
   const queryClient = useQueryClient();
   const router = useRouter();
 
+  const isHost = localUserId === room.hostUserId;
+
   const [panelTab, setPanelTab] = useState<ImmersivePanelTab>(null);
-  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [participantLeaveOpen, setParticipantLeaveOpen] = useState(false);
+  const [hostLeaveOpen, setHostLeaveOpen] = useState(false);
 
   const mediaControls = useImmersiveMediaControls({ roomCode, localUserId });
 
-  const { data: pendingRes } = useListJoinRequests({ roomCode, status: "PENDING" });
+  const { data: pendingRes } = useListJoinRequests({
+    roomCode,
+    status: "PENDING",
+    queryConfig: { enabled: Boolean(roomCode) && isHost },
+  });
   const pendingCount =
     pendingRes?.success && pendingRes.data ? pendingRes.data.length : 0;
 
@@ -60,7 +68,7 @@ export function ImmersiveMeetingRoom({
 
   useLiveRoomRealtime({
     roomCode,
-    isHost: true,
+    isHost,
     onJoinRequestCreated: invalidateQueries,
     onParticipantChanged: (event) => {
       invalidateQueries();
@@ -83,12 +91,23 @@ export function ImmersiveMeetingRoom({
     [tErrors, tCommon],
   );
 
-  const { mutate: leaveRoomMutate } = useLeaveRoom({
+  const { mutate: leaveMutate, isPending: isLeaving } = useLeaveRoom({
     mutationConfig: { onError: asApiError(showError) },
   });
 
-  const handleLeave = useCallback(() => {
-    leaveRoomMutate(
+  const { mutate: endMutate, isPending: isEnding } = useEndRoom({
+    mutationConfig: {
+      onError: asApiError(showError),
+      onSuccess: (response) => {
+        if (response.success) {
+          router.replace("/dashboard/live-rooms");
+        }
+      },
+    },
+  });
+
+  const handleLeaveAsParticipant = useCallback(() => {
+    leaveMutate(
       { roomCode },
       {
         onSuccess: (response: { success: boolean }) => {
@@ -98,15 +117,24 @@ export function ImmersiveMeetingRoom({
         },
       },
     );
-  }, [leaveRoomMutate, roomCode, router]);
+  }, [leaveMutate, roomCode, router]);
 
-  const requestLeave = useCallback(() => {
-    setLeaveDialogOpen(true);
-  }, []);
+  const handleLeaveAsHost = useCallback(() => {
+    leaveMutate(
+      { roomCode },
+      {
+        onSuccess: (response: { success: boolean }) => {
+          if (response.success) {
+            router.replace("/dashboard/live-rooms");
+          }
+        },
+      },
+    );
+  }, [leaveMutate, roomCode, router]);
 
-  const confirmLeave = useCallback(() => {
-    handleLeave();
-  }, [handleLeave]);
+  const handleEndRoom = useCallback(() => {
+    endMutate({ roomCode });
+  }, [endMutate, roomCode]);
 
   const handleToggleMic = useCallback(() => {
     mediaControls.toggleMic();
@@ -151,7 +179,6 @@ export function ImmersiveMeetingRoom({
         roomCode={room.roomCode}
         status={room.status}
         mode={room.mode}
-        onClose={requestLeave}
         variant="immersive"
       />
 
@@ -161,7 +188,7 @@ export function ImmersiveMeetingRoom({
           open={panelTab !== null}
           roomCode={roomCode}
           hostUserId={room.hostUserId}
-          isHost={true}
+          isHost={isHost}
           onClose={handleClosePanel}
         />
       </main>
@@ -175,17 +202,29 @@ export function ImmersiveMeetingRoom({
           activeTab={panelTab}
           roomCode={roomCode}
           localUserId={localUserId}
+          isHost={isHost}
           onToggleMic={handleToggleMic}
           onToggleCamera={handleToggleCamera}
           onSelectTab={handleSelectTab}
-          onLeave={requestLeave}
+          onLeaveAsHost={() => setHostLeaveOpen(true)}
+          onLeave={() => setParticipantLeaveOpen(true)}
         />
       ) : null}
 
-      <HostLeaveConfirmDialog
-        open={leaveDialogOpen}
-        onOpenChange={setLeaveDialogOpen}
-        onConfirm={confirmLeave}
+      <LeaveConfirmDialog
+        open={participantLeaveOpen}
+        onOpenChange={setParticipantLeaveOpen}
+        onConfirm={handleLeaveAsParticipant}
+        isLeaving={isLeaving}
+      />
+
+      <HostLeaveDialog
+        open={hostLeaveOpen}
+        onOpenChange={setHostLeaveOpen}
+        onLeaveOnly={handleLeaveAsHost}
+        onEndRoom={handleEndRoom}
+        isLeaving={isLeaving}
+        isEnding={isEnding}
       />
     </div>
   );

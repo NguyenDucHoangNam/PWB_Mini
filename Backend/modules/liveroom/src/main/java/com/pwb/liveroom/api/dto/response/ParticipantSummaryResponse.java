@@ -17,6 +17,7 @@ public class ParticipantSummaryResponse {
     private UUID participantId;
     private UUID userId;
     private String displayName;
+    private String email;
     private String roleAtJoin;
     private Instant joinedAt;
     private boolean micMuted;

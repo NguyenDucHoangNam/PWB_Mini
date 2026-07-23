@@ -919,6 +919,22 @@
       "confirm": "End room",
       "success": "Room ended"
     },
+    "leaveConfirm": {
+      "title": "Leave this room?",
+      "message": "You will leave the room. The room stays active for others.",
+      "confirm": "Leave",
+      "cancel": "Stay",
+      "leaving": "Leaving..."
+    },
+    "hostLeaveDialog": {
+      "title": "Leave or end?",
+      "message": "You can leave and let others continue, or end the room for everyone.",
+      "leaveOnly": "Leave only",
+      "endRoom": "End room",
+      "cancel": "Stay",
+      "leaving": "Leaving...",
+      "ending": "Ending..."
+    },
     "leaveDialog": {
       "title": "Leave this room?",
       "message": "You will leave the room but it stays active. Other listeners can continue. You can rejoin anytime.",

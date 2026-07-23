@@ -134,6 +134,15 @@ public class LiveRoomWebSocketController {
             log.warn("Signal {} rejected: self-send, userId={}", type, userId);
             return;
         }
+        Object rawSignalPayload = payload.get("payload");
+        Map<String, Object> signalPayload = new java.util.HashMap<>();
+        if (rawSignalPayload instanceof Map<?, ?> m) {
+            for (Map.Entry<?, ?> e : m.entrySet()) {
+                if (e.getKey() instanceof String key && e.getValue() != null) {
+                    signalPayload.put(key, e.getValue());
+                }
+            }
+        }
         if (!participantService.isActiveParticipant(roomCode, userId)) {
             throw new WsAuthException("WS_001", "User is not an active participant of this room");
         }
@@ -146,7 +155,7 @@ public class LiveRoomWebSocketController {
                 "roomCode", roomCode,
                 "fromUserId", userId.toString(),
                 "toUserId", toUserIdStr,
-                "payload", payload.getOrDefault("payload", Map.of())
+                "payload", signalPayload
         );
         String destination = SIGNAL_USER_BASE + roomCode + suffix;
         try {

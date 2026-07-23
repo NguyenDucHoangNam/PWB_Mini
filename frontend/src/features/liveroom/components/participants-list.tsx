@@ -46,6 +46,7 @@ export function ParticipantsList({ roomCode, hostUserId }: ParticipantsListProps
           participantId: event.userId ?? String(Date.now()),
           userId: event.userId ?? "",
           displayName: event.displayName ?? "Listener",
+          email: null,
           roleAtJoin: event.roleAtJoin ?? "USER",
           joinedAt,
           micMuted: true,
@@ -130,19 +131,24 @@ export function ParticipantsList({ roomCode, hostUserId }: ParticipantsListProps
                   className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
                 >
                   <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className="truncate font-medium text-black dark:text-white">
-                      {p.displayName}
+                    <span className="flex flex-wrap items-center gap-1 truncate font-medium text-black dark:text-white">
+                      <span className="truncate">{p.email ?? p.displayName}</span>
                       {isHost && (
-                        <span className="ml-2 inline-flex items-center rounded border border-purple-300 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-purple-700 dark:border-purple-700 dark:text-purple-300">
+                        <span className="inline-flex items-center rounded border border-purple-300 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-purple-700 dark:border-purple-700 dark:text-purple-300">
                           {t("hostBadge")}
                         </span>
                       )}
                       {isCurrent && (
-                        <span className="ml-2 inline-flex items-center rounded border border-blue-300 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-blue-700 dark:border-blue-700 dark:text-blue-300">
+                        <span className="inline-flex items-center rounded border border-blue-300 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-blue-700 dark:border-blue-700 dark:text-blue-300">
                           {t("youBadge")}
                         </span>
                       )}
                     </span>
+                    {p.email && p.displayName !== p.email && (
+                      <span className="truncate text-xs text-neutral-500 dark:text-neutral-400">
+                        {p.displayName}
+                      </span>
+                    )}
                     <span className="text-xs text-neutral-500 dark:text-neutral-400">
                       {p.roleAtJoin}
                     </span>

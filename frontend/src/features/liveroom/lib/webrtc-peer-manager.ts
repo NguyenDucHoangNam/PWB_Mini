@@ -16,6 +16,7 @@ interface PeerEntry {
   hasRemoteDescription: boolean;
   pendingIceFlushTimer: ReturnType<typeof setTimeout> | null;
   reconnectAttempts?: number;
+  isReconnecting?: boolean;
 }
 
 export interface WebRTCPeerManagerOptions {
@@ -62,6 +63,7 @@ export class WebRTCPeerManager {
   private readonly roomCode: string;
   private readonly localUserId: string;
   private readonly peers: Map<string, PeerEntry> = new Map();
+  private readonly displayNames: Map<string, string> = new Map();
   private readonly remoteStreamHandlers: Set<RemoteStreamHandler["onRemoteStream"]> = new Set();
   private readonly peerLeftHandlers: Set<RemoteStreamHandler["onPeerLeft"]> = new Set();
   private readonly pendingPeerUserIds: Set<string> = new Set();
@@ -95,9 +97,12 @@ export class WebRTCPeerManager {
     this.unsubscribers.push(() => iceSub.unsubscribe());
   }
 
-  async addPeer(localStream: MediaStream | null, remoteUserId: string): Promise<void> {
+  async addPeer(localStream: MediaStream | null, remoteUserId: string, displayName?: string): Promise<void> {
     if (this.disposed) return;
     if (remoteUserId === this.localUserId) return;
+    if (displayName) {
+      this.displayNames.set(remoteUserId, displayName);
+    }
     if (!localStream) {
       this.pendingPeerUserIds.add(remoteUserId);
       return;
@@ -106,16 +111,20 @@ export class WebRTCPeerManager {
 
     const existing = this.peers.get(remoteUserId);
     if (existing) {
+      if (existing.isReconnecting) {
+        return;
+      }
       this.replaceLocalTracks(existing.connection, localStream);
       return;
     }
 
     const peerConnection = this.createPeerConnection(remoteUserId, localStream);
     const remoteStream = new MediaStream();
+    const resolvedDisplayName = displayName ?? this.displayNames.get(remoteUserId) ?? remoteUserId;
     const entry: PeerEntry = {
       connection: peerConnection,
       remoteStream,
-      displayName: remoteUserId,
+      displayName: resolvedDisplayName,
       iceBuffer: [],
       hasRemoteDescription: false,
       pendingIceFlushTimer: null,
@@ -129,12 +138,19 @@ export class WebRTCPeerManager {
     });
   }
 
-  async queuePeerIfNeeded(remoteUserId: string): Promise<void> {
+  async queuePeerIfNeeded(remoteUserId: string, displayName?: string): Promise<void> {
     if (this.disposed) return;
     if (remoteUserId === this.localUserId) return;
+    if (displayName) {
+      this.displayNames.set(remoteUserId, displayName);
+      const existing = this.peers.get(remoteUserId);
+      if (existing) {
+        existing.displayName = displayName;
+      }
+    }
     if (this.peers.has(remoteUserId)) return;
     if (this.localStream) {
-      await this.addPeer(this.localStream, remoteUserId);
+      await this.addPeer(this.localStream, remoteUserId, displayName);
       return;
     }
     this.pendingPeerUserIds.add(remoteUserId);
@@ -172,8 +188,24 @@ export class WebRTCPeerManager {
     }
   }
 
+  setDisplayNameForUser(userId: string, displayName: string): void {
+    this.displayNames.set(userId, displayName);
+    const existing = this.peers.get(userId);
+    if (existing) {
+      existing.displayName = displayName;
+      this.remoteStreamHandlers.forEach((handler) =>
+        handler(userId, displayName, existing.remoteStream),
+      );
+    }
+  }
+
   onRemoteStream(handler: RemoteStreamHandler["onRemoteStream"]): () => void {
     this.remoteStreamHandlers.add(handler);
+    for (const [userId, entry] of this.peers.entries()) {
+      if (entry.connection.connectionState === "connected" || entry.remoteStream.getTracks().length > 0) {
+        handler(userId, entry.displayName, entry.remoteStream);
+      }
+    }
     return () => this.remoteStreamHandlers.delete(handler);
   }
 
@@ -243,10 +275,11 @@ export class WebRTCPeerManager {
       }
 
       const remoteStream = new MediaStream();
+      const resolvedDisplayName = this.displayNames.get(remoteUserId) ?? remoteUserId;
       entry = {
         connection: peerConnection,
         remoteStream,
-        displayName: remoteUserId,
+        displayName: resolvedDisplayName,
         iceBuffer: [],
         hasRemoteDescription: false,
         pendingIceFlushTimer: null,
@@ -289,6 +322,7 @@ export class WebRTCPeerManager {
       candidate: event.payload.candidate,
       sdpMid: event.payload.sdpMid ?? null,
       sdpMLineIndex: event.payload.sdpMLineIndex ?? null,
+      usernameFragment: event.payload.usernameFragment ?? null,
     };
     if (!entry.hasRemoteDescription) {
       entry.iceBuffer.push(candidateInit);
@@ -321,6 +355,12 @@ export class WebRTCPeerManager {
     peerConnection.ontrack = (event) => {
       const target = this.peers.get(remoteUserId);
       if (!target) return;
+      if (event.track) {
+        const existingTrack = target.remoteStream.getTrackById(event.track.id);
+        if (!existingTrack) {
+          target.remoteStream.addTrack(event.track);
+        }
+      }
       for (const track of event.streams[0]?.getTracks() ?? []) {
         const existingTrack = target.remoteStream.getTrackById(track.id);
         if (!existingTrack) {
@@ -338,6 +378,7 @@ export class WebRTCPeerManager {
         candidate: event.candidate.candidate,
         sdpMid: event.candidate.sdpMid,
         sdpMLineIndex: event.candidate.sdpMLineIndex,
+        usernameFragment: event.candidate.usernameFragment,
       });
     };
 
@@ -361,17 +402,22 @@ export class WebRTCPeerManager {
       return;
     }
     entry.reconnectAttempts = attempts;
+    entry.isReconnecting = true;
     const delay = Math.min(BASE_RECONNECT_DELAY_MS * 2 ** (attempts - 1), MAX_RECONNECT_DELAY_MS);
+    const displayName = entry.displayName;
     setTimeout(() => {
       const current = this.peers.get(remoteUserId);
-      if (!current || !this.localStream) return;
+      if (!current || current !== entry) return;
+      if (!this.localStream) return;
+      if (!current.isReconnecting) return;
       try {
         current.connection.close();
       } catch {
         /* ignore */
       }
       this.peers.delete(remoteUserId);
-      void this.addPeer(this.localStream, remoteUserId).catch((err) =>
+      current.isReconnecting = false;
+      void this.addPeer(this.localStream, remoteUserId, displayName).catch((err) =>
         this.logError(`reconnect ${remoteUserId}`, err),
       );
     }, delay);

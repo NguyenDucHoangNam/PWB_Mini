@@ -1,5 +1,7 @@
 package com.pwb.liveroom.core.service;
 
+import com.pwb.iam.infrastructure.persistence.entity.UserJpaEntity;
+import com.pwb.iam.infrastructure.persistence.repository.UserJpaRepository;
 import com.pwb.liveroom.api.LiveRoomParticipantFacade;
 import com.pwb.liveroom.api.dto.response.ParticipantSummaryResponse;
 import com.pwb.liveroom.core.model.LiveRoomParticipant;
@@ -17,6 +19,7 @@ import java.util.UUID;
 public class LiveRoomParticipantFacadeImpl implements LiveRoomParticipantFacade {
 
     private final LiveRoomParticipantService participantService;
+    private final UserJpaRepository userJpaRepository;
 
     @Override
     @Transactional
@@ -53,10 +56,14 @@ public class LiveRoomParticipantFacadeImpl implements LiveRoomParticipantFacade 
         if (participant == null) {
             return null;
         }
+        String email = userJpaRepository.findByIdAndDeletedFalse(participant.getUserId())
+                .map(UserJpaEntity::getEmail)
+                .orElse(null);
         return ParticipantSummaryResponse.builder()
                 .participantId(participant.getId())
                 .userId(participant.getUserId())
                 .displayName(participant.getDisplayName())
+                .email(email)
                 .roleAtJoin(participant.getRoleAtJoin())
                 .joinedAt(participant.getJoinedAt())
                 .micMuted(participant.isMicMuted())
