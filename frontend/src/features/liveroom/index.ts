@@ -82,7 +82,6 @@ export { RejectedCard } from "./components/rejected-card";
 export { DeclineRequestDialog } from "./components/decline-request-dialog";
 export { JoinRequestQueuePanel } from "./components/join-request-queue-panel";
 export { JoinRoomByCodeCard } from "./components/join-room-by-code-card";
-export { ScreenShareControl } from "./components/screenshare-control";
 export { HandRaiseButton } from "./components/hand-raise-button";
 export { LiveRoomHeader } from "./components/live-room-header";
 export { MediaTile } from "./components/media-tile";

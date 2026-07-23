@@ -20,7 +20,6 @@ import { liveRoomParticipantsKey } from "../api/participants";
 import { useLiveRoomRealtime } from "../hooks/use-live-room-realtime";
 import { useMediaSessionLifecycle } from "../hooks/use-media-session-lifecycle";
 import { useImmersiveMediaControls } from "../hooks/use-immersive-media-controls";
-import { useScreenShare } from "../hooks/use-screenshare";
 import { asApiError } from "@/lib/api-client";
 import { resolveLiveroomErrorMessage } from "../lib/resolve-liveroom-error-message";
 import type { LiveRoom } from "../types";
@@ -49,7 +48,6 @@ export function ImmersiveMeetingRoom({
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
 
   const mediaControls = useImmersiveMediaControls({ roomCode, localUserId });
-  const screenShare = useScreenShare();
 
   const { data: pendingRes } = useListJoinRequests({ roomCode, status: "PENDING" });
   const pendingCount =
@@ -161,11 +159,8 @@ export function ImmersiveMeetingRoom({
         {renderContent}
         <ImmersiveRightPanel
           open={panelTab !== null}
-          tab={panelTab}
           roomCode={roomCode}
           hostUserId={room.hostUserId}
-          localUserId={localUserId}
-          localDisplayName={localDisplayName}
           onClose={handleClosePanel}
         />
       </main>
@@ -176,16 +171,11 @@ export function ImmersiveMeetingRoom({
           cameraOff={mediaControls.cameraOff}
           pendingRequestCount={pendingCount}
           participantCount={room.currentParticipantCount}
-          unreadMessageCount={0}
           activeTab={panelTab}
-          isSharingScreen={screenShare.isSharing}
           roomCode={roomCode}
           localUserId={localUserId}
           onToggleMic={handleToggleMic}
           onToggleCamera={handleToggleCamera}
-          onToggleScreenShare={() => {
-            void screenShare.toggle();
-          }}
           onSelectTab={handleSelectTab}
           onLeave={requestLeave}
         />

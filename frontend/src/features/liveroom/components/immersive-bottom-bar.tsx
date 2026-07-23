@@ -1,25 +1,21 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { MessageSquare, Mic, MicOff, PhoneOff, Users, Video, VideoOff } from "lucide-react";
-import { ScreenShareControl } from "./screenshare-control";
+import { Mic, MicOff, PhoneOff, Users, Video, VideoOff } from "lucide-react";
 import { HandRaiseButton } from "./hand-raise-button";
 
-export type ImmersivePanelTab = "people" | "chat" | null;
+export type ImmersivePanelTab = "people" | null;
 
 interface ImmersiveBottomBarProps {
   micMuted: boolean;
   cameraOff: boolean;
   pendingRequestCount: number;
   participantCount: number;
-  unreadMessageCount: number;
   activeTab: ImmersivePanelTab;
-  isSharingScreen: boolean;
   roomCode: string;
   localUserId: string;
   onToggleMic: () => void;
   onToggleCamera: () => void;
-  onToggleScreenShare: () => void;
   onSelectTab: (tab: ImmersivePanelTab) => void;
   onLeave: () => void;
 }
@@ -29,14 +25,11 @@ export function ImmersiveBottomBar({
   cameraOff,
   pendingRequestCount,
   participantCount,
-  unreadMessageCount,
   activeTab,
-  isSharingScreen,
   roomCode,
   localUserId,
   onToggleMic,
   onToggleCamera,
-  onToggleScreenShare,
   onSelectTab,
   onLeave,
 }: ImmersiveBottomBarProps) {
@@ -82,8 +75,6 @@ export function ImmersiveBottomBar({
           {cameraOff ? <VideoOff className="size-5" /> : <Video className="size-5" />}
         </button>
 
-        <ScreenShareControl isSharing={isSharingScreen} onToggle={onToggleScreenShare} />
-
         <HandRaiseButton roomCode={roomCode} localUserId={localUserId} />
 
         <div className="mx-1 h-8 w-px bg-white/10" />
@@ -114,22 +105,6 @@ export function ImmersiveBottomBar({
             {tHost("count", { count: pendingRequestCount })}
           </span>
         ) : null}
-
-        <button
-          type="button"
-          onClick={() => onSelectTab(activeTab === "chat" ? null : "chat")}
-          aria-label={tImmersive("chat")}
-          title={tImmersive("chat")}
-          aria-pressed={activeTab === "chat"}
-          className={`relative inline-flex size-12 items-center justify-center rounded-full transition ${
-            activeTab === "chat"
-              ? "bg-blue-500 text-white"
-              : "bg-neutral-700 text-white hover:bg-neutral-600"
-          }`}
-        >
-          <MessageSquare className="size-5" />
-          {renderBadge(unreadMessageCount)}
-        </button>
 
         <div className="mx-1 h-8 w-px bg-white/10" />
 
