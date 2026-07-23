@@ -109,6 +109,8 @@ export function useLiveRoomMedia({
     };
   }, [enabled, roomCode, localUserId, localDisplayName, upsertRemotePeer, removeRemotePeer]);
 
+  const streamRevision = useMediaSessionStore((s) => s.streamRevision);
+
   useEffect(() => {
     if (!devices.stream) {
       setLocalStream(null);
@@ -116,7 +118,7 @@ export function useLiveRoomMedia({
     }
     setLocalStream(devices.stream);
     managerRef.current?.setLocalStreamForAllPeers(devices.stream);
-  }, [devices.stream, setLocalStream]);
+  }, [devices.stream, streamRevision, setLocalStream]);
 
   usePeerSignaling({
     roomCode,
@@ -183,7 +185,7 @@ export function useLiveRoomMedia({
       const stream = useMediaSessionStore.getState().stream;
       if (!stream) return;
       const videoTrack = stream.getVideoTracks()[0];
-      if (videoTrack && videoTrack.readyState === "paused") {
+      if (videoTrack && videoTrack.readyState === "ended") {
         const currentVideoId = useMediaSessionStore.getState().currentVideoId;
         if (currentVideoId) {
           devices.enableCamera().catch(() => {
@@ -234,6 +236,9 @@ export function useLiveRoomMedia({
           } else {
             await devices.enableCamera();
           }
+          const updatedStream = useMediaSessionStore.getState().stream;
+          const videoTrack = updatedStream?.getVideoTracks()[0] ?? null;
+          managerRef.current?.replaceVideoTrackForAllPeers(next.cameraOff ? null : videoTrack);
         }
       } catch (err) {
         setMicMuted(before.micMuted);

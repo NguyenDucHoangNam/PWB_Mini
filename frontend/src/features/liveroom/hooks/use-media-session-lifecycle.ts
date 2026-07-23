@@ -15,19 +15,12 @@ export function useMediaSessionLifecycle(): void {
     const onBeforeUnload = () => {
       releaseSessionAndReport();
     };
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        releaseSessionAndReport();
-      }
-    };
 
     window.addEventListener("pagehide", onPageHide);
     window.addEventListener("beforeunload", onBeforeUnload);
-    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       window.removeEventListener("pagehide", onPageHide);
       window.removeEventListener("beforeunload", onBeforeUnload);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
 }

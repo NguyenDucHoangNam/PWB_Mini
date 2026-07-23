@@ -46,6 +46,10 @@ export function useImmersiveMediaControls({
 
   const joinedReadyRef = useRef(false);
   const pendingMediaRef = useRef<{ micMuted: boolean; cameraOff: boolean } | null>(null);
+  const mutationRef = useRef(updateMyMediaMutation);
+  useEffect(() => {
+    mutationRef.current = updateMyMediaMutation;
+  }, [updateMyMediaMutation]);
 
   useEffect(() => {
     if (!roomCode || !localUserId) return undefined;
@@ -56,7 +60,7 @@ export function useImmersiveMediaControls({
         const pending = pendingMediaRef.current;
         if (pending) {
           pendingMediaRef.current = null;
-          updateMyMediaMutation.mutate({ roomCode, body: pending });
+          mutationRef.current.mutate({ roomCode, body: pending });
         }
         return;
       }
@@ -70,7 +74,7 @@ export function useImmersiveMediaControls({
       joinedReadyRef.current = false;
       pendingMediaRef.current = null;
     };
-  }, [roomCode, localUserId, updateMyMediaMutation]);
+  }, [roomCode, localUserId]);
 
   const toggleMic = useCallback(() => {
     const store = useLiveRoomMediaStore.getState();

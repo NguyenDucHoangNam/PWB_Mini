@@ -12,6 +12,16 @@ const DEFAULT_MEDIA_CONSTRAINTS: MediaStreamConstraints = {
   video: true,
 };
 
+let cameraToggleLock: Promise<void> = Promise.resolve();
+
+function serializeCameraOp<T>(fn: () => Promise<T>): Promise<T> {
+  const next = cameraToggleLock.then(fn, fn);
+  cameraToggleLock = next.then(() => {}, () => {});
+  return next;
+}
+
+let lastVideoDeviceId: string | null = null;
+
 function readErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   return "Failed to access media devices.";
@@ -278,50 +288,61 @@ export const mediaSessionController = {
   },
 
   async enableCamera(): Promise<MediaStreamTrack | null> {
-    const store = useMediaSessionStore.getState();
-    if (store.cameraReacquiring) return null;
-    store.setCameraBusy(false, true);
-    try {
-      const current = store.stream;
-      const deviceId = store.currentVideoId;
-      const videoTrack = await acquireVideoOnly(deviceId);
-      if (current) {
-        appendTrackSafely(current, videoTrack);
-      } else {
-        const fallbackStream = new MediaStream([videoTrack]);
-        store.setStream(fallbackStream);
+    return serializeCameraOp(async () => {
+      const store = useMediaSessionStore.getState();
+      store.setCameraBusy(false, true);
+      try {
+        const current = store.stream;
+        const deviceId = store.currentVideoId ?? lastVideoDeviceId;
+        const videoTrack = await acquireVideoOnly(deviceId);
+        if (current) {
+          detachVideoTracks(current);
+          appendTrackSafely(current, videoTrack);
+        } else {
+          const fallbackStream = new MediaStream([videoTrack]);
+          store.setStream(fallbackStream);
+        }
+        const resolvedId = videoTrack.getSettings().deviceId ?? deviceId ?? null;
+        store.setCurrentVideoId(resolvedId);
+        lastVideoDeviceId = resolvedId;
+        store.setPermissionState("granted");
+        store.setErrorMessage(null);
+        store.bumpStreamRevision();
+        const { audios, videos } = await enumerateDevices();
+        store.setDevices(audios, videos);
+        return videoTrack;
+      } catch (err) {
+        const ex = toPermissionException(err);
+        store.setPermissionState(ex.kind === "PERMISSION_DENIED" || ex.kind === "POLICY_BLOCKED" ? "denied" : "error");
+        store.setErrorMessage(ex.message);
+        throw ex;
+      } finally {
+        store.setCameraBusy(false, false);
       }
-      store.setCurrentVideoId(videoTrack.getSettings().deviceId ?? deviceId ?? null);
-      store.setPermissionState("granted");
-      store.setErrorMessage(null);
-      const { audios, videos } = await enumerateDevices();
-      store.setDevices(audios, videos);
-      return videoTrack;
-    } catch (err) {
-      const ex = toPermissionException(err);
-      store.setPermissionState(ex.kind === "PERMISSION_DENIED" || ex.kind === "POLICY_BLOCKED" ? "denied" : "error");
-      store.setErrorMessage(ex.message);
-      throw ex;
-    } finally {
-      store.setCameraBusy(false, false);
-    }
+    });
   },
 
   async disableCamera(): Promise<void> {
-    const store = useMediaSessionStore.getState();
-    if (store.cameraReleasing) return;
-    store.setCameraBusy(true, false);
-    try {
-      const current = store.stream;
-      if (current) {
-        detachVideoTracks(current);
+    return serializeCameraOp(async () => {
+      const store = useMediaSessionStore.getState();
+      store.setCameraBusy(true, false);
+      try {
+        const current = store.stream;
+        const currentVideoId = store.currentVideoId;
+        if (currentVideoId) {
+          lastVideoDeviceId = currentVideoId;
+        }
+        if (current) {
+          detachVideoTracks(current);
+        }
+        store.setCurrentVideoId(null);
+        store.bumpStreamRevision();
+        const { audios, videos } = await enumerateDevices();
+        store.setDevices(audios, videos);
+      } finally {
+        store.setCameraBusy(false, false);
       }
-      store.setCurrentVideoId(null);
-      const { audios, videos } = await enumerateDevices();
-      store.setDevices(audios, videos);
-    } finally {
-      store.setCameraBusy(false, false);
-    }
+    });
   },
 
   async ensureAudio(): Promise<void> {

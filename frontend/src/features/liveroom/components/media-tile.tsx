@@ -27,14 +27,17 @@ export function MediaTile({
   const tCommon = useTranslations("common");
   const tMedia = useTranslations("liveroom.media");
 
+  const showVideo = !cameraOff && !!stream;
+
   useEffect(() => {
     const node = videoRef.current;
     if (!node) return;
-    node.srcObject = stream;
-    if (!stream) {
-      node.load();
+
+    node.srcObject = stream ?? null;
+    if (stream) {
+      node.play().catch(() => {});
     }
-  }, [stream, cameraOff]);
+  }, [stream]);
 
   const showSpeakingRing = isSpeaking && !micMuted;
 
@@ -46,22 +49,21 @@ export function MediaTile({
           : "border-neutral-200 dark:border-neutral-800"
       } bg-black transition-all duration-200`}
     >
-      {!cameraOff && stream ? (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted={isLocal}
-          className="h-full w-full object-cover"
-        />
-      ) : (
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted={isLocal}
+        className={`h-full w-full object-cover ${showVideo ? "block" : "hidden"}`}
+      />
+      {!showVideo ? (
         <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-neutral-900 text-neutral-200">
           <div className="flex size-14 items-center justify-center rounded-full bg-neutral-700 text-base font-semibold uppercase">
             {(displayName || "?").charAt(0)}
           </div>
           <span className="text-xs text-neutral-400">{tMedia("remoteCameraOff")}</span>
         </div>
-      )}
+      ) : null}
       <div className="absolute inset-x-3 bottom-3 flex items-end justify-between gap-2">
         <div className="flex items-center gap-2 rounded-full bg-black/55 px-3 py-1 text-xs text-white">
           <span className="max-w-[12ch] truncate">{displayName}</span>

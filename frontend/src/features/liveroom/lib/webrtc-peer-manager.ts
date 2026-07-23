@@ -69,7 +69,16 @@ export class WebRTCPeerManager {
   private readonly pendingPeerUserIds: Set<string> = new Set();
   private unsubscribers: Array<() => void> = [];
   private disposed = false;
-  private localStream: MediaStream | null = null;
+  private readonly localStream_: { current: MediaStream | null } = { current: null };
+  private readonly senderKindMap: WeakMap<RTCRtpSender, string> = new WeakMap();
+
+  private get localStream(): MediaStream | null {
+    return this.localStream_.current;
+  }
+
+  private set localStream(value: MediaStream | null) {
+    this.localStream_.current = value;
+  }
 
   constructor(options: WebRTCPeerManagerOptions) {
     this.roomCode = options.roomCode;
@@ -188,6 +197,25 @@ export class WebRTCPeerManager {
     }
   }
 
+  replaceVideoTrackForAllPeers(track: MediaStreamTrack | null): void {
+    for (const entry of this.peers.values()) {
+      const senders = entry.connection.getSenders();
+      const videoSender = senders.find(
+        (s) => s.track?.kind === "video" || (!s.track && this.senderKindMap.get(s) === "video"),
+      );
+      if (videoSender) {
+        void videoSender.replaceTrack(track);
+      } else if (track) {
+        const dummyStream = new MediaStream([track]);
+        entry.connection.addTrack(track, dummyStream);
+        this.senderKindMap.set(
+          senders.find((s) => s.track === track) ?? entry.connection.getSenders().find((s) => s.track === track)!,
+          "video",
+        );
+      }
+    }
+  }
+
   setDisplayNameForUser(userId: string, displayName: string): void {
     this.displayNames.set(userId, displayName);
     const existing = this.peers.get(userId);
@@ -244,6 +272,12 @@ export class WebRTCPeerManager {
       peerConnection.addTrack(track, localStream);
     });
 
+    for (const sender of peerConnection.getSenders()) {
+      if (sender.track) {
+        this.senderKindMap.set(sender, sender.track.kind);
+      }
+    }
+
     this.attachPeerConnectionHandlers(remoteUserId, peerConnection);
     return peerConnection;
   }
@@ -272,6 +306,11 @@ export class WebRTCPeerManager {
         this.localStream.getTracks().forEach((track) => {
           peerConnection.addTrack(track, this.localStream!);
         });
+        for (const sender of peerConnection.getSenders()) {
+          if (sender.track) {
+            this.senderKindMap.set(sender, sender.track.kind);
+          }
+        }
       }
 
       const remoteStream = new MediaStream();
@@ -425,26 +464,34 @@ export class WebRTCPeerManager {
 
   private replaceLocalTracks(connection: RTCPeerConnection, stream: MediaStream): void {
     const senders = connection.getSenders();
+    const newTracks = stream.getTracks();
+    const newTracksByKind = new Map<string, MediaStreamTrack>();
+    for (const track of newTracks) {
+      newTracksByKind.set(track.kind, track);
+    }
 
     for (const sender of senders) {
-      if (!sender.track) continue;
-      const kind = sender.track.kind;
-      const replacement = stream.getTracks().find((track) => track.kind === kind);
-      if (!replacement) {
+      const senderKind = sender.track?.kind ?? this.senderKindMap.get(sender);
+      if (!senderKind) continue;
+      const replacement = newTracksByKind.get(senderKind);
+      if (replacement && sender.track?.id !== replacement.id) {
+        void sender.replaceTrack(replacement);
+        this.senderKindMap.set(sender, senderKind);
+      } else if (!replacement) {
+        this.senderKindMap.set(sender, senderKind);
         void sender.replaceTrack(null);
       }
     }
 
-    for (const track of stream.getTracks()) {
-      const sender = senders.find((s) => s.track?.kind === track.kind && s.track?.id !== track.id);
-      if (sender) {
-        void sender.replaceTrack(track);
-      } else {
-        const existingOfKind = senders.find((s) => s.track?.kind === track.kind);
-        if (existingOfKind) {
-          void existingOfKind.replaceTrack(track);
-        } else {
-          connection.addTrack(track, stream);
+    for (const track of newTracks) {
+      const hasSender = senders.some(
+        (s) => (s.track?.kind ?? this.senderKindMap.get(s)) === track.kind,
+      );
+      if (!hasSender) {
+        connection.addTrack(track, stream);
+        const addedSender = connection.getSenders().find((s) => s.track === track);
+        if (addedSender) {
+          this.senderKindMap.set(addedSender, track.kind);
         }
       }
     }

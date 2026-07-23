@@ -23,6 +23,7 @@ type PermissionState = "idle" | "granted" | "denied" | "error";
 
 export interface MediaSessionState {
   stream: MediaStream | null;
+  streamRevision: number;
   audioDevices: MediaDeviceInfo[];
   videoDevices: MediaDeviceInfo[];
   currentAudioId: string | null;
@@ -36,6 +37,7 @@ export interface MediaSessionState {
 
 interface MediaSessionActions {
   setStream: (stream: MediaStream | null) => void;
+  bumpStreamRevision: () => void;
   setDevices: (audios: MediaDeviceInfo[], videos: MediaDeviceInfo[]) => void;
   setCurrentAudioId: (id: string | null) => void;
   setCurrentVideoId: (id: string | null) => void;
@@ -50,6 +52,7 @@ export type MediaSessionStore = MediaSessionState & MediaSessionActions;
 
 const initialState: MediaSessionState = {
   stream: null,
+  streamRevision: 0,
   audioDevices: [],
   videoDevices: [],
   currentAudioId: null,
@@ -64,6 +67,7 @@ const initialState: MediaSessionState = {
 export const useMediaSessionStore = create<MediaSessionStore>((set) => ({
   ...initialState,
   setStream: (stream) => set({ stream }),
+  bumpStreamRevision: () => set((s) => ({ streamRevision: s.streamRevision + 1 })),
   setDevices: (audioDevices, videoDevices) => set({ audioDevices, videoDevices }),
   setCurrentAudioId: (currentAudioId) => set({ currentAudioId }),
   setCurrentVideoId: (currentVideoId) => set({ currentVideoId }),

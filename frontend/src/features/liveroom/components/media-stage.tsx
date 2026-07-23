@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLiveRoomMedia } from "../hooks/use-live-room-media";
 import { useActiveSpeaker } from "../hooks/use-active-speaker";
 import { MediaTile } from "./media-tile";
@@ -37,7 +37,10 @@ export function MediaStage({
   useActiveSpeaker(localUserId);
   const speakingUsers = useLiveRoomMediaStore((state) => state.speakingUsers);
 
-  const { data: participantsRes } = useParticipants({ roomCode });
+  const { data: participantsRes } = useParticipants({
+    roomCode,
+    queryConfig: { refetchInterval: 3000 },
+  });
   const participantMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const p of participantsRes?.data ?? []) {
@@ -49,10 +52,28 @@ export function MediaStage({
   const [remoteMediaState, setRemoteMediaState] = useState<Record<string, { micMuted: boolean; cameraOff: boolean }>>({});
 
   useEffect(() => {
+    const participants = participantsRes?.data;
+    if (!participants) return;
+    setRemoteMediaState((prev) => {
+      const next = { ...prev };
+      for (const p of participants) {
+        if (p.userId === localUserId) continue;
+        next[p.userId] = { micMuted: p.micMuted, cameraOff: p.cameraOff };
+      }
+      return next;
+    });
+  }, [participantsRes, localUserId]);
+
+  const syncRef = useRef(media.syncFromServer);
+  useEffect(() => {
+    syncRef.current = media.syncFromServer;
+  }, [media.syncFromServer]);
+
+  useEffect(() => {
     if (!roomCode) return undefined;
     const subscription = subscribeRoomMediaState(roomCode, (event: MediaStateChangedWsEvent) => {
       if (event.userId === localUserId) {
-        media.syncFromServer({ micMuted: event.micMuted, cameraOff: event.cameraOff });
+        syncRef.current({ micMuted: event.micMuted, cameraOff: event.cameraOff });
         return;
       }
       setRemoteMediaState((prev) => ({
@@ -61,7 +82,7 @@ export function MediaStage({
       }));
     });
     return () => subscription.unsubscribe();
-  }, [roomCode, localUserId, media]);
+  }, [roomCode, localUserId]);
 
   const peers = media.remotePeers;
 
