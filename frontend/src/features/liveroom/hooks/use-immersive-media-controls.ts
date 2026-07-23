@@ -45,6 +45,7 @@ export function useImmersiveMediaControls({
   const initialCameraRef = useRef<boolean | null>(null);
 
   const joinedReadyRef = useRef(false);
+  const pendingMediaRef = useRef<{ micMuted: boolean; cameraOff: boolean } | null>(null);
 
   useEffect(() => {
     if (!roomCode || !localUserId) return undefined;
@@ -52,6 +53,12 @@ export function useImmersiveMediaControls({
     const subscription = subscribeRoomParticipants(roomCode, (event) => {
       if (event.type === "PARTICIPANT_JOINED" && event.userId === localUserId) {
         joinedReadyRef.current = true;
+        const pending = pendingMediaRef.current;
+        if (pending) {
+          pendingMediaRef.current = null;
+          updateMyMediaMutation.mutate({ roomCode, body: pending });
+        }
+        return;
       }
     });
     const fallback = setTimeout(() => {
@@ -61,8 +68,9 @@ export function useImmersiveMediaControls({
       subscription.unsubscribe();
       clearTimeout(fallback);
       joinedReadyRef.current = false;
+      pendingMediaRef.current = null;
     };
-  }, [roomCode, localUserId]);
+  }, [roomCode, localUserId, updateMyMediaMutation]);
 
   const toggleMic = useCallback(() => {
     const store = useLiveRoomMediaStore.getState();
@@ -78,12 +86,11 @@ export function useImmersiveMediaControls({
       }
     }
     if (!roomCode) return;
-    void (async () => {
-      if (!joinedReadyRef.current) {
-        await waitForJoinReady(joinedReadyRef, 1500);
-      }
+    if (joinedReadyRef.current) {
       updateMyMediaMutation.mutate({ roomCode, body: next });
-    })();
+    } else {
+      pendingMediaRef.current = next;
+    }
   }, [devices.stream, roomCode, setMicMuted, updateMyMediaMutation]);
 
   const toggleCamera = useCallback(async () => {
@@ -105,10 +112,11 @@ export function useImmersiveMediaControls({
       return;
     }
     if (!roomCode) return;
-    if (!joinedReadyRef.current) {
-      await waitForJoinReady(joinedReadyRef, 1500);
+    if (joinedReadyRef.current) {
+      updateMyMediaMutation.mutate({ roomCode, body: next });
+    } else {
+      pendingMediaRef.current = next;
     }
-    updateMyMediaMutation.mutate({ roomCode, body: next });
   }, [devices, roomCode, setCameraOff, updateMyMediaMutation, tErrors, tCommon]);
 
   return {
@@ -117,20 +125,4 @@ export function useImmersiveMediaControls({
     toggleMic,
     toggleCamera,
   };
-}
-
-function waitForJoinReady(
-  flagRef: { current: boolean },
-  timeoutMs: number,
-): Promise<void> {
-  if (flagRef.current) return Promise.resolve();
-  return new Promise<void>((resolve) => {
-    const start = Date.now();
-    const check = () => {
-      if (flagRef.current) return resolve();
-      if (Date.now() - start >= timeoutMs) return resolve();
-      setTimeout(check, 50);
-    };
-    check();
-  });
 }

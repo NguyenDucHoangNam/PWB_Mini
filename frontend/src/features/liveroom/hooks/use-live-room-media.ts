@@ -134,6 +134,8 @@ export function useLiveRoomMedia({
 
   const joinedReadyRef = useRef(false);
   const pendingMediaRef = useRef<{ micMuted: boolean; cameraOff: boolean } | null>(null);
+  const pendingMutationRetryRef = useRef<{ roomCode: string; body: { micMuted: boolean; cameraOff: boolean } }[]>([]);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!roomCode) return undefined;
@@ -146,6 +148,10 @@ export function useLiveRoomMedia({
           pendingMediaRef.current = null;
           updateMyMediaMutation.mutate({ roomCode, body: pending });
         }
+        for (const pendingRetry of pendingMutationRetryRef.current) {
+          updateMyMediaMutation.mutate(pendingRetry);
+        }
+        pendingMutationRetryRef.current = [];
         return;
       }
       if (event.type === "PARTICIPANT_LEFT" && event.userId && event.userId !== localUserId) {
@@ -162,8 +168,39 @@ export function useLiveRoomMedia({
       clearTimeout(fallback);
       joinedReadyRef.current = false;
       pendingMediaRef.current = null;
+      pendingMutationRetryRef.current = [];
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
     };
   }, [roomCode, localUserId, removeRemotePeer, updateMyMediaMutation]);
+
+  useEffect(() => {
+    if (!enabled || !roomCode) return undefined;
+    const handleVisibilityChange = () => {
+      if (document.hidden) return;
+      const stream = useMediaSessionStore.getState().stream;
+      if (!stream) return;
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack && videoTrack.readyState === "paused") {
+        const currentVideoId = useMediaSessionStore.getState().currentVideoId;
+        if (currentVideoId) {
+          devices.enableCamera().catch(() => {
+            /* ignore if reacquire fails */
+          });
+        }
+      }
+      for (const pendingRetry of pendingMutationRetryRef.current) {
+        updateMyMediaMutation.mutate(pendingRetry);
+      }
+      pendingMutationRetryRef.current = [];
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [enabled, roomCode, devices, updateMyMediaMutation]);
 
   const showErrorToast = useCallback(
     (err: unknown) => {
