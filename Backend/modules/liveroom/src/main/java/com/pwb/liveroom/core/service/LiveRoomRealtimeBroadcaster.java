@@ -1,11 +1,14 @@
 package com.pwb.liveroom.core.service;
 
+import com.pwb.liveroom.api.dto.response.PlaybackSnapshotResponse;
+import com.pwb.liveroom.api.dto.response.SongPlaybackSummaryResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -19,10 +22,12 @@ public class LiveRoomRealtimeBroadcaster {
     private static final String PARTICIPANTS_TOPIC_SUFFIX = "/participants";
     private static final String PEERS_TOPIC_SUFFIX = "/peers";
     private static final String JOIN_REQUESTS_TOPIC_SUFFIX = "/join-requests";
+    private static final String PLAYBACK_TOPIC_SUFFIX = "/playback";
     private static final String USER_QUEUE_BASE = "/queue/user/";
     private static final String JOIN_REQUESTS_USER_SUFFIX = "/join-requests";
     private static final String ROOM_USER_QUEUE_BASE = "/queue/room/";
     private static final String ROOM_STATE_USER_SUFFIX = "/state";
+    private static final String PLAYBACK_STATE_USER_SUFFIX = "/playback/state";
 
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -187,6 +192,66 @@ public class LiveRoomRealtimeBroadcaster {
                 "timestamp", Instant.now().toString()
         );
         sendToUser(recipientUserId.toString(), destination, payload, "ROOM_STATE", roomCode);
+    }
+
+    public void broadcastPlaybackEvent(
+            String roomCode,
+            PlaybackSnapshotResponse snapshot,
+            String timestamp) {
+        if (snapshot == null) {
+            return;
+        }
+        String destination = ROOM_TOPIC_BASE + roomCode + PLAYBACK_TOPIC_SUFFIX;
+        Object payload = buildPlaybackPayload(roomCode, snapshot, timestamp, "PLAYBACK_STATE_CHANGED");
+        send(destination, payload, "PLAYBACK_STATE_CHANGED", roomCode, null);
+    }
+
+    public void pushPlaybackStateToUser(
+            String roomCode,
+            UUID recipientUserId,
+            PlaybackSnapshotResponse snapshot) {
+        if (snapshot == null) {
+            return;
+        }
+        String destination = ROOM_USER_QUEUE_BASE + roomCode + PLAYBACK_STATE_USER_SUFFIX;
+        Object payload = buildPlaybackPayload(roomCode, snapshot, Instant.now().toString(), "PLAYBACK_STATE");
+        sendToUser(recipientUserId.toString(), destination, payload, "PLAYBACK_STATE", roomCode);
+    }
+
+    private Map<String, Object> buildPlaybackPayload(
+            String roomCode,
+            PlaybackSnapshotResponse snapshot,
+            String timestamp,
+            String eventType) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", eventType);
+        payload.put("roomCode", roomCode);
+        payload.put("status", snapshot.getStatus());
+        payload.put("positionSeconds", snapshot.getPositionSeconds() == null ? 0L : snapshot.getPositionSeconds());
+        payload.put("effectiveAt", snapshot.getEffectiveAt() == null ? "" : snapshot.getEffectiveAt().toString());
+        payload.put("version", snapshot.getVersion() == null ? 0L : snapshot.getVersion());
+        payload.put("empty", snapshot.isEmpty());
+        payload.put("song", buildSongPayload(snapshot.getSong()));
+        payload.put("changedByUserId", snapshot.getChangedByUserId() == null ? "" : snapshot.getChangedByUserId().toString());
+        payload.put("changedAt", snapshot.getChangedAt() == null ? "" : snapshot.getChangedAt().toString());
+        payload.put("timestamp", timestamp == null ? "" : timestamp);
+        return payload;
+    }
+
+    private Map<String, Object> buildSongPayload(SongPlaybackSummaryResponse song) {
+        if (song == null) {
+            return null;
+        }
+        Map<String, Object> songPayload = new LinkedHashMap<>();
+        songPayload.put("songId", song.getSongId() == null ? "" : song.getSongId().toString());
+        songPayload.put("ownerUserId", song.getOwnerUserId() == null ? "" : song.getOwnerUserId().toString());
+        songPayload.put("title", song.getTitle() == null ? "" : song.getTitle());
+        songPayload.put("artist", song.getArtist() == null ? "" : song.getArtist());
+        songPayload.put("album", song.getAlbum() == null ? "" : song.getAlbum());
+        songPayload.put("durationSeconds", song.getDurationSeconds() == null ? 0 : song.getDurationSeconds());
+        songPayload.put("format", song.getFormat() == null ? "" : song.getFormat());
+        songPayload.put("processable", song.isProcessable());
+        return songPayload;
     }
 
     private void send(String destination, Object payload, String type, String roomCode, UUID userId) {

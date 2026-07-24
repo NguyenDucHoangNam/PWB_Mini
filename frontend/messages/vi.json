@@ -566,7 +566,7 @@
       "songs": "Bài hát"
     },
     "status": {
-      "uploaded": "Sẵn sàng",
+      "uploaded": "Đã upload",
       "processing": "Đang xử lý",
       "processed": "Đã xử lý",
       "failed": "Lỗi"
@@ -988,7 +988,13 @@
       "proOnlyHost": "Tính năng tạo và quản lý Phòng Trực Tiếp chỉ dành cho tài khoản PRO. Nâng cấp gói của bạn để sử dụng.",
       "invalidCodeLength": "Mã phòng phải gồm 6 ký tự (chữ cái và chữ số)",
       "screenShareNotSupported": "Trình duyệt này không hỗ trợ chia sẻ màn hình",
-      "screenShareFailed": "Không thể bắt đầu chia sẻ màn hình"
+      "screenShareFailed": "Không thể bắt đầu chia sẻ màn hình",
+      "playbackNoSong": "Phòng chưa có bài hát nào được chọn",
+      "playbackNotHost": "Chỉ chủ phòng mới có thể chọn bài hát cho phòng này",
+      "songNotOwnedByCaller": "Bạn chỉ có thể chọn bài hát của chính mình",
+      "playbackRoomNotActive": "Phòng đã kết thúc",
+      "playbackInvalidRate": "Tốc độ phát phải là 1.00, 1.50 hoặc 2.00",
+      "playbackInvalidLoop": "Chế độ lặp phải là OFF hoặc ONE"
     },
     "joinByCode": {
       "title": "Vào phòng bằng mã",
@@ -1020,6 +1026,42 @@
       "handRaise": "Giơ tay xin phát biểu",
       "screenShareStart": "Chia sẻ màn hình",
       "screenShareStop": "Dừng chia sẻ"
+    },
+    "playback": {
+      "title": "Nhạc",
+      "empty": "Chưa có bài hát nào đang phát.",
+      "choose": "Chọn bài hát",
+      "change": "Đổi bài hát",
+      "play": "Phát",
+      "pause": "Tạm dừng",
+      "reconcile": "Đồng bộ lại",
+      "seekBack": "Tua lùi 30 giây",
+      "seekForward": "Tua tới 30 giây",
+      "rate": "Tốc độ phát",
+      "loopOne": "Lặp bài này",
+      "shuffle": "Trộn bài",
+      "status": {
+        "empty": "Rảnh",
+        "playing": "Đang phát",
+        "paused": "Tạm dừng",
+        "ended": "Đã kết thúc",
+        "cleared": "Đã xoá"
+      },
+      "toast": {
+        "cleared": "Bài hát đã bị chủ sở hữu xoá khỏi phòng",
+        "ended": "Bài hát đã kết thúc. Hãy chọn bài khác để tiếp tục."
+      },
+      "picker": {
+        "title": "Chọn bài hát để phát chung",
+        "subtitle": "Chọn bài đã có voice tag hoặc bản gốc để phát cho phòng.",
+        "loading": "Đang tải danh sách bài hát...",
+        "empty": "Bạn chưa có bài hát nào có thể phát.",
+        "voiceTag": "Voice tag",
+        "original": "Bản gốc",
+        "submit": "Phát cho phòng",
+        "submitting": "Đang lưu...",
+        "cancel": "Huỷ"
+      }
     }
   }
 }

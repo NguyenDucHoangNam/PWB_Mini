@@ -1,10 +1,10 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Mic, MicOff, PhoneOff, Users, Video, VideoOff } from "lucide-react";
+import { Mic, MicOff, Music, PhoneOff, Users, Video, VideoOff } from "lucide-react";
 import { HandRaiseButton } from "./hand-raise-button";
 
-export type ImmersivePanelTab = "people" | null;
+export type ImmersivePanelTab = "people" | "music" | null;
 
 interface ImmersiveBottomBarProps {
   micMuted: boolean;
@@ -15,6 +15,7 @@ interface ImmersiveBottomBarProps {
   roomCode: string;
   localUserId: string;
   isHost: boolean;
+  hasSelectedSong: boolean;
   onToggleMic: () => void;
   onToggleCamera: () => void;
   onSelectTab: (tab: ImmersivePanelTab) => void;
@@ -31,6 +32,7 @@ export function ImmersiveBottomBar({
   roomCode,
   localUserId,
   isHost,
+  hasSelectedSong,
   onToggleMic,
   onToggleCamera,
   onSelectTab,
@@ -39,6 +41,7 @@ export function ImmersiveBottomBar({
 }: ImmersiveBottomBarProps) {
   const tImmersive = useTranslations("liveroom.immersive");
   const tMedia = useTranslations("liveroom.media");
+  const tPlayback = useTranslations("liveroom.playback");
 
   const renderBadge = (count: number) =>
     count > 0 ? (
@@ -103,6 +106,28 @@ export function ImmersiveBottomBar({
               {pendingRequestCount > 9 ? "9+" : pendingRequestCount}
             </span>
           )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() =>
+            onSelectTab(activeTab === "music" ? null : "music")
+          }
+          aria-label={tPlayback("title")}
+          title={tPlayback("title")}
+          aria-pressed={activeTab === "music"}
+          className={`relative inline-flex size-12 items-center justify-center rounded-full transition ${
+            activeTab === "music"
+              ? "bg-blue-500 text-white"
+              : "bg-neutral-700 text-white hover:bg-neutral-600"
+          }`}
+        >
+          <Music className="size-5" />
+          {hasSelectedSong ? (
+            <span className="absolute -right-1 -top-1 flex min-w-[16px] items-center justify-center rounded-full bg-blue-400 px-1 text-[10px] font-semibold text-white">
+              {"\u266B"}
+            </span>
+          ) : null}
         </button>
 
         <div className="mx-1 h-8 w-px bg-white/10" />

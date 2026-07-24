@@ -218,3 +218,85 @@ export type GuestPhase =
   | { kind: "WAITING"; request: LiveRoomJoinRequest }
   | { kind: "REJECTED"; request: LiveRoomJoinRequest; reason: string }
   | { kind: "IN_ROOM" };
+
+export type PlaybackStatus =
+  | "EMPTY"
+  | "PAUSED"
+  | "PLAYING"
+  | "ENDED"
+  | "CLEARED";
+
+export interface SongPlaybackSummary {
+  songId: string;
+  ownerUserId: string;
+  title: string;
+  artist: string | null;
+  album: string | null;
+  durationSeconds: number | null;
+  format: string;
+  processable: boolean;
+}
+
+export interface PlaybackSnapshot {
+  roomCode: string;
+  status: PlaybackStatus;
+  positionSeconds: number;
+  effectiveAt: string;
+  version: number;
+  changedByUserId: string | null;
+  changedAt: string;
+  empty: boolean;
+  song: SongPlaybackSummary | null;
+  playbackRate: string;
+  loopMode: "OFF" | "ONE";
+  shuffleEnabled: boolean;
+}
+
+export interface PlaybackSongPayload {
+  songId: string;
+  ownerUserId: string;
+  title: string;
+  artist: string | null;
+  album: string | null;
+  durationSeconds: number | null;
+  format: string;
+  processable: boolean;
+}
+
+export interface PlaybackStateChangedWsEvent {
+  type: "PLAYBACK_STATE_CHANGED";
+  roomCode: string;
+  status: PlaybackStatus;
+  positionSeconds: number;
+  effectiveAt: string;
+  version: number;
+  empty: boolean;
+  song: PlaybackSongPayload | null;
+  changedByUserId: string | null;
+  changedAt: string;
+  timestamp: string;
+  playbackRate: string;
+  loopMode: "OFF" | "ONE";
+  shuffleEnabled: boolean;
+}
+
+export interface PlaybackStateWsEvent {
+  type: "PLAYBACK_STATE";
+  roomCode: string;
+  status: PlaybackStatus;
+  positionSeconds: number;
+  effectiveAt: string;
+  version: number;
+  empty: boolean;
+  song: PlaybackSongPayload | null;
+  changedByUserId: string | null;
+  changedAt: string;
+  timestamp: string;
+  playbackRate: string;
+  loopMode: "OFF" | "ONE";
+  shuffleEnabled: boolean;
+}
+
+export type PlaybackWsEvent =
+  | PlaybackStateChangedWsEvent
+  | PlaybackStateWsEvent;

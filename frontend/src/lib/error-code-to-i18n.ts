@@ -31,6 +31,12 @@ export const ERROR_CODE_TO_I18N_KEY: Record<string, string> = {
   LIVEROOM_022: "liveroom.errors.joinRequestNotPending",
   LIVEROOM_023: "liveroom.errors.joinRequestNotOwner",
   LIVEROOM_024: "liveroom.errors.generic",
+  LIVEROOM_030: "liveroom.errors.playbackNoSong",
+  LIVEROOM_031: "liveroom.errors.playbackNotHost",
+  LIVEROOM_032: "liveroom.errors.songNotOwnedByCaller",
+  LIVEROOM_033: "liveroom.errors.playbackRoomNotActive",
+  LIVEROOM_034: "liveroom.errors.playbackInvalidRate",
+  LIVEROOM_035: "liveroom.errors.playbackInvalidLoop",
 };
 
 export function resolveErrorI18nKey(error: ApiError | Error | null | undefined): string | null {

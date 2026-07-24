@@ -8,6 +8,8 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.List;
+
 @Getter
 @Setter
 @Configuration
@@ -16,6 +18,7 @@ public class LiveRoomProperties {
 
     private Code code;
     private Capacity capacity;
+    private Ws ws;
 
     @Data
     @AllArgsConstructor
@@ -34,5 +37,13 @@ public class LiveRoomProperties {
 
         private int defaultMaxParticipants;
         private int absoluteMaxParticipants;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class Ws {
+
+        private List<String> allowedOrigins;
     }
 }

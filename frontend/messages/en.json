@@ -985,7 +985,13 @@
       "proOnlyHost": "Live Rooms hosting is available to PRO accounts only. Upgrade your plan to create and manage rooms.",
       "invalidCodeLength": "Room code must be 6 characters (letters and digits)",
       "screenShareNotSupported": "Screen sharing is not supported in this browser",
-      "screenShareFailed": "Could not start screen sharing"
+      "screenShareFailed": "Could not start screen sharing",
+      "playbackNoSong": "No song is selected for this room yet",
+      "playbackNotHost": "Only the host can select a song for this room",
+      "songNotOwnedByCaller": "You can only select songs you own",
+      "playbackRoomNotActive": "Room is no longer active",
+      "playbackInvalidRate": "Playback rate must be 1.00, 1.50, or 2.00",
+      "playbackInvalidLoop": "Loop mode must be OFF or ONE"
     },
     "joinByCode": {
       "title": "Join with a room code",
@@ -1017,6 +1023,42 @@
       "handRaise": "Raise hand",
       "screenShareStart": "Share screen",
       "screenShareStop": "Stop sharing"
+    },
+    "playback": {
+      "title": "Music",
+      "empty": "No song is playing yet.",
+      "choose": "Pick a song",
+      "change": "Change song",
+      "play": "Play",
+      "pause": "Pause",
+      "reconcile": "Re-sync playback",
+      "seekBack": "Back 30 seconds",
+      "seekForward": "Forward 30 seconds",
+      "rate": "Playback speed",
+      "loopOne": "Loop this song",
+      "shuffle": "Shuffle",
+      "status": {
+        "empty": "Idle",
+        "playing": "Playing",
+        "paused": "Paused",
+        "ended": "Ended",
+        "cleared": "Cleared"
+      },
+      "toast": {
+        "cleared": "Song was cleared by its owner",
+        "ended": "Song finished. Pick another to continue."
+      },
+      "picker": {
+        "title": "Pick a song to share",
+        "subtitle": "Choose a song with voice tag or the original to play for the room.",
+        "loading": "Loading your songs...",
+        "empty": "You don't have any playable songs yet.",
+        "voiceTag": "Voice tag",
+        "original": "Original",
+        "submit": "Play for the room",
+        "submitting": "Saving...",
+        "cancel": "Cancel"
+      }
     }
   }
 }

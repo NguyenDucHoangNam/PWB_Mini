@@ -81,7 +81,14 @@ public enum ErrorCode {
     LIVEROOM_JOIN_REQUEST_NOT_PENDING    ("LIVEROOM_022", "Join request is no longer pending.",                 409),
     LIVEROOM_JOIN_REQUEST_NOT_OWNER      ("LIVEROOM_023", "You can only manage your own join request.",         403),
     LIVEROOM_JOIN_REQUEST_INVALID_DECISION("LIVEROOM_024", "Join request decision is invalid for this room.",   400),
-    LIVEROOM_NOT_REQUIRE_APPROVAL       ("LIVEROOM_025", "Join request is not allowed for public rooms.",       400);
+    LIVEROOM_NOT_REQUIRE_APPROVAL       ("LIVEROOM_025", "Join request is not allowed for public rooms.",       400),
+
+    LIVEROOM_PLAYBACK_NO_SONG            ("LIVEROOM_030", "Room has no song selected yet.",                    409),
+    LIVEROOM_PLAYBACK_NOT_HOST           ("LIVEROOM_031", "Only the host can select a song for this room.",    403),
+    LIVEROOM_SONG_NOT_OWNED_BY_CALLER    ("LIVEROOM_032", "You can only select songs you own.",                403),
+    LIVEROOM_PLAYBACK_ROOM_NOT_ACTIVE    ("LIVEROOM_033", "Room is not active.",                               409),
+    LIVEROOM_PLAYBACK_INVALID_RATE       ("LIVEROOM_034", "Playback rate must be 1.00, 1.50, or 2.00.",       400),
+    LIVEROOM_PLAYBACK_INVALID_LOOP       ("LIVEROOM_035", "Loop mode must be OFF or ONE.",                     400);
 
     private final String code;
     private final String message;

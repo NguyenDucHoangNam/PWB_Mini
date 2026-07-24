@@ -98,3 +98,21 @@ export {
   applyTrackMutedFlag,
   type RemotePeerStream,
 } from "./stores/use-live-room-media-store";
+export {
+  PLAYBACK_KEY,
+  playbackKey,
+  sharedStreamKey,
+  getPlayback,
+  getSharedStreamUrl,
+  selectPlaybackSong,
+  playPlayback,
+  pausePlayback,
+  usePlayback,
+  useSharedStreamUrl,
+  useSelectPlaybackSong,
+  usePlayPlayback,
+  usePausePlayback,
+} from "./api/playback";
+export { useSharedPlayback } from "./hooks/use-shared-playback";
+export { SharedPlaybackBar } from "./components/shared-playback-bar";
+export { SongPickerDialog } from "./components/song-picker-dialog";

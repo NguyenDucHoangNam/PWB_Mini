@@ -215,6 +215,8 @@ app:
     capacity:
       default-max-participants: 5
       absolute-max-participants: 5
+    ws:
+      allowed-origins: ${LIVEROOM_WS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
 
 
 springdoc:

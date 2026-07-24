@@ -9,6 +9,7 @@ import type {
   ParticipantWsEvent,
   PeerSignalEnvelope,
   PeerWsEvent,
+  PlaybackWsEvent,
   RoomStateWsEvent,
 } from "../types";
 
@@ -305,6 +306,73 @@ export function sendSignalIce(
 
 export function requestRoomState(roomCode: string): boolean {
   return publishSignal(`/app/room/${roomCode}/state/request`, {});
+}
+
+export function subscribeRoomPlayback(
+  roomCode: string,
+  onEvent: (event: PlaybackWsEvent) => void,
+): Subscription {
+  return subscribeTopic<PlaybackWsEvent>(
+    `/topic/room/${roomCode}/playback`,
+    onEvent,
+    (raw) => {
+      if (typeof raw !== "object" || raw === null) return false;
+      const type = (raw as { type?: string }).type;
+      return type === "PLAYBACK_STATE_CHANGED";
+    },
+  );
+}
+
+export function subscribeUserPlaybackState(
+  roomCode: string,
+  onEvent: (event: PlaybackWsEvent) => void,
+): Subscription {
+  return subscribeTopic<PlaybackWsEvent>(
+    `/user/queue/room/${roomCode}/playback/state`,
+    onEvent,
+    (raw) => {
+      if (typeof raw !== "object" || raw === null) return false;
+      const type = (raw as { type?: string }).type;
+      return type === "PLAYBACK_STATE";
+    },
+  );
+}
+
+export function sendPlaybackPlay(roomCode: string): boolean {
+  return publishSignal(`/app/room/${roomCode}/playback/play`, {});
+}
+
+export function sendPlaybackPause(roomCode: string): boolean {
+  return publishSignal(`/app/room/${roomCode}/playback/pause`, {});
+}
+
+export function sendPlaybackStateRequest(roomCode: string): boolean {
+  return publishSignal(`/app/room/${roomCode}/playback/state/request`, {});
+}
+
+export function sendPlaybackSeek(
+  roomCode: string,
+  direction: 1 | -1,
+): boolean {
+  return publishSignal(`/app/room/${roomCode}/playback/seek`, { direction });
+}
+
+export function sendPlaybackRate(roomCode: string, rate: string): boolean {
+  return publishSignal(`/app/room/${roomCode}/playback/rate`, { rate });
+}
+
+export function sendPlaybackLoop(
+  roomCode: string,
+  mode: "OFF" | "ONE",
+): boolean {
+  return publishSignal(`/app/room/${roomCode}/playback/loop`, { mode });
+}
+
+export function sendPlaybackShuffle(
+  roomCode: string,
+  enabled: boolean,
+): boolean {
+  return publishSignal(`/app/room/${roomCode}/playback/shuffle`, { enabled });
 }
 
 export function disconnectStompClient(): void {

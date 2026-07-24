@@ -14,11 +14,14 @@ import {
 import { ImmersiveRightPanel } from "./immersive-right-panel";
 import { LeaveConfirmDialog } from "./leave-confirm-dialog";
 import { HostLeaveDialog } from "./host-leave-dialog";
+import { SharedPlaybackBar } from "./shared-playback-bar";
+import { SongPickerDialog } from "./song-picker-dialog";
 import { liveRoomKey, useEndRoom } from "../api/rooms";
 import { useLeaveRoom } from "../api/participants";
 import { useListJoinRequests } from "../api/join-requests";
 import { liveRoomParticipantsKey } from "../api/participants";
 import { useLiveRoomRealtime } from "../hooks/use-live-room-realtime";
+import { useSharedPlayback } from "../hooks/use-shared-playback";
 import { useMediaSessionLifecycle } from "../hooks/use-media-session-lifecycle";
 import { useImmersiveMediaControls } from "../hooks/use-immersive-media-controls";
 import { asApiError } from "@/lib/api-client";
@@ -50,8 +53,12 @@ export function ImmersiveMeetingRoom({
   const [panelTab, setPanelTab] = useState<ImmersivePanelTab>(null);
   const [participantLeaveOpen, setParticipantLeaveOpen] = useState(false);
   const [hostLeaveOpen, setHostLeaveOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const mediaControls = useImmersiveMediaControls({ roomCode, localUserId });
+
+  const playback = useSharedPlayback({ roomCode, enabled: Boolean(roomCode) });
+  const hasSelectedSong = Boolean(playback.song?.songId);
 
   const { data: pendingRes } = useListJoinRequests({
     roomCode,
@@ -151,6 +158,10 @@ export function ImmersiveMeetingRoom({
     setPanelTab(null);
   }, []);
 
+  const handleOpenPicker = useCallback(() => {
+    setPickerOpen(true);
+  }, []);
+
   const renderContent = useMemo(() => {
     if (room.status === "ENDED") {
       return (
@@ -184,6 +195,13 @@ export function ImmersiveMeetingRoom({
 
       <main className="relative flex-1 overflow-hidden">
         {renderContent}
+        <div className="pointer-events-none absolute inset-x-0 bottom-32 z-40 flex justify-center px-6">
+          <SharedPlaybackBar
+            roomCode={roomCode}
+            isHost={isHost}
+            onChooseSong={isHost ? handleOpenPicker : undefined}
+          />
+        </div>
         <ImmersiveRightPanel
           open={panelTab !== null}
           roomCode={roomCode}
@@ -203,6 +221,7 @@ export function ImmersiveMeetingRoom({
           roomCode={roomCode}
           localUserId={localUserId}
           isHost={isHost}
+          hasSelectedSong={hasSelectedSong}
           onToggleMic={handleToggleMic}
           onToggleCamera={handleToggleCamera}
           onSelectTab={handleSelectTab}
@@ -226,6 +245,14 @@ export function ImmersiveMeetingRoom({
         isLeaving={isLeaving}
         isEnding={isEnding}
       />
+
+      {isHost ? (
+        <SongPickerDialog
+          open={pickerOpen}
+          roomCode={roomCode}
+          onOpenChange={setPickerOpen}
+        />
+      ) : null}
     </div>
   );
 }

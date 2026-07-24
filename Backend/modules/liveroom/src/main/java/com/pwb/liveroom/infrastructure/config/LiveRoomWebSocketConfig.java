@@ -1,9 +1,11 @@
 package com.pwb.liveroom.infrastructure.config;
 
 import com.pwb.iam.infrastructure.security.jwt.JwtTokenProvider;
+import com.pwb.liveroom.core.service.LiveRoomParticipantService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
@@ -25,7 +27,6 @@ import java.util.UUID;
 @Slf4j
 @Configuration
 @EnableWebSocketMessageBroker
-@RequiredArgsConstructor
 public class LiveRoomWebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private static final String ENDPOINT = "/ws/liveroom";
@@ -36,12 +37,31 @@ public class LiveRoomWebSocketConfig implements WebSocketMessageBrokerConfigurer
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final LiveRoomProperties properties;
+    private final LiveRoomParticipantService participantService;
+
+    public LiveRoomWebSocketConfig(
+            JwtTokenProvider jwtTokenProvider,
+            LiveRoomProperties properties,
+            @Lazy LiveRoomParticipantService participantService) {
+        this.jwtTokenProvider = jwtTokenProvider;
+        this.properties = properties;
+        this.participantService = participantService;
+    }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint(ENDPOINT)
-                .setAllowedOriginPatterns("*")
-                .withSockJS();
+        var endpoint = registry.addEndpoint(ENDPOINT);
+        List<String> origins = properties.getWs() == null || properties.getWs().getAllowedOrigins() == null
+                ? List.of()
+                : properties.getWs().getAllowedOrigins();
+        if (origins.isEmpty()) {
+            log.warn("WS liveroom allowed origins empty - using dev fallback");
+            endpoint.setAllowedOriginPatterns("http://localhost:*", "http://127.0.0.1:*");
+        } else {
+            endpoint.setAllowedOrigins(origins.toArray(String[]::new));
+        }
+        endpoint.withSockJS();
     }
 
     @Override
@@ -81,13 +101,63 @@ public class LiveRoomWebSocketConfig implements WebSocketMessageBrokerConfigurer
                 Principal principal = new StompUserPrincipal(userId);
                 accessor.setUser(principal);
                 log.debug("STOMP CONNECT authenticated: userId={}", userId);
-            } else if (command == StompCommand.SEND || command == StompCommand.SUBSCRIBE) {
+            } else if (command == StompCommand.SUBSCRIBE) {
                 if (accessor.getUser() == null) {
-                    log.warn("STOMP {} rejected: no authenticated user", command);
+                    log.warn("STOMP SUBSCRIBE rejected: no authenticated user");
+                    throw new IllegalArgumentException("Unauthenticated STOMP subscribe");
+                }
+                String destination = accessor.getDestination();
+                String roomCode = extractRoomCodeFromDestination(destination);
+                if (roomCode != null && isPlaybackDestination(destination)) {
+                    UUID userId = principalUserId(accessor);
+                    if (userId != null && !participantService.isActiveParticipant(roomCode, userId)) {
+                        log.warn("STOMP SUBSCRIBE rejected: user not in room, roomCode={}, userId={}, destination={}",
+                                roomCode, userId, destination);
+                        throw new IllegalArgumentException("Not an active participant of this room");
+                    }
+                }
+            } else if (command == StompCommand.SEND) {
+                if (accessor.getUser() == null) {
+                    log.warn("STOMP SEND rejected: no authenticated user");
                     throw new IllegalArgumentException("Unauthenticated STOMP message");
                 }
             }
             return message;
+        }
+
+        @Nullable
+        private UUID principalUserId(StompHeaderAccessor accessor) {
+            Principal principal = accessor.getUser();
+            if (principal instanceof StompUserPrincipal stompUser) {
+                return stompUser.userId();
+            }
+            return null;
+        }
+
+        @Nullable
+        private String extractRoomCodeFromDestination(@Nullable String destination) {
+            if (destination == null) {
+                return null;
+            }
+            String marker = "/room/";
+            int idx = destination.indexOf(marker);
+            if (idx < 0) {
+                return null;
+            }
+            String after = destination.substring(idx + marker.length());
+            int nextSlash = after.indexOf('/');
+            if (nextSlash < 0) {
+                return null;
+            }
+            String code = after.substring(0, nextSlash);
+            if (code.length() != 6) {
+                return null;
+            }
+            return code;
+        }
+
+        private boolean isPlaybackDestination(String destination) {
+            return destination.contains("/playback");
         }
 
         @Nullable
