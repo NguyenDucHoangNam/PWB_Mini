@@ -123,6 +123,7 @@ export const useListSongs = ({
   useQuery({
     queryKey: [SONGS_KEY, { page, size, status }],
     queryFn: () => listSongs({ page, size, status }),
+    staleTime: 0,
     ...queryConfig,
   });
 
