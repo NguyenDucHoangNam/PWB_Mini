@@ -23,9 +23,16 @@ public class LiveRoomParticipantFacadeImpl implements LiveRoomParticipantFacade 
 
     @Override
     @Transactional
-    public ParticipantSummaryResponse joinPublicRoom(UUID userId, String roomCode, String displayName, String role) {
+    public ParticipantSummaryResponse joinPublicRoom(
+            UUID userId,
+            String roomCode,
+            String displayName,
+            String role,
+            boolean micMuted,
+            boolean cameraOff) {
         log.info("Facade joinPublicRoom: userId={}, roomCode={}", userId, roomCode);
-        LiveRoomParticipant participant = participantService.joinPublicRoom(userId, roomCode, displayName, role);
+        LiveRoomParticipant participant = participantService.joinPublicRoom(
+                userId, roomCode, displayName, role, micMuted, cameraOff);
         return toParticipantSummary(participant);
     }
 

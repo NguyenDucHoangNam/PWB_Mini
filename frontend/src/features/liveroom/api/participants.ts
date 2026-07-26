@@ -10,11 +10,22 @@ export const liveRoomParticipantsKey = (roomCode: string) =>
   ["live-room-participants", roomCode] as const;
 
 export const joinPublicRoom = ({
-  roomCode,
+    roomCode,
+    body,
 }: {
-  roomCode: string;
+    roomCode: string;
+    body: { micMuted: boolean; cameraOff: boolean };
 }): Promise<ApiResponse<ParticipantSummary>> =>
-  apiClient.post(`/live-rooms/${roomCode}/join`).then((res) => res.data);
+    apiClient.post(`/live-rooms/${roomCode}/join`, body).then((res) => res.data);
+
+export const joinAsHost = ({
+    roomCode,
+    body,
+}: {
+    roomCode: string;
+    body: { micMuted: boolean; cameraOff: boolean };
+}): Promise<ApiResponse<ParticipantSummary>> =>
+    apiClient.post(`/live-rooms/${roomCode}/host/join`, body).then((res) => res.data);
 
 export const leaveRoom = ({
   roomCode,
@@ -52,6 +63,26 @@ export const updateMyMedia = ({
     }
     throw err;
   });
+};
+
+type UseJoinAsHostOptions = {
+    mutationConfig?: MutationConfig<typeof joinAsHost>;
+};
+
+export const useJoinAsHost = ({ mutationConfig }: UseJoinAsHostOptions = {}) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        onSuccess: (response, variables) => {
+            if (response.success) {
+                queryClient.invalidateQueries({
+                    queryKey: liveRoomParticipantsKey(variables.roomCode),
+                });
+                queryClient.invalidateQueries({ queryKey: liveRoomKey(variables.roomCode) });
+            }
+        },
+        ...mutationConfig,
+        mutationFn: joinAsHost,
+    });
 };
 
 type UseJoinPublicRoomOptions = {
@@ -102,6 +133,7 @@ type UseUpdateMyMediaOptions = {
 export const useUpdateMyMedia = ({ mutationConfig }: UseUpdateMyMediaOptions = {}) => {
   const queryClient = useQueryClient();
   return useMutation({
+    mutationKey: ["liveroom-update-my-media"],
     onSuccess: (response, variables) => {
       if (!response.success) return;
       const updated = response.data;

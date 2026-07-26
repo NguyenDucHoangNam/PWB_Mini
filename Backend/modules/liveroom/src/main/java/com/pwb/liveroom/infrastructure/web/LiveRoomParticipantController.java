@@ -5,6 +5,7 @@ import com.pwb.backend.security.CurrentUser;
 import com.pwb.backend.web.ApiResponse;
 import com.pwb.backend.web.MessageResolver;
 import com.pwb.liveroom.api.LiveRoomParticipantFacade;
+import com.pwb.liveroom.api.dto.request.JoinLiveRoomRequest;
 import com.pwb.liveroom.api.dto.request.MediaStateUpdateRequest;
 import com.pwb.liveroom.api.dto.response.ParticipantSummaryResponse;
 import jakarta.validation.Valid;
@@ -38,10 +39,19 @@ public class LiveRoomParticipantController {
     @PostMapping("/join")
     public ApiResponse<ParticipantSummaryResponse> joinPublicRoom(
             @CurrentUser AuthenticatedUser user,
-            @PathVariable(name = PATH_ROOM_CODE) String roomCode) {
+            @PathVariable(name = PATH_ROOM_CODE) String roomCode,
+            @Valid @RequestBody JoinLiveRoomRequest body) {
 
+        String displayName = body.getDisplayName() != null && !body.getDisplayName().isBlank()
+                ? body.getDisplayName()
+                : user.getUsername();
         ParticipantSummaryResponse data = participantFacade.joinPublicRoom(
-                user.getId(), roomCode, user.getUsername(), user.getRole());
+                user.getId(),
+                roomCode,
+                displayName,
+                user.getRole(),
+                body.getMicMuted(),
+                body.getCameraOff());
         return ApiResponse.success(data, messageResolver.get(MSG_JOINED));
     }
 

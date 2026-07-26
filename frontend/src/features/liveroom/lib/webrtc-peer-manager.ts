@@ -7,6 +7,7 @@ import {
   subscribeSignalingOffers,
 } from "../api/ws";
 import type { PeerSignalEnvelope } from "../types";
+import { PeerStatsMonitor, type PeerStatsSnapshot } from "./peer-stats-monitor";
 
 interface PeerEntry {
   connection: RTCPeerConnection;
@@ -71,6 +72,14 @@ export class WebRTCPeerManager {
   private disposed = false;
   private readonly localStream_: { current: MediaStream | null } = { current: null };
   private readonly senderKindMap: WeakMap<RTCRtpSender, string> = new WeakMap();
+  private readonly statsMonitor: PeerStatsMonitor = new PeerStatsMonitor();
+  private statsUnsubscribers: Array<() => void> = [];
+
+  onPeerStats(listener: (snapshot: PeerStatsSnapshot) => void): () => void {
+    const unsubscribe = this.statsMonitor.onStats(listener);
+    this.statsUnsubscribers.push(unsubscribe);
+    return unsubscribe;
+  }
 
   private get localStream(): MediaStream | null {
     return this.localStream_.current;
@@ -197,23 +206,62 @@ export class WebRTCPeerManager {
     }
   }
 
-  replaceVideoTrackForAllPeers(track: MediaStreamTrack | null): void {
+  async replaceVideoTrackForAllPeers(track: MediaStreamTrack | null): Promise<void> {
+    const operations: Array<Promise<void>> = [];
+
     for (const entry of this.peers.values()) {
       const senders = entry.connection.getSenders();
       const videoSender = senders.find(
         (s) => s.track?.kind === "video" || (!s.track && this.senderKindMap.get(s) === "video"),
       );
       if (videoSender) {
-        void videoSender.replaceTrack(track);
+        operations.push(
+          videoSender.replaceTrack(track).then(() => {
+            if (track) {
+              this.senderKindMap.set(videoSender, "video");
+            }
+          }),
+        );
       } else if (track) {
         const dummyStream = new MediaStream([track]);
         entry.connection.addTrack(track, dummyStream);
-        this.senderKindMap.set(
-          senders.find((s) => s.track === track) ?? entry.connection.getSenders().find((s) => s.track === track)!,
-          "video",
-        );
+        const addedSender = entry.connection.getSenders().find((s) => s.track === track);
+        if (addedSender) {
+          this.senderKindMap.set(addedSender, "video");
+        }
       }
     }
+
+    await Promise.all(operations);
+  }
+
+  async replaceAudioTrackForAllPeers(track: MediaStreamTrack | null): Promise<void> {
+    const operations: Array<Promise<void>> = [];
+
+    for (const entry of this.peers.values()) {
+      const senders = entry.connection.getSenders();
+      const audioSender = senders.find(
+        (s) => s.track?.kind === "audio" || (!s.track && this.senderKindMap.get(s) === "audio"),
+      );
+      if (audioSender) {
+        operations.push(
+          audioSender.replaceTrack(track).then(() => {
+            if (track) {
+              this.senderKindMap.set(audioSender, "audio");
+            }
+          }),
+        );
+      } else if (track) {
+        const dummyStream = new MediaStream([track]);
+        entry.connection.addTrack(track, dummyStream);
+        const addedSender = entry.connection.getSenders().find((s) => s.track === track);
+        if (addedSender) {
+          this.senderKindMap.set(addedSender, "audio");
+        }
+      }
+    }
+
+    await Promise.all(operations);
   }
 
   setDisplayNameForUser(userId: string, displayName: string): void {
@@ -251,6 +299,9 @@ export class WebRTCPeerManager {
     this.disposed = true;
     this.unsubscribers.forEach((unsub) => unsub());
     this.unsubscribers = [];
+    this.statsUnsubscribers.forEach((unsub) => unsub());
+    this.statsUnsubscribers = [];
+    this.statsMonitor.stopAll();
     for (const [userId, entry] of this.peers.entries()) {
       try {
         entry.connection.close();
@@ -406,6 +457,7 @@ export class WebRTCPeerManager {
           target.remoteStream.addTrack(track);
         }
       }
+      this.statsMonitor.startMonitoring(remoteUserId, peerConnection);
       this.remoteStreamHandlers.forEach((handler) =>
         handler(remoteUserId, target.displayName, target.remoteStream),
       );
@@ -421,6 +473,12 @@ export class WebRTCPeerManager {
       });
     };
 
+    peerConnection.onnegotiationneeded = () => {
+      void this.renegotiate(remoteUserId).catch((err) =>
+        this.logError(`renegotiate ${remoteUserId}`, err),
+      );
+    };
+
     peerConnection.onconnectionstatechange = () => {
       if (peerConnection.connectionState === "failed") {
         this.logError(
@@ -432,11 +490,35 @@ export class WebRTCPeerManager {
     };
   }
 
+  private async renegotiate(remoteUserId: string): Promise<void> {
+    const entry = this.peers.get(remoteUserId);
+    if (!entry) return;
+    if (entry.isReconnecting) return;
+    if (entry.connection.signalingState === "closed") return;
+
+    try {
+      const offer = await entry.connection.createOffer();
+      await entry.connection.setLocalDescription(offer);
+      sendSignalOffer(this.roomCode, remoteUserId, {
+        sdp: offer.sdp ?? undefined,
+      });
+    } catch (err) {
+      this.logError(`renegotiate createOffer ${remoteUserId}`, err);
+    }
+  }
+
   private scheduleReconnect(remoteUserId: string): void {
     const entry = this.peers.get(remoteUserId);
     if (!entry) return;
     const attempts = (entry.reconnectAttempts ?? 0) + 1;
     if (attempts > MAX_RECONNECT_ATTEMPTS) {
+      entry.remoteStream.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch {
+          /* ignore */
+        }
+      });
       this.removePeer(remoteUserId);
       return;
     }
@@ -449,11 +531,26 @@ export class WebRTCPeerManager {
       if (!current || current !== entry) return;
       if (!this.localStream) return;
       if (!current.isReconnecting) return;
+
+      current.remoteStream.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch {
+          /* ignore */
+        }
+        try {
+          current.remoteStream.removeTrack(track);
+        } catch {
+          /* ignore */
+        }
+      });
+
       try {
         current.connection.close();
       } catch {
         /* ignore */
       }
+      this.statsMonitor.stopMonitoring(remoteUserId);
       this.peers.delete(remoteUserId);
       current.isReconnecting = false;
       void this.addPeer(this.localStream, remoteUserId, displayName).catch((err) =>

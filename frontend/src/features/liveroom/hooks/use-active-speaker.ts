@@ -96,7 +96,18 @@ export function useActiveSpeaker(localUserId: string): void {
       syncStreams();
 
       const now = Date.now();
+      const state = useLiveRoomMediaStore.getState();
       for (const [userId, entry] of analysers) {
+        const isMuted =
+          userId === localUserId
+            ? state.micMuted
+            : (state.remoteMediaStates[userId]?.micMuted ?? false);
+
+        if (isMuted) {
+          removeSpeaker(userId);
+          continue;
+        }
+
         const db = measureDb(entry.analyser, entry.buffer);
         if (db > SPEAKING_THRESHOLD_DB) {
           entry.lastSpokeAt = now;

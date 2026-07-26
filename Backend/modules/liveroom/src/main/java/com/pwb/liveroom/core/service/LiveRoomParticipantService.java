@@ -8,9 +8,20 @@ import java.util.UUID;
 
 public interface LiveRoomParticipantService {
 
-    LiveRoomParticipant joinPublicRoom(UUID userId, String roomCode, String displayName, String role);
+    LiveRoomParticipant joinPublicRoom(
+            UUID userId,
+            String roomCode,
+            String displayName,
+            String role,
+            boolean micMuted,
+            boolean cameraOff);
 
-    Optional<LiveRoomParticipant> joinAsHost(UUID userId, String hostDisplayName, String roomCode);
+    Optional<LiveRoomParticipant> joinAsHost(
+            UUID userId,
+            String hostDisplayName,
+            String roomCode,
+            boolean micMuted,
+            boolean cameraOff);
 
     Optional<LiveRoomParticipant> leaveRoom(UUID userId, String roomCode);
 

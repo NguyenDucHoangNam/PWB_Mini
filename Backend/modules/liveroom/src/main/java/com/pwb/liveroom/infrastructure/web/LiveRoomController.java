@@ -6,10 +6,12 @@ import com.pwb.backend.web.ApiResponse;
 import com.pwb.backend.web.MessageResolver;
 import com.pwb.liveroom.api.LiveRoomFacade;
 import com.pwb.liveroom.api.dto.request.CreateLiveRoomRequest;
+import com.pwb.liveroom.api.dto.request.JoinLiveRoomRequest;
 import com.pwb.liveroom.api.dto.response.LiveRoomExistsResponse;
 import com.pwb.liveroom.api.dto.response.LiveRoomResponse;
 import com.pwb.liveroom.api.dto.response.LiveRoomSummaryResponse;
 import com.pwb.liveroom.api.dto.response.LiveRoomViewerStatusResponse;
+import com.pwb.liveroom.api.dto.response.ParticipantSummaryResponse;
 import com.pwb.liveroom.core.model.LiveRoomStatus;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Optional;
+
 @RestController
 @RequestMapping("/api/v1/live-rooms")
 @RequiredArgsConstructor
@@ -38,6 +43,7 @@ public class LiveRoomController {
     private static final String MSG_LIST_RETRIEVED = "LIVEROOM_LIST_RETRIEVED";
     private static final String MSG_EXISTS_CHECKED = "LIVEROOM_EXISTS_CHECKED";
     private static final String MSG_VIEWER_STATUS_RETRIEVED = "LIVEROOM_VIEWER_STATUS_RETRIEVED";
+    private static final String MSG_HOST_JOINED = "LIVEROOM_HOST_JOINED";
     private static final String PATH_ROOM_CODE = "roomCode";
 
     private final LiveRoomFacade liveRoomFacade;
@@ -96,5 +102,20 @@ public class LiveRoomController {
             @PathVariable(name = PATH_ROOM_CODE) String roomCode) {
         LiveRoomViewerStatusResponse data = liveRoomFacade.getViewerStatus(user.getId(), roomCode);
         return ApiResponse.success(data, messageResolver.get(MSG_VIEWER_STATUS_RETRIEVED));
+    }
+
+    @PostMapping("/{" + PATH_ROOM_CODE + "}/host/join")
+    @PreAuthorize("hasRole('PRO')")
+    public ResponseEntity<ApiResponse<ParticipantSummaryResponse>> hostJoin(
+            @CurrentUser AuthenticatedUser user,
+            @PathVariable(name = PATH_ROOM_CODE) String roomCode,
+            @Valid @RequestBody JoinLiveRoomRequest body) {
+
+        Optional<ParticipantSummaryResponse> data = liveRoomFacade.joinAsHost(
+                user.getId(), roomCode, body.getMicMuted(), body.getCameraOff());
+        return data.map(response -> ResponseEntity.ok(
+                        ApiResponse.success(response, messageResolver.get(MSG_HOST_JOINED))))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.success(null, messageResolver.get(MSG_HOST_JOINED))));
     }
 }

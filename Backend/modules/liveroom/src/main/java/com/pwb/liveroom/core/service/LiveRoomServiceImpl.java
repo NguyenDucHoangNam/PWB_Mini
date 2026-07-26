@@ -3,12 +3,10 @@ package com.pwb.liveroom.core.service;
 import com.pwb.backend.exception.BusinessException;
 import com.pwb.backend.exception.ErrorCode;
 import com.pwb.liveroom.api.enums.LiveRoomMode;
-import com.pwb.liveroom.core.model.LiveRoom;
-import com.pwb.liveroom.core.model.LiveroomDomainException;
-import com.pwb.liveroom.core.model.LiveRoomParticipant;
-import com.pwb.liveroom.core.model.LiveRoomStatus;
+import com.pwb.liveroom.core.model.*;
 import com.pwb.liveroom.infrastructure.config.LiveRoomProperties;
 import com.pwb.liveroom.infrastructure.persistence.entity.LiveRoomJpaEntity;
+import com.pwb.liveroom.infrastructure.persistence.entity.LiveRoomParticipantJpaEntity;
 import com.pwb.liveroom.infrastructure.persistence.mapper.LiveRoomMapper;
 import com.pwb.liveroom.infrastructure.persistence.mapper.LiveRoomParticipantMapper;
 import com.pwb.liveroom.infrastructure.persistence.repository.LiveRoomJpaRepository;
@@ -25,9 +23,8 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.security.SecureRandom;
 import java.time.Instant;
-import java.util.Map;
+import java.util.List;
 import java.util.UUID;
-import static java.util.Map.entry;
 
 @Slf4j
 @Service
@@ -35,7 +32,6 @@ import static java.util.Map.entry;
 public class LiveRoomServiceImpl implements LiveRoomService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
-    private static final String HOST_DISPLAY_NAME_FALLBACK = "Host";
 
     private final LiveRoomJpaRepository liveRoomJpaRepository;
     private final LiveRoomParticipantJpaRepository participantJpaRepository;
@@ -80,9 +76,9 @@ public class LiveRoomServiceImpl implements LiveRoomService {
         LiveRoomJpaEntity saved = liveRoomJpaRepository.save(entity);
 
         String resolvedHostDisplayName = (hostDisplayName == null || hostDisplayName.isBlank())
-                ? HOST_DISPLAY_NAME_FALLBACK
+                ? LiveroomConstants.HOST_DISPLAY_NAME_FALLBACK
                 : hostDisplayName.trim();
-        if (resolvedHostDisplayName.equals(HOST_DISPLAY_NAME_FALLBACK)) {
+        if (resolvedHostDisplayName.equals(LiveroomConstants.HOST_DISPLAY_NAME_FALLBACK)) {
             log.warn("Host display name missing, fallback applied: hostUserId={}, roomCode={}",
                     hostUserId, saved.getRoomCode());
         }
@@ -95,6 +91,20 @@ public class LiveRoomServiceImpl implements LiveRoomService {
         domain.incrementParticipants();
         liveRoomMapper.toEntity(domain, saved);
         liveRoomJpaRepository.save(saved);
+
+        LiveRoomParticipantJpaEntity hostEntity = participantJpaRepository
+                .findActiveByRoomAndUser(saved.getRoomCode(), hostUserId)
+                .orElseThrow();
+        eventPublisher.publishEvent(new LiveRoomParticipantServiceImpl.ParticipantJoinedEvent(
+                saved.getRoomCode(),
+                saved.getHostUserId(),
+                saved.getHostUserId(),
+                resolvedHostDisplayName,
+                hostEntity.getRoleAtJoin(),
+                saved.getCurrentParticipantCount(),
+                saved.getMaxParticipants(),
+                Math.max(0, saved.getMaxParticipants() - saved.getCurrentParticipantCount()),
+                hostEntity.getJoinedAt() != null ? hostEntity.getJoinedAt() : now));
 
         log.info("Live room created: hostUserId={}, roomCode={}, roomId={}",
                 hostUserId, saved.getRoomCode(), saved.getId());
@@ -147,6 +157,8 @@ public class LiveRoomServiceImpl implements LiveRoomService {
             throw new BusinessException(ErrorCode.LIVEROOM_ALREADY_ENDED);
         }
 
+        List<LiveRoomParticipantJpaEntity> activeParticipants = participantJpaRepository.findActiveByRoom(roomCode);
+
         LiveRoom domain = liveRoomMapper.toDomain(entity);
         Instant endedAt = Instant.now();
         try {
@@ -163,7 +175,14 @@ public class LiveRoomServiceImpl implements LiveRoomService {
             log.info("Evicted {} active participants on room end: roomCode={}", evicted, roomCode);
         }
 
-        eventPublisher.publishEvent(new RoomEndedEvent(roomCode, hostUserId, endedAt));
+        eventPublisher.publishEvent(new RoomEndedEvent(
+                roomCode,
+                hostUserId,
+                activeParticipants.stream()
+                        .map(p -> new ParticipantLeftInfo(p.getUserId(), p.getDisplayName()))
+                        .toList(),
+                endedAt,
+                entity.getMaxParticipants()));
 
         log.info("Live room ended: hostUserId={}, roomCode={}", hostUserId, roomCode);
     }
@@ -171,9 +190,29 @@ public class LiveRoomServiceImpl implements LiveRoomService {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onRoomEnded(RoomEndedEvent event) {
         broadcaster.broadcastRoomEnded(event.roomCode(), event.hostUserId(), event.endedAt().toString());
+
+        for (ParticipantLeftInfo participant : event.evictedParticipants()) {
+            broadcaster.broadcastParticipantLeft(
+                    event.roomCode(),
+                    participant.userId(),
+                    participant.displayName(),
+                    0,
+                    event.maxParticipants(),
+                    0,
+                    event.endedAt().toString());
+            broadcaster.broadcastPeerLeft(event.roomCode(), participant.userId(), event.endedAt().toString());
+        }
     }
 
-    public record RoomEndedEvent(String roomCode, UUID hostUserId, Instant endedAt) {
+    public record ParticipantLeftInfo(UUID userId, String displayName) {
+    }
+
+    public record RoomEndedEvent(
+            String roomCode,
+            UUID hostUserId,
+            List<ParticipantLeftInfo> evictedParticipants,
+            Instant endedAt,
+            int maxParticipants) {
     }
 
     @Override
@@ -248,21 +287,7 @@ public class LiveRoomServiceImpl implements LiveRoomService {
         return builder.toString();
     }
 
-    private static final Map<String, ErrorCode> DOMAIN_ERROR_CODE_MAP = Map.ofEntries(
-            entry("LIVEROOM_TITLE_REQUIRED", ErrorCode.INVALID_INPUT),
-            entry("LIVEROOM_TITLE_TOO_LONG", ErrorCode.INVALID_INPUT),
-            entry("LIVEROOM_CAPACITY_INVALID", ErrorCode.LIVEROOM_INVALID_CAPACITY),
-            entry("LIVEROOM_CODE_INVALID_LENGTH", ErrorCode.INVALID_INPUT),
-            entry("LIVEROOM_CODE_INVALID_CHARS", ErrorCode.INVALID_INPUT),
-            entry("LIVEROOM_FULL", ErrorCode.LIVEROOM_FULL),
-            entry("LIVEROOM_NOT_ACTIVE", ErrorCode.LIVEROOM_ALREADY_ENDED),
-            entry("LIVEROOM_PAUSED", ErrorCode.LIVEROOM_ALREADY_ENDED),
-            entry("LIVEROOM_ALREADY_ENDED", ErrorCode.LIVEROOM_ALREADY_ENDED),
-            entry("LIVEROOM_CAPACITY_LOWER_THAN_CURRENT", ErrorCode.LIVEROOM_INVALID_CAPACITY)
-    );
-
     private BusinessException mapDomainException(LiveroomDomainException ex) {
-        ErrorCode ec = DOMAIN_ERROR_CODE_MAP.getOrDefault(ex.getErrorKey(), ErrorCode.INVALID_INPUT);
-        return new BusinessException(ec);
+        return LiveroomErrorCodeMapper.mapDomainException(ex);
     }
 }

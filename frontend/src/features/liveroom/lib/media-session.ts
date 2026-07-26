@@ -110,7 +110,9 @@ async function acquireAudioOnly(deviceId: string | null): Promise<MediaStreamTra
   return audioTrack;
 }
 
-async function acquireVideoOnly(deviceId: string | null): Promise<MediaStreamTrack> {
+async function acquireVideoOnly(
+  deviceId: string | null,
+): Promise<MediaStreamTrack> {
   if (!navigator.mediaDevices?.getUserMedia) {
     throw new MediaPermissionException("UNKNOWN", "Browser does not support getUserMedia");
   }
@@ -293,25 +295,25 @@ export const mediaSessionController = {
       const store = useMediaSessionStore.getState();
       store.setCameraBusy(false, true);
       try {
-        const current = store.stream;
-        const deviceId = store.currentVideoId ?? lastVideoDeviceId;
-        const videoTrack = await acquireVideoOnly(deviceId);
-        if (current) {
-          detachVideoTracks(current);
-          appendTrackSafely(current, videoTrack);
-        } else {
-          const fallbackStream = new MediaStream([videoTrack]);
-          store.setStream(fallbackStream);
-        }
-        const resolvedId = videoTrack.getSettings().deviceId ?? deviceId ?? null;
-        store.setCurrentVideoId(resolvedId);
-        lastVideoDeviceId = resolvedId;
-        store.setPermissionState("granted");
-        store.setErrorMessage(null);
-        store.bumpStreamRevision();
-        const { audios, videos } = await enumerateDevices();
-        store.setDevices(audios, videos);
-        return videoTrack;
+      const current = store.stream;
+      const deviceId = store.currentVideoId ?? lastVideoDeviceId;
+      const videoTrack = await acquireVideoOnly(deviceId);
+      if (current) {
+        detachVideoTracks(current);
+        appendTrackSafely(current, videoTrack);
+      } else {
+        const fallbackStream = new MediaStream([videoTrack]);
+        store.setStream(fallbackStream);
+      }
+      const resolvedId = videoTrack.getSettings().deviceId ?? deviceId ?? null;
+      store.setCurrentVideoId(resolvedId);
+      lastVideoDeviceId = resolvedId;
+      store.setPermissionState("granted");
+      store.setErrorMessage(null);
+      store.bumpStreamRevision();
+      const { audios, videos } = await enumerateDevices();
+      store.setDevices(audios, videos);
+      return videoTrack;
       } catch (err) {
         const ex = toPermissionException(err);
         store.setPermissionState(ex.kind === "PERMISSION_DENIED" || ex.kind === "POLICY_BLOCKED" ? "denied" : "error");

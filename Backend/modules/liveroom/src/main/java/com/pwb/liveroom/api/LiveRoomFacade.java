@@ -5,10 +5,12 @@ import com.pwb.liveroom.api.dto.response.LiveRoomExistsResponse;
 import com.pwb.liveroom.api.dto.response.LiveRoomResponse;
 import com.pwb.liveroom.api.dto.response.LiveRoomSummaryResponse;
 import com.pwb.liveroom.api.dto.response.LiveRoomViewerStatusResponse;
+import com.pwb.liveroom.api.dto.response.ParticipantSummaryResponse;
 import com.pwb.liveroom.core.model.LiveRoomStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.Optional;
 import java.util.UUID;
 
 public interface LiveRoomFacade {
@@ -24,4 +26,10 @@ public interface LiveRoomFacade {
     LiveRoomExistsResponse checkRoomExists(String roomCode);
 
     LiveRoomViewerStatusResponse getViewerStatus(UUID viewerUserId, String roomCode);
+
+    Optional<ParticipantSummaryResponse> joinAsHost(
+            UUID hostUserId,
+            String roomCode,
+            boolean micMuted,
+            boolean cameraOff);
 }

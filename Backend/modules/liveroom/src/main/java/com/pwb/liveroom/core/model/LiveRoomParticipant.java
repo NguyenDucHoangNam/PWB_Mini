@@ -111,6 +111,7 @@ public final class LiveRoomParticipant {
             throw new LiveroomDomainException("LIVEROOM_LEFT_BEFORE_JOIN", "Left time cannot be before joined time");
         }
         this.leftAt = now;
+        this.lastSeenAt = now;
     }
 
     public void updateMediaState(boolean micMuted, boolean cameraOff) {

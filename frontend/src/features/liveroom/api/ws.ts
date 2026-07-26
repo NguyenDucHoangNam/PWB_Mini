@@ -41,6 +41,44 @@ interface TrackedSubscription {
 
 const trackedSubs: Set<TrackedSubscription> = new Set();
 
+interface OutboxEntry {
+  destination: string;
+  body: unknown;
+  enqueuedAt: number;
+  attempts: number;
+}
+
+const outbox: OutboxEntry[] = [];
+const MAX_OUTBOX_SIZE = 100;
+const MAX_OUTBOX_AGE_MS = 30_000;
+const MAX_OUTBOX_ATTEMPTS = 3;
+
+function flushOutbox(): void {
+  if (!sharedClient || !sharedClient.connected) return;
+  const now = Date.now();
+  for (let i = outbox.length - 1; i >= 0; i--) {
+    const entry = outbox[i];
+    if (now - entry.enqueuedAt > MAX_OUTBOX_AGE_MS || entry.attempts >= MAX_OUTBOX_ATTEMPTS) {
+      outbox.splice(i, 1);
+      continue;
+    }
+    try {
+      sharedClient.publish({ destination: entry.destination, body: JSON.stringify(entry.body) });
+      outbox.splice(i, 1);
+    } catch (err) {
+      entry.attempts++;
+      console.warn(`[WS-Outbox] Failed to flush (attempt ${entry.attempts}):`, err);
+    }
+  }
+}
+
+function enqueueOutbox(destination: string, body: unknown): void {
+  if (outbox.length >= MAX_OUTBOX_SIZE) {
+    outbox.shift();
+  }
+  outbox.push({ destination, body, enqueuedAt: Date.now(), attempts: 0 });
+}
+
 export function getStompClient(accessToken: string): Client {
   if (sharedClient && currentToken === accessToken) {
     if (sharedClient.connected || isReconnecting) {
@@ -76,6 +114,7 @@ export function getStompClient(accessToken: string): Client {
     debug: () => {},
     onConnect: () => {
       isReconnecting = false;
+      flushOutbox();
       reattachAllSubscriptions();
     },
     onDisconnect: () => {
@@ -120,6 +159,7 @@ function subscribeTopic<T>(
 ): Subscription {
   const client = ensureClient();
   if (!client) {
+    console.warn("[STOMP-DEBUG] subscribeTopic: no client for", destination);
     return { unsubscribe: () => {} };
   }
 
@@ -128,6 +168,7 @@ function subscribeTopic<T>(
     handleFrame: (frame: IMessage) => {
       try {
         const parsed: unknown = JSON.parse(frame.body);
+        console.log("[STOMP-DEBUG] RECEIVED on", destination, "type:", (parsed as any)?.type, "filtered:", filter ? !filter(parsed) : false);
         if (filter && !filter(parsed)) return;
         onEvent(parsed as T);
       } catch {
@@ -141,11 +182,14 @@ function subscribeTopic<T>(
   const attach = () => {
     if (tracked.subscription) return;
     tracked.subscription = client.subscribe(tracked.destination, tracked.handleFrame);
+    console.log("[STOMP-DEBUG] ATTACHED subscription to", destination, "subId:", tracked.subscription?.id);
   };
 
   trackedSubs.add(tracked);
   if (client.connected) {
     attach();
+  } else {
+    console.log("[STOMP-DEBUG] client NOT connected, queued subscription for", destination);
   }
 
   return {
@@ -161,12 +205,20 @@ function subscribeTopic<T>(
 
 export function publishSignal(destination: string, body: unknown): boolean {
   const client = ensureClient();
-  if (!client || !client.connected) return false;
-  client.publish({
-    destination,
-    body: JSON.stringify(body),
-  });
-  return true;
+  if (!client || !client.connected) {
+    enqueueOutbox(destination, body);
+    return false;
+  }
+  try {
+    client.publish({
+      destination,
+      body: JSON.stringify(body),
+    });
+    return true;
+  } catch (err) {
+    enqueueOutbox(destination, body);
+    return false;
+  }
 }
 
 export function subscribeRoomParticipants(
@@ -185,6 +237,19 @@ export function subscribeRoomMediaState(
 ): Subscription {
   return subscribeTopic<MediaStateChangedWsEvent>(
     `/topic/room/${roomCode}/participants`,
+    onEvent,
+    (raw) =>
+      typeof raw === "object" &&
+      raw !== null &&
+      (raw as { type?: string }).type === "MEDIA_STATE_CHANGED",
+  );
+}
+
+export function subscribeMyMediaStateNotifications(
+  onEvent: (event: MediaStateChangedWsEvent) => void,
+): Subscription {
+  return subscribeTopic<MediaStateChangedWsEvent>(
+    "/user/queue/liveroom-media",
     onEvent,
     (raw) =>
       typeof raw === "object" &&

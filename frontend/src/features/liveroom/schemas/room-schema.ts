@@ -22,21 +22,6 @@ export const createRoomFormSchema = z.object({
 
 export type CreateRoomFormValues = z.infer<typeof createRoomFormSchema>;
 
-export const askToJoinFormSchema = z.object({
-  displayName: z
-    .string()
-    .max(100, { message: "validation.liveroom.displayname.length" })
-    .optional()
-    .or(z.literal("")),
-  message: z
-    .string()
-    .max(500, { message: "validation.liveroom.askMessage.maxlength" })
-    .optional()
-    .or(z.literal("")),
-});
-
-export type AskToJoinFormValues = z.infer<typeof askToJoinFormSchema>;
-
 export const declineRequestFormSchema = z.object({
   reason: z
     .string()

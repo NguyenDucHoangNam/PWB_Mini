@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { asApiError } from "@/lib/api-client";
 import { useCancelJoinRequest } from "../api/join-requests";
-import { subscribeUserJoinRequestDecisions } from "../api/ws";
+import { subscribeUserJoinRequestDecisions, requestRoomState } from "../api/ws";
 import { resolveLiveroomErrorMessage } from "../lib/resolve-liveroom-error-message";
 import type { LiveRoomJoinRequest } from "../types";
 
@@ -52,6 +52,9 @@ export function WaitingRoomCard({
       if (event.requestId !== request.id) return;
       if (event.status === "APPROVED") {
         onApproved();
+        setTimeout(() => {
+          requestRoomState(roomCode);
+        }, 300);
       } else if (event.status === "REJECTED") {
         onRejected(event.reason ?? "");
       } else if (event.status === "CANCELLED") {
@@ -59,7 +62,7 @@ export function WaitingRoomCard({
       }
     });
     return () => handle.unsubscribe();
-  }, [request.id, onApproved, onRejected, onCancelled]);
+  }, [request.id, roomCode, onApproved, onRejected, onCancelled]);
 
   const { mutate: cancelJoinRequest, isPending } = useCancelJoinRequest({
     mutationConfig: {

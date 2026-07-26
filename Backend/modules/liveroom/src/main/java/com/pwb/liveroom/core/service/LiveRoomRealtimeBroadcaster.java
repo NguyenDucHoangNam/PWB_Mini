@@ -28,6 +28,7 @@ public class LiveRoomRealtimeBroadcaster {
     private static final String ROOM_USER_QUEUE_BASE = "/queue/room/";
     private static final String ROOM_STATE_USER_SUFFIX = "/state";
     private static final String PLAYBACK_STATE_USER_SUFFIX = "/playback/state";
+    private static final String MEDIA_STATE_USER_SUFFIX = "/liveroom-media";
 
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -125,6 +126,27 @@ public class LiveRoomRealtimeBroadcaster {
                 "timestamp", timestamp
         );
         send(destination, payload, "MEDIA_STATE_CHANGED", roomCode, userId);
+    }
+
+    public void pushMediaStateToUser(
+            String roomCode,
+            UUID recipientUserId,
+            UUID targetUserId,
+            String displayName,
+            boolean micMuted,
+            boolean cameraOff,
+            String timestamp) {
+        String destination = USER_QUEUE_BASE + recipientUserId + MEDIA_STATE_USER_SUFFIX;
+        Object payload = Map.of(
+                "type", "MEDIA_STATE_CHANGED",
+                "roomCode", roomCode,
+                "userId", targetUserId,
+                "displayName", displayName,
+                "micMuted", micMuted,
+                "cameraOff", cameraOff,
+                "timestamp", timestamp
+        );
+        sendToUser(recipientUserId.toString(), destination, payload, "MEDIA_STATE_CHANGED", roomCode);
     }
 
     public void broadcastJoinRequestCreated(

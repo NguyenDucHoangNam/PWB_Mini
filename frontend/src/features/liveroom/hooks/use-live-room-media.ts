@@ -19,7 +19,8 @@ import {
 import { liveRoomKey } from "../api/rooms";
 import { WebRTCPeerManager } from "../lib/webrtc-peer-manager";
 import { mediaSessionController } from "../lib/media-session";
-import { disconnectStompClient, subscribeRoomParticipants } from "../api/ws";
+import { MediaTrackController } from "../lib/media-track-controller";
+import { disconnectStompClient, requestRoomState, subscribeRoomParticipants } from "../api/ws";
 import { resolveLiveroomErrorMessage } from "../lib/resolve-liveroom-error-message";
 
 export interface UseLiveRoomMediaParams {
@@ -60,21 +61,79 @@ export function useLiveRoomMedia({
     startMediaRef.current = startMedia;
   }, [startMedia]);
 
-  useEffect(() => {
-    if (!enabled) return;
-    if (typeof window === "undefined") return;
-    if (!navigator.mediaDevices?.getUserMedia) return;
-    void startMediaRef.current().catch(() => {
-      /* permission denied or device not found - intentional fallback */
-    });
-  }, [enabled]);
-
   const managerRef = useRef<WebRTCPeerManager | null>(null);
   const managerApiRef = useRef<{
     addPeer: (remoteUserId: string, displayName?: string) => Promise<void>;
     queuePeerIfNeeded: (remoteUserId: string, displayName?: string) => Promise<void>;
     removePeer: (remoteUserId: string) => void;
   } | null>(null);
+
+  const trackControllerRef = useRef<MediaTrackController | null>(null);
+
+  const lastSyncedMediaRef = useRef<{ micMuted: boolean; cameraOff: boolean } | null>(null);
+  const joinedReadyRef = useRef(false);
+  const pendingMediaRef = useRef<{ micMuted: boolean; cameraOff: boolean } | null>(null);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const updateMyMediaMutationRef = useRef<ReturnType<typeof useUpdateMyMedia> | null>(null);
+
+  const syncMediaToServer = useCallback(
+    (next: { micMuted: boolean; cameraOff: boolean }) => {
+      if (!roomCode) return;
+      const last = lastSyncedMediaRef.current;
+      if (last && last.micMuted === next.micMuted && last.cameraOff === next.cameraOff) return;
+      lastSyncedMediaRef.current = next;
+      updateMyMediaMutationRef.current?.mutate({ roomCode, body: next });
+    },
+    [roomCode],
+  );
+
+  useEffect(() => {
+    if (!enabled) return;
+    if (typeof window === "undefined") return;
+    if (!navigator.mediaDevices?.getUserMedia) return;
+    void startMediaRef.current()
+      .then(() => {
+        const state = useLiveRoomMediaStore.getState();
+        const stream = useMediaSessionStore.getState().stream;
+        if (stream) {
+          applyTrackMutedFlag(stream, "audio", state.micMuted);
+          if (state.cameraOff) {
+            for (const track of stream.getVideoTracks()) {
+              try {
+                track.stop();
+              } catch {
+                /* ignore */
+              }
+              try {
+                stream.removeTrack(track);
+              } catch {
+                /* ignore */
+              }
+            }
+            useMediaSessionStore.getState().setCurrentVideoId(null);
+            useMediaSessionStore.getState().bumpStreamRevision();
+          }
+        }
+        if (trackControllerRef.current) {
+          trackControllerRef.current.hydrate(!state.micMuted, !state.cameraOff);
+        }
+        setTimeout(() => {
+          if (!roomCode) return;
+          const currentState = useLiveRoomMediaStore.getState();
+          const last = lastSyncedMediaRef.current;
+          if (last && last.micMuted === currentState.micMuted && last.cameraOff === currentState.cameraOff) return;
+          lastSyncedMediaRef.current = { micMuted: currentState.micMuted, cameraOff: currentState.cameraOff };
+          updateMyMediaMutationRef.current?.mutate({
+            roomCode,
+            body: { micMuted: currentState.micMuted, cameraOff: currentState.cameraOff },
+          });
+        }, 1000);
+      })
+      .catch((err) => {
+        console.warn("[LIVEROOM-DEBUG] devices.start() failed:", err);
+      });
+  }, [enabled, roomCode]);
 
   useEffect(() => {
     if (!enabled || !roomCode) return;
@@ -86,13 +145,22 @@ export function useLiveRoomMedia({
     managerRef.current = manager;
     managerApiRef.current = {
       addPeer: async (remoteUserId, displayName) => {
-        await manager.queuePeerIfNeeded(remoteUserId, displayName);
+        const stream = useMediaSessionStore.getState().stream;
+        if (stream) {
+          await manager.onPeerJoined(remoteUserId, stream);
+        } else {
+          await manager.queuePeerIfNeeded(remoteUserId, displayName);
+        }
       },
       queuePeerIfNeeded: (remoteUserId, displayName) => manager.queuePeerIfNeeded(remoteUserId, displayName),
       removePeer: (remoteUserId) => {
         manager.removePeer(remoteUserId);
       },
     };
+    const existingStream = useMediaSessionStore.getState().stream;
+    if (existingStream) {
+      manager.setLocalStreamForAllPeers(existingStream);
+    }
     const offStream = manager.onRemoteStream((userId, displayName, stream) => {
       upsertRemotePeer({ userId, displayName, stream } as RemotePeerStream);
     });
@@ -111,24 +179,109 @@ export function useLiveRoomMedia({
   }, [enabled, roomCode, localUserId, localDisplayName, upsertRemotePeer, removeRemotePeer]);
 
   useEffect(() => {
-    mediaSessionController.setBeforeDetachVideoHandler(() => {
-      managerRef.current?.replaceVideoTrackForAllPeers(null);
+    if (!enabled || !roomCode) return;
+
+    const initialState = useLiveRoomMediaStore.getState();
+    const controller = new MediaTrackController({
+      getLocalStream: () => useMediaSessionStore.getState().stream,
+      acquireMic: async () => {
+        await mediaSessionController.ensureAudio();
+        return useMediaSessionStore.getState().stream?.getAudioTracks()[0] ?? null;
+      },
+      acquireCamera: async () => mediaSessionController.enableCamera(),
+      releaseTrack: (track) => {
+        const stream = useMediaSessionStore.getState().stream;
+        if (stream) {
+          try {
+            stream.removeTrack(track);
+          } catch {
+            /* ignore */
+          }
+        }
+        try {
+          track.stop();
+        } catch {
+          /* ignore */
+        }
+      },
+      getPeerManager: () => managerRef.current,
     });
+
+    controller.hydrate(!initialState.micMuted, !initialState.cameraOff);
+    trackControllerRef.current = controller;
+
+    const unsubscribe = controller.onChange((event) => {
+      if (event.type === "MIC_CHANGED") {
+        setMicMuted(!event.enabled);
+        const next = {
+          micMuted: !event.enabled,
+          cameraOff: !controller.getCameraEnabled(),
+        };
+        if (joinedReadyRef.current) {
+          syncMediaToServer(next);
+        } else {
+          pendingMediaRef.current = next;
+        }
+      }
+      if (event.type === "CAMERA_CHANGED") {
+        setCameraOff(!event.enabled);
+        const next = {
+          micMuted: !controller.getMicEnabled(),
+          cameraOff: !event.enabled,
+        };
+        if (joinedReadyRef.current) {
+          syncMediaToServer(next);
+        } else {
+          pendingMediaRef.current = next;
+        }
+      }
+    });
+
     return () => {
-      mediaSessionController.setBeforeDetachVideoHandler(null);
+      unsubscribe();
+      if (trackControllerRef.current === controller) {
+        trackControllerRef.current = null;
+      }
     };
-  }, []);
+  }, [enabled, roomCode, setMicMuted, setCameraOff, syncMediaToServer]);
 
   const streamRevision = useMediaSessionStore((s) => s.streamRevision);
 
+  const prevStreamRef = useRef<MediaStream | null>(null);
+
   useEffect(() => {
     if (!devices.stream) {
+      prevStreamRef.current = null;
       setLocalStream(null);
+      managerRef.current?.setLocalStreamForAllPeers(null);
       return;
     }
+    const wasNull = prevStreamRef.current === null;
+    prevStreamRef.current = devices.stream;
     setLocalStream(devices.stream);
     managerRef.current?.setLocalStreamForAllPeers(devices.stream);
-  }, [devices.stream, streamRevision, setLocalStream]);
+
+    const currentMediaState = useLiveRoomMediaStore.getState();
+    applyTrackMutedFlag(devices.stream, "audio", currentMediaState.micMuted);
+
+    if (wasNull && roomCode) {
+      requestRoomState(roomCode);
+    }
+
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    if (wasNull && roomCode) {
+      retryTimer = setTimeout(() => {
+        const peers = useLiveRoomMediaStore.getState().remotePeers;
+        if (peers.length === 0) {
+          requestRoomState(roomCode);
+        }
+      }, 2000);
+    }
+
+    return () => {
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, [devices.stream, streamRevision, setLocalStream, roomCode]);
 
   usePeerSignaling({
     roomCode,
@@ -144,10 +297,7 @@ export function useLiveRoomMedia({
     },
   });
 
-  const joinedReadyRef = useRef(false);
-  const pendingMediaRef = useRef<{ micMuted: boolean; cameraOff: boolean } | null>(null);
-  const pendingMutationRetryRef = useRef<{ roomCode: string; body: { micMuted: boolean; cameraOff: boolean } }[]>([]);
-  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  updateMyMediaMutationRef.current = updateMyMediaMutation;
 
   useEffect(() => {
     if (!roomCode) return undefined;
@@ -156,63 +306,45 @@ export function useLiveRoomMedia({
       if (event.type === "PARTICIPANT_JOINED" && event.userId === localUserId) {
         joinedReadyRef.current = true;
         const pending = pendingMediaRef.current;
+        const currentState = useLiveRoomMediaStore.getState();
         if (pending) {
           pendingMediaRef.current = null;
-          updateMyMediaMutation.mutate({ roomCode, body: pending });
+          syncMediaToServer(pending);
+        } else {
+          syncMediaToServer({ micMuted: currentState.micMuted, cameraOff: currentState.cameraOff });
         }
-        for (const pendingRetry of pendingMutationRetryRef.current) {
-          updateMyMediaMutation.mutate(pendingRetry);
-        }
-        pendingMutationRetryRef.current = [];
         return;
       }
       if (event.type === "PARTICIPANT_LEFT" && event.userId && event.userId !== localUserId) {
         const leftUserId = event.userId;
         managerApiRef.current?.removePeer(leftUserId);
         removeRemotePeer(leftUserId);
+        return;
+      }
+      if (event.type === "MEDIA_STATE_CHANGED" && event.userId && event.userId !== localUserId) {
+        const { setRemoteMediaState } = useLiveRoomMediaStore.getState();
+        setRemoteMediaState(event.userId, {
+          micMuted: event.micMuted ?? true,
+          cameraOff: event.cameraOff ?? true,
+        });
       }
     });
     const fallback = setTimeout(() => {
       joinedReadyRef.current = true;
+      const currentState = useLiveRoomMediaStore.getState();
+      syncMediaToServer({ micMuted: currentState.micMuted, cameraOff: currentState.cameraOff });
     }, 800);
     return () => {
       subscription.unsubscribe();
       clearTimeout(fallback);
       joinedReadyRef.current = false;
       pendingMediaRef.current = null;
-      pendingMutationRetryRef.current = [];
       if (retryTimerRef.current) {
         clearTimeout(retryTimerRef.current);
         retryTimerRef.current = null;
       }
     };
-  }, [roomCode, localUserId, removeRemotePeer, updateMyMediaMutation]);
-
-  useEffect(() => {
-    if (!enabled || !roomCode) return undefined;
-    const handleVisibilityChange = () => {
-      if (document.hidden) return;
-      const stream = useMediaSessionStore.getState().stream;
-      if (!stream) return;
-      const videoTrack = stream.getVideoTracks()[0];
-      if (videoTrack && videoTrack.readyState === "ended") {
-        const currentVideoId = useMediaSessionStore.getState().currentVideoId;
-        if (currentVideoId) {
-          devices.enableCamera().catch(() => {
-            /* ignore if reacquire fails */
-          });
-        }
-      }
-      for (const pendingRetry of pendingMutationRetryRef.current) {
-        updateMyMediaMutation.mutate(pendingRetry);
-      }
-      pendingMutationRetryRef.current = [];
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [enabled, roomCode, devices, updateMyMediaMutation]);
+  }, [roomCode, localUserId, removeRemotePeer, syncMediaToServer]);
 
   const showErrorToast = useCallback(
     (err: unknown) => {
@@ -227,83 +359,57 @@ export function useLiveRoomMedia({
     [tErrors, tCommon],
   );
 
-  const applyLocalMediaState = useCallback(
-    async (next: { micMuted: boolean; cameraOff: boolean }) => {
-      const before = useLiveRoomMediaStore.getState();
-      const micChanged = before.micMuted !== next.micMuted;
-      const cameraChanged = before.cameraOff !== next.cameraOff;
-      if (!micChanged && !cameraChanged) return;
-      setMicMuted(next.micMuted);
-      setCameraOff(next.cameraOff);
-      try {
-        if (micChanged) {
-          const currentStream = useMediaSessionStore.getState().stream;
-          applyTrackMutedFlag(currentStream, "audio", next.micMuted);
-        }
-        if (cameraChanged) {
-          if (next.cameraOff) {
-            await devices.disableCamera();
-          } else {
-            await devices.enableCamera();
-          }
-          const updatedStream = useMediaSessionStore.getState().stream;
-          const videoTrack = updatedStream?.getVideoTracks()[0] ?? null;
-          managerRef.current?.replaceVideoTrackForAllPeers(next.cameraOff ? null : videoTrack);
-        }
-      } catch (err) {
-        setMicMuted(before.micMuted);
-        setCameraOff(before.cameraOff);
-        throw err;
-      }
-      const updatedStream = useMediaSessionStore.getState().stream;
-      managerRef.current?.setLocalStreamForAllPeers(updatedStream);
-    },
-    [devices, managerRef, setMicMuted, setCameraOff],
-  );
-
   const toggleMic = useCallback(() => {
-    void (async () => {
-      const before = useLiveRoomMediaStore.getState();
-      const next = { micMuted: !before.micMuted, cameraOff: before.cameraOff };
-      try {
-        await applyLocalMediaState(next);
-      } catch (err) {
-        showErrorToast(err);
-        return;
-      }
-      if (!roomCode) return;
-      if (joinedReadyRef.current) {
-        updateMyMediaMutation.mutate({ roomCode, body: next });
-      } else {
-        pendingMediaRef.current = next;
-      }
-    })();
-  }, [applyLocalMediaState, roomCode, showErrorToast, updateMyMediaMutation]);
+    const controller = trackControllerRef.current;
+    if (!controller) return;
+    const previousEnabled = controller.getMicEnabled();
+    const nextEnabled = !previousEnabled;
+
+    setMicMuted(!nextEnabled);
+
+    controller.setMicEnabled(nextEnabled).catch((err) => {
+      setMicMuted(previousEnabled);
+      showErrorToast(err);
+    });
+  }, [setMicMuted, showErrorToast]);
 
   const toggleCamera = useCallback(() => {
-    void (async () => {
-      const before = useLiveRoomMediaStore.getState();
-      const next = { micMuted: before.micMuted, cameraOff: !before.cameraOff };
-      try {
-        await applyLocalMediaState(next);
-      } catch (err) {
-        showErrorToast(err);
-        return;
-      }
-      if (!roomCode) return;
-      if (joinedReadyRef.current) {
-        updateMyMediaMutation.mutate({ roomCode, body: next });
-      } else {
-        pendingMediaRef.current = next;
-      }
-    })();
-  }, [applyLocalMediaState, roomCode, showErrorToast, updateMyMediaMutation]);
+    const controller = trackControllerRef.current;
+    if (!controller) return;
+    const previousEnabled = controller.getCameraEnabled();
+    const nextEnabled = !previousEnabled;
+
+    setCameraOff(!nextEnabled);
+
+    controller.setCameraEnabled(nextEnabled).catch((err) => {
+      setCameraOff(previousEnabled);
+      showErrorToast(err);
+    });
+  }, [setCameraOff, showErrorToast]);
 
   const syncFromServer = useCallback(
     (next: { micMuted: boolean; cameraOff: boolean }) => {
-      void applyLocalMediaState(next).catch((err) => showErrorToast(err));
+      const controller = trackControllerRef.current;
+      if (!controller) {
+        setMicMuted(next.micMuted);
+        setCameraOff(next.cameraOff);
+        return;
+      }
+
+      const previous = controller.getState();
+      controller.hydrate(!next.micMuted, !next.cameraOff);
+      setMicMuted(next.micMuted);
+      setCameraOff(next.cameraOff);
+      controller
+        .syncTrackAlignment()
+        .catch((err) => {
+          controller.hydrate(previous.micEnabled, previous.cameraEnabled);
+          setMicMuted(previous.micEnabled);
+          setCameraOff(previous.cameraEnabled);
+          showErrorToast(err);
+        });
     },
-    [applyLocalMediaState, showErrorToast],
+    [setMicMuted, setCameraOff, showErrorToast],
   );
 
   const setAudioDevice = useCallback(
@@ -331,6 +437,8 @@ export function useLiveRoomMedia({
   const stopAndDisconnect = useCallback(() => {
     devices.stop();
     managerRef.current?.close();
+    trackControllerRef.current = null;
+    lastSyncedMediaRef.current = null;
     reset();
     if (roomCode) {
       queryClient.invalidateQueries({ queryKey: liveRoomKey(roomCode) });

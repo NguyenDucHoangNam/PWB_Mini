@@ -23,6 +23,7 @@ export interface PeerManagerHandle {
   close: () => void;
   onRemoteStream: (handler: (userId: string, displayName: string, stream: MediaStream) => void) => () => void;
   onPeerLeft: (handler: (userId: string) => void) => () => void;
+  replaceAudioTrackForAllPeers: (track: MediaStreamTrack | null) => void;
 }
 
 interface LiveRoomMediaState {
@@ -34,6 +35,7 @@ interface LiveRoomMediaState {
   peerManager: PeerManagerHandle | null;
   mediaSocket: MediaSocket | null;
   speakingUsers: Set<string>;
+  remoteMediaStates: Record<string, { micMuted: boolean; cameraOff: boolean }>;
 
   setLocalStream: (stream: MediaStream | null) => void;
   setMicMuted: (muted: boolean) => void;
@@ -46,6 +48,8 @@ interface LiveRoomMediaState {
   setSpeakingUsers: (users: Set<string>) => void;
   addSpeaker: (userId: string) => void;
   removeSpeaker: (userId: string) => void;
+  setRemoteMediaState: (userId: string, state: { micMuted: boolean; cameraOff: boolean }) => void;
+  bulkSetRemoteMediaStates: (states: Record<string, { micMuted: boolean; cameraOff: boolean }>) => void;
   reset: () => void;
 }
 
@@ -58,6 +62,7 @@ export const useLiveRoomMediaStore = create<LiveRoomMediaState>((set) => ({
   peerManager: null,
   mediaSocket: null,
   speakingUsers: new Set(),
+  remoteMediaStates: {},
 
   setLocalStream: (stream) => set({ localStream: stream }),
   setMicMuted: (muted) => set({ micMuted: muted }),
@@ -94,6 +99,24 @@ export const useLiveRoomMediaStore = create<LiveRoomMediaState>((set) => ({
       next.delete(userId);
       return { speakingUsers: next };
     }),
+  setRemoteMediaState: (userId, mediaState) =>
+    set((state) => {
+      const existing = state.remoteMediaStates[userId];
+      if (existing && existing.micMuted === mediaState.micMuted && existing.cameraOff === mediaState.cameraOff) return state;
+      return { remoteMediaStates: { ...state.remoteMediaStates, [userId]: mediaState } };
+    }),
+  bulkSetRemoteMediaStates: (states) =>
+    set((state) => {
+      let changed = false;
+      const next = { ...state.remoteMediaStates };
+      for (const [userId, ms] of Object.entries(states)) {
+        const existing = next[userId];
+        if (existing && existing.micMuted === ms.micMuted && existing.cameraOff === ms.cameraOff) continue;
+        next[userId] = ms;
+        changed = true;
+      }
+      return changed ? { remoteMediaStates: next } : state;
+    }),
   reset: () =>
     set({
       localStream: null,
@@ -104,6 +127,7 @@ export const useLiveRoomMediaStore = create<LiveRoomMediaState>((set) => ({
       peerManager: null,
       mediaSocket: null,
       speakingUsers: new Set(),
+      remoteMediaStates: {},
     }),
 }));
 

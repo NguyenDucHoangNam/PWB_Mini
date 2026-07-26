@@ -38,6 +38,8 @@ export function usePeerSignaling({
   useEffect(() => {
     if (!roomCode || !enabled) return undefined;
 
+    let roomStateReceived = false;
+
     const peerSubscription = subscribeRoomPeerEvents(roomCode, (event) => {
       if (event.type === "PEER_JOINED") {
         joinedHandlerRef.current?.(event);
@@ -51,18 +53,23 @@ export function usePeerSignaling({
     });
 
     const stateSubscription = subscribeRoomState(roomCode, (event) => {
+      roomStateReceived = true;
       roomStateHandlerRef.current?.(event);
       for (const peer of event.participants) {
         void managerRef.current?.queuePeerIfNeeded(peer.userId, peer.displayName);
       }
     });
 
-    const requestTimer = setTimeout(() => {
-      requestRoomState(roomCode);
-    }, 250);
+    requestRoomState(roomCode);
+
+    const retryTimer = setTimeout(() => {
+      if (!roomStateReceived) {
+        requestRoomState(roomCode);
+      }
+    }, 1500);
 
     return () => {
-      clearTimeout(requestTimer);
+      clearTimeout(retryTimer);
       peerSubscription.unsubscribe();
       stateSubscription.unsubscribe();
     };

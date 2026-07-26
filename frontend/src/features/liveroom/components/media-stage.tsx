@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useLiveRoomMedia } from "../hooks/use-live-room-media";
 import { useActiveSpeaker } from "../hooks/use-active-speaker";
 import { MediaTile } from "./media-tile";
 import { MediaControls } from "./media-controls";
-import { subscribeRoomMediaState } from "../api/ws";
 import { useParticipants } from "../api/participants";
 import { useLiveRoomMediaStore } from "../stores/use-live-room-media-store";
-import type { MediaStateChangedWsEvent } from "../types";
+
+export interface MediaStageControls {
+  toggleMic: () => void;
+  toggleCamera: () => void;
+  micMuted: boolean;
+  cameraOff: boolean;
+}
 
 interface MediaStageProps {
   roomCode: string;
@@ -17,6 +22,7 @@ interface MediaStageProps {
   enabled: boolean;
   onLeave?: () => void;
   showControls?: boolean;
+  onMediaReady?: (controls: MediaStageControls) => void;
 }
 
 export function MediaStage({
@@ -26,6 +32,7 @@ export function MediaStage({
   enabled,
   onLeave,
   showControls = true,
+  onMediaReady,
 }: MediaStageProps) {
   const media = useLiveRoomMedia({
     roomCode,
@@ -36,11 +43,9 @@ export function MediaStage({
 
   useActiveSpeaker(localUserId);
   const speakingUsers = useLiveRoomMediaStore((state) => state.speakingUsers);
+  const remoteMediaStates = useLiveRoomMediaStore((state) => state.remoteMediaStates);
 
-  const { data: participantsRes } = useParticipants({
-    roomCode,
-    queryConfig: { refetchInterval: 3000 },
-  });
+  const { data: participantsRes } = useParticipants({ roomCode });
   const participantMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const p of participantsRes?.data ?? []) {
@@ -49,40 +54,34 @@ export function MediaStage({
     return map;
   }, [participantsRes]);
 
-  const [remoteMediaState, setRemoteMediaState] = useState<Record<string, { micMuted: boolean; cameraOff: boolean }>>({});
-
   useEffect(() => {
     const participants = participantsRes?.data;
     if (!participants) return;
-    setRemoteMediaState((prev) => {
-      const next = { ...prev };
-      for (const p of participants) {
-        if (p.userId === localUserId) continue;
-        next[p.userId] = { micMuted: p.micMuted, cameraOff: p.cameraOff };
-      }
-      return next;
-    });
+    const toSeed: Record<string, { micMuted: boolean; cameraOff: boolean }> = {};
+    const current = useLiveRoomMediaStore.getState().remoteMediaStates;
+    for (const p of participants) {
+      if (p.userId === localUserId) continue;
+      if (current[p.userId] !== undefined) continue;
+      toSeed[p.userId] = { micMuted: p.micMuted, cameraOff: p.cameraOff };
+    }
+    if (Object.keys(toSeed).length > 0) {
+      useLiveRoomMediaStore.getState().bulkSetRemoteMediaStates(toSeed);
+    }
   }, [participantsRes, localUserId]);
 
-  const syncRef = useRef(media.syncFromServer);
+  const onMediaReadyRef = useRef(onMediaReady);
   useEffect(() => {
-    syncRef.current = media.syncFromServer;
-  }, [media.syncFromServer]);
+    onMediaReadyRef.current = onMediaReady;
+  }, [onMediaReady]);
 
   useEffect(() => {
-    if (!roomCode) return undefined;
-    const subscription = subscribeRoomMediaState(roomCode, (event: MediaStateChangedWsEvent) => {
-      if (event.userId === localUserId) {
-        syncRef.current({ micMuted: event.micMuted, cameraOff: event.cameraOff });
-        return;
-      }
-      setRemoteMediaState((prev) => ({
-        ...prev,
-        [event.userId]: { micMuted: event.micMuted, cameraOff: event.cameraOff },
-      }));
+    onMediaReadyRef.current?.({
+      toggleMic: media.toggleMic,
+      toggleCamera: media.toggleCamera,
+      micMuted: media.micMuted,
+      cameraOff: media.cameraOff,
     });
-    return () => subscription.unsubscribe();
-  }, [roomCode, localUserId]);
+  }, [media.toggleMic, media.toggleCamera, media.micMuted, media.cameraOff]);
 
   const peers = media.remotePeers;
 
@@ -112,7 +111,7 @@ export function MediaStage({
           isSpeaking={speakingUsers.has(localUserId)}
         />
         {peers.map((peer) => {
-          const remoteState = remoteMediaState[peer.userId];
+          const remoteState = remoteMediaStates[peer.userId];
           const name =
             participantMap.get(peer.userId) ||
             (peer.displayName && peer.displayName !== peer.userId ? peer.displayName : peer.userId);

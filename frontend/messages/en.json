@@ -856,6 +856,13 @@
       "success": "Request sent. Waiting for host...",
       "startPreview": "Test camera and microphone"
     },
+    "preJoin": {
+      "joinBtn": "Join Room",
+      "askBtn": "Ask to Join",
+      "joining": "Joining...",
+      "requesting": "Sending...",
+      "roomNotActive": "This room is not active."
+    },
     "waitingRoom": {
       "title": "Waiting for host",
       "subtitle": "Your request has been sent. The host will decide shortly.",

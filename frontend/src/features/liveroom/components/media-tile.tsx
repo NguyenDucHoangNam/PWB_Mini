@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Mic, MicOff, Video, VideoOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -24,21 +24,99 @@ export function MediaTile({
   hint,
 }: MediaTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [videoFrameAvailable, setVideoFrameAvailable] = useState(false);
   const tCommon = useTranslations("common");
   const tMedia = useTranslations("liveroom.media");
-
-  const showVideo = !cameraOff && !!stream;
 
   useEffect(() => {
     const node = videoRef.current;
     if (!node) return;
 
-    node.srcObject = stream ?? null;
-    if (stream) {
-      node.play().catch(() => {});
+    if (!stream) {
+      node.srcObject = null;
+      setVideoFrameAvailable(false);
+      return;
     }
+
+    node.srcObject = stream;
+
+    const evaluateAvailability = (): boolean => {
+      const videoTrack = stream.getVideoTracks()[0];
+      if (!videoTrack) return false;
+      const settings = (videoTrack.getSettings && videoTrack.getSettings()) || {};
+      const isLive = videoTrack.readyState === "live" && !videoTrack.muted;
+      const hasDimensions = (settings.width ?? 0) > 0 && (settings.height ?? 0) > 0;
+      return isLive && hasDimensions;
+    };
+
+    const syncAvailability = () => {
+      const available = evaluateAvailability();
+      setVideoFrameAvailable(available);
+      if (available && node.paused) {
+        node.play().catch(() => {});
+      }
+    };
+
+    syncAvailability();
+
+    const handleVideoFrame = () => syncAvailability();
+
+    if (typeof node.requestVideoFrameCallback === "function") {
+      node.requestVideoFrameCallback(handleVideoFrame);
+    }
+
+    const intervalId = window.setInterval(handleVideoFrame, 500);
+
+    let lastVideoTrackId = stream.getVideoTracks()[0]?.id ?? null;
+    const trackRevisionInterval = window.setInterval(() => {
+      const currentTrackId = stream.getVideoTracks()[0]?.id ?? null;
+      if (currentTrackId !== lastVideoTrackId) {
+        lastVideoTrackId = currentTrackId;
+        node.srcObject = null;
+        node.srcObject = stream;
+        syncAvailability();
+      }
+    }, 250);
+
+    const tracks = stream.getVideoTracks();
+    const trackListeners: Array<{ track: MediaStreamTrack; type: string; handler: () => void }> = [];
+    for (const track of tracks) {
+      const handler = () => syncAvailability();
+      track.addEventListener("mute", handler);
+      track.addEventListener("unmute", handler);
+      track.addEventListener("ended", handler);
+      track.addEventListener("settingschange", handler);
+      track.addEventListener("started", handler);
+      trackListeners.push(
+        { track, type: "mute", handler },
+        { track, type: "unmute", handler },
+        { track, type: "ended", handler },
+        { track, type: "settingschange", handler },
+        { track, type: "started", handler },
+      );
+    }
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.clearInterval(trackRevisionInterval);
+      for (const { track, type, handler } of trackListeners) {
+        track.removeEventListener(type, handler);
+      }
+    };
   }, [stream]);
 
+  useEffect(() => {
+    const node = videoRef.current;
+    if (!node) return;
+    if (cameraOff) {
+      node.srcObject = null;
+      setVideoFrameAvailable(false);
+    } else if (stream) {
+      node.srcObject = stream;
+    }
+  }, [cameraOff, stream]);
+
+  const showVideo = !cameraOff && !!stream && videoFrameAvailable;
   const showSpeakingRing = isSpeaking && !micMuted;
 
   return (
@@ -53,15 +131,19 @@ export function MediaTile({
         ref={videoRef}
         autoPlay
         playsInline
-        muted={isLocal}
-        className={`h-full w-full object-cover [transform:scaleX(-1)] ${showVideo ? "block" : "hidden"}`}
+        muted={isLocal || micMuted}
+        className={`h-full w-full object-cover [transform:scaleX(-1)] transition-opacity duration-150 ${
+          showVideo ? "opacity-100" : "opacity-0"
+        }`}
       />
       {!showVideo ? (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-neutral-900 text-neutral-200">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-neutral-900 text-neutral-200">
           <div className="flex size-14 items-center justify-center rounded-full bg-neutral-700 text-base font-semibold uppercase">
             {(displayName || "?").charAt(0)}
           </div>
-          <span className="text-xs text-neutral-400">{tMedia("remoteCameraOff")}</span>
+          <span className="text-xs text-neutral-400">
+            {stream ? tMedia("remoteCameraOff") : tCommon("loading")}
+          </span>
         </div>
       ) : null}
       <div className="absolute inset-x-3 bottom-3 flex items-end justify-between gap-2">
@@ -101,11 +183,6 @@ export function MediaTile({
       {hint ? (
         <div className="absolute inset-x-3 top-3 rounded-full bg-black/55 px-3 py-1 text-xs text-white">
           {hint}
-        </div>
-      ) : null}
-      {!stream && !cameraOff ? (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/70 text-xs text-neutral-300">
-          {tCommon("loading")}
         </div>
       ) : null}
     </div>

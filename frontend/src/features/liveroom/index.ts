@@ -45,7 +45,6 @@ export {
 } from "./api/join-requests";
 export {
   subscribeRoomParticipants,
-  subscribeRoomMediaState,
   subscribeRoomPeerEvents,
   subscribeSignalingOffers,
   subscribeSignalingAnswers,
@@ -60,10 +59,8 @@ export {
 export { useLiveRoomRealtime } from "./hooks/use-live-room-realtime";
 export {
   createRoomFormSchema,
-  askToJoinFormSchema,
   declineRequestFormSchema,
   type CreateRoomFormValues,
-  type AskToJoinFormValues,
   type DeclineRequestFormValues,
 } from "./schemas/room-schema";
 export { resolveLiveroomErrorMessage } from "./lib/resolve-liveroom-error-message";
@@ -76,7 +73,7 @@ export { CreateRoomForm } from "./components/create-room-form";
 export { RoomEndDialog } from "./components/room-delete-dialog";
 export { ParticipantsList } from "./components/participants-list";
 export { DashboardLiveRoomsTab } from "./components/dashboard-live-rooms-tab";
-export { AskToJoinCard } from "./components/ask-to-join-card";
+export { PreJoinScreen } from "./components/pre-join-screen";
 export { WaitingRoomCard } from "./components/waiting-room-card";
 export { RejectedCard } from "./components/rejected-card";
 export { DeclineRequestDialog } from "./components/decline-request-dialog";

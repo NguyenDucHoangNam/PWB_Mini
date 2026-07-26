@@ -7,7 +7,13 @@ import java.util.UUID;
 
 public interface LiveRoomParticipantFacade {
 
-    ParticipantSummaryResponse joinPublicRoom(UUID userId, String roomCode, String displayName, String role);
+    ParticipantSummaryResponse joinPublicRoom(
+            UUID userId,
+            String roomCode,
+            String displayName,
+            String role,
+            boolean micMuted,
+            boolean cameraOff);
 
     void leaveRoom(UUID userId, String roomCode);
 

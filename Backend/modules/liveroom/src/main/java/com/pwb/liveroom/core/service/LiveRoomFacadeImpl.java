@@ -8,14 +8,20 @@ import com.pwb.liveroom.api.dto.response.LiveRoomExistsResponse;
 import com.pwb.liveroom.api.dto.response.LiveRoomResponse;
 import com.pwb.liveroom.api.dto.response.LiveRoomSummaryResponse;
 import com.pwb.liveroom.api.dto.response.LiveRoomViewerStatusResponse;
+import com.pwb.liveroom.api.dto.response.ParticipantSummaryResponse;
 import com.pwb.liveroom.core.model.JoinRequestStatus;
 import com.pwb.liveroom.core.model.LiveRoom;
+import com.pwb.liveroom.core.model.LiveRoomParticipant;
 import com.pwb.liveroom.core.model.LiveRoomStatus;
 import com.pwb.liveroom.infrastructure.persistence.entity.LiveRoomJpaEntity;
 import com.pwb.liveroom.infrastructure.persistence.entity.LiveRoomJoinRequestJpaEntity;
+import com.pwb.liveroom.infrastructure.persistence.entity.LiveRoomParticipantJpaEntity;
 import com.pwb.liveroom.infrastructure.persistence.repository.LiveRoomJpaRepository;
 import com.pwb.liveroom.infrastructure.persistence.repository.LiveRoomJoinRequestJpaRepository;
 import com.pwb.liveroom.infrastructure.persistence.repository.LiveRoomParticipantJpaRepository;
+import com.pwb.liveroom.infrastructure.persistence.mapper.LiveRoomParticipantMapper;
+import com.pwb.iam.infrastructure.persistence.entity.UserJpaEntity;
+import com.pwb.iam.infrastructure.persistence.repository.UserJpaRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -32,9 +38,12 @@ import java.util.UUID;
 public class LiveRoomFacadeImpl implements LiveRoomFacade {
 
     private final LiveRoomService liveRoomService;
+    private final LiveRoomParticipantService liveRoomParticipantService;
     private final LiveRoomJpaRepository liveRoomJpaRepository;
     private final LiveRoomParticipantJpaRepository participantJpaRepository;
     private final LiveRoomJoinRequestJpaRepository joinRequestJpaRepository;
+    private final LiveRoomParticipantMapper participantMapper;
+    private final UserJpaRepository userJpaRepository;
 
     @Override
     @Transactional
@@ -168,6 +177,39 @@ public class LiveRoomFacadeImpl implements LiveRoomFacade {
                 .roomCode(entity.getRoomCode())
                 .exists(true)
                 .active(entity.getStatus() == LiveRoomStatus.ACTIVE)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public Optional<ParticipantSummaryResponse> joinAsHost(
+            UUID hostUserId,
+            String roomCode,
+            boolean micMuted,
+            boolean cameraOff) {
+        log.info("Facade joinAsHost: hostUserId={}, roomCode={}", hostUserId, roomCode);
+        Optional<LiveRoomParticipant> participant = liveRoomParticipantService.joinAsHost(
+                hostUserId, null, roomCode, micMuted, cameraOff);
+        return participant.map(this::toParticipantSummary);
+    }
+
+    private ParticipantSummaryResponse toParticipantSummary(LiveRoomParticipant participant) {
+        if (participant == null) {
+            return null;
+        }
+        String email = userJpaRepository.findByIdAndDeletedFalse(participant.getUserId())
+                .map(UserJpaEntity::getEmail)
+                .orElse(null);
+        return ParticipantSummaryResponse.builder()
+                .participantId(participant.getId())
+                .userId(participant.getUserId())
+                .displayName(participant.getDisplayName())
+                .email(email)
+                .roleAtJoin(participant.getRoleAtJoin())
+                .joinedAt(participant.getJoinedAt())
+                .micMuted(participant.isMicMuted())
+                .cameraOff(participant.isCameraOff())
+                .lastSeenAt(participant.getLastSeenAt())
                 .build();
     }
 }

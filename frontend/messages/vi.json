@@ -859,6 +859,13 @@
       "success": "Đã gửi yêu cầu. Đang chờ chủ phòng...",
       "startPreview": "Kiểm tra camera và micro"
     },
+    "preJoin": {
+      "joinBtn": "Vào phòng",
+      "askBtn": "Xin vào phòng",
+      "joining": "Đang vào...",
+      "requesting": "Đang gửi...",
+      "roomNotActive": "Phòng chưa hoạt động."
+    },
     "waitingRoom": {
       "title": "Đang chờ chủ phòng",
       "subtitle": "Yêu cầu của bạn đã được gửi. Chủ phòng sẽ quyết định trong giây lát.",

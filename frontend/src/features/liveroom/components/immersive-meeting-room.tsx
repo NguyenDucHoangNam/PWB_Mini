@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { MediaStage } from "./media-stage";
+import { MediaStage, type MediaStageControls } from "./media-stage";
 import { LiveRoomHeader } from "./live-room-header";
 import {
   ImmersiveBottomBar,
@@ -22,8 +22,7 @@ import { useListJoinRequests } from "../api/join-requests";
 import { liveRoomParticipantsKey } from "../api/participants";
 import { useLiveRoomRealtime } from "../hooks/use-live-room-realtime";
 import { useSharedPlayback } from "../hooks/use-shared-playback";
-import { useMediaSessionLifecycle } from "../hooks/use-media-session-lifecycle";
-import { useImmersiveMediaControls } from "../hooks/use-immersive-media-controls";
+import { useMediaSessionLifecycle, leaveMediaSession } from "../hooks/use-media-session-lifecycle";
 import { asApiError } from "@/lib/api-client";
 import { resolveLiveroomErrorMessage } from "../lib/resolve-liveroom-error-message";
 import type { LiveRoom } from "../types";
@@ -41,7 +40,6 @@ export function ImmersiveMeetingRoom({
   localUserId,
   localDisplayName,
 }: ImmersiveMeetingRoomProps) {
-  useMediaSessionLifecycle();
   const tErrors = useTranslations("liveroom.errors");
   const tCommon = useTranslations("common");
   const tActions = useTranslations("liveroom.actions");
@@ -50,12 +48,31 @@ export function ImmersiveMeetingRoom({
 
   const isHost = localUserId === room.hostUserId;
 
+  const handleLeaveInitiated = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: liveRoomKey(roomCode) });
+    queryClient.invalidateQueries({ queryKey: liveRoomParticipantsKey(roomCode) });
+  }, [queryClient, roomCode]);
+
+  useMediaSessionLifecycle({
+    roomCode,
+    isHost,
+    onLeaveInitiated: handleLeaveInitiated,
+  });
+
   const [panelTab, setPanelTab] = useState<ImmersivePanelTab>(null);
   const [participantLeaveOpen, setParticipantLeaveOpen] = useState(false);
   const [hostLeaveOpen, setHostLeaveOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [mediaControls, setMediaControls] = useState<MediaStageControls>({
+    toggleMic: () => {},
+    toggleCamera: () => {},
+    micMuted: true,
+    cameraOff: true,
+  });
 
-  const mediaControls = useImmersiveMediaControls({ roomCode, localUserId });
+  const handleMediaReady = useCallback((controls: MediaStageControls) => {
+    setMediaControls(controls);
+  }, []);
 
   const playback = useSharedPlayback({ roomCode, enabled: Boolean(roomCode) });
   const hasSelectedSong = Boolean(playback.song?.songId);
@@ -113,35 +130,24 @@ export function ImmersiveMeetingRoom({
     },
   });
 
-  const handleLeaveAsParticipant = useCallback(() => {
-    leaveMutate(
-      { roomCode },
-      {
-        onSuccess: (response: { success: boolean }) => {
-          if (response.success) {
-            router.replace("/dashboard/live-rooms");
-          }
-        },
-      },
-    );
-  }, [leaveMutate, roomCode, router]);
-
-  const handleLeaveAsHost = useCallback(() => {
-    leaveMutate(
-      { roomCode },
-      {
-        onSuccess: (response: { success: boolean }) => {
-          if (response.success) {
-            router.replace("/dashboard/live-rooms");
-          }
-        },
-      },
-    );
-  }, [leaveMutate, roomCode, router]);
-
   const handleEndRoom = useCallback(() => {
     endMutate({ roomCode });
   }, [endMutate, roomCode]);
+
+  const handleLeave = useCallback(() => {
+    leaveMediaSession(roomCode, isHost);
+    handleLeaveInitiated();
+    leaveMutate(
+      { roomCode },
+      {
+        onSuccess: (response: { success: boolean }) => {
+          if (response.success) {
+            router.replace("/dashboard/live-rooms");
+          }
+        },
+      },
+    );
+  }, [handleLeaveInitiated, isHost, leaveMutate, roomCode, router]);
 
   const handleToggleMic = useCallback(() => {
     mediaControls.toggleMic();
@@ -179,9 +185,10 @@ export function ImmersiveMeetingRoom({
         localDisplayName={localDisplayName}
         enabled
         showControls={false}
+        onMediaReady={handleMediaReady}
       />
     );
-  }, [room.status, roomCode, localUserId, localDisplayName, tActions]);
+  }, [room.status, roomCode, localUserId, localDisplayName, tActions, handleMediaReady]);
 
   return (
     <div className="fixed inset-0 flex flex-col bg-neutral-950 text-white">
@@ -233,14 +240,14 @@ export function ImmersiveMeetingRoom({
       <LeaveConfirmDialog
         open={participantLeaveOpen}
         onOpenChange={setParticipantLeaveOpen}
-        onConfirm={handleLeaveAsParticipant}
+        onConfirm={handleLeave}
         isLeaving={isLeaving}
       />
 
       <HostLeaveDialog
         open={hostLeaveOpen}
         onOpenChange={setHostLeaveOpen}
-        onLeaveOnly={handleLeaveAsHost}
+        onLeaveOnly={handleLeave}
         onEndRoom={handleEndRoom}
         isLeaving={isLeaving}
         isEnding={isEnding}
