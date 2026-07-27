@@ -7,7 +7,7 @@ import com.google.cloud.texttospeech.v1.SynthesisInput;
 import com.google.cloud.texttospeech.v1.SynthesizeSpeechResponse;
 import com.google.cloud.texttospeech.v1.TextToSpeechClient;
 import com.google.cloud.texttospeech.v1.VoiceSelectionParams;
-import com.pwb.backend.exception.BusinessException;
+import com.pwb.kernel.exception.BusinessException;
 import com.pwb.voice.core.exception.VoiceErrorCode;
 
 import com.pwb.voice.core.service.TextToSpeechService;

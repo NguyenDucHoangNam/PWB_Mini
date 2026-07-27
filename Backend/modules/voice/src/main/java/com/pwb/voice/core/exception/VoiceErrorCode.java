@@ -1,6 +1,6 @@
 package com.pwb.voice.core.exception;
 
-import com.pwb.backend.exception.ErrorCode;
+import com.pwb.kernel.exception.ErrorCode;
 
 public enum VoiceErrorCode implements ErrorCode {
 

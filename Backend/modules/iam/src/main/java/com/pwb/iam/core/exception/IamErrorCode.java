@@ -1,6 +1,6 @@
 package com.pwb.iam.core.exception;
 
-import com.pwb.backend.exception.ErrorCode;
+import com.pwb.kernel.exception.ErrorCode;
 
 public enum IamErrorCode implements ErrorCode {
 

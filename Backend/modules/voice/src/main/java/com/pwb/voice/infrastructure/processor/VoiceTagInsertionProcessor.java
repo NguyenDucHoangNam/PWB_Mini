@@ -1,6 +1,6 @@
 package com.pwb.voice.infrastructure.processor;
 
-import com.pwb.backend.exception.BusinessException;
+import com.pwb.kernel.exception.BusinessException;
 import com.pwb.voice.core.exception.VoiceErrorCode;
 
 import com.pwb.outbox.infrastructure.messaging.OutboxKafkaConfig;

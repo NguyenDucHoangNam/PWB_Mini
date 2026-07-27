@@ -1,9 +1,9 @@
 package com.pwb.voice.infrastructure.web;
 
-import com.pwb.backend.security.AuthenticatedUser;
-import com.pwb.backend.security.CurrentUser;
-import com.pwb.backend.web.ApiResponse;
-import com.pwb.backend.web.MessageResolver;
+import com.pwb.kernel.security.AuthenticatedUser;
+import com.pwb.web.security.CurrentUser;
+import com.pwb.web.ApiResponse;
+import com.pwb.web.MessageResolver;
 import com.pwb.voice.api.VoiceTagFacade;
 import com.pwb.voice.api.dto.request.CreateTtsVoiceTagRequest;
 import com.pwb.voice.api.dto.request.UpdateVoiceTagRequest;

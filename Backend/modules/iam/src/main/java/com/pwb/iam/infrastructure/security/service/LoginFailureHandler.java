@@ -1,6 +1,6 @@
 package com.pwb.iam.infrastructure.security.service;
 
-import com.pwb.backend.exception.BusinessException;
+import com.pwb.kernel.exception.BusinessException;
 import com.pwb.iam.core.exception.IamErrorCode;
 
 import lombok.RequiredArgsConstructor;

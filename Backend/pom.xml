@@ -48,6 +48,7 @@
         <argon2-jvm.version>2.12</argon2-jvm.version>
         <spring-retry.version>2.0.13</spring-retry.version>
         <jaffree.version>2024.08.29</jaffree.version>
+        <spring-modulith.version>2.1.0</spring-modulith.version>
     </properties>
 
     <dependencyManagement>
@@ -137,6 +138,14 @@
                 <groupId>com.github.kokorin.jaffree</groupId>
                 <artifactId>jaffree</artifactId>
                 <version>${jaffree.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.springframework.modulith</groupId>
+                <artifactId>spring-modulith-bom</artifactId>
+                <version>${spring-modulith.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>

@@ -1,6 +1,6 @@
 package com.pwb.iam.infrastructure.security;
 
-import com.pwb.backend.security.AuthenticatedUser;
+import com.pwb.kernel.security.AuthenticatedUser;
 import com.pwb.iam.core.model.User;
 import com.pwb.iam.core.model.UserStatus;
 import lombok.Getter;

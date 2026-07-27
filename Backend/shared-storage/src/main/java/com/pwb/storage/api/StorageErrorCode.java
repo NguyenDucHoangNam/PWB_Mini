@@ -1,6 +1,6 @@
 package com.pwb.storage.api;
 
-import com.pwb.backend.exception.ErrorCode;
+import com.pwb.kernel.exception.ErrorCode;
 
 public enum StorageErrorCode implements ErrorCode {
 

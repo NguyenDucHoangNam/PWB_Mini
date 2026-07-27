@@ -1,11 +1,11 @@
 package com.pwb.iam.infrastructure.web.facade;
 
-import com.pwb.backend.exception.BusinessException;
-import com.pwb.backend.exception.SysErrorCode;
+import com.pwb.kernel.exception.BusinessException;
+import com.pwb.kernel.exception.SysErrorCode;
 import com.pwb.iam.core.exception.IamErrorCode;
 
 import com.pwb.iam.api.IamFacade;
-import com.pwb.backend.web.MessageResolver;
+import com.pwb.web.MessageResolver;
 import com.pwb.iam.api.OtpService;
 import com.pwb.iam.api.dto.GoogleIdTokenPayload;
 import com.pwb.iam.api.dto.request.ChangePasswordRequest;

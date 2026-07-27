@@ -1,9 +1,9 @@
 package com.pwb.voice.infrastructure.web;
 
-import com.pwb.backend.security.AuthenticatedUser;
-import com.pwb.backend.security.CurrentUser;
-import com.pwb.backend.web.ApiResponse;
-import com.pwb.backend.web.MessageResolver;
+import com.pwb.kernel.security.AuthenticatedUser;
+import com.pwb.web.security.CurrentUser;
+import com.pwb.web.ApiResponse;
+import com.pwb.web.MessageResolver;
 import com.pwb.voice.api.SongFacade;
 import com.pwb.voice.api.dto.request.ConfigureVoiceTagRequest;
 import com.pwb.voice.api.dto.request.UpdateSongRequest;

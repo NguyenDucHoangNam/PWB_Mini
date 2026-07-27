@@ -1,7 +1,7 @@
 package com.pwb.storage.api;
 
-import com.pwb.backend.exception.BaseBusinessException;
-import com.pwb.backend.exception.ErrorCode;
+import com.pwb.kernel.exception.BaseBusinessException;
+import com.pwb.kernel.exception.ErrorCode;
 import lombok.Getter;
 
 @Getter

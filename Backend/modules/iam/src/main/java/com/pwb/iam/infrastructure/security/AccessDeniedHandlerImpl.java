@@ -2,9 +2,9 @@ package com.pwb.iam.infrastructure.security;
 
 import tools.jackson.databind.ObjectMapper;
 
-import com.pwb.backend.exception.SysErrorCode;
-import com.pwb.backend.web.ApiResponse;
-import com.pwb.backend.web.MessageResolver;
+import com.pwb.kernel.exception.SysErrorCode;
+import com.pwb.web.ApiResponse;
+import com.pwb.web.MessageResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;

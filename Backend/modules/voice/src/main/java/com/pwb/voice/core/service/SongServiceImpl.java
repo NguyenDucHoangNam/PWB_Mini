@@ -1,7 +1,7 @@
 package com.pwb.voice.core.service;
 
-import com.pwb.backend.exception.BusinessException;
-import com.pwb.backend.exception.SysErrorCode;
+import com.pwb.kernel.exception.BusinessException;
+import com.pwb.kernel.exception.SysErrorCode;
 import com.pwb.voice.core.exception.VoiceErrorCode;
 import com.pwb.outbox.api.OutboxEnqueueRequested;
 import com.pwb.outbox.api.OutboxEventPayload;

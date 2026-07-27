@@ -1,6 +1,6 @@
 package com.pwb.iam.infrastructure.security;
 
-import com.pwb.backend.exception.BusinessException;
+import com.pwb.kernel.exception.BusinessException;
 import com.pwb.iam.core.exception.IamErrorCode;
 import com.pwb.iam.core.model.User;
 import com.pwb.iam.infrastructure.persistence.mapper.UserMapper;

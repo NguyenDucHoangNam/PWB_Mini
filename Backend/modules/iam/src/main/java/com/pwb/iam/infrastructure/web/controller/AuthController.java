@@ -1,7 +1,7 @@
 package com.pwb.iam.infrastructure.web.controller;
 
-import com.pwb.backend.web.ApiResponse;
-import com.pwb.backend.web.MessageResolver;
+import com.pwb.web.ApiResponse;
+import com.pwb.web.MessageResolver;
 import com.pwb.iam.api.IamFacade;
 import com.pwb.iam.api.dto.request.ChangePasswordRequest;
 import com.pwb.iam.api.dto.request.CompleteProfileRequest;

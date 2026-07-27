@@ -1,6 +1,6 @@
 package com.pwb.iam.core.exception;
 
-import com.pwb.backend.exception.BaseBusinessException;
+import com.pwb.kernel.exception.BaseBusinessException;
 import com.pwb.iam.core.exception.IamErrorCode;
 import com.pwb.iam.core.service.PasswordPolicyViolation;
 
