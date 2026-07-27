@@ -1,7 +1,8 @@
 package com.pwb.voice.core.service;
 
 import com.pwb.backend.exception.BusinessException;
-import com.pwb.backend.exception.ErrorCode;
+import com.pwb.voice.core.exception.VoiceErrorCode;
+
 import com.pwb.storage.infrastructure.util.MediaTypeUtils;
 import com.pwb.voice.infrastructure.audio.AudioMetadataExtractor;
 import com.pwb.voice.infrastructure.config.AudioProcessingProperties;
@@ -58,11 +59,11 @@ public class AudioFileValidator {
 
     public void validateExtension(String extension) {
         if (extension == null || extension.isBlank()) {
-            throw new BusinessException(ErrorCode.INVALID_AUDIO_FORMAT);
+            throw new BusinessException(VoiceErrorCode.INVALID_AUDIO_FORMAT);
         }
         String normalized = extension.toLowerCase(Locale.ROOT);
         if (!allowedExtensionsLowerCase.contains(normalized)) {
-            throw new BusinessException(ErrorCode.INVALID_AUDIO_FORMAT);
+            throw new BusinessException(VoiceErrorCode.INVALID_AUDIO_FORMAT);
         }
     }
 
@@ -72,16 +73,16 @@ public class AudioFileValidator {
         String expectedMime = extensionToExpectedMime.get(extension.toLowerCase(Locale.ROOT));
 
         if (expectedMime == null || !expectedMime.equals(detectedMime)) {
-            throw new BusinessException(ErrorCode.INVALID_AUDIO_FORMAT);
+            throw new BusinessException(VoiceErrorCode.INVALID_AUDIO_FORMAT);
         }
     }
 
     public void validateSize(long sizeBytes) {
         if (sizeBytes <= 0L) {
-            throw new BusinessException(ErrorCode.FILE_TOO_LARGE);
+            throw new BusinessException(VoiceErrorCode.FILE_TOO_LARGE);
         }
         if (sizeBytes > audioProcessingProperties.getMaxFileSizeBytes()) {
-            throw new BusinessException(ErrorCode.FILE_TOO_LARGE);
+            throw new BusinessException(VoiceErrorCode.FILE_TOO_LARGE);
         }
     }
 
@@ -89,14 +90,14 @@ public class AudioFileValidator {
         try {
             AudioMetadata metadata = audioMetadataExtractor.extract(audioStream, extension);
             if (metadata.durationSeconds() > audioProcessingProperties.getMaxDurationSeconds()) {
-                throw new BusinessException(ErrorCode.INVALID_AUDIO_DURATION);
+                throw new BusinessException(VoiceErrorCode.INVALID_AUDIO_DURATION);
             }
             return metadata;
         } catch (BusinessException ex) {
             throw ex;
         } catch (RuntimeException ex) {
             log.error("Audio probing failed: {}", ex.getMessage(), ex);
-            throw new BusinessException(ErrorCode.AUDIO_PROCESSING_FAILED);
+            throw new BusinessException(VoiceErrorCode.AUDIO_PROCESSING_FAILED);
         }
     }
 
@@ -116,7 +117,8 @@ public class AudioFileValidator {
             }
             return out.toByteArray();
         } catch (IOException ex) {
-            throw new BusinessException(ErrorCode.AUDIO_PROCESSING_FAILED);
+            throw new BusinessException(VoiceErrorCode.AUDIO_PROCESSING_FAILED);
         }
     }
 }
+

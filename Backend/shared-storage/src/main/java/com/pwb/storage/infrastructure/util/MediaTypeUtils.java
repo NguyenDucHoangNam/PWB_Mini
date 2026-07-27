@@ -1,6 +1,7 @@
 package com.pwb.storage.infrastructure.util;
 
-import com.pwb.backend.exception.ErrorCode;
+import com.pwb.storage.api.StorageErrorCode;
+
 import com.pwb.storage.api.StorageException;
 import lombok.experimental.UtilityClass;
 
@@ -53,16 +54,18 @@ public class MediaTypeUtils {
 
     public void validateKey(String key) {
         if (key == null || key.isBlank()) {
-            throw new StorageException(ErrorCode.STORAGE_INVALID_KEY);
+            throw new StorageException(StorageErrorCode.STORAGE_INVALID_KEY);
         }
         if (key.length() > MAX_KEY_LENGTH) {
-            throw new StorageException(ErrorCode.STORAGE_INVALID_KEY);
+            throw new StorageException(StorageErrorCode.STORAGE_INVALID_KEY);
         }
         if (key.contains("..")) {
-            throw new StorageException(ErrorCode.STORAGE_INVALID_KEY);
+            throw new StorageException(StorageErrorCode.STORAGE_INVALID_KEY);
         }
         if (!VALID_KEY_PATTERN.matcher(key).matches()) {
-            throw new StorageException(ErrorCode.STORAGE_INVALID_KEY);
+            throw new StorageException(StorageErrorCode.STORAGE_INVALID_KEY);
         }
     }
 }
+
+

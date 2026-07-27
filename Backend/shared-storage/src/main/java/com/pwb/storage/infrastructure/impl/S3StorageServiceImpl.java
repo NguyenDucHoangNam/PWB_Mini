@@ -1,6 +1,7 @@
 package com.pwb.storage.infrastructure.impl;
 
-import com.pwb.backend.exception.ErrorCode;
+import com.pwb.storage.api.StorageErrorCode;
+
 import com.pwb.storage.api.StorageException;
 import com.pwb.storage.api.StorageService;
 import com.pwb.storage.api.dto.ObjectMetadata;
@@ -99,12 +100,12 @@ public class S3StorageServiceImpl implements StorageService {
                     .key(key)
                     .build());
         } catch (NoSuchKeyException e) {
-            throw new StorageException(ErrorCode.STORAGE_OBJECT_NOT_FOUND, e);
+            throw new StorageException(StorageErrorCode.STORAGE_OBJECT_NOT_FOUND, e);
         } catch (S3Exception e) {
             if (e.statusCode() == 404) {
-                throw new StorageException(ErrorCode.STORAGE_OBJECT_NOT_FOUND, e);
+                throw new StorageException(StorageErrorCode.STORAGE_OBJECT_NOT_FOUND, e);
             }
-            throw new StorageException(ErrorCode.STORAGE_DOWNLOAD_FAILED, e);
+            throw new StorageException(StorageErrorCode.STORAGE_DOWNLOAD_FAILED, e);
         }
     }
 
@@ -124,7 +125,7 @@ public class S3StorageServiceImpl implements StorageService {
                     .key(key)
                     .build());
         } catch (S3Exception e) {
-            throw new StorageException(ErrorCode.STORAGE_DELETE_FAILED, e);
+            throw new StorageException(StorageErrorCode.STORAGE_DELETE_FAILED, e);
         }
     }
 
@@ -148,10 +149,10 @@ public class S3StorageServiceImpl implements StorageService {
 
             if (response.hasErrors()) {
                 log.warn("Some objects failed to delete: {}", response.errors());
-                throw new StorageException(ErrorCode.STORAGE_DELETE_FAILED);
+                throw new StorageException(StorageErrorCode.STORAGE_DELETE_FAILED);
             }
         } catch (S3Exception e) {
-            throw new StorageException(ErrorCode.STORAGE_DELETE_FAILED, e);
+            throw new StorageException(StorageErrorCode.STORAGE_DELETE_FAILED, e);
         }
     }
 
@@ -172,7 +173,7 @@ public class S3StorageServiceImpl implements StorageService {
             if (e.statusCode() == 404) {
                 return false;
             }
-            throw new StorageException(ErrorCode.STORAGE_DOWNLOAD_FAILED, e);
+            throw new StorageException(StorageErrorCode.STORAGE_DOWNLOAD_FAILED, e);
         }
     }
 
@@ -193,12 +194,12 @@ public class S3StorageServiceImpl implements StorageService {
                     response.lastModified()
             );
         } catch (NoSuchKeyException e) {
-            throw new StorageException(ErrorCode.STORAGE_OBJECT_NOT_FOUND, e);
+            throw new StorageException(StorageErrorCode.STORAGE_OBJECT_NOT_FOUND, e);
         } catch (S3Exception e) {
             if (e.statusCode() == 404) {
-                throw new StorageException(ErrorCode.STORAGE_OBJECT_NOT_FOUND, e);
+                throw new StorageException(StorageErrorCode.STORAGE_OBJECT_NOT_FOUND, e);
             }
-            throw new StorageException(ErrorCode.STORAGE_DOWNLOAD_FAILED, e);
+            throw new StorageException(StorageErrorCode.STORAGE_DOWNLOAD_FAILED, e);
         }
     }
 
@@ -224,7 +225,7 @@ public class S3StorageServiceImpl implements StorageService {
             URL url = presigned.url();
             return new PresignedUrlResult(url, Instant.now().plus(expiration));
         } catch (SdkException e) {
-            throw new StorageException(ErrorCode.STORAGE_PRESIGN_FAILED, e);
+            throw new StorageException(StorageErrorCode.STORAGE_PRESIGN_FAILED, e);
         }
     }
 
@@ -251,7 +252,7 @@ public class S3StorageServiceImpl implements StorageService {
             URL url = presigned.url();
             return new PresignedUrlResult(url, Instant.now().plus(expiration));
         } catch (SdkException e) {
-            throw new StorageException(ErrorCode.STORAGE_PRESIGN_FAILED, e);
+            throw new StorageException(StorageErrorCode.STORAGE_PRESIGN_FAILED, e);
         }
     }
 
@@ -277,9 +278,9 @@ public class S3StorageServiceImpl implements StorageService {
         } catch (RuntimeException e) {
             Throwable cause = e.getCause();
             if (cause instanceof S3Exception) {
-                throw new StorageException(ErrorCode.STORAGE_UPLOAD_FAILED, cause);
+                throw new StorageException(StorageErrorCode.STORAGE_UPLOAD_FAILED, cause);
             }
-            throw new StorageException(ErrorCode.STORAGE_UPLOAD_FAILED, e);
+            throw new StorageException(StorageErrorCode.STORAGE_UPLOAD_FAILED, e);
         }
     }
 
@@ -299,17 +300,19 @@ public class S3StorageServiceImpl implements StorageService {
                     response.eTag()
             );
         } catch (NoSuchKeyException e) {
-            throw new StorageException(ErrorCode.STORAGE_OBJECT_NOT_FOUND, e);
+            throw new StorageException(StorageErrorCode.STORAGE_OBJECT_NOT_FOUND, e);
         } catch (S3Exception e) {
-            throw new StorageException(ErrorCode.STORAGE_UPLOAD_FAILED, e);
+            throw new StorageException(StorageErrorCode.STORAGE_UPLOAD_FAILED, e);
         }
     }
 
     private String bucket() {
         String bucket = properties.getS3().getBucket();
         if (bucket == null || bucket.isBlank()) {
-            throw new StorageException(ErrorCode.STORAGE_INVALID_KEY);
+            throw new StorageException(StorageErrorCode.STORAGE_INVALID_KEY);
         }
         return bucket;
     }
 }
+
+

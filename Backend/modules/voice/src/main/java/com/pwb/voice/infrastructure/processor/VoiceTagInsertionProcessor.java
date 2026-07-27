@@ -1,7 +1,8 @@
 package com.pwb.voice.infrastructure.processor;
 
 import com.pwb.backend.exception.BusinessException;
-import com.pwb.backend.exception.ErrorCode;
+import com.pwb.voice.core.exception.VoiceErrorCode;
+
 import com.pwb.outbox.infrastructure.messaging.OutboxKafkaConfig;
 import com.pwb.storage.api.StorageService;
 import com.pwb.voice.api.event.VoiceProcessingRequestedIntegrationEvent;
@@ -60,7 +61,7 @@ public class VoiceTagInsertionProcessor {
         try {
             SongJpaEntity songEntity = songRepository
                     .findByIdAndUserIdAndDeletedFalse(songId, userId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.SONG_NOT_FOUND));
+                    .orElseThrow(() -> new BusinessException(VoiceErrorCode.SONG_NOT_FOUND));
 
             SongTagConfigJpaEntity configEntity = configRepository
                     .findBySongIdAndDeletedFalse(songId)
@@ -75,7 +76,7 @@ public class VoiceTagInsertionProcessor {
 
             VoiceTagJpaEntity tagEntity = voiceTagRepository
                     .findByIdAndUserIdAndDeletedFalse(configEntity.getVoiceTagId(), userId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_TAG_NOT_FOUND));
+                    .orElseThrow(() -> new BusinessException(VoiceErrorCode.VOICE_TAG_NOT_FOUND));
 
             Files.createDirectories(Path.of(audioProcessingProperties.getTempDir()));
             String extension = songEntity.getFormat() == null ? "mp3" : songEntity.getFormat();
@@ -146,3 +147,4 @@ public class VoiceTagInsertionProcessor {
         }
     }
 }
+

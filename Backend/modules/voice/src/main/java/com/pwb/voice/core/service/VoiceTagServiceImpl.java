@@ -1,7 +1,8 @@
 package com.pwb.voice.core.service;
 
 import com.pwb.backend.exception.BusinessException;
-import com.pwb.backend.exception.ErrorCode;
+import com.pwb.voice.core.exception.VoiceErrorCode;
+import com.pwb.storage.api.StorageErrorCode;
 import com.pwb.storage.api.StorageService;
 import com.pwb.voice.api.dto.request.CreateTtsVoiceTagRequest;
 import com.pwb.voice.api.dto.request.UpdateVoiceTagRequest;
@@ -89,13 +90,13 @@ public class VoiceTagServiceImpl implements VoiceTagService {
         try (InputStream probeStream = file.getInputStream()) {
             audioFileValidator.validateMagicBytes(probeStream, extension);
         } catch (IOException ex) {
-            throw new BusinessException(ErrorCode.AUDIO_PROCESSING_FAILED);
+            throw new BusinessException(VoiceErrorCode.AUDIO_PROCESSING_FAILED);
         }
 
         try (InputStream durationStream = file.getInputStream()) {
             metadata = audioFileValidator.validateDuration(durationStream, extension);
         } catch (IOException ex) {
-            throw new BusinessException(ErrorCode.AUDIO_PROCESSING_FAILED);
+            throw new BusinessException(VoiceErrorCode.AUDIO_PROCESSING_FAILED);
         }
 
         assertNameAvailable(userId, request.getName(), null);
@@ -106,7 +107,7 @@ public class VoiceTagServiceImpl implements VoiceTagService {
         try (InputStream uploadStream = file.getInputStream()) {
             storageService.upload(s3Key, uploadStream, file.getSize(), resolveContentType(extension));
         } catch (IOException ex) {
-            throw new BusinessException(ErrorCode.STORAGE_UPLOAD_FAILED);
+            throw new BusinessException(StorageErrorCode.STORAGE_UPLOAD_FAILED);
         }
 
         VoiceTag domain = VoiceTag.createUploadedTag(
@@ -132,7 +133,7 @@ public class VoiceTagServiceImpl implements VoiceTagService {
 
         VoiceTagJpaEntity existing = voiceTagJpaRepository
                 .findByIdAndUserIdAndDeletedFalse(tagId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_TAG_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(VoiceErrorCode.VOICE_TAG_NOT_FOUND));
 
         if (request.getName() != null && !request.getName().isBlank()) {
             assertNameAvailable(userId, request.getName(), tagId);
@@ -155,11 +156,11 @@ public class VoiceTagServiceImpl implements VoiceTagService {
 
         VoiceTagJpaEntity entity = voiceTagJpaRepository
                 .findByIdAndUserIdAndDeletedFalse(tagId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_TAG_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(VoiceErrorCode.VOICE_TAG_NOT_FOUND));
 
         if (songTagConfigJpaRepository.existsByVoiceTagIdAndDeletedFalse(tagId)) {
             log.warn("Cannot delete voice tag in use: userId={}, tagId={}", userId, tagId);
-            throw new BusinessException(ErrorCode.VOICE_TAG_IN_USE);
+            throw new BusinessException(VoiceErrorCode.VOICE_TAG_IN_USE);
         }
 
         entity.markDeleted(DELETED_BY_SYSTEM);
@@ -179,7 +180,7 @@ public class VoiceTagServiceImpl implements VoiceTagService {
                 : voiceTagJpaRepository.existsByUserIdAndNameAndIdNotAndDeletedFalse(userId, name, excludeTagId);
 
         if (exists) {
-            throw new BusinessException(ErrorCode.DUPLICATE_VOICE_TAG_NAME);
+            throw new BusinessException(VoiceErrorCode.DUPLICATE_VOICE_TAG_NAME);
         }
     }
 

@@ -8,7 +8,8 @@ import com.google.cloud.texttospeech.v1.SynthesizeSpeechResponse;
 import com.google.cloud.texttospeech.v1.TextToSpeechClient;
 import com.google.cloud.texttospeech.v1.VoiceSelectionParams;
 import com.pwb.backend.exception.BusinessException;
-import com.pwb.backend.exception.ErrorCode;
+import com.pwb.voice.core.exception.VoiceErrorCode;
+
 import com.pwb.voice.core.service.TextToSpeechService;
 import com.pwb.voice.infrastructure.config.TtsProperties;
 import lombok.RequiredArgsConstructor;
@@ -63,7 +64,8 @@ public class GoogleTtsServiceImpl implements TextToSpeechService {
             long durationMs = System.currentTimeMillis() - startMs;
             log.error("TTS synthesize failed: textLength={}, languageCode={}, durationMs={}",
                     textLength, languageCode, durationMs, ex);
-            throw new BusinessException(ErrorCode.TTS_GENERATION_FAILED, ex);
+            throw new BusinessException(VoiceErrorCode.TTS_GENERATION_FAILED, ex);
         }
     }
 }
+

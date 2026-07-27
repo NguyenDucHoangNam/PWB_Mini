@@ -1,7 +1,8 @@
 package com.pwb.iam.infrastructure.service.impl;
 
 import com.pwb.backend.exception.BusinessException;
-import com.pwb.backend.exception.ErrorCode;
+import com.pwb.iam.core.exception.IamErrorCode;
+
 import com.pwb.iam.core.model.Role;
 import com.pwb.iam.core.model.RoleName;
 import com.pwb.iam.infrastructure.persistence.entity.RoleJpaEntity;
@@ -59,8 +60,11 @@ public class RoleLookupServiceImpl implements RoleLookupService {
 
     private RoleJpaEntity loadEntity(RoleName roleName) {
         return roleJpaRepository.findByNameAndDeletedFalse(roleName.name())
-                .orElseThrow(() -> new BusinessException(ErrorCode.SEEDER_ROLE_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(IamErrorCode.SEEDER_ROLE_NOT_FOUND));
     }
 
     private record CacheEntry(Role role, Instant expiresAt) { }
 }
+
+
+

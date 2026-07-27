@@ -1,7 +1,7 @@
 package com.pwb.iam.core.exception;
 
 import com.pwb.backend.exception.BaseBusinessException;
-import com.pwb.backend.exception.ErrorCode;
+import com.pwb.iam.core.exception.IamErrorCode;
 import com.pwb.iam.core.service.PasswordPolicyViolation;
 
 import java.util.List;
@@ -11,7 +11,7 @@ public class WeakPasswordException extends BaseBusinessException {
     private final List<PasswordPolicyViolation> violations;
 
     public WeakPasswordException(List<PasswordPolicyViolation> violations) {
-        super(ErrorCode.WEAK_PASSWORD);
+        super(IamErrorCode.WEAK_PASSWORD);
         this.violations = List.copyOf(violations);
     }
 

@@ -1,7 +1,8 @@
 package com.pwb.iam.infrastructure.service.impl;
 
 import com.pwb.backend.exception.BusinessException;
-import com.pwb.backend.exception.ErrorCode;
+import com.pwb.iam.core.exception.IamErrorCode;
+
 import com.pwb.iam.api.OtpService;
 import com.pwb.iam.api.dto.response.OtpPolicyResult;
 import com.pwb.iam.api.dto.response.OtpVerificationOutcome;
@@ -153,7 +154,7 @@ public class OtpServiceImpl implements OtpService {
     @Override
     public OtpPolicyResult requestOtp(String email, OtpPurpose purpose) {
         UserJpaEntity user = userRepository.findByEmailAndDeletedFalse(email)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_FOUND));
 
         UUID userId = user.getId();
         String otpKey = buildHashKey(userId, purpose);
@@ -232,7 +233,7 @@ public class OtpServiceImpl implements OtpService {
     @Override
     public OtpVerificationOutcome verifyOtp(String email, OtpPurpose purpose, String rawCode) {
         UserJpaEntity user = userRepository.findByEmailAndDeletedFalse(email)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_FOUND));
 
         UUID userId = user.getId();
         String redisKey = buildHashKey(userId, purpose);
@@ -287,7 +288,7 @@ public class OtpServiceImpl implements OtpService {
     @Override
     public OtpVerificationOutcome verifyOtpByUserId(UUID userId, OtpPurpose purpose, String rawCode) {
         UserJpaEntity user = userRepository.findByIdAndDeletedFalse(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_FOUND));
         return verifyOtp(user.getEmail(), purpose, rawCode);
     }
 
@@ -322,3 +323,6 @@ public class OtpServiceImpl implements OtpService {
     }
 
 }
+
+
+

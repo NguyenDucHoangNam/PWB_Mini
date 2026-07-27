@@ -1,7 +1,8 @@
 package com.pwb.voice.core.service;
 
 import com.pwb.backend.exception.BusinessException;
-import com.pwb.backend.exception.ErrorCode;
+import com.pwb.voice.core.exception.VoiceErrorCode;
+
 import com.pwb.storage.api.StorageService;
 import com.pwb.voice.api.VoiceTagFacade;
 import com.pwb.voice.api.dto.request.CreateTtsVoiceTagRequest;
@@ -59,7 +60,7 @@ public class VoiceTagFacadeImpl implements VoiceTagFacade {
     public VoiceTagResponse getTag(UUID userId, UUID tagId) {
         VoiceTagJpaEntity entity = voiceTagJpaRepository
                 .findByIdAndUserIdAndDeletedFalse(tagId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_TAG_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(VoiceErrorCode.VOICE_TAG_NOT_FOUND));
         return toResponse(voiceTagMapper.toDomain(entity));
     }
 
@@ -78,7 +79,7 @@ public class VoiceTagFacadeImpl implements VoiceTagFacade {
     public URL getAudioPresignedUrl(UUID userId, UUID tagId, Duration expiration) {
         VoiceTagJpaEntity entity = voiceTagJpaRepository
                 .findByIdAndUserIdAndDeletedFalse(tagId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_TAG_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(VoiceErrorCode.VOICE_TAG_NOT_FOUND));
 
         return storageService.generatePresignedUrl(entity.getS3Key(), expiration).getUrl();
     }
@@ -104,3 +105,4 @@ public class VoiceTagFacadeImpl implements VoiceTagFacade {
         return toResponse(voiceTagMapper.toDomain(entity));
     }
 }
+

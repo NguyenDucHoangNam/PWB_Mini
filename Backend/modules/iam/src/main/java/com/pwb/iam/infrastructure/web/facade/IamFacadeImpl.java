@@ -1,7 +1,9 @@
 package com.pwb.iam.infrastructure.web.facade;
 
 import com.pwb.backend.exception.BusinessException;
-import com.pwb.backend.exception.ErrorCode;
+import com.pwb.backend.exception.SysErrorCode;
+import com.pwb.iam.core.exception.IamErrorCode;
+
 import com.pwb.iam.api.IamFacade;
 import com.pwb.backend.web.MessageResolver;
 import com.pwb.iam.api.OtpService;
@@ -160,7 +162,7 @@ public class IamFacadeImpl implements IamFacade {
 
         Optional<UserJpaEntity> existingOpt = userJpaRepository.findByEmailAndDeletedFalse(email);
         if (existingOpt.isPresent()) {
-            throw new BusinessException(ErrorCode.EMAIL_ALREADY_REGISTERED_AUTH);
+            throw new BusinessException(IamErrorCode.EMAIL_ALREADY_REGISTERED_AUTH);
         }
 
         String username = generateProvisionalUsername();
@@ -190,13 +192,13 @@ public class IamFacadeImpl implements IamFacade {
                 case DAILY_LIMIT -> {
                     log.warn("OTP daily limit reached right after register: userId={}",
                             savedDomain.getUserId());
-                    yield new BusinessException(ErrorCode.AUTH_OTP_DAILY_LIMIT_EXCEEDED);
+                    yield new BusinessException(IamErrorCode.AUTH_OTP_DAILY_LIMIT_EXCEEDED);
                 }
                 default -> {
                     long seconds = policy.cooldownRemaining().toSeconds();
                     log.warn("OTP throttled right after register: userId={} cooldown={}s",
                             savedDomain.getUserId(), seconds);
-                    yield new BusinessException(ErrorCode.AUTH_RATE_LIMIT_EXCEEDED, seconds);
+                    yield new BusinessException(IamErrorCode.AUTH_RATE_LIMIT_EXCEEDED, seconds);
                 }
             };
         }
@@ -213,14 +215,14 @@ public class IamFacadeImpl implements IamFacade {
                 request.getUserId(), OtpPurpose.REGISTER, request.getCode());
 
         switch (outcome.outcome()) {
-            case INVALID -> throw new BusinessException(ErrorCode.AUTH_OTP_INVALID);
-            case EXPIRED_OR_MISSING -> throw new BusinessException(ErrorCode.AUTH_OTP_EXPIRED);
-            case LOCKED -> throw new BusinessException(ErrorCode.AUTH_OTP_LOCKED);
+            case INVALID -> throw new BusinessException(IamErrorCode.AUTH_OTP_INVALID);
+            case EXPIRED_OR_MISSING -> throw new BusinessException(IamErrorCode.AUTH_OTP_EXPIRED);
+            case LOCKED -> throw new BusinessException(IamErrorCode.AUTH_OTP_LOCKED);
             case OK -> { }
         }
 
         UserJpaEntity entity = userJpaRepository.findByIdAndDeletedFalse(request.getUserId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_FOUND));
         User user = userMapper.toDomain(entity);
 
         if (user.getStatus() != UserStatus.PENDING_VERIFICATION) {
@@ -245,14 +247,14 @@ public class IamFacadeImpl implements IamFacade {
     @Transactional
     public AuthResponse completeProfile(UUID userId, CompleteProfileRequest request) {
         UserJpaEntity entity = userJpaRepository.findByIdAndDeletedFalse(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_FOUND));
         RoleJpaEntity originalRole = entity.getRole();
         User user = userMapper.toDomain(entity);
 
         String newUsername = request.getUsername().trim();
         if (!newUsername.equals(user.getUsername())
                 && userJpaRepository.existsByUsernameAndDeletedFalse(newUsername)) {
-            throw new BusinessException(ErrorCode.USER_NAME_EXISTS);
+            throw new BusinessException(IamErrorCode.USER_NAME_EXISTS);
         }
         user.changeUsername(newUsername);
         if (request.getFullName() != null && !request.getFullName().isBlank()) {
@@ -280,10 +282,10 @@ public class IamFacadeImpl implements IamFacade {
         String clientIp = ClientIpResolver.getClientIp();
 
         if (loginAttemptService.isEmailLocked(email)) {
-            throw new BusinessException(ErrorCode.AUTH_ACCOUNT_LOCKED);
+            throw new BusinessException(IamErrorCode.AUTH_ACCOUNT_LOCKED);
         }
         if (loginAttemptService.isIpLocked(clientIp)) {
-            throw new BusinessException(ErrorCode.AUTH_IP_LOCKED);
+            throw new BusinessException(IamErrorCode.AUTH_IP_LOCKED);
         }
 
         UserJpaEntity entity = userJpaRepository.findByEmailAndDeletedFalse(email).orElse(null);
@@ -295,7 +297,7 @@ public class IamFacadeImpl implements IamFacade {
 
         User user = userMapper.toDomain(entity);
         if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
-            throw new BusinessException(ErrorCode.AUTH_ACCOUNT_NOT_VERIFIED);
+            throw new BusinessException(IamErrorCode.AUTH_ACCOUNT_NOT_VERIFIED);
         }
         if (user.getStatus() != UserStatus.ACTIVE) {
             loginFailureHandler.recordFailureAndTranslate(email, clientIp);
@@ -355,7 +357,7 @@ public class IamFacadeImpl implements IamFacade {
                 fresh.markActive();
                 UserJpaEntity freshEntity = userMapper.toEntity(fresh);
                 RoleJpaEntity roleEntity = roleJpaRepository.findByNameAndDeletedFalse(RoleName.USER.name())
-                        .orElseThrow(() -> new BusinessException(ErrorCode.SEEDER_ROLE_NOT_FOUND));
+                        .orElseThrow(() -> new BusinessException(IamErrorCode.SEEDER_ROLE_NOT_FOUND));
                 freshEntity.setRole(roleEntity);
                 UserJpaEntity saved = userJpaRepository.save(freshEntity);
                 user = userMapper.toDomain(saved);
@@ -384,7 +386,7 @@ public class IamFacadeImpl implements IamFacade {
         }
 
         if (user.getStatus() == UserStatus.BANNED || user.getStatus() == UserStatus.DELETED) {
-            throw new BusinessException(ErrorCode.FORBIDDEN);
+            throw new BusinessException(SysErrorCode.FORBIDDEN);
         }
 
         authEventPublisher.publishLoginSuccess(user.getUserId(), user.getEmail().value());
@@ -401,35 +403,35 @@ public class IamFacadeImpl implements IamFacade {
     @Transactional
     public AuthResponse refresh(RefreshTokenRequest request) {
         if (request == null || request.getRefreshToken() == null || request.getRefreshToken().isBlank()) {
-            throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
+            throw new BusinessException(IamErrorCode.AUTH_TOKEN_INVALID);
         }
         String token = request.getRefreshToken();
 
         if (!authSupportService.validateRefreshToken(token)) {
-            throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
+            throw new BusinessException(IamErrorCode.AUTH_TOKEN_INVALID);
         }
 
         String jti;
         try {
             jti = jwtTokenProvider.extractJtiFromRefreshToken(token);
         } catch (Exception ex) {
-            throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
+            throw new BusinessException(IamErrorCode.AUTH_TOKEN_INVALID);
         }
         if (jti == null || jti.isBlank()) {
-            throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
+            throw new BusinessException(IamErrorCode.AUTH_TOKEN_INVALID);
         }
 
         UUID userId = refreshTokenStore.findUserId(jti).orElse(null);
         if (userId == null) {
-            throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID);
+            throw new BusinessException(IamErrorCode.AUTH_TOKEN_INVALID);
         }
 
         UserJpaEntity entity = userJpaRepository.findByIdAndDeletedFalse(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_FOUND));
         User user = userMapper.toDomain(entity);
 
         if (user.getStatus() != UserStatus.ACTIVE) {
-            throw new BusinessException(ErrorCode.AUTH_ACCOUNT_NOT_VERIFIED);
+            throw new BusinessException(IamErrorCode.AUTH_ACCOUNT_NOT_VERIFIED);
         }
 
         refreshTokenStore.revoke(jti);
@@ -467,7 +469,7 @@ public class IamFacadeImpl implements IamFacade {
             return AuthMessageResponse.of(null, sentMessage, (int) passwordResetProperties.getCooldownSeconds());
         }
         if (user.getOauthProvider() != com.pwb.iam.core.model.OAuthProvider.LOCAL) {
-            throw new BusinessException(ErrorCode.AUTH_OAUTH_USER_NO_PASSWORD);
+            throw new BusinessException(IamErrorCode.AUTH_OAUTH_USER_NO_PASSWORD);
         }
 
         String signedToken = passwordResetTokenService.generateSignedToken();
@@ -499,12 +501,12 @@ public class IamFacadeImpl implements IamFacade {
     @Transactional
     public AuthMessageResponse resetPassword(ResetPasswordRequest request) {
         if (!passwordResetTokenService.verifySignature(request.getToken())) {
-            throw new BusinessException(ErrorCode.AUTH_RESET_TOKEN_INVALID);
+            throw new BusinessException(IamErrorCode.AUTH_RESET_TOKEN_INVALID);
         }
 
         String rawToken = passwordResetTokenService.extractRawToken(request.getToken());
         if (rawToken == null || rawToken.isBlank()) {
-            throw new BusinessException(ErrorCode.AUTH_RESET_TOKEN_INVALID);
+            throw new BusinessException(IamErrorCode.AUTH_RESET_TOKEN_INVALID);
         }
 
         String tokenHash = passwordResetTokenService.hashForStorage(rawToken);
@@ -512,15 +514,15 @@ public class IamFacadeImpl implements IamFacade {
 
         PasswordResetTokenJpaEntity tokenEntity = passwordResetTokenJpaRepository
                 .findActiveByHash(tokenHash, now)
-                .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_RESET_TOKEN_INVALID));
+                .orElseThrow(() -> new BusinessException(IamErrorCode.AUTH_RESET_TOKEN_INVALID));
 
         UserJpaEntity entity = userJpaRepository.findByIdAndDeletedFalse(tokenEntity.getUserId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_FOUND));
         RoleJpaEntity originalRole = entity.getRole();
         User user = userMapper.toDomain(entity);
 
         if (user.getOauthProvider() != com.pwb.iam.core.model.OAuthProvider.LOCAL) {
-            throw new BusinessException(ErrorCode.AUTH_OAUTH_USER_NO_PASSWORD);
+            throw new BusinessException(IamErrorCode.AUTH_OAUTH_USER_NO_PASSWORD);
         }
 
         enforcePasswordPolicy(request.getNewPassword());
@@ -545,18 +547,18 @@ public class IamFacadeImpl implements IamFacade {
     @Transactional
     public AuthMessageResponse changePassword(UUID userId, ChangePasswordRequest request) {
         UserJpaEntity entity = userJpaRepository.findByIdAndDeletedFalse(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_FOUND));
         RoleJpaEntity originalRole = entity.getRole();
         User user = userMapper.toDomain(entity);
 
         if (user.getOauthProvider() != com.pwb.iam.core.model.OAuthProvider.LOCAL) {
-            throw new BusinessException(ErrorCode.AUTH_OAUTH_USER_NO_PASSWORD);
+            throw new BusinessException(IamErrorCode.AUTH_OAUTH_USER_NO_PASSWORD);
         }
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword().getHash())) {
-            throw new BusinessException(ErrorCode.AUTH_INVALID_CURRENT_PASSWORD);
+            throw new BusinessException(IamErrorCode.AUTH_INVALID_CURRENT_PASSWORD);
         }
         if (passwordEncoder.matches(request.getNewPassword(), user.getPassword().getHash())) {
-            throw new BusinessException(ErrorCode.AUTH_PASSWORD_REUSED);
+            throw new BusinessException(IamErrorCode.AUTH_PASSWORD_REUSED);
         }
 
         enforcePasswordPolicy(request.getNewPassword());
@@ -576,7 +578,7 @@ public class IamFacadeImpl implements IamFacade {
     @Transactional
     public AuthMessageResponse resendOtp(ResendOtpRequest request) {
         UserJpaEntity entity = userJpaRepository.findByIdAndDeletedFalse(request.getUserId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_FOUND));
 
         OtpPolicyResult policy = otpService.requestOtp(entity.getEmail(), request.getPurpose());
         if (policy.allowed()) {
@@ -596,7 +598,7 @@ public class IamFacadeImpl implements IamFacade {
     @Transactional
     public AuthMessageResponse logout(UUID userId) {
         UserJpaEntity entity = userJpaRepository.findByIdAndDeletedFalse(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_FOUND));
         refreshTokenStore.revokeAllForUser(entity.getId());
         authEventPublisher.publishLogout(entity.getId(), entity.getEmail());
         log.info("User logged out: userId={}", entity.getId());
@@ -648,7 +650,10 @@ public class IamFacadeImpl implements IamFacade {
                     .map(Enum::name)
                     .collect(java.util.stream.Collectors.joining(", "));
             log.warn("Password policy rejected: violations={}", reasons);
-            throw new BusinessException(ErrorCode.WEAK_PASSWORD, reasons);
+            throw new BusinessException(IamErrorCode.WEAK_PASSWORD, reasons);
         }
     }
 }
+
+
+

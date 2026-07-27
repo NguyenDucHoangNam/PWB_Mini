@@ -1,7 +1,7 @@
 package com.pwb.iam.infrastructure.security;
 
 import com.pwb.backend.exception.BusinessException;
-import com.pwb.backend.exception.ErrorCode;
+import com.pwb.iam.core.exception.IamErrorCode;
 import com.pwb.iam.core.model.User;
 import com.pwb.iam.infrastructure.persistence.mapper.UserMapper;
 import com.pwb.iam.infrastructure.persistence.repository.UserJpaRepository;
@@ -29,7 +29,8 @@ public class CustomUserDetailsService implements UserDetailsService {
     public UserDetails loadUserById(UUID userId) {
         User user = userJpaRepository.findByIdAndDeletedFalse(userId)
                 .map(userMapper::toDomain)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_FOUND));
         return new CustomUserDetails(user);
     }
 }
+

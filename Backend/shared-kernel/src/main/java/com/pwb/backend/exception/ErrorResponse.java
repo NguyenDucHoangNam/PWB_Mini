@@ -19,7 +19,7 @@ public class ErrorResponse {
     public static ErrorResponse of(ErrorCode code, String message) {
         return ErrorResponse.builder()
                 .success(false)
-                .code(code.getCode())
+                .code(code.code())
                 .message(message)
                 .timestamp(Instant.now())
                 .details(List.of())
@@ -29,10 +29,10 @@ public class ErrorResponse {
     public static ErrorResponse of(ErrorCode code, String message, List<ErrorDetail> details) {
         return ErrorResponse.builder()
                 .success(false)
-                .code(code.getCode())
+                .code(code.code())
                 .message(message)
                 .timestamp(Instant.now())
-                .details(details)
+                .details(details == null ? List.of() : details)
                 .build();
     }
 }

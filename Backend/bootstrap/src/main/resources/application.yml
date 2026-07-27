@@ -95,8 +95,6 @@ app:
       - /actuator/health
       - /v3/api-docs/**
       - /swagger-ui/**
-      - /ws/liveroom/**
-      - /ws/liveroom
     refresh-token:
       ttl-seconds: 604800
     login-policy:
@@ -207,16 +205,6 @@ app:
       songs-original-prefix: songs/original
       songs-processed-prefix: songs/processed
       key-template: "{prefix}/{userId}/{id}.{format}"
-  liveroom:
-    code:
-      charset: "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-      length: 6
-      max-generation-attempts: 10
-    capacity:
-      default-max-participants: 5
-      absolute-max-participants: 5
-    ws:
-      allowed-origins: ${LIVEROOM_WS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
 
 
 springdoc:

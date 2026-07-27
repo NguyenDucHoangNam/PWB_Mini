@@ -18,6 +18,11 @@ import java.util.Locale;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final ErrorCode VALIDATION_CODE = ValidationException.CODE;
+    private static final ErrorCode FILE_TOO_LARGE_CODE = SysErrorCode.FILE_TOO_LARGE;
+    private static final ErrorCode RESOURCE_NOT_FOUND_CODE = SysErrorCode.RESOURCE_NOT_FOUND;
+    private static final ErrorCode INTERNAL_SERVER_ERROR_CODE = SysErrorCode.INTERNAL_SERVER_ERROR;
+
     private final MessageSource messageSource;
 
     public GlobalExceptionHandler(MessageSource messageSource) {
@@ -27,23 +32,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BaseBusinessException.class)
     public ResponseEntity<ErrorResponse> handleBaseBusiness(BaseBusinessException ex) {
         ErrorCode ec = ex.getErrorCode();
-        return ResponseEntity.status(HttpStatus.valueOf(ec.getHttpStatus()))
-                .body(ErrorResponse.of(ec, resolveMessage(ec, extractArgs(ex))));
+        return ResponseEntity.status(HttpStatus.valueOf(ec.httpStatus()))
+                .body(ErrorResponse.of(ec, resolveMessage(ec, ex.getArgs())));
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ErrorResponse> handleMaxUpload(MaxUploadSizeExceededException ex) {
-        ErrorCode ec = ErrorCode.FILE_TOO_LARGE;
-        return ResponseEntity.status(HttpStatus.valueOf(ec.getHttpStatus()))
-                .body(ErrorResponse.of(ec, resolveMessage(ec, null)));
+        return ResponseEntity.status(HttpStatus.valueOf(FILE_TOO_LARGE_CODE.httpStatus()))
+                .body(ErrorResponse.of(FILE_TOO_LARGE_CODE, resolveMessage(FILE_TOO_LARGE_CODE, null)));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ErrorResponse> handleNoResource(NoResourceFoundException ex) {
         log.warn("Resource not found: {} {}", ex.getHttpMethod(), ex.getResourcePath());
-        ErrorCode ec = ErrorCode.RESOURCE_NOT_FOUND;
-        return ResponseEntity.status(HttpStatus.valueOf(ec.getHttpStatus()))
-                .body(ErrorResponse.of(ec, resolveMessage(ec, null)));
+        return ResponseEntity.status(HttpStatus.valueOf(RESOURCE_NOT_FOUND_CODE.httpStatus()))
+                .body(ErrorResponse.of(RESOURCE_NOT_FOUND_CODE, resolveMessage(RESOURCE_NOT_FOUND_CODE, null)));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -51,13 +54,15 @@ public class GlobalExceptionHandler {
         List<ErrorDetail> details = ex.getBindingResult().getFieldErrors().stream()
                 .map(err -> ErrorDetail.builder()
                         .field(err.getField())
+                        .code(err.getCode())
                         .issue(err.getDefaultMessage())
+                        .rejectedValue(err.getRejectedValue())
                         .build())
                 .toList();
         return ResponseEntity.badRequest()
                 .body(ErrorResponse.of(
-                        ErrorCode.INVALID_INPUT,
-                        resolveMessage(ErrorCode.INVALID_INPUT, null),
+                        VALIDATION_CODE,
+                        resolveMessage(VALIDATION_CODE, new Object[]{details.size()}),
                         details));
     }
 
@@ -66,24 +71,16 @@ public class GlobalExceptionHandler {
         log.error("Unhandled exception: ", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ErrorResponse.of(
-                        ErrorCode.INTERNAL_SERVER_ERROR,
-                        resolveMessage(ErrorCode.INTERNAL_SERVER_ERROR, null)));
+                        INTERNAL_SERVER_ERROR_CODE,
+                        resolveMessage(INTERNAL_SERVER_ERROR_CODE, null)));
     }
 
     private String resolveMessage(ErrorCode ec, Object[] args) {
         Locale locale = LocaleContextHolder.getLocale();
         try {
-            return messageSource.getMessage(ec.getCode(), args, ec.getMessage(), locale);
+            return messageSource.getMessage(ec.code(), args, ec.defaultMessage(), locale);
         } catch (Exception ex) {
-            return ec.getMessage();
+            return ec.defaultMessage();
         }
-    }
-
-    private Object[] extractArgs(BaseBusinessException ex) {
-        if (ex instanceof BusinessException be) {
-            Object[] args = be.getArgs();
-            return args == null || args.length == 0 ? null : args;
-        }
-        return null;
     }
 }

@@ -50,8 +50,8 @@ public class ApiResponse<T> {
     public static <T> ApiResponse<T> error(ErrorCode errorCode, String message) {
         return ApiResponse.<T>builder()
                 .success(false)
-                .status(errorCode.getHttpStatus())
-                .code(errorCode.getCode())
+                .status(errorCode.httpStatus())
+                .code(errorCode.code())
                 .message(message)
                 .traceId(currentTraceId())
                 .timestamp(Instant.now())

@@ -1,6 +1,7 @@
 package com.pwb.storage.infrastructure.impl;
 
-import com.pwb.backend.exception.ErrorCode;
+import com.pwb.storage.api.StorageErrorCode;
+
 import com.pwb.storage.api.StorageException;
 import com.pwb.storage.api.StorageService;
 import com.pwb.storage.api.dto.ObjectMetadata;
@@ -50,14 +51,14 @@ public class LocalStorageServiceImpl implements StorageService {
     public void init() {
         String configured = properties.getLocal().getBasePath();
         if (configured == null || configured.isBlank()) {
-            throw new StorageException(ErrorCode.STORAGE_INVALID_KEY);
+            throw new StorageException(StorageErrorCode.STORAGE_INVALID_KEY);
         }
         this.basePath = Paths.get(configured).toAbsolutePath().normalize();
         try {
             Files.createDirectories(basePath);
             log.info("Local storage initialized at {}", basePath);
         } catch (IOException e) {
-            throw new StorageException(ErrorCode.STORAGE_UPLOAD_FAILED, e);
+            throw new StorageException(StorageErrorCode.STORAGE_UPLOAD_FAILED, e);
         }
     }
 
@@ -74,7 +75,7 @@ public class LocalStorageServiceImpl implements StorageService {
             log.debug("Uploaded key={} size={} contentType={}", key, actualSize, contentType);
             return new UploadResult(key, actualSize, contentType, etag);
         } catch (IOException e) {
-            throw new StorageException(ErrorCode.STORAGE_UPLOAD_FAILED, e);
+            throw new StorageException(StorageErrorCode.STORAGE_UPLOAD_FAILED, e);
         }
     }
 
@@ -89,12 +90,12 @@ public class LocalStorageServiceImpl implements StorageService {
         Path target = resolveKey(key);
 
         if (!Files.exists(target)) {
-            throw new StorageException(ErrorCode.STORAGE_OBJECT_NOT_FOUND);
+            throw new StorageException(StorageErrorCode.STORAGE_OBJECT_NOT_FOUND);
         }
         try {
             return Files.newInputStream(target);
         } catch (IOException e) {
-            throw new StorageException(ErrorCode.STORAGE_DOWNLOAD_FAILED, e);
+            throw new StorageException(StorageErrorCode.STORAGE_DOWNLOAD_FAILED, e);
         }
     }
 
@@ -106,7 +107,7 @@ public class LocalStorageServiceImpl implements StorageService {
         try {
             Files.deleteIfExists(target);
         } catch (IOException e) {
-            throw new StorageException(ErrorCode.STORAGE_DELETE_FAILED, e);
+            throw new StorageException(StorageErrorCode.STORAGE_DELETE_FAILED, e);
         }
     }
 
@@ -130,7 +131,7 @@ public class LocalStorageServiceImpl implements StorageService {
         Path target = resolveKey(key);
 
         if (!Files.exists(target)) {
-            throw new StorageException(ErrorCode.STORAGE_OBJECT_NOT_FOUND);
+            throw new StorageException(StorageErrorCode.STORAGE_OBJECT_NOT_FOUND);
         }
         try {
             long size = Files.size(target);
@@ -138,7 +139,7 @@ public class LocalStorageServiceImpl implements StorageService {
             Instant lastModified = Files.getLastModifiedTime(target).toInstant();
             return new ObjectMetadata(key, size, contentType, lastModified);
         } catch (IOException e) {
-            throw new StorageException(ErrorCode.STORAGE_DOWNLOAD_FAILED, e);
+            throw new StorageException(StorageErrorCode.STORAGE_DOWNLOAD_FAILED, e);
         }
     }
 
@@ -156,7 +157,7 @@ public class LocalStorageServiceImpl implements StorageService {
                     + "&sig=" + signature);
             return new PresignedUrlResult(url, expiresAt);
         } catch (MalformedURLException e) {
-            throw new StorageException(ErrorCode.STORAGE_PRESIGN_FAILED, e);
+            throw new StorageException(StorageErrorCode.STORAGE_PRESIGN_FAILED, e);
         }
     }
 
@@ -175,14 +176,14 @@ public class LocalStorageServiceImpl implements StorageService {
                     + "&contentType=" + (contentType == null ? "" : contentType));
             return new PresignedUrlResult(url, expiresAt);
         } catch (MalformedURLException e) {
-            throw new StorageException(ErrorCode.STORAGE_PRESIGN_FAILED, e);
+            throw new StorageException(StorageErrorCode.STORAGE_PRESIGN_FAILED, e);
         }
     }
 
     private Path resolveKey(String key) {
         Path resolved = basePath.resolve(key).normalize();
         if (!resolved.startsWith(basePath)) {
-            throw new StorageException(ErrorCode.STORAGE_INVALID_KEY);
+            throw new StorageException(StorageErrorCode.STORAGE_INVALID_KEY);
         }
         return resolved;
     }
@@ -203,7 +204,9 @@ public class LocalStorageServiceImpl implements StorageService {
             byte[] hash = digest.digest((LOCAL_SIGNING_SECRET + ":" + key + ":" + expiresAtEpoch).getBytes());
             return HexFormat.of().formatHex(hash);
         } catch (NoSuchAlgorithmException e) {
-            throw new StorageException(ErrorCode.STORAGE_PRESIGN_FAILED, e);
+            throw new StorageException(StorageErrorCode.STORAGE_PRESIGN_FAILED, e);
         }
     }
 }
+
+

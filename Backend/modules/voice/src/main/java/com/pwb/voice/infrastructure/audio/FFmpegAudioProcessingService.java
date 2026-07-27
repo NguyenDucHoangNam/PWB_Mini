@@ -8,7 +8,8 @@ import com.github.kokorin.jaffree.ffprobe.FFprobeResult;
 import com.github.kokorin.jaffree.ffprobe.Format;
 import com.github.kokorin.jaffree.ffprobe.Stream;
 import com.pwb.backend.exception.BusinessException;
-import com.pwb.backend.exception.ErrorCode;
+import com.pwb.voice.core.exception.VoiceErrorCode;
+
 import com.pwb.voice.core.model.SongTagConfig;
 import com.pwb.voice.core.service.AudioMetadata;
 import com.pwb.voice.core.service.AudioProcessingService;
@@ -59,7 +60,7 @@ public class FFmpegAudioProcessingService implements AudioProcessingService {
         );
         int voiceTagWindow = voiceTagDuration + (int) Math.ceil((double) maxFadeMs / MILLIS_PER_SECOND);
         if (config.getIntervalSeconds() <= voiceTagWindow) {
-            throw new BusinessException(ErrorCode.INVALID_INTERVAL);
+            throw new BusinessException(VoiceErrorCode.INVALID_INTERVAL);
         }
 
         int intervalSeconds = config.getIntervalSeconds();
@@ -149,7 +150,7 @@ public class FFmpegAudioProcessingService implements AudioProcessingService {
             throw ex;
         } catch (Exception ex) {
             log.error("Audio processing failed: originalPath={}, tagPath={}", original, voiceTag, ex);
-            throw new BusinessException(ErrorCode.AUDIO_PROCESSING_FAILED);
+            throw new BusinessException(VoiceErrorCode.AUDIO_PROCESSING_FAILED);
         }
     }
 
@@ -204,3 +205,4 @@ public class FFmpegAudioProcessingService implements AudioProcessingService {
         return new AudioMetadata(durationInt, format.getFormatName(), bitRate, sampleRate);
     }
 }
+

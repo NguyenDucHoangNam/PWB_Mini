@@ -1,7 +1,8 @@
 package com.pwb.iam.infrastructure.web.aspect;
 
 import com.pwb.backend.exception.BusinessException;
-import com.pwb.backend.exception.ErrorCode;
+import com.pwb.iam.core.exception.IamErrorCode;
+
 import com.pwb.iam.infrastructure.security.annotation.RateLimited;
 import com.pwb.iam.infrastructure.security.service.RateLimitService;
 import com.pwb.iam.infrastructure.security.service.RateLimitService.RateLimitDecision;
@@ -29,9 +30,12 @@ public class RateLimitAspect {
         if (!decision.allowed()) {
             log.info("Rate limit denied: endpoint={} ip={} retryAfter={}s",
                     rateLimited.endpoint(), clientIp, decision.retryAfterSeconds());
-            throw new BusinessException(ErrorCode.AUTH_RATE_LIMIT_EXCEEDED, decision.retryAfterSeconds());
+            throw new BusinessException(IamErrorCode.AUTH_RATE_LIMIT_EXCEEDED, decision.retryAfterSeconds());
         }
 
         return joinPoint.proceed();
     }
 }
+
+
+

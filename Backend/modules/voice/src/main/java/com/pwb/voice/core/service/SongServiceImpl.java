@@ -1,11 +1,13 @@
 package com.pwb.voice.core.service;
 
 import com.pwb.backend.exception.BusinessException;
-import com.pwb.backend.exception.ErrorCode;
+import com.pwb.backend.exception.SysErrorCode;
+import com.pwb.voice.core.exception.VoiceErrorCode;
 import com.pwb.outbox.api.OutboxEnqueueRequested;
 import com.pwb.outbox.api.OutboxEventPayload;
 import com.pwb.outbox.api.OutboxWriter;
 import com.pwb.outbox.infrastructure.messaging.OutboxKafkaConfig;
+import com.pwb.storage.api.StorageErrorCode;
 import com.pwb.storage.api.StorageService;
 import com.pwb.voice.api.dto.request.ConfigureVoiceTagRequest;
 import com.pwb.voice.api.dto.request.UpdateSongRequest;
@@ -78,14 +80,14 @@ public Song uploadSong(UUID userId, MultipartFile file, UploadSongRequest reques
         try (InputStream probeStream = file.getInputStream()) {
             audioFileValidator.validateMagicBytes(probeStream, extension);
         } catch (IOException ex) {
-            throw new BusinessException(ErrorCode.AUDIO_PROCESSING_FAILED);
+            throw new BusinessException(VoiceErrorCode.AUDIO_PROCESSING_FAILED);
         }
 
         AudioMetadata metadata;
         try (InputStream durationStream = file.getInputStream()) {
             metadata = audioFileValidator.validateDuration(durationStream, extension);
         } catch (IOException ex) {
-            throw new BusinessException(ErrorCode.AUDIO_PROCESSING_FAILED);
+            throw new BusinessException(VoiceErrorCode.AUDIO_PROCESSING_FAILED);
         }
 
         UUID songId = UUID.randomUUID();
@@ -94,7 +96,7 @@ public Song uploadSong(UUID userId, MultipartFile file, UploadSongRequest reques
         try (InputStream uploadStream = file.getInputStream()) {
             storageService.upload(s3Key, uploadStream, file.getSize(), resolveContentType(extension));
         } catch (IOException ex) {
-            throw new BusinessException(ErrorCode.STORAGE_UPLOAD_FAILED);
+            throw new BusinessException(StorageErrorCode.STORAGE_UPLOAD_FAILED);
         }
 
         Song domain = Song.create(
@@ -138,7 +140,7 @@ public Song uploadSong(UUID userId, MultipartFile file, UploadSongRequest reques
     public Song getSong(UUID userId, UUID songId) {
         SongJpaEntity entity = songJpaRepository
                 .findByIdAndUserIdAndDeletedFalse(songId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SONG_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(VoiceErrorCode.SONG_NOT_FOUND));
         return songMapper.toDomain(entity);
     }
 
@@ -149,7 +151,7 @@ public Song updateSong(UUID userId, UUID songId, UpdateSongRequest request) {
 
         SongJpaEntity existing = songJpaRepository
                 .findByIdAndUserIdAndDeletedFalse(songId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SONG_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(VoiceErrorCode.SONG_NOT_FOUND));
 
         Song domain = songMapper.toDomain(existing);
         domain.updateMetadata(request.getTitle(), request.getArtist(), request.getAlbum());
@@ -169,7 +171,7 @@ public void deleteSong(UUID userId, UUID songId) {
 
         SongJpaEntity entity = songJpaRepository
                 .findByIdAndUserIdAndDeletedFalse(songId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SONG_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(VoiceErrorCode.SONG_NOT_FOUND));
 
         String originalKey = entity.getOriginalS3Key();
         String processedKey = entity.getProcessedS3Key();
@@ -202,11 +204,11 @@ public SongTagConfig configureVoiceTag(UUID userId, UUID songId, ConfigureVoiceT
 
         SongJpaEntity songEntity = songJpaRepository
                 .findByIdAndUserIdAndDeletedFalse(songId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SONG_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(VoiceErrorCode.SONG_NOT_FOUND));
 
         VoiceTagJpaEntity voiceTagEntity = voiceTagJpaRepository
                 .findByIdAndUserIdAndDeletedFalse(request.getVoiceTagId(), userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.VOICE_TAG_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(VoiceErrorCode.VOICE_TAG_NOT_FOUND));
 
         SongTagConfigJpaEntity configEntity = songTagConfigJpaRepository
                 .findBySongIdAndDeletedFalse(songId)
@@ -249,11 +251,11 @@ public SongTagConfig configureVoiceTag(UUID userId, UUID songId, ConfigureVoiceT
     @Override
     public SongTagConfig getVoiceTagConfig(UUID userId, UUID songId) {
         if (!songJpaRepository.existsByIdAndUserIdAndDeletedFalse(songId, userId)) {
-            throw new BusinessException(ErrorCode.SONG_NOT_FOUND);
+            throw new BusinessException(VoiceErrorCode.SONG_NOT_FOUND);
         }
         SongTagConfigJpaEntity entity = songTagConfigJpaRepository
                 .findBySongIdAndDeletedFalse(songId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SONG_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(VoiceErrorCode.SONG_NOT_FOUND));
         return songTagConfigMapper.toDomain(entity);
     }
 
@@ -263,12 +265,12 @@ public void removeVoiceTagConfig(UUID userId, UUID songId) {
         log.info("Removing voice tag config: userId={}, songId={}", userId, songId);
 
         if (!songJpaRepository.existsByIdAndUserIdAndDeletedFalse(songId, userId)) {
-            throw new BusinessException(ErrorCode.SONG_NOT_FOUND);
+            throw new BusinessException(VoiceErrorCode.SONG_NOT_FOUND);
         }
 
         SongTagConfigJpaEntity entity = songTagConfigJpaRepository
                 .findBySongIdAndDeletedFalse(songId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SONG_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(VoiceErrorCode.SONG_NOT_FOUND));
 
         entity.markDeleted(DELETED_BY_SYSTEM);
         songTagConfigJpaRepository.save(entity);
@@ -283,13 +285,13 @@ public Song triggerProcessing(UUID userId, UUID songId) {
 
         SongJpaEntity entity = songJpaRepository
                 .findByIdAndUserIdForUpdate(songId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SONG_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(VoiceErrorCode.SONG_NOT_FOUND));
 
         Song domain = songMapper.toDomain(entity);
         try {
             domain.markProcessing();
         } catch (IllegalStateException ex) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT);
+            throw new BusinessException(SysErrorCode.INVALID_INPUT);
         }
 
         SongJpaEntity merged = songMapper.toEntity(domain, entity);
@@ -323,7 +325,7 @@ public Song triggerProcessing(UUID userId, UUID songId) {
             );
         } catch (JsonProcessingException ex) {
             log.error("Failed to serialize voice processing event: songId={}", songId, ex);
-            throw new BusinessException(ErrorCode.AUDIO_PROCESSING_FAILED);
+            throw new BusinessException(VoiceErrorCode.AUDIO_PROCESSING_FAILED);
         }
     }
 
@@ -331,7 +333,7 @@ public Song triggerProcessing(UUID userId, UUID songId) {
     public Song getProcessingStatus(UUID userId, UUID songId) {
         SongJpaEntity entity = songJpaRepository
                 .findByIdAndUserIdAndDeletedFalse(songId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SONG_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(VoiceErrorCode.SONG_NOT_FOUND));
         return songMapper.toDomain(entity);
     }
 
@@ -339,11 +341,11 @@ public Song triggerProcessing(UUID userId, UUID songId) {
     public String getStreamPresignedKey(UUID userId, UUID songId) {
         SongJpaEntity entity = songJpaRepository
                 .findByIdAndUserIdAndDeletedFalse(songId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SONG_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(VoiceErrorCode.SONG_NOT_FOUND));
 
         String key = entity.getProcessedS3Key();
         if (key == null) {
-            throw new BusinessException(ErrorCode.SONG_NOT_READY);
+            throw new BusinessException(VoiceErrorCode.SONG_NOT_READY);
         }
         return key;
     }
@@ -352,7 +354,7 @@ public Song triggerProcessing(UUID userId, UUID songId) {
     public String getOriginalPresignedKey(UUID userId, UUID songId) {
         SongJpaEntity entity = songJpaRepository
                 .findByIdAndUserIdAndDeletedFalse(songId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SONG_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(VoiceErrorCode.SONG_NOT_FOUND));
         return entity.getOriginalS3Key();
     }
 
@@ -390,3 +392,4 @@ public Song triggerProcessing(UUID userId, UUID songId) {
         return file == null ? 0L : file.getSize();
     }
 }
+
