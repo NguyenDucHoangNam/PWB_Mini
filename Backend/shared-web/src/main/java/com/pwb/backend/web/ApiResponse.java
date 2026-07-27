@@ -16,6 +16,7 @@ import java.time.Instant;
 public class ApiResponse<T> {
 
     private static final String MDC_CORRELATION_ID = "correlationId";
+    private static final String HEADER_CORRELATION_ID = "X-Correlation-Id";
 
     private final boolean success;
     private final int status;

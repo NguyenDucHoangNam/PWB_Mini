@@ -5,8 +5,4 @@ import java.util.UUID;
 public interface AuthenticatedUser {
 
     UUID getId();
-
-    String getUsername();
-
-    String getRole();
 }

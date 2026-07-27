@@ -1,4 +1,4 @@
-package com.pwb.backend.web;
+package com.pwb.backend.web.config;
 
 import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Bean;

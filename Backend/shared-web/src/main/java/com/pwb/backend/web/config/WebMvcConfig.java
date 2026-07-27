@@ -1,4 +1,4 @@
-package com.pwb.backend.config;
+package com.pwb.backend.web.config;
 
 import com.pwb.backend.security.CurrentUserArgumentResolver;
 import lombok.RequiredArgsConstructor;

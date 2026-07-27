@@ -1,5 +1,6 @@
 package com.pwb.iam.infrastructure.security;
 
+import com.pwb.backend.security.AuthenticatedUser;
 import com.pwb.iam.core.model.User;
 import com.pwb.iam.core.model.UserStatus;
 import lombok.Getter;
@@ -14,10 +15,11 @@ import java.util.UUID;
 
 @Getter
 @RequiredArgsConstructor
-public class CustomUserDetails implements UserDetails {
+public class CustomUserDetails implements UserDetails, AuthenticatedUser {
 
     private final User user;
 
+    @Override
     public UUID getId() {
         return user.getUserId();
     }

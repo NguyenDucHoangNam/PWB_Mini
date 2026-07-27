@@ -38,6 +38,8 @@ Thumbs.db
 ### Secrets ###
 .env
 **/application-local.yaml
+**/*.json.bak
+**/tts/*.json
 
 ### Logs ###
 *.log
