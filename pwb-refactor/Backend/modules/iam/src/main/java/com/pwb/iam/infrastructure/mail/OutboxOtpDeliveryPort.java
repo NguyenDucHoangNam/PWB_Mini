@@ -40,8 +40,8 @@ public class OutboxOtpDeliveryPort implements OtpDeliveryPort {
                 DEFAULT_LOCALE
         );
 
-        log.info("OTP enqueued via outbox: userId={} email={} purpose={} template={}",
-                userId, email, resolvedPurpose, template);
+        log.info("OTP enqueued via outbox: userId={} purpose={} template={}",
+                userId, resolvedPurpose, template);
         applicationEventPublisher.publishEvent(new EmailEventRequested(payload));
         return DeliveryResult.ok(COOLDOWN);
     }

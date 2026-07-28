@@ -1,4 +1,4 @@
-package com.pwb.iam.infrastructure.security.config;
+package com.pwb.iam.infrastructure.config;
 
 import lombok.Getter;
 import lombok.Setter;

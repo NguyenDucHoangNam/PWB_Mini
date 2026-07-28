@@ -53,6 +53,9 @@ public final class User extends BaseEntity {
             String fullName,
             RoleName role
     ) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("username must not be blank");
+        }
         if (email == null) {
             throw new IllegalArgumentException("email must not be null");
         }
@@ -210,6 +213,9 @@ public final class User extends BaseEntity {
     }
 
     public void changeUsername(String username) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("username must not be blank");
+        }
         this.username = username;
         this.provisionalUsername = false;
         touch();

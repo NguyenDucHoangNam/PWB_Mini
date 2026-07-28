@@ -71,6 +71,7 @@ public class JwtTokenProvider implements TokenService {
             return Jwts.parser()
                     .verifyWith(signingKey())
                     .requireIssuer(properties.getIssuer())
+                    .requireAudience(properties.getAudience())
                     .clockSkewSeconds(properties.getClockSkewSeconds())
                     .build()
                     .parseSignedClaims(token)

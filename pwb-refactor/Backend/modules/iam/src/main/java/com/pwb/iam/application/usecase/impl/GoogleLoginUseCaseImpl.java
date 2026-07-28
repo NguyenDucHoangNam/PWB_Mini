@@ -1,13 +1,14 @@
 package com.pwb.iam.application.usecase.impl;
 
-import com.pwb.iam.api.dto.GoogleIdTokenPayload;
 import com.pwb.iam.application.command.GoogleLoginCommand;
 import com.pwb.iam.application.usecase.GoogleLoginUseCase;
 import com.pwb.iam.application.usecase.LoginResult;
 import com.pwb.iam.domain.event.AuthEventPublisher;
 import com.pwb.iam.domain.exception.IamErrorCode;
 import com.pwb.iam.domain.model.EmailAddress;
+import com.pwb.iam.domain.model.GoogleUserInfo;
 import com.pwb.iam.domain.model.OAuthProvider;
+import com.pwb.iam.domain.model.Role;
 import com.pwb.iam.domain.model.RoleName;
 import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.model.UserStatus;
@@ -17,7 +18,6 @@ import com.pwb.iam.domain.service.GoogleTokenVerifierPort;
 import com.pwb.iam.domain.service.RateLimiter;
 import com.pwb.iam.domain.service.RefreshTokenManager;
 import com.pwb.iam.domain.service.TokenService;
-import com.pwb.iam.infrastructure.config.RateLimitProperties;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,20 +42,19 @@ public class GoogleLoginUseCaseImpl implements GoogleLoginUseCase {
     private final RefreshTokenManager refreshTokenManager;
     private final AuthEventPublisher authEventPublisher;
     private final RateLimiter rateLimiter;
-    private final RateLimitProperties rateLimitProperties;
+    private final com.pwb.iam.domain.model.LoginPolicy loginPolicy;
 
     @Override
     @Transactional
     public LoginResult execute(GoogleLoginCommand command) {
         String clientIp = command.clientIp() == null ? "unknown" : command.clientIp();
 
-        GoogleIdTokenPayload payload = googleTokenVerifier.verify(command.idToken());
+        GoogleUserInfo payload = googleTokenVerifier.verify(command.idToken());
 
-        enforceRateLimit("google-login:ip:" + clientIp, rateLimitProperties.getLoginPerMinute());
+        enforceRateLimit("google-login:ip:" + clientIp, loginPolicy.googleLoginPerMinute());
         enforceRateLimit(
-                "google-login:email:"
-                        + (payload.email() == null ? "unknown" : payload.email().trim().toLowerCase()),
-                rateLimitProperties.getLoginPerMinute());
+                "google-login:email:" + payload.email(),
+                loginPolicy.googleLoginPerMinute());
 
         User user = userRepository.findByOAuthProviderAndOAuthId(OAuthProvider.GOOGLE, payload.sub())
                 .orElse(null);
@@ -75,8 +74,7 @@ public class GoogleLoginUseCaseImpl implements GoogleLoginUseCase {
 
         authEventPublisher.publishGoogleLoginSuccess(user.getUserId(), user.getEmail().value(), clientIp);
 
-        log.info("Google login success: userId={} email={}",
-                user.getUserId(), user.getEmail().value());
+        log.info("Google login success: userId={}", user.getUserId());
 
         return new LoginResult(access, refresh);
     }
@@ -89,7 +87,7 @@ public class GoogleLoginUseCaseImpl implements GoogleLoginUseCase {
         }
     }
 
-    private User handleNewGoogleUser(GoogleIdTokenPayload payload) {
+    private User handleNewGoogleUser(GoogleUserInfo payload) {
         User byEmail = userRepository.findByEmail(payload.email()).orElse(null);
 
         if (byEmail != null) {
@@ -111,8 +109,7 @@ public class GoogleLoginUseCaseImpl implements GoogleLoginUseCase {
             User saved = userRepository.save(byEmail);
             authEventPublisher.publishUserLinkedGoogle(
                     saved.getUserId(), saved.getEmail().value(), saved.getFullName());
-            log.info("Linked Google account to existing user: userId={} email={}",
-                    saved.getUserId(), saved.getEmail().value());
+            log.info("Linked Google account to existing user: userId={}", saved.getUserId());
             return saved;
         }
 
@@ -125,20 +122,19 @@ public class GoogleLoginUseCaseImpl implements GoogleLoginUseCase {
                 payload.picture());
 
         RoleName roleName = roleRepository.findByName(RoleName.USER)
-                .orElseThrow(() -> new BusinessException(IamErrorCode.ROLE_NOT_FOUND))
-                .getName();
+                .map(Role::getName)
+                .orElseThrow(() -> new BusinessException(IamErrorCode.ROLE_NOT_FOUND));
         fresh.assignRole(roleName);
         fresh.markActive();
 
         User saved = userRepository.save(fresh);
         authEventPublisher.publishUserRegisteredGoogle(
                 saved.getUserId(), saved.getEmail().value(), saved.getFullName());
-        log.info("Registered new Google user: userId={} email={}",
-                saved.getUserId(), saved.getEmail().value());
+        log.info("Registered new Google user: userId={}", saved.getUserId());
         return saved;
     }
 
-    private User handleExistingGoogleUser(User user, GoogleIdTokenPayload payload) {
+    private User handleExistingGoogleUser(User user, GoogleUserInfo payload) {
         boolean dirty = false;
         if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
             user.markActive();

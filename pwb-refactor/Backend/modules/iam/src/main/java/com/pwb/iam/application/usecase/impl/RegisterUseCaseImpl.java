@@ -1,6 +1,7 @@
 package com.pwb.iam.application.usecase.impl;
 
 import com.pwb.iam.application.command.RegisterCommand;
+import com.pwb.iam.application.policy.PasswordPolicyEnforcer;
 import com.pwb.iam.application.usecase.RegisterUseCase;
 import com.pwb.iam.domain.event.AuthEventPublisher;
 import com.pwb.iam.domain.event.OtpIssuedDomainEvent;
@@ -10,6 +11,7 @@ import com.pwb.iam.domain.model.EmailAddress;
 import com.pwb.iam.domain.model.OtpCode;
 import com.pwb.iam.domain.model.OtpPurpose;
 import com.pwb.iam.domain.model.Password;
+import com.pwb.iam.domain.model.Role;
 import com.pwb.iam.domain.model.RoleName;
 import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.repository.OtpCodeRepository;
@@ -19,9 +21,6 @@ import com.pwb.iam.domain.service.CooldownService;
 import com.pwb.iam.domain.service.OtpDeliveryPort;
 import com.pwb.iam.domain.service.OtpGenerator;
 import com.pwb.iam.domain.service.PasswordHasher;
-import com.pwb.iam.domain.service.PasswordPolicyResult;
-import com.pwb.iam.domain.service.PasswordPolicyService;
-import com.pwb.iam.domain.service.PasswordPolicyViolation;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -46,7 +44,7 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
     private final RoleRepository roleRepository;
     private final OtpCodeRepository otpCodeRepository;
     private final PasswordHasher passwordHasher;
-    private final PasswordPolicyService passwordPolicyService;
+    private final PasswordPolicyEnforcer passwordPolicyEnforcer;
     private final OtpGenerator otpGenerator;
     private final OtpDeliveryPort otpDeliveryPort;
     private final CooldownService cooldownService;
@@ -63,10 +61,10 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
             throw new BusinessException(IamErrorCode.EMAIL_ALREADY_REGISTERED);
         }
 
-        enforcePasswordPolicy(command.rawPassword());
+        passwordPolicyEnforcer.enforce(command.rawPassword());
 
         RoleName roleName = roleRepository.findByName(RoleName.USER)
-                .map(com.pwb.iam.domain.model.Role::getName)
+                .map(Role::getName)
                 .orElseThrow(() -> new BusinessException(IamErrorCode.ROLE_NOT_FOUND));
 
         String username = generateProvisionalUsername();
@@ -83,7 +81,7 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
 
         issueOtp(saved, OtpPurpose.REGISTER);
 
-        log.info("User registered pending verification: userId={} email={}", saved.getUserId(), saved.getEmail().value());
+        log.info("User registered pending verification: userId={}", saved.getUserId());
         return saved;
     }
 
@@ -105,17 +103,6 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
 
         authEventPublisher.publishOtpIssued(
                 new OtpIssuedDomainEvent(user.getUserId(), user.getEmail().value(), purpose, expiresAt));
-    }
-
-    private void enforcePasswordPolicy(String rawPassword) {
-        PasswordPolicyResult result = passwordPolicyService.validate(rawPassword);
-        if (result.isInvalid()) {
-            String reasons = result.violations().stream()
-                    .map(PasswordPolicyViolation::name)
-                    .collect(Collectors.joining(", "));
-            log.warn("Password policy rejected: violations={}", reasons);
-            throw new WeakPasswordException(reasons);
-        }
     }
 
     private String generateProvisionalUsername() {

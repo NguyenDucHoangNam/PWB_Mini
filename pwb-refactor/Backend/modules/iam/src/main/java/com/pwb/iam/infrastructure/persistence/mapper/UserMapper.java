@@ -2,6 +2,7 @@ package com.pwb.iam.infrastructure.persistence.mapper;
 
 import com.pwb.iam.domain.model.EmailAddress;
 import com.pwb.iam.domain.model.OAuthProvider;
+import com.pwb.iam.domain.model.Role;
 import com.pwb.iam.domain.model.RoleName;
 import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.model.UserStatus;
@@ -24,13 +25,12 @@ public class UserMapper {
         if (existing != null) {
             existing.setUsername(domain.getUsername());
             existing.setEmail(domain.getEmail() == null ? null : domain.getEmail().value());
-            existing.setPassword(domain.getPassword() == null ? null : domain.getPassword().getHash());
+            existing.setPassword(domain.getPassword() == null ? null : domain.getPassword().hash());
             existing.setFullName(domain.getFullName());
             existing.setAvatarUrl(domain.getAvatarUrl());
             existing.setPhone(domain.getPhone());
             existing.setStatus(domain.getStatus());
-            existing.setRole(roleMapper.toEntity(
-                    com.pwb.iam.domain.model.Role.of(domain.getRole(), null)));
+            existing.setRole(roleMapper.toEntity(Role.of(domain.getRole(), null)));
             existing.setOauthProvider(domain.getOauthProvider());
             existing.setOauthId(domain.getOauthId());
             existing.setProvisionalUsername(domain.isProvisionalUsername());
@@ -39,13 +39,12 @@ public class UserMapper {
         return UserJpaEntity.builder()
                 .username(domain.getUsername())
                 .email(domain.getEmail() == null ? null : domain.getEmail().value())
-                .password(domain.getPassword() == null ? null : domain.getPassword().getHash())
+                .password(domain.getPassword() == null ? null : domain.getPassword().hash())
                 .fullName(domain.getFullName())
                 .avatarUrl(domain.getAvatarUrl())
                 .phone(domain.getPhone())
                 .status(domain.getStatus())
-                .role(roleMapper.toEntity(
-                        com.pwb.iam.domain.model.Role.of(domain.getRole(), null)))
+                .role(roleMapper.toEntity(Role.of(domain.getRole(), null)))
                 .oauthProvider(domain.getOauthProvider() == null ? OAuthProvider.LOCAL : domain.getOauthProvider())
                 .oauthId(domain.getOauthId())
                 .provisionalUsername(domain.isProvisionalUsername())

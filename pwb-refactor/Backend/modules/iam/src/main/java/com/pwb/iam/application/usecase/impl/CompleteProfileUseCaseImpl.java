@@ -30,7 +30,7 @@ public class CompleteProfileUseCaseImpl implements CompleteProfileUseCase {
         }
 
         if (userRepository.existsByUsername(command.username())) {
-            throw new BusinessException(IamErrorCode.EMAIL_ALREADY_REGISTERED);
+            throw new BusinessException(IamErrorCode.USERNAME_ALREADY_TAKEN);
         }
 
         user.changeUsername(command.username());

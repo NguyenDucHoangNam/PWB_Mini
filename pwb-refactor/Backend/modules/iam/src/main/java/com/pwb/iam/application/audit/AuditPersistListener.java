@@ -26,8 +26,8 @@ public class AuditPersistListener {
         try {
             json = objectMapper.writeValueAsString(event.entry());
         } catch (JsonProcessingException ex) {
-            log.warn("Audit serialization failed: eventType={} actorEmail={}",
-                    event.entry().eventType(), event.entry().actorEmail(), ex);
+            log.warn("Audit serialization failed: eventType={}",
+                    event.entry().eventType(), ex);
             return;
         }
         outboxEnqueueHelper.enqueue(

@@ -1,7 +1,7 @@
 package com.pwb.iam.infrastructure.service.impl;
 
+import com.pwb.iam.domain.model.PasswordResetPolicy;
 import com.pwb.iam.domain.service.PasswordResetTokenService;
-import com.pwb.iam.infrastructure.config.PasswordResetProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -13,6 +13,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.HexFormat;
 
 @Slf4j
 @Component
@@ -24,7 +25,7 @@ public class PasswordResetTokenServiceImpl implements PasswordResetTokenService 
     private static final String TOKEN_SEPARATOR = ".";
 
     private final SecureRandom secureRandom = new SecureRandom();
-    private final PasswordResetProperties properties;
+    private final PasswordResetPolicy policy;
 
     @Override
     public String generateSignedToken() {
@@ -66,8 +67,8 @@ public class PasswordResetTokenServiceImpl implements PasswordResetTokenService 
 
     @Override
     public String buildResetLink(String rawToken) {
-        String base = properties.getFrontendUrl();
-        String path = properties.getResetPath();
+        String base = policy.frontendUrl();
+        String path = policy.resetPath();
         if (base.endsWith("/")) {
             base = base.substring(0, base.length() - 1);
         }
@@ -81,7 +82,7 @@ public class PasswordResetTokenServiceImpl implements PasswordResetTokenService 
         try {
             Mac mac = Mac.getInstance(HMAC_ALGORITHM);
             SecretKeySpec keySpec = new SecretKeySpec(
-                    properties.getTokenSecret().getBytes(StandardCharsets.UTF_8),
+                    policy.tokenSecret().getBytes(StandardCharsets.UTF_8),
                     HMAC_ALGORITHM);
             mac.init(keySpec);
             byte[] rawHmac = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
@@ -96,11 +97,7 @@ public class PasswordResetTokenServiceImpl implements PasswordResetTokenService 
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            StringBuilder hex = new StringBuilder(hash.length * 2);
-            for (byte b : hash) {
-                hex.append(String.format("%02x", b));
-            }
-            return hex.toString();
+            return HexFormat.of().formatHex(hash);
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("SHA-256 not available", ex);
         }

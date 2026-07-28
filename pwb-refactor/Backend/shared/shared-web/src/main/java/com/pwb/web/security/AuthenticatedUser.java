@@ -12,7 +12,7 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AuthenticatedUser {
-    private Long userId;
+    private String userId;
     private String email;
     private Set<String> authorities;
     private boolean isOAuthUser;

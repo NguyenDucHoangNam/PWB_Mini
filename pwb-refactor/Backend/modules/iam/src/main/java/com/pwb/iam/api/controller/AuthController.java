@@ -15,9 +15,10 @@ import com.pwb.iam.api.dto.response.AuthMessageResponse;
 import com.pwb.iam.api.dto.response.AuthResponse;
 import com.pwb.iam.api.dto.response.LogoutResponse;
 import com.pwb.iam.application.facade.IamFacade;
-import com.pwb.iam.infrastructure.security.CurrentUserId;
 import com.pwb.iam.infrastructure.security.JwtAuthenticationFilter;
 import com.pwb.iam.infrastructure.service.impl.JwtTokenProvider;
+import com.pwb.web.security.CurrentUser;
+import com.pwb.web.security.CurrentUserArgumentResolver;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -82,7 +83,7 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<LogoutResponse> logout(
-            @CurrentUserId UUID userId,
+            @CurrentUser UUID userId,
             @RequestHeader(name = "Authorization", required = false) String authorization,
             @Valid @RequestBody LogoutRequest request
     ) {
@@ -111,7 +112,7 @@ public class AuthController {
 
     @PostMapping("/change-password")
     public ResponseEntity<AuthMessageResponse> changePassword(
-            @CurrentUserId UUID userId,
+            @CurrentUser UUID userId,
             @Valid @RequestBody ChangePasswordRequest request
     ) {
         AuthMessageResponse data = iamFacade.changePassword(userId, request);

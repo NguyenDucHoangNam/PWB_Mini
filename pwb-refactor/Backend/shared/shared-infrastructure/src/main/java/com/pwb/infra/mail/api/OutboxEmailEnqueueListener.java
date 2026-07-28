@@ -26,7 +26,7 @@ public class OutboxEmailEnqueueListener {
         try {
             json = objectMapper.writeValueAsString(event.payload());
         } catch (JsonProcessingException ex) {
-            log.warn("Email serialization failed: toEmail={} template={}", event.payload().toEmail(), event.payload().template(), ex);
+            log.warn("Email serialization failed: template={}", event.payload().template(), ex);
             return;
         }
         outboxEnqueueHelper.enqueue(

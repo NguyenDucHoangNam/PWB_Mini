@@ -17,14 +17,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.Optional;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class VerifyOtpUseCaseImpl implements VerifyOtpUseCase {
-
-    private static final int MAX_ATTEMPTS = 5;
 
     private final UserRepository userRepository;
     private final OtpCodeRepository otpCodeRepository;
@@ -42,7 +39,7 @@ public class VerifyOtpUseCaseImpl implements VerifyOtpUseCase {
                 .orElseThrow(() -> new BusinessException(IamErrorCode.AUTH_OTP_EXPIRED));
 
         Instant now = Instant.now();
-        if (otp.isExpired(now)) {
+        if (otp.isExpired(now) || otp.isLocked()) {
             throw new BusinessException(IamErrorCode.AUTH_OTP_EXPIRED);
         }
 
@@ -67,14 +64,5 @@ public class VerifyOtpUseCaseImpl implements VerifyOtpUseCase {
 
         log.info("OTP verified: userId={} purpose={}", user.getUserId(), command.purpose());
         return user;
-    }
-
-    private Optional<OtpCode> findActiveOtp(java.util.UUID userId, com.pwb.iam.domain.model.OtpPurpose purpose) {
-        return otpCodeRepository.findActiveByUserAndPurpose(userId, purpose);
-    }
-
-    @SuppressWarnings("unused")
-    private boolean isLocked(OtpCode otp) {
-        return otp.getAttempts() >= MAX_ATTEMPTS;
     }
 }

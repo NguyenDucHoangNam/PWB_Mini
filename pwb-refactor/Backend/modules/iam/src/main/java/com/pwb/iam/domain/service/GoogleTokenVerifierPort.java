@@ -1,8 +1,8 @@
 package com.pwb.iam.domain.service;
 
-import com.pwb.iam.api.dto.GoogleIdTokenPayload;
+import com.pwb.iam.domain.model.GoogleUserInfo;
 
 public interface GoogleTokenVerifierPort {
 
-    GoogleIdTokenPayload verify(String idToken);
+    GoogleUserInfo verify(String idToken);
 }

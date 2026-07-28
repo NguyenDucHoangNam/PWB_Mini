@@ -1,10 +1,10 @@
 package com.pwb.iam.infrastructure.security;
 
 import com.pwb.iam.infrastructure.service.impl.JwtTokenProvider;
+import com.pwb.web.security.AuthenticatedUser;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -15,7 +15,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
-import java.util.UUID;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
@@ -46,13 +46,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     String role = claims.get("role", String.class);
                     if (subject != null) {
                         try {
-                            UUID userId = UUID.fromString(subject);
-                            List<SimpleGrantedAuthority> authorities = role == null
-                                    ? List.of()
-                                    : List.of(new SimpleGrantedAuthority("ROLE_" + role));
-                            AuthenticatedUser principal = new AuthenticatedUser(userId, claims.get("email", String.class), role);
+                            Set<String> authorities = role == null
+                                    ? Set.of()
+                                    : Set.of("ROLE_" + role);
+                            AuthenticatedUser principal = AuthenticatedUser.builder()
+                                    .userId(subject)
+                                    .email(claims.get("email", String.class))
+                                    .authorities(authorities)
+                                    .isOAuthUser(false)
+                                    .build();
                             UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                                    principal, null, authorities);
+                                    principal, null, List.of());
                             SecurityContextHolder.getContext().setAuthentication(auth);
                         } catch (IllegalArgumentException ex) {
                             SecurityContextHolder.clearContext();

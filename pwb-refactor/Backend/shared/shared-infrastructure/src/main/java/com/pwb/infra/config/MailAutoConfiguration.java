@@ -1,14 +1,10 @@
 package com.pwb.infra.config;
 
+import com.pwb.infra.mail.renderer.EmailTemplateRegistry;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.context.annotation.ComponentScan;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 
 @AutoConfiguration
-@ComponentScan(basePackages = {
-        "com.pwb.infra.mail",
-        "com.pwb.infra.mail.api",
-        "com.pwb.infra.mail.consumer",
-        "com.pwb.infra.mail.renderer"
-})
+@ConditionalOnClass(EmailTemplateRegistry.class)
 public class MailAutoConfiguration {
 }

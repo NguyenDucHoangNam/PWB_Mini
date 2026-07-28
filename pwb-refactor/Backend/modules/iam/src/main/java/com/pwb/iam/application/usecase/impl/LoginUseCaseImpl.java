@@ -5,6 +5,7 @@ import com.pwb.iam.application.usecase.LoginResult;
 import com.pwb.iam.application.usecase.LoginUseCase;
 import com.pwb.iam.domain.event.AuthEventPublisher;
 import com.pwb.iam.domain.exception.IamErrorCode;
+import com.pwb.iam.domain.model.LoginPolicy;
 import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.model.UserStatus;
 import com.pwb.iam.domain.repository.UserRepository;
@@ -13,7 +14,6 @@ import com.pwb.iam.domain.service.PasswordHasher;
 import com.pwb.iam.domain.service.RateLimiter;
 import com.pwb.iam.domain.service.RefreshTokenManager;
 import com.pwb.iam.domain.service.TokenService;
-import com.pwb.iam.infrastructure.config.RateLimitProperties;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +34,7 @@ public class LoginUseCaseImpl implements LoginUseCase {
     private final TokenService tokenService;
     private final RefreshTokenManager refreshTokenManager;
     private final AuthEventPublisher authEventPublisher;
-    private final RateLimitProperties rateLimitProperties;
+    private final LoginPolicy loginPolicy;
 
     @Override
     @Transactional
@@ -42,8 +42,8 @@ public class LoginUseCaseImpl implements LoginUseCase {
         String email = command.email().trim().toLowerCase();
         String clientIp = command.clientIp() == null ? "unknown" : command.clientIp();
 
-        enforceRateLimit("login:ip:" + clientIp, rateLimitProperties.getLoginPerMinute());
-        enforceRateLimit("login:email:" + email, rateLimitProperties.getLoginPerMinute());
+        enforceRateLimit("login:ip:" + clientIp, loginPolicy.loginPerMinute());
+        enforceRateLimit("login:email:" + email, loginPolicy.loginPerMinute());
 
         LoginAttemptChecker.LockState lockState = attemptChecker.isLocked(email, clientIp);
         if (lockState.locked()) {
@@ -60,8 +60,7 @@ public class LoginUseCaseImpl implements LoginUseCase {
             throw new BusinessException(IamErrorCode.LOGIN_BAD_CREDENTIALS);
         }
 
-        String passwordHash = user.getPassword() == null ? null : user.getPassword().getHash();
-        if (passwordHash == null || !passwordHasher.matches(command.rawPassword(), passwordHash)) {
+        if (user.getPassword() == null || !passwordHasher.matches(command.rawPassword(), user.getPassword().hash())) {
             attemptChecker.recordFailure(email, clientIp);
             log.warn("Login failed - bad credentials: email={}", email);
             authEventPublisher.publishLoginFailed(email, clientIp, "BAD_CREDENTIALS");
@@ -84,7 +83,7 @@ public class LoginUseCaseImpl implements LoginUseCase {
 
         authEventPublisher.publishAuthSuccess(user.getUserId(), user.getEmail().value(), clientIp);
 
-        log.info("Login success: userId={} email={}", user.getUserId(), email);
+        log.info("Login success: userId={}", user.getUserId());
         return new LoginResult(access, refresh);
     }
 

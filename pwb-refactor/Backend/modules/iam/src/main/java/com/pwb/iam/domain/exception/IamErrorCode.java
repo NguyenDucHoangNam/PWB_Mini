@@ -21,6 +21,7 @@ public enum IamErrorCode implements ErrorCode {
     RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "IAM_014", "Too many requests. Please slow down."),
     AUTH_INVALID_CURRENT_PASSWORD(HttpStatus.BAD_REQUEST, "IAM_010", "Current password is incorrect."),
     AUTH_PASSWORD_REUSED(HttpStatus.BAD_REQUEST, "IAM_011", "New password must be different from the current one."),
+    USERNAME_ALREADY_TAKEN(HttpStatus.CONFLICT, "IAM_013", "Username is already taken."),
     AUTH_RESET_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "IAM_014", "Password reset token is invalid or expired."),
     AUTH_OAUTH_USER_NO_PASSWORD(HttpStatus.BAD_REQUEST, "IAM_015", "OAuth account does not have a password."),
     PASSWORD_RESET_COOLDOWN(HttpStatus.TOO_MANY_REQUESTS, "IAM_017", "Please wait before requesting another password reset."),
@@ -30,7 +31,8 @@ public enum IamErrorCode implements ErrorCode {
     AUTH_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "IAM_026", "Too many requests. Please try again later."),
     AUTH_OTP_DAILY_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "IAM_027", "You have reached the daily OTP request limit. Please try again tomorrow."),
     AUTH_GOOGLE_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "IAM_GOOGLE_001", "Google ID token is invalid or expired."),
-    AUTH_GOOGLE_EMAIL_NOT_VERIFIED(HttpStatus.UNAUTHORIZED, "IAM_GOOGLE_002", "Google email is not verified.");
+    AUTH_GOOGLE_EMAIL_NOT_VERIFIED(HttpStatus.UNAUTHORIZED, "IAM_GOOGLE_002", "Google email is not verified."),
+    ACCESS_DENIED(HttpStatus.FORBIDDEN, "IAM_ACCESS_001", "Access denied due to insufficient permissions.");
 
     IamErrorCode(HttpStatus httpStatus, String code, String defaultMessage) {
         this.httpStatus = httpStatus;

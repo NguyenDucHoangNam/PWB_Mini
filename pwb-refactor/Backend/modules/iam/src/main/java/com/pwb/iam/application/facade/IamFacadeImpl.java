@@ -39,9 +39,11 @@ import com.pwb.iam.application.usecase.ResetPasswordUseCase;
 import com.pwb.iam.application.usecase.VerifyOtpUseCase;
 import com.pwb.iam.domain.event.AuthSuccessEvent;
 import com.pwb.iam.domain.event.AuthEventPublisher;
+import com.pwb.iam.domain.exception.IamErrorCode;
 import com.pwb.iam.domain.model.OtpPurpose;
 import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.repository.UserRepository;
+import com.pwb.shared.exception.BusinessException;
 import com.pwb.web.message.MessageResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -188,8 +190,11 @@ public class IamFacadeImpl implements IamFacade {
     }
 
     private AuthResponse buildTokenResponse(LoginResult result, String messageKey) {
-        UUID userId = result.refreshToken() == null ? null : result.refreshToken().userId();
-        User user = userId == null ? null : userRepository.findById(userId).orElse(null);
+        if (result.accessToken() == null || result.refreshToken() == null) {
+            throw new BusinessException(IamErrorCode.REFRESH_TOKEN_INVALID);
+        }
+        UUID userId = result.refreshToken().userId();
+        User user = userRepository.findById(userId).orElse(null);
         AuthResponse response;
         if (user == null) {
             response = AuthResponse.tokens(userId, null, null, null, null,

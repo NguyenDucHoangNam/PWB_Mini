@@ -2,6 +2,7 @@ package com.pwb.iam.infrastructure.mail;
 
 import com.pwb.infra.mail.api.EmailTemplate;
 import com.pwb.infra.mail.renderer.EmailTemplateRenderer;
+import com.pwb.infra.mail.support.HtmlEscape;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -16,7 +17,7 @@ public class PasswordResetRenderer implements EmailTemplateRenderer {
 
     @Override
     public String render(Map<String, String> variables, String locale) {
-        String link = variables.getOrDefault("resetLink", "#");
+        String link = HtmlEscape.url(variables.getOrDefault("resetLink", "#"));
         return "<html><body style=\"font-family:Arial,sans-serif\">"
                 + "<h2>Đặt lại mật khẩu PWB</h2>"
                 + "<p>Sếp vừa yêu cầu đặt lại mật khẩu. Nhấn nút bên dưới để tiếp tục:</p>"

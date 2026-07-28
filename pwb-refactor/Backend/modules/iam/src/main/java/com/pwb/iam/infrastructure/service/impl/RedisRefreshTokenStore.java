@@ -1,5 +1,7 @@
 package com.pwb.iam.infrastructure.service.impl;
 
+import com.pwb.iam.domain.exception.RefreshTokenExpiredException;
+import com.pwb.iam.domain.exception.RefreshTokenInvalidException;
 import com.pwb.iam.domain.service.RefreshTokenManager;
 import com.pwb.iam.infrastructure.config.RefreshTokenProperties;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +16,7 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.HexFormat;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -53,19 +56,19 @@ public class RedisRefreshTokenStore implements RefreshTokenManager {
     @Override
     public RefreshToken rotate(String rawToken) {
         if (rawToken == null || rawToken.isBlank()) {
-            throw new IllegalStateException("REFRESH_TOKEN_INVALID");
+            throw new RefreshTokenInvalidException();
         }
         String hash = sha256(rawToken);
         String key = tokenKey(hash);
         String userIdStr = redis.opsForValue().get(key);
         if (userIdStr == null) {
-            throw new IllegalStateException("REFRESH_TOKEN_EXPIRED");
+            throw new RefreshTokenExpiredException();
         }
         UUID userId;
         try {
             userId = UUID.fromString(userIdStr);
         } catch (IllegalArgumentException ex) {
-            throw new IllegalStateException("REFRESH_TOKEN_INVALID");
+            throw new RefreshTokenInvalidException();
         }
         Long ttlSeconds = redis.getExpire(key);
         redis.delete(key);
@@ -94,7 +97,11 @@ public class RedisRefreshTokenStore implements RefreshTokenManager {
         String userIdStr = redis.opsForValue().get(key);
         Boolean removed = redis.delete(key);
         if (userIdStr != null) {
-            redis.opsForSet().remove(userSetKey(UUID.fromString(userIdStr)), hash);
+            try {
+                redis.opsForSet().remove(userSetKey(UUID.fromString(userIdStr)), hash);
+            } catch (IllegalArgumentException ex) {
+                log.debug("Invalid userId format in refresh token key: {}", userIdStr);
+            }
         }
         log.info("Refresh token revoked: removed={}", removed);
     }
@@ -157,13 +164,9 @@ public class RedisRefreshTokenStore implements RefreshTokenManager {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            StringBuilder builder = new StringBuilder(hashBytes.length * 2);
-            for (byte b : hashBytes) {
-                builder.append(String.format("%02x", b));
-            }
-            return builder.toString();
+            return HexFormat.of().formatHex(hashBytes);
         } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException("SHA-256 not available", ex);
+            throw new RefreshTokenInvalidException("SHA-256 not available");
         }
     }
 }
