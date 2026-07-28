@@ -4,9 +4,14 @@ import java.util.UUID;
 
 public record AuthSuccessEvent(
         UUID userId,
-        String email
+        String email,
+        String clientIp
 ) {
     public static AuthSuccessEvent of(UUID userId, String email) {
-        return new AuthSuccessEvent(userId, email);
+        return new AuthSuccessEvent(userId, email, null);
+    }
+
+    public static AuthSuccessEvent of(UUID userId, String email, String clientIp) {
+        return new AuthSuccessEvent(userId, email, clientIp);
     }
 }

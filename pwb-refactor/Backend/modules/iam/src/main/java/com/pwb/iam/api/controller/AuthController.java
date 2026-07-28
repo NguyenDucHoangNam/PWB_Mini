@@ -92,8 +92,8 @@ public class AuthController {
     }
 
     @PostMapping("/google-login")
-    public ResponseEntity<AuthResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
-        AuthResponse data = iamFacade.loginWithGoogle(request);
+    public ResponseEntity<AuthResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request, HttpServletRequest http) {
+        AuthResponse data = iamFacade.loginWithGoogle(request, JwtAuthenticationFilter.currentClientIp(http));
         return ResponseEntity.ok(data);
     }
 

@@ -55,7 +55,7 @@ public class ChangePasswordUseCaseImpl implements ChangePasswordUseCase {
         User saved = userRepository.save(user);
 
         refreshTokenManager.revokeAllForUser(saved.getUserId());
-        authEventPublisher.publishPasswordChanged(saved.getUserId(), saved.getEmail().value());
+        authEventPublisher.publishPasswordChanged(saved.getUserId(), saved.getEmail().value(), null);
 
         log.info("Password changed: userId={}", saved.getUserId());
         return new Result(saved.getUserId());

@@ -33,7 +33,7 @@ public interface IamFacade {
 
     LogoutResponse logout(UUID userId, String accessJti, long accessExpiresInSeconds, LogoutRequest request);
 
-    AuthResponse loginWithGoogle(GoogleLoginRequest request);
+    AuthResponse loginWithGoogle(GoogleLoginRequest request, String clientIp);
 
     AuthMessageResponse forgotPassword(ForgotPasswordRequest request);
 

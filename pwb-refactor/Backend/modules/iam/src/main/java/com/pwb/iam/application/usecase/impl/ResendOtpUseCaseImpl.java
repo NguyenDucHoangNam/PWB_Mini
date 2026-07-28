@@ -48,18 +48,18 @@ public class ResendOtpUseCaseImpl implements ResendOtpUseCase {
                     java.util.Map.of("cooldownSeconds", remaining));
         }
 
+        String rawCode = otpGenerator.generate();
+        String codeHash = otpGenerator.hash(rawCode);
+        Instant expiresAt = Instant.now().plus(Duration.ofMinutes(OTP_TTL_MINUTES));
+
         OtpDeliveryPort.DeliveryResult delivery = otpDeliveryPort.deliver(
-                user.getUserId(), user.getEmail().value(), command.purpose().name());
+                user.getUserId(), user.getEmail().value(), command.purpose().name(), rawCode);
         if (!delivery.delivered()) {
             throw new BusinessException(IamErrorCode.AUTH_RATE_LIMIT_EXCEEDED,
                     java.util.Map.of("cooldownSeconds", delivery.cooldown().toSeconds()));
         }
 
         otpCodeRepository.deleteAllByUserAndPurpose(user.getUserId(), command.purpose());
-
-        String rawCode = otpGenerator.generate();
-        String codeHash = otpGenerator.hash(rawCode);
-        Instant expiresAt = Instant.now().plus(Duration.ofMinutes(OTP_TTL_MINUTES));
 
         OtpCode otp = OtpCode.create(user.getUserId(), command.purpose(), codeHash, expiresAt);
         otpCodeRepository.save(otp);

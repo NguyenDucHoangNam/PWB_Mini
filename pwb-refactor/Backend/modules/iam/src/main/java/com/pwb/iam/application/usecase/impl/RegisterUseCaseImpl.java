@@ -88,17 +88,17 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
     }
 
     private void issueOtp(User user, OtpPurpose purpose) {
-        OtpDeliveryPort.DeliveryResult delivery = otpDeliveryPort.deliver(user.getUserId(), user.getEmail().value(), purpose.name());
+        String rawCode = otpGenerator.generate();
+        String codeHash = otpGenerator.hash(rawCode);
+        Instant expiresAt = Instant.now().plus(Duration.ofMinutes(OTP_TTL_MINUTES));
+
+        OtpDeliveryPort.DeliveryResult delivery = otpDeliveryPort.deliver(user.getUserId(), user.getEmail().value(), purpose.name(), rawCode);
         if (!delivery.delivered()) {
             throw new BusinessException(IamErrorCode.AUTH_RATE_LIMIT_EXCEEDED,
                     java.util.Map.of("cooldownSeconds", delivery.cooldown().toSeconds()));
         }
 
         otpCodeRepository.deleteAllByUserAndPurpose(user.getUserId(), purpose);
-
-        String rawCode = otpGenerator.generate();
-        String codeHash = otpGenerator.hash(rawCode);
-        Instant expiresAt = Instant.now().plus(Duration.ofMinutes(OTP_TTL_MINUTES));
 
         OtpCode otp = OtpCode.create(user.getUserId(), purpose, codeHash, expiresAt);
         otpCodeRepository.save(otp);

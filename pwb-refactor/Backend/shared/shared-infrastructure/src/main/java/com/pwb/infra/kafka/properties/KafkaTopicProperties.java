@@ -11,7 +11,9 @@ public class KafkaTopicProperties {
 
     public static final String TOPIC_EMAIL = "notification.email.v1";
     public static final String TOPIC_VOICE_PROCESSING = "voice.processing.v1";
+    public static final String TOPIC_IAM_AUDIT = "iam.audit.v1";
 
     private String email = TOPIC_EMAIL;
     private String voiceProcessing = TOPIC_VOICE_PROCESSING;
+    private String iamAudit = TOPIC_IAM_AUDIT;
 }

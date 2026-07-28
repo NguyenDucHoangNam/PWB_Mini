@@ -5,7 +5,7 @@ import java.util.UUID;
 
 public interface OtpDeliveryPort {
 
-    DeliveryResult deliver(UUID userId, String email, String purpose);
+    DeliveryResult deliver(UUID userId, String email, String purpose, String code);
 
     record DeliveryResult(boolean delivered, Duration cooldown) {
         public static DeliveryResult ok(Duration cooldown) {

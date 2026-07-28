@@ -1,6 +1,6 @@
 package com.pwb.iam.application.command;
 
-public record GoogleLoginCommand(String idToken) {
+public record GoogleLoginCommand(String idToken, String clientIp) {
 
     public GoogleLoginCommand {
         if (idToken == null || idToken.isBlank()) {

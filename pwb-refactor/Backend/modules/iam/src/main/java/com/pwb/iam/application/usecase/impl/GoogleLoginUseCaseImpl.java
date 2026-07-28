@@ -5,7 +5,6 @@ import com.pwb.iam.application.command.GoogleLoginCommand;
 import com.pwb.iam.application.usecase.GoogleLoginUseCase;
 import com.pwb.iam.application.usecase.LoginResult;
 import com.pwb.iam.domain.event.AuthEventPublisher;
-import com.pwb.iam.domain.event.AuthSuccessEvent;
 import com.pwb.iam.domain.exception.IamErrorCode;
 import com.pwb.iam.domain.model.EmailAddress;
 import com.pwb.iam.domain.model.OAuthProvider;
@@ -15,14 +14,17 @@ import com.pwb.iam.domain.model.UserStatus;
 import com.pwb.iam.domain.repository.RoleRepository;
 import com.pwb.iam.domain.repository.UserRepository;
 import com.pwb.iam.domain.service.GoogleTokenVerifierPort;
+import com.pwb.iam.domain.service.RateLimiter;
 import com.pwb.iam.domain.service.RefreshTokenManager;
 import com.pwb.iam.domain.service.TokenService;
+import com.pwb.iam.infrastructure.config.RateLimitProperties;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.UUID;
 
 @Slf4j
@@ -39,11 +41,21 @@ public class GoogleLoginUseCaseImpl implements GoogleLoginUseCase {
     private final TokenService tokenService;
     private final RefreshTokenManager refreshTokenManager;
     private final AuthEventPublisher authEventPublisher;
+    private final RateLimiter rateLimiter;
+    private final RateLimitProperties rateLimitProperties;
 
     @Override
     @Transactional
     public LoginResult execute(GoogleLoginCommand command) {
+        String clientIp = command.clientIp() == null ? "unknown" : command.clientIp();
+
         GoogleIdTokenPayload payload = googleTokenVerifier.verify(command.idToken());
+
+        enforceRateLimit("google-login:ip:" + clientIp, rateLimitProperties.getLoginPerMinute());
+        enforceRateLimit(
+                "google-login:email:"
+                        + (payload.email() == null ? "unknown" : payload.email().trim().toLowerCase()),
+                rateLimitProperties.getLoginPerMinute());
 
         User user = userRepository.findByOAuthProviderAndOAuthId(OAuthProvider.GOOGLE, payload.sub())
                 .orElse(null);
@@ -61,12 +73,20 @@ public class GoogleLoginUseCaseImpl implements GoogleLoginUseCase {
         TokenService.AccessToken access = tokenService.issueAccessToken(user);
         RefreshTokenManager.RefreshToken refresh = refreshTokenManager.issue(user.getUserId());
 
-        authEventPublisher.publishAuthSuccess(AuthSuccessEvent.of(user.getUserId(), user.getEmail().value()));
+        authEventPublisher.publishGoogleLoginSuccess(user.getUserId(), user.getEmail().value(), clientIp);
 
         log.info("Google login success: userId={} email={}",
                 user.getUserId(), user.getEmail().value());
 
         return new LoginResult(access, refresh);
+    }
+
+    private void enforceRateLimit(String key, int limit) {
+        RateLimiter.Decision decision = rateLimiter.consume(key, limit, Duration.ofMinutes(1));
+        if (!decision.allowed()) {
+            throw new BusinessException(IamErrorCode.RATE_LIMITED,
+                    java.util.Map.of("retryAfterSeconds", decision.retryAfterSeconds()));
+        }
     }
 
     private User handleNewGoogleUser(GoogleIdTokenPayload payload) {

@@ -160,8 +160,8 @@ public class IamFacadeImpl implements IamFacade {
     }
 
     @Override
-    public AuthResponse loginWithGoogle(GoogleLoginRequest request) {
-        GoogleLoginCommand command = new GoogleLoginCommand(request.idToken());
+    public AuthResponse loginWithGoogle(GoogleLoginRequest request, String clientIp) {
+        GoogleLoginCommand command = new GoogleLoginCommand(request.idToken(), clientIp);
         LoginResult result = googleLoginUseCase.execute(command);
         return buildTokenResponse(result, MSG_GOOGLE_LOGIN_SUCCESS);
     }

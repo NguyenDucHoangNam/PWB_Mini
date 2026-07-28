@@ -70,7 +70,7 @@ public class ResetPasswordUseCaseImpl implements ResetPasswordUseCase {
         passwordResetTokenRepository.save(resetToken);
 
         refreshTokenManager.revokeAllForUser(saved.getUserId());
-        authEventPublisher.publishPasswordChanged(saved.getUserId(), saved.getEmail().value());
+        authEventPublisher.publishPasswordChanged(saved.getUserId(), saved.getEmail().value(), null);
 
         log.info("Password reset completed: userId={}", saved.getUserId());
         return new Result(saved.getUserId());

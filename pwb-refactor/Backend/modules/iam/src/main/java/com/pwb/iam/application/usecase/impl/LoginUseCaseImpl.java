@@ -4,7 +4,6 @@ import com.pwb.iam.application.command.LoginCommand;
 import com.pwb.iam.application.usecase.LoginResult;
 import com.pwb.iam.application.usecase.LoginUseCase;
 import com.pwb.iam.domain.event.AuthEventPublisher;
-import com.pwb.iam.domain.event.AuthSuccessEvent;
 import com.pwb.iam.domain.exception.IamErrorCode;
 import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.model.UserStatus;
@@ -49,6 +48,7 @@ public class LoginUseCaseImpl implements LoginUseCase {
         LoginAttemptChecker.LockState lockState = attemptChecker.isLocked(email, clientIp);
         if (lockState.locked()) {
             log.warn("Login rejected - account locked: email={} ip={} retryAfter={}", email, clientIp, lockState.retryAfterSeconds());
+            authEventPublisher.publishLoginFailed(email, clientIp, "ACCOUNT_LOCKED");
             throw new BusinessException(IamErrorCode.ACCOUNT_LOCKED,
                     java.util.Map.of("retryAfterSeconds", lockState.retryAfterSeconds()));
         }
@@ -56,6 +56,7 @@ public class LoginUseCaseImpl implements LoginUseCase {
         User user = userRepository.findByEmail(email).orElse(null);
         if (user == null) {
             attemptChecker.recordFailure(email, clientIp);
+            authEventPublisher.publishLoginFailed(email, clientIp, "USER_NOT_FOUND");
             throw new BusinessException(IamErrorCode.LOGIN_BAD_CREDENTIALS);
         }
 
@@ -63,13 +64,16 @@ public class LoginUseCaseImpl implements LoginUseCase {
         if (passwordHash == null || !passwordHasher.matches(command.rawPassword(), passwordHash)) {
             attemptChecker.recordFailure(email, clientIp);
             log.warn("Login failed - bad credentials: email={}", email);
+            authEventPublisher.publishLoginFailed(email, clientIp, "BAD_CREDENTIALS");
             throw new BusinessException(IamErrorCode.LOGIN_BAD_CREDENTIALS);
         }
 
         if (user.getStatus() == UserStatus.BANNED || user.getStatus() == UserStatus.DELETED) {
+            authEventPublisher.publishLoginFailed(email, clientIp, "ACCOUNT_INACTIVE");
             throw new BusinessException(IamErrorCode.ACCOUNT_INACTIVE);
         }
         if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
+            authEventPublisher.publishLoginFailed(email, clientIp, "ACCOUNT_NOT_VERIFIED");
             throw new BusinessException(IamErrorCode.ACCOUNT_NOT_VERIFIED);
         }
 
@@ -78,7 +82,7 @@ public class LoginUseCaseImpl implements LoginUseCase {
         TokenService.AccessToken access = tokenService.issueAccessToken(user);
         RefreshTokenManager.RefreshToken refresh = refreshTokenManager.issue(user.getUserId());
 
-        authEventPublisher.publishAuthSuccess(AuthSuccessEvent.of(user.getUserId(), user.getEmail().value()));
+        authEventPublisher.publishAuthSuccess(user.getUserId(), user.getEmail().value(), clientIp);
 
         log.info("Login success: userId={} email={}", user.getUserId(), email);
         return new LoginResult(access, refresh);
