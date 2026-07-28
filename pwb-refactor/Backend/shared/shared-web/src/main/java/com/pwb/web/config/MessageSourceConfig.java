@@ -17,10 +17,7 @@ public class MessageSourceConfig {
     @Bean
     public MessageSource messageSource() {
         ReloadableResourceBundleMessageSource source = new ReloadableResourceBundleMessageSource();
-        source.setBasenames(
-            "classpath:messages/messages",
-            "classpath:com/pwb/iam/messages/messages"
-        );
+        source.setBasename("classpath:messages/messages");
         source.setDefaultEncoding(StandardCharsets.UTF_8.name());
         source.setFallbackToSystemLocale(false);
         source.setUseCodeAsDefaultMessage(false);
