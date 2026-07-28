@@ -13,6 +13,8 @@ public class AuthResponse {
     private String role;
     private String tokenType = "Bearer";
     private long expiresIn;
+    private String accessToken;
+    private String refreshToken;
     @JsonIgnore
     private String message;
 
@@ -26,6 +28,15 @@ public class AuthResponse {
         response.username = username;
         response.status = status;
         response.role = role;
+        return response;
+    }
+
+    public static AuthResponse tokens(UUID userId, String email, String username, String status, String role,
+                                      String accessToken, String refreshToken, long expiresIn) {
+        AuthResponse response = bearerOnly(userId, email, username, status, role);
+        response.accessToken = accessToken;
+        response.refreshToken = refreshToken;
+        response.expiresIn = expiresIn;
         return response;
     }
 
@@ -83,6 +94,22 @@ public class AuthResponse {
 
     public void setExpiresIn(long expiresIn) {
         this.expiresIn = expiresIn;
+    }
+
+    public String getAccessToken() {
+        return accessToken;
+    }
+
+    public void setAccessToken(String accessToken) {
+        this.accessToken = accessToken;
+    }
+
+    public String getRefreshToken() {
+        return refreshToken;
+    }
+
+    public void setRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
     }
 
     public String getMessage() {

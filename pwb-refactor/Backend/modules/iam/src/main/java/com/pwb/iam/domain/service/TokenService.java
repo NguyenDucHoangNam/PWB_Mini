@@ -4,7 +4,10 @@ import com.pwb.iam.domain.model.User;
 
 public interface TokenService {
 
-    String issueAccessToken(User user);
+    AccessToken issueAccessToken(User user);
 
     long accessTokenExpiresInSeconds();
+
+    record AccessToken(String tokenValue, String jti, java.time.Instant expiresAt, long expiresInSeconds) {
+    }
 }
