@@ -3,6 +3,7 @@ package com.pwb.iam.application.facade;
 import com.pwb.iam.api.dto.request.ChangePasswordRequest;
 import com.pwb.iam.api.dto.request.CompleteProfileRequest;
 import com.pwb.iam.api.dto.request.ForgotPasswordRequest;
+import com.pwb.iam.api.dto.request.GoogleLoginRequest;
 import com.pwb.iam.api.dto.request.LoginRequest;
 import com.pwb.iam.api.dto.request.LogoutRequest;
 import com.pwb.iam.api.dto.request.RefreshTokenRequest;
@@ -31,6 +32,8 @@ public interface IamFacade {
     AuthResponse refresh(RefreshTokenRequest request, String clientIp);
 
     LogoutResponse logout(UUID userId, String accessJti, long accessExpiresInSeconds, LogoutRequest request);
+
+    AuthResponse loginWithGoogle(GoogleLoginRequest request);
 
     AuthMessageResponse forgotPassword(ForgotPasswordRequest request);
 

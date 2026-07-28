@@ -78,6 +78,35 @@ public final class User extends BaseEntity {
         );
     }
 
+    public static User createGoogle(
+            String username,
+            EmailAddress email,
+            String oauthId,
+            String fullName,
+            String avatarUrl
+    ) {
+        if (email == null) {
+            throw new IllegalArgumentException("email must not be null");
+        }
+        if (oauthId == null || oauthId.isBlank()) {
+            throw new IllegalArgumentException("oauthId must not be blank");
+        }
+        return new User(
+                UUID.randomUUID(),
+                username,
+                email,
+                null,
+                fullName,
+                avatarUrl,
+                null,
+                UserStatus.PENDING_VERIFICATION,
+                RoleName.USER,
+                OAuthProvider.GOOGLE,
+                oauthId,
+                true
+        );
+    }
+
     public static User rehydrate(
             UUID userId,
             String username,
@@ -190,6 +219,28 @@ public final class User extends BaseEntity {
         this.fullName = fullName;
         this.phone = phone;
         this.avatarUrl = avatarUrl;
+        touch();
+    }
+
+    public void changeAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
+        touch();
+    }
+
+    public void changeFullName(String fullName) {
+        this.fullName = fullName;
+        touch();
+    }
+
+    public void linkOAuth(OAuthProvider provider, String oauthId) {
+        if (provider == null) {
+            throw new IllegalArgumentException("provider must not be null");
+        }
+        if (oauthId == null || oauthId.isBlank()) {
+            throw new IllegalArgumentException("oauthId must not be blank");
+        }
+        this.oauthProvider = provider;
+        this.oauthId = oauthId;
         touch();
     }
 }

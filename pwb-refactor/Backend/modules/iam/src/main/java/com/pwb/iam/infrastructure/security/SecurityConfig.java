@@ -25,6 +25,7 @@ public class SecurityConfig implements WebMvcConfigurer {
             "/api/v1/auth/refresh",
             "/api/v1/auth/forgot-password",
             "/api/v1/auth/reset-password",
+            "/api/v1/auth/google-login",
             "/actuator/health",
             "/v3/api-docs/**",
             "/swagger-ui/**",

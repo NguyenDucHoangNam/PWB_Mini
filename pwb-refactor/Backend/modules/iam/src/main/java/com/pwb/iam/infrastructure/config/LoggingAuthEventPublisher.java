@@ -38,4 +38,14 @@ public class LoggingAuthEventPublisher implements AuthEventPublisher {
     public void publishPasswordChanged(java.util.UUID userId, String email) {
         log.info("Password changed: userId={} email={}", userId, email);
     }
+
+    @Override
+    public void publishUserRegisteredGoogle(java.util.UUID userId, String email, String fullName) {
+        log.info("User registered via Google: userId={} email={} fullName={}", userId, email, fullName);
+    }
+
+    @Override
+    public void publishUserLinkedGoogle(java.util.UUID userId, String email, String fullName) {
+        log.info("Google account linked to existing user: userId={} email={} fullName={}", userId, email, fullName);
+    }
 }

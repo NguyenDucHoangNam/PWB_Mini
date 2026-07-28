@@ -1,5 +1,6 @@
 package com.pwb.iam.infrastructure.config;
 
+import com.pwb.iam.infrastructure.security.config.GoogleProperties;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -24,7 +25,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
         RefreshTokenProperties.class,
         LoginPolicyProperties.class,
         RateLimitProperties.class,
-        PasswordResetProperties.class
+        PasswordResetProperties.class,
+        GoogleProperties.class
 })
 public class IamAutoConfiguration {
 

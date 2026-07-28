@@ -28,7 +28,9 @@ public enum IamErrorCode implements ErrorCode {
     AUTH_OTP_INVALID(HttpStatus.BAD_REQUEST, "IAM_021", "Invalid OTP code."),
     AUTH_OTP_EXPIRED(HttpStatus.BAD_REQUEST, "IAM_022", "OTP code has expired or does not exist."),
     AUTH_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "IAM_026", "Too many requests. Please try again later."),
-    AUTH_OTP_DAILY_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "IAM_027", "You have reached the daily OTP request limit. Please try again tomorrow.");
+    AUTH_OTP_DAILY_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "IAM_027", "You have reached the daily OTP request limit. Please try again tomorrow."),
+    AUTH_GOOGLE_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "IAM_GOOGLE_001", "Google ID token is invalid or expired."),
+    AUTH_GOOGLE_EMAIL_NOT_VERIFIED(HttpStatus.UNAUTHORIZED, "IAM_GOOGLE_002", "Google email is not verified.");
 
     IamErrorCode(HttpStatus httpStatus, String code, String defaultMessage) {
         this.httpStatus = httpStatus;

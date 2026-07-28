@@ -3,6 +3,7 @@ package com.pwb.iam.api.controller;
 import com.pwb.iam.api.dto.request.ChangePasswordRequest;
 import com.pwb.iam.api.dto.request.CompleteProfileRequest;
 import com.pwb.iam.api.dto.request.ForgotPasswordRequest;
+import com.pwb.iam.api.dto.request.GoogleLoginRequest;
 import com.pwb.iam.api.dto.request.LoginRequest;
 import com.pwb.iam.api.dto.request.LogoutRequest;
 import com.pwb.iam.api.dto.request.RefreshTokenRequest;
@@ -87,6 +88,12 @@ public class AuthController {
     ) {
         AccessTokenInfo info = parseAccessToken(authorization);
         LogoutResponse data = iamFacade.logout(userId, info.jti, info.expiresInSeconds, request);
+        return ResponseEntity.ok(data);
+    }
+
+    @PostMapping("/google-login")
+    public ResponseEntity<AuthResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
+        AuthResponse data = iamFacade.loginWithGoogle(request);
         return ResponseEntity.ok(data);
     }
 

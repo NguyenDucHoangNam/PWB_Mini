@@ -13,4 +13,8 @@ public interface AuthEventPublisher {
     void publishPasswordResetRequested(UUID userId, String email, String resetLink, long ttlMinutes);
 
     void publishPasswordChanged(UUID userId, String email);
+
+    void publishUserRegisteredGoogle(UUID userId, String email, String fullName);
+
+    void publishUserLinkedGoogle(UUID userId, String email, String fullName);
 }

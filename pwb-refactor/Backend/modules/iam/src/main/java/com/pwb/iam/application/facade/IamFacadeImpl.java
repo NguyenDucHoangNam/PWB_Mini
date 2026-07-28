@@ -3,6 +3,7 @@ package com.pwb.iam.application.facade;
 import com.pwb.iam.api.dto.request.ChangePasswordRequest;
 import com.pwb.iam.api.dto.request.CompleteProfileRequest;
 import com.pwb.iam.api.dto.request.ForgotPasswordRequest;
+import com.pwb.iam.api.dto.request.GoogleLoginRequest;
 import com.pwb.iam.api.dto.request.LoginRequest;
 import com.pwb.iam.api.dto.request.LogoutRequest;
 import com.pwb.iam.api.dto.request.RefreshTokenRequest;
@@ -16,6 +17,7 @@ import com.pwb.iam.api.dto.response.LogoutResponse;
 import com.pwb.iam.application.command.ChangePasswordCommand;
 import com.pwb.iam.application.command.CompleteProfileCommand;
 import com.pwb.iam.application.command.ForgotPasswordCommand;
+import com.pwb.iam.application.command.GoogleLoginCommand;
 import com.pwb.iam.application.command.LoginCommand;
 import com.pwb.iam.application.command.LogoutCommand;
 import com.pwb.iam.application.command.RefreshTokenCommand;
@@ -26,6 +28,7 @@ import com.pwb.iam.application.command.VerifyOtpCommand;
 import com.pwb.iam.application.usecase.ChangePasswordUseCase;
 import com.pwb.iam.application.usecase.CompleteProfileUseCase;
 import com.pwb.iam.application.usecase.ForgotPasswordUseCase;
+import com.pwb.iam.application.usecase.GoogleLoginUseCase;
 import com.pwb.iam.application.usecase.LoginResult;
 import com.pwb.iam.application.usecase.LoginUseCase;
 import com.pwb.iam.application.usecase.LogoutUseCase;
@@ -56,6 +59,7 @@ public class IamFacadeImpl implements IamFacade {
     private static final String MSG_LOGIN_SUCCESS = "AUTH_LOGIN_SUCCESSFUL";
     private static final String MSG_REFRESH_SUCCESS = "AUTH_REFRESH_TOKEN_SUCCESSFUL";
     private static final String MSG_LOGOUT_SUCCESS = "AUTH_LOGOUT_SUCCESSFUL";
+    private static final String MSG_GOOGLE_LOGIN_SUCCESS = "AUTH_GOOGLE_LOGIN_SUCCESSFUL";
     private static final String MSG_FORGOT_PASSWORD = "AUTH_FORGOT_PASSWORD_EMAIL_SENT";
     private static final String MSG_RESET_PASSWORD = "AUTH_PASSWORD_RESET_SUCCESSFUL";
     private static final String MSG_CHANGE_PASSWORD = "AUTH_PASSWORD_UPDATED";
@@ -70,6 +74,7 @@ public class IamFacadeImpl implements IamFacade {
     private final ForgotPasswordUseCase forgotPasswordUseCase;
     private final ResetPasswordUseCase resetPasswordUseCase;
     private final ChangePasswordUseCase changePasswordUseCase;
+    private final GoogleLoginUseCase googleLoginUseCase;
     private final UserRepository userRepository;
     private final MessageResolver messageResolver;
     private final AuthEventPublisher authEventPublisher;
@@ -152,6 +157,13 @@ public class IamFacadeImpl implements IamFacade {
         LogoutCommand command = new LogoutCommand(userId, request.refreshToken(), accessJti, accessExpiresInSeconds);
         logoutUseCase.execute(command);
         return LogoutResponse.of(userId, messageResolver.get(MSG_LOGOUT_SUCCESS));
+    }
+
+    @Override
+    public AuthResponse loginWithGoogle(GoogleLoginRequest request) {
+        GoogleLoginCommand command = new GoogleLoginCommand(request.idToken());
+        LoginResult result = googleLoginUseCase.execute(command);
+        return buildTokenResponse(result, MSG_GOOGLE_LOGIN_SUCCESS);
     }
 
     @Override
