@@ -1,7 +1,7 @@
 package com.pwb.iam.infrastructure.persistence.repository;
 
-import com.pwb.iam.core.model.OtpCode.OtpStatus;
-import com.pwb.iam.core.model.OtpPurpose;
+import com.pwb.iam.domain.model.OtpCode.OtpStatus;
+import com.pwb.iam.domain.model.OtpPurpose;
 import com.pwb.iam.infrastructure.persistence.entity.OtpCodeJpaEntity;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -29,7 +29,7 @@ public interface OtpCodeJpaRepository extends IamJpaRepository<OtpCodeJpaEntity>
     @Query("""
             UPDATE OtpCodeJpaEntity o
             SET o.status = :newStatus, o.verifiedAt = :now
-            WHERE o.id = :id AND o.status = com.pwb.iam.core.model.OtpCode.OtpStatus.PENDING
+            WHERE o.id = :id AND o.status = com.pwb.iam.domain.model.OtpCode.OtpStatus.PENDING
             """)
     int markVerified(@Param("id") UUID id,
                      @Param("newStatus") OtpStatus newStatus,
@@ -38,7 +38,7 @@ public interface OtpCodeJpaRepository extends IamJpaRepository<OtpCodeJpaEntity>
     @Modifying
     @Query("""
             UPDATE OtpCodeJpaEntity o
-            SET o.status = com.pwb.iam.core.model.OtpCode.OtpStatus.LOCKED,
+            SET o.status = com.pwb.iam.domain.model.OtpCode.OtpStatus.LOCKED,
                 o.lockedAt = :now,
                 o.attempts = :attempts
             WHERE o.id = :id
@@ -53,7 +53,7 @@ public interface OtpCodeJpaRepository extends IamJpaRepository<OtpCodeJpaEntity>
             SET o.status = :newStatus,
                 o.verifiedAt = :now
             WHERE o.id = :id
-              AND o.status = com.pwb.iam.core.model.OtpCode.OtpStatus.LOCKED
+              AND o.status = com.pwb.iam.domain.model.OtpCode.OtpStatus.LOCKED
             """)
     int markExpiredFromLocked(@Param("id") UUID id,
                               @Param("newStatus") OtpStatus newStatus,

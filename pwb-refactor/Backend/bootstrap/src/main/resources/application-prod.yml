@@ -60,3 +60,13 @@ app:
   mail:
     from-address: ${MAIL_FROM_ADDRESS:noreply@pwb.com}
     from-name: ${MAIL_FROM_NAME:PWB}
+
+pwb:
+  outbox:
+    enabled: true
+    relay:
+      enabled: true
+      poll-interval-ms: 2000
+    retry:
+      max-attempts: 5
+      backoff-seconds: [5, 30, 120, 300, 600]

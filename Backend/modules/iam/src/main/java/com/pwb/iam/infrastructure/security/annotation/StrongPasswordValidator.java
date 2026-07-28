@@ -1,8 +1,8 @@
 package com.pwb.iam.infrastructure.security.annotation;
 
-import com.pwb.iam.core.service.PasswordPolicyResult;
-import com.pwb.iam.core.service.PasswordPolicyService;
-import com.pwb.iam.core.service.PasswordPolicyViolation;
+import com.pwb.iam.domain.service.PasswordPolicyResult;
+import com.pwb.iam.domain.service.PasswordPolicyService;
+import com.pwb.iam.domain.service.PasswordPolicyViolation;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 import org.hibernate.validator.constraintvalidation.HibernateConstraintValidatorContext;

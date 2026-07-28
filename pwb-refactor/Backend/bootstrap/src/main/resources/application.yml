@@ -15,3 +15,14 @@ logging:
     com.pwb: INFO
     org.springframework: WARN
     org.hibernate: WARN
+
+pwb:
+  outbox:
+    enabled: true
+    relay:
+      enabled: true
+      poll-interval-ms: 5000
+      batch-size: 20
+    retry:
+      max-attempts: 3
+      backoff-seconds: [1, 5, 30]

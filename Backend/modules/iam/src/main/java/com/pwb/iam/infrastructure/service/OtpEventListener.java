@@ -1,8 +1,8 @@
 package com.pwb.iam.infrastructure.service;
 
-import com.pwb.iam.core.events.OtpIssuedDomainEvent;
-import com.pwb.iam.core.model.OtpPurpose;
-import com.pwb.iam.infrastructure.security.event.AuthEventPublisher;
+import com.pwb.iam.domain.event.OtpIssuedDomainEvent;
+import com.pwb.iam.domain.model.OtpPurpose;
+import com.pwb.iam.domain.event.AuthEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;

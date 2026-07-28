@@ -1,6 +1,6 @@
 package com.pwb.iam.infrastructure.persistence.mapper;
 
-import com.pwb.iam.core.model.PasswordResetToken;
+import com.pwb.iam.domain.model.PasswordResetToken;
 import com.pwb.iam.infrastructure.persistence.entity.PasswordResetTokenJpaEntity;
 import org.springframework.stereotype.Component;
 

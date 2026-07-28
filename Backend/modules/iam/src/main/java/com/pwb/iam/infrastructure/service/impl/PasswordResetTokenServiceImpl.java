@@ -1,6 +1,6 @@
 package com.pwb.iam.infrastructure.service.impl;
 
-import com.pwb.iam.infrastructure.service.PasswordResetTokenService;
+import com.pwb.iam.domain.service.PasswordResetTokenService;
 import com.pwb.iam.infrastructure.security.config.PasswordResetProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

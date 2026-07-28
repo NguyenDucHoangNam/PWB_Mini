@@ -1,6 +1,6 @@
 package com.pwb.iam.api.dto.response;
 
-import com.pwb.iam.core.model.OtpPurpose;
+import com.pwb.iam.domain.model.OtpPurpose;
 
 import java.time.Instant;
 import java.util.UUID;

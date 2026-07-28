@@ -1,7 +1,7 @@
 package com.pwb.iam.infrastructure.persistence.entity;
 
-import com.pwb.iam.core.model.OtpCode.OtpStatus;
-import com.pwb.iam.core.model.OtpPurpose;
+import com.pwb.iam.domain.model.OtpCode.OtpStatus;
+import com.pwb.iam.domain.model.OtpPurpose;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

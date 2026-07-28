@@ -1,5 +1,7 @@
 package com.pwb.iam.infrastructure.security.event;
 
+import com.pwb.iam.domain.event.AuthEventPublisher;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.notification.api.event.EmailRequestedIntegrationEvent;

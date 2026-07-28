@@ -1,8 +1,8 @@
 package com.pwb.iam.infrastructure.security;
 
 import com.pwb.kernel.security.AuthenticatedUser;
-import com.pwb.iam.core.model.User;
-import com.pwb.iam.core.model.UserStatus;
+import com.pwb.iam.domain.model.User;
+import com.pwb.iam.domain.model.UserStatus;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;

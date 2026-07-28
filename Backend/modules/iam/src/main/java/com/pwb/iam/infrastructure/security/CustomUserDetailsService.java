@@ -1,8 +1,8 @@
 package com.pwb.iam.infrastructure.security;
 
 import com.pwb.kernel.exception.BusinessException;
-import com.pwb.iam.core.exception.IamErrorCode;
-import com.pwb.iam.core.model.User;
+import com.pwb.iam.domain.exception.IamErrorCode;
+import com.pwb.iam.domain.model.User;
 import com.pwb.iam.infrastructure.persistence.mapper.UserMapper;
 import com.pwb.iam.infrastructure.persistence.repository.UserJpaRepository;
 import lombok.RequiredArgsConstructor;

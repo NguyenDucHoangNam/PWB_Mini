@@ -1,6 +1,6 @@
 package com.pwb.iam.infrastructure.persistence.mapper;
 
-import com.pwb.iam.core.model.OtpCode;
+import com.pwb.iam.domain.model.OtpCode;
 import com.pwb.iam.infrastructure.persistence.entity.OtpCodeJpaEntity;
 import org.springframework.stereotype.Component;
 

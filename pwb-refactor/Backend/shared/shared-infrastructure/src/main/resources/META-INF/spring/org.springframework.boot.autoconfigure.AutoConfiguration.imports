@@ -1,0 +1,2 @@
+com.pwb.infra.config.InfraAutoConfiguration
+com.pwb.infra.outbox.config.OutboxAutoConfiguration

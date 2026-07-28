@@ -5,4 +5,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 public class PwbApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(PwbApplication.class, args);
+    }
 }

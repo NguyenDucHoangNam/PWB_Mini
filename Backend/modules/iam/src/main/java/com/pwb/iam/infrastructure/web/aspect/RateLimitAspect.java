@@ -1,7 +1,7 @@
 package com.pwb.iam.infrastructure.web.aspect;
 
 import com.pwb.kernel.exception.BusinessException;
-import com.pwb.iam.core.exception.IamErrorCode;
+import com.pwb.iam.domain.exception.IamErrorCode;
 
 import com.pwb.iam.infrastructure.security.annotation.RateLimited;
 import com.pwb.iam.infrastructure.security.service.RateLimitService;

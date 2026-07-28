@@ -2,7 +2,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5433/pwb_db
     username: pwb_user
-    password: ${POSTGRES_PASSWORD:pwb_postgres_pass}
+    password: ${POSTGRES_PASSWORD:pwb_password}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -66,3 +66,13 @@ app:
   mail:
     from-address: ${MAIL_FROM_ADDRESS:noreply@pwb.com}
     from-name: ${MAIL_FROM_NAME:PWB}
+
+pwb:
+  outbox:
+    enabled: true
+    relay:
+      enabled: true
+      poll-interval-ms: 5000
+    retry:
+      max-attempts: 3
+      backoff-seconds: [1, 5, 30]

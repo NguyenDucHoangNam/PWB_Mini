@@ -1,7 +1,7 @@
 package com.pwb.iam.infrastructure.security.filter;
 
-import com.pwb.iam.core.model.User;
-import com.pwb.iam.core.model.UserStatus;
+import com.pwb.iam.domain.model.User;
+import com.pwb.iam.domain.model.UserStatus;
 import com.pwb.iam.infrastructure.security.CustomUserDetails;
 import com.pwb.iam.infrastructure.security.CustomUserDetailsService;
 import com.pwb.iam.infrastructure.security.jwt.JwtTokenProvider;

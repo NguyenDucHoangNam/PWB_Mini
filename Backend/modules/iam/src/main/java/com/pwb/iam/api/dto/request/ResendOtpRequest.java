@@ -1,6 +1,6 @@
 package com.pwb.iam.api.dto.request;
 
-import com.pwb.iam.core.model.OtpPurpose;
+import com.pwb.iam.domain.model.OtpPurpose;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

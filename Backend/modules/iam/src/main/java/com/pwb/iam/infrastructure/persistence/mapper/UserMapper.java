@@ -1,9 +1,9 @@
 package com.pwb.iam.infrastructure.persistence.mapper;
 
-import com.pwb.iam.core.model.EmailAddress;
-import com.pwb.iam.core.model.Role;
-import com.pwb.iam.core.model.RoleName;
-import com.pwb.iam.core.model.User;
+import com.pwb.iam.domain.model.EmailAddress;
+import com.pwb.iam.domain.model.Role;
+import com.pwb.iam.domain.model.RoleName;
+import com.pwb.iam.domain.model.User;
 import com.pwb.iam.infrastructure.persistence.entity.RoleJpaEntity;
 import com.pwb.iam.infrastructure.persistence.entity.UserJpaEntity;
 import org.springframework.stereotype.Component;

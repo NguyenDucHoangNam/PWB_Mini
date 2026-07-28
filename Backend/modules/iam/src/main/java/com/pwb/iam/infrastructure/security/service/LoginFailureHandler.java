@@ -1,7 +1,7 @@
 package com.pwb.iam.infrastructure.security.service;
 
 import com.pwb.kernel.exception.BusinessException;
-import com.pwb.iam.core.exception.IamErrorCode;
+import com.pwb.iam.domain.exception.IamErrorCode;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

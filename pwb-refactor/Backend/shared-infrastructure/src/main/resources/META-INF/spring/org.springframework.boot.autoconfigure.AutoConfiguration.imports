@@ -1,5 +1,0 @@
-com.pwb.infra.redis.config.RedisConfig
-com.pwb.infra.mail.config.MailConfig
-com.pwb.infra.storage.config.StorageConfig
-com.pwb.infra.kafka.config.KafkaConfig
-com.pwb.infra.kafka.config.KafkaConsumerConfig

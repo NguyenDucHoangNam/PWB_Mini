@@ -1,7 +1,7 @@
 package com.pwb.iam.infrastructure.persistence.repository;
 
-import com.pwb.iam.core.model.OAuthProvider;
-import com.pwb.iam.core.model.UserStatus;
+import com.pwb.iam.domain.model.OAuthProvider;
+import com.pwb.iam.domain.model.UserStatus;
 import com.pwb.iam.infrastructure.persistence.entity.UserJpaEntity;
 import org.springframework.data.jpa.repository.EntityGraph;
 

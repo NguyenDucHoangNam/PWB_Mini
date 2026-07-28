@@ -1,6 +1,6 @@
 package com.pwb.iam.infrastructure.security.listener;
 
-import com.pwb.iam.core.events.AuthSuccessEvent;
+import com.pwb.iam.domain.event.AuthSuccessEvent;
 import com.pwb.iam.infrastructure.security.config.RefreshTokenProperties;
 import com.pwb.iam.infrastructure.security.jwt.JwtTokenProvider;
 import com.pwb.iam.infrastructure.security.service.RefreshTokenStore;

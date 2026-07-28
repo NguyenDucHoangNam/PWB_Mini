@@ -1,15 +1,15 @@
 package com.pwb.iam.infrastructure.service.impl;
 
 import com.pwb.kernel.exception.BusinessException;
-import com.pwb.iam.core.exception.IamErrorCode;
+import com.pwb.iam.domain.exception.IamErrorCode;
 
-import com.pwb.iam.api.OtpService;
+import com.pwb.iam.application.service.OtpService;
 import com.pwb.iam.api.dto.response.OtpPolicyResult;
 import com.pwb.iam.api.dto.response.OtpVerificationOutcome;
-import com.pwb.iam.core.events.OtpIssuedDomainEvent;
-import com.pwb.iam.core.events.OtpVerifiedDomainEvent;
-import com.pwb.iam.core.model.OtpCode.OtpStatus;
-import com.pwb.iam.core.model.OtpPurpose;
+import com.pwb.iam.domain.event.OtpIssuedDomainEvent;
+import com.pwb.iam.domain.event.OtpVerifiedDomainEvent;
+import com.pwb.iam.domain.model.OtpCode.OtpStatus;
+import com.pwb.iam.domain.model.OtpPurpose;
 import com.pwb.iam.infrastructure.config.OtpProperties;
 import com.pwb.iam.infrastructure.persistence.entity.OtpCodeJpaEntity;
 import com.pwb.iam.infrastructure.persistence.entity.UserJpaEntity;
