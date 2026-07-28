@@ -37,12 +37,11 @@ Thumbs.db
 # ==========================================
 # 4. Backend (Java / Spring Boot / Maven)
 # ==========================================
-backend/target/
-backend/.mvn/wrapper/maven-wrapper.jar
-backend/bin/
-backend/build/
-backend/cp.txt
-backend/cp-test.txt
+**/target/
+**/bin/
+**/build/
+**/cp.txt
+**/cp-test.txt
 
 # ==========================================
 # 5. Frontend (Node.js / Next.js / pnpm)
