@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -22,7 +23,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class RedisRefreshTokenStore implements RefreshTokenManager {
 
-    private static final String KEY_PREFIX = "iam:refresh:token:";
+    private static final String TOKEN_KEY_PREFIX = "iam:refresh:token:";
+    private static final String USER_SET_PREFIX = "iam:refresh:user:";
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final StringRedisTemplate redis;
@@ -37,8 +39,13 @@ public class RedisRefreshTokenStore implements RefreshTokenManager {
         String hash = sha256(raw);
         Duration ttl = Duration.ofSeconds(properties.getTtlSeconds());
         Instant expiresAt = Instant.now().plus(ttl);
-        String key = KEY_PREFIX + hash;
-        redis.opsForValue().set(key, userId.toString(), ttl);
+        String tokenKey = tokenKey(hash);
+        String userSetKey = userSetKey(userId);
+
+        redis.opsForValue().set(tokenKey, userId.toString(), ttl);
+        redis.opsForSet().add(userSetKey, hash);
+        redis.expire(userSetKey, ttl);
+
         log.info("Refresh token issued: userId={} ttlSeconds={}", userId, ttl.toSeconds());
         return new RefreshToken(raw, userId, expiresAt, ttl);
     }
@@ -49,7 +56,7 @@ public class RedisRefreshTokenStore implements RefreshTokenManager {
             throw new IllegalStateException("REFRESH_TOKEN_INVALID");
         }
         String hash = sha256(rawToken);
-        String key = KEY_PREFIX + hash;
+        String key = tokenKey(hash);
         String userIdStr = redis.opsForValue().get(key);
         if (userIdStr == null) {
             throw new IllegalStateException("REFRESH_TOKEN_EXPIRED");
@@ -62,6 +69,7 @@ public class RedisRefreshTokenStore implements RefreshTokenManager {
         }
         Long ttlSeconds = redis.getExpire(key);
         redis.delete(key);
+        redis.opsForSet().remove(userSetKey(userId), hash);
         if (ttlSeconds == null || ttlSeconds <= 0) {
             ttlSeconds = properties.getTtlSeconds();
         }
@@ -69,7 +77,9 @@ public class RedisRefreshTokenStore implements RefreshTokenManager {
         String newRaw = generateToken();
         String newHash = sha256(newRaw);
         Instant expiresAt = Instant.now().plus(ttl);
-        redis.opsForValue().set(KEY_PREFIX + newHash, userId.toString(), ttl);
+        redis.opsForValue().set(tokenKey(newHash), userId.toString(), ttl);
+        redis.opsForSet().add(userSetKey(userId), newHash);
+        redis.expire(userSetKey(userId), ttl);
         log.info("Refresh token rotated: userId={}", userId);
         return new RefreshToken(newRaw, userId, expiresAt, ttl);
     }
@@ -80,8 +90,30 @@ public class RedisRefreshTokenStore implements RefreshTokenManager {
             return;
         }
         String hash = sha256(rawToken);
-        Boolean removed = redis.delete(KEY_PREFIX + hash);
+        String key = tokenKey(hash);
+        String userIdStr = redis.opsForValue().get(key);
+        Boolean removed = redis.delete(key);
+        if (userIdStr != null) {
+            redis.opsForSet().remove(userSetKey(UUID.fromString(userIdStr)), hash);
+        }
         log.info("Refresh token revoked: removed={}", removed);
+    }
+
+    @Override
+    public void revokeAllForUser(UUID userId) {
+        if (userId == null) {
+            return;
+        }
+        String userSetKey = userSetKey(userId);
+        Set<String> hashes = redis.opsForSet().members(userSetKey);
+        if (hashes != null && !hashes.isEmpty()) {
+            for (String hash : hashes) {
+                redis.delete(tokenKey(hash));
+            }
+        }
+        Boolean deleted = redis.delete(userSetKey);
+        log.info("Revoked all refresh tokens for userId={} count={} setRemoved={}",
+                userId, hashes == null ? 0 : hashes.size(), deleted);
     }
 
     @Override
@@ -89,14 +121,14 @@ public class RedisRefreshTokenStore implements RefreshTokenManager {
         if (rawToken == null || rawToken.isBlank()) {
             return true;
         }
-        return redis.opsForValue().get(KEY_PREFIX + sha256(rawToken)) == null;
+        return redis.opsForValue().get(tokenKey(sha256(rawToken))) == null;
     }
 
     public Optional<UUID> peekUserId(String rawToken) {
         if (rawToken == null || rawToken.isBlank()) {
             return Optional.empty();
         }
-        String userIdStr = redis.opsForValue().get(KEY_PREFIX + sha256(rawToken));
+        String userIdStr = redis.opsForValue().get(tokenKey(sha256(rawToken)));
         if (userIdStr == null) {
             return Optional.empty();
         }
@@ -105,6 +137,14 @@ public class RedisRefreshTokenStore implements RefreshTokenManager {
         } catch (IllegalArgumentException ex) {
             return Optional.empty();
         }
+    }
+
+    private String tokenKey(String hash) {
+        return TOKEN_KEY_PREFIX + hash;
+    }
+
+    private String userSetKey(UUID userId) {
+        return USER_SET_PREFIX + userId;
     }
 
     private String generateToken() {

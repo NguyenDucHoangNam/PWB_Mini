@@ -1,11 +1,14 @@
 package com.pwb.iam.api.controller;
 
+import com.pwb.iam.api.dto.request.ChangePasswordRequest;
 import com.pwb.iam.api.dto.request.CompleteProfileRequest;
+import com.pwb.iam.api.dto.request.ForgotPasswordRequest;
 import com.pwb.iam.api.dto.request.LoginRequest;
 import com.pwb.iam.api.dto.request.LogoutRequest;
 import com.pwb.iam.api.dto.request.RefreshTokenRequest;
 import com.pwb.iam.api.dto.request.RegisterRequest;
 import com.pwb.iam.api.dto.request.ResendOtpRequest;
+import com.pwb.iam.api.dto.request.ResetPasswordRequest;
 import com.pwb.iam.api.dto.request.VerifyOtpRequest;
 import com.pwb.iam.api.dto.response.AuthMessageResponse;
 import com.pwb.iam.api.dto.response.AuthResponse;
@@ -13,8 +16,8 @@ import com.pwb.iam.api.dto.response.LogoutResponse;
 import com.pwb.iam.application.facade.IamFacade;
 import com.pwb.iam.infrastructure.security.CurrentUserId;
 import com.pwb.iam.infrastructure.security.JwtAuthenticationFilter;
-import io.jsonwebtoken.Claims;
 import com.pwb.iam.infrastructure.service.impl.JwtTokenProvider;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -84,6 +87,27 @@ public class AuthController {
     ) {
         AccessTokenInfo info = parseAccessToken(authorization);
         LogoutResponse data = iamFacade.logout(userId, info.jti, info.expiresInSeconds, request);
+        return ResponseEntity.ok(data);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<AuthMessageResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        AuthMessageResponse data = iamFacade.forgotPassword(request);
+        return ResponseEntity.ok(data);
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<AuthMessageResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        AuthMessageResponse data = iamFacade.resetPassword(request);
+        return ResponseEntity.ok(data);
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<AuthMessageResponse> changePassword(
+            @CurrentUserId UUID userId,
+            @Valid @RequestBody ChangePasswordRequest request
+    ) {
+        AuthMessageResponse data = iamFacade.changePassword(userId, request);
         return ResponseEntity.ok(data);
     }
 

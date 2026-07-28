@@ -11,6 +11,8 @@ public interface RefreshTokenManager {
 
     void revoke(String rawToken);
 
+    void revokeAllForUser(UUID userId);
+
     boolean isRevoked(String rawToken);
 
     record RefreshToken(String rawToken, UUID userId, java.time.Instant expiresAt, Duration ttl) {

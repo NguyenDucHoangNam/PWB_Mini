@@ -23,7 +23,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
         JwtProperties.class,
         RefreshTokenProperties.class,
         LoginPolicyProperties.class,
-        RateLimitProperties.class
+        RateLimitProperties.class,
+        PasswordResetProperties.class
 })
 public class IamAutoConfiguration {
 

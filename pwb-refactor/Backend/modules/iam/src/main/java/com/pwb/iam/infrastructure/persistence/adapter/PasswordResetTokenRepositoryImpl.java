@@ -7,7 +7,9 @@ import com.pwb.iam.infrastructure.persistence.mapper.PasswordResetTokenMapper;
 import com.pwb.iam.infrastructure.persistence.repository.PasswordResetTokenJpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -21,6 +23,9 @@ public class PasswordResetTokenRepositoryImpl implements PasswordResetTokenRepos
     @Override
     public PasswordResetToken save(PasswordResetToken token) {
         PasswordResetTokenJpaEntity entity = mapper.toEntity(token);
+        if (entity.getId() == null) {
+            entity.setId(token.getTokenId());
+        }
         PasswordResetTokenJpaEntity saved = repository.save(entity);
         return mapper.toDomain(saved);
     }
@@ -28,6 +33,21 @@ public class PasswordResetTokenRepositoryImpl implements PasswordResetTokenRepos
     @Override
     public Optional<PasswordResetToken> findById(UUID tokenId) {
         return repository.findByIdAndDeletedFalse(tokenId).map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<PasswordResetToken> findActiveByHash(String tokenHash, Instant now) {
+        if (tokenHash == null || tokenHash.isBlank()) {
+            return Optional.empty();
+        }
+        return repository.findFirstByTokenHashAndUsedFalseAndDeletedFalseAndExpiresAtAfter(tokenHash, now)
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    @Transactional
+    public int invalidateAllForUser(UUID userId, Instant now) {
+        return repository.invalidateAllForUser(userId, now);
     }
 
     @Override

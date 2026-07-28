@@ -27,4 +27,15 @@ public class LoggingAuthEventPublisher implements AuthEventPublisher {
         log.info("OTP verified: userId={} purpose={} verifiedAt={}",
                 event.userId(), event.purpose(), event.verifiedAt());
     }
+
+    @Override
+    public void publishPasswordResetRequested(java.util.UUID userId, String email, String resetLink, long ttlMinutes) {
+        log.info("Password reset requested: userId={} email={} ttlMinutes={} resetLink={}",
+                userId, email, ttlMinutes, resetLink);
+    }
+
+    @Override
+    public void publishPasswordChanged(java.util.UUID userId, String email) {
+        log.info("Password changed: userId={} email={}", userId, email);
+    }
 }
