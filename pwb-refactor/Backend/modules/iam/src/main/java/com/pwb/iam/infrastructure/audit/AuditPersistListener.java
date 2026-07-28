@@ -1,7 +1,8 @@
-package com.pwb.iam.application.audit;
+package com.pwb.iam.infrastructure.audit;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pwb.iam.domain.audit.AuditLogEntry;
 import com.pwb.infra.outbox.api.OutboxEnqueueHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,18 +23,18 @@ public class AuditPersistListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onAudit(AuditPersistRequested event) {
+        AuditLogEntry entry = event.entry();
         String json;
         try {
-            json = objectMapper.writeValueAsString(event.entry());
+            json = objectMapper.writeValueAsString(entry);
         } catch (JsonProcessingException ex) {
-            log.warn("Audit serialization failed: eventType={}",
-                    event.entry().eventType(), ex);
+            log.warn("Audit serialization failed: eventType={}", entry.eventType(), ex);
             return;
         }
         outboxEnqueueHelper.enqueue(
                 AUDIT_TOPIC_DEFAULT,
                 AGGREGATE_TYPE,
-                event.entry().eventId().toString(),
+                entry.eventId().toString(),
                 json
         );
     }

@@ -76,7 +76,7 @@ public class GoogleLoginUseCaseImpl implements GoogleLoginUseCase {
 
         log.info("Google login success: userId={}", user.getUserId());
 
-        return new LoginResult(access, refresh);
+        return new LoginResult(user, access, refresh);
     }
 
     private void enforceRateLimit(String key, int limit) {

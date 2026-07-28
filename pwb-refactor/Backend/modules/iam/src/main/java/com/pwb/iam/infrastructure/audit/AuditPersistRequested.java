@@ -1,4 +1,4 @@
-package com.pwb.iam.application.audit;
+package com.pwb.iam.infrastructure.audit;
 
 import com.pwb.iam.domain.audit.AuditLogEntry;
 

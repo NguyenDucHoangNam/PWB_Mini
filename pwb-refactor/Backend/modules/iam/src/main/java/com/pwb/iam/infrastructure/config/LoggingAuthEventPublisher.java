@@ -1,6 +1,6 @@
 package com.pwb.iam.infrastructure.config;
 
-import com.pwb.iam.application.audit.AuditPersistRequested;
+import com.pwb.iam.infrastructure.audit.AuditPersistRequested;
 import com.pwb.iam.domain.audit.AuditEventType;
 import com.pwb.iam.domain.audit.AuditLogEntry;
 import com.pwb.iam.domain.event.AuthEventPublisher;

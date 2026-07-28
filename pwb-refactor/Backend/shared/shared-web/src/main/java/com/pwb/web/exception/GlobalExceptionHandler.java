@@ -8,7 +8,6 @@ import com.pwb.shared.exception.ValidationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -38,7 +37,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException ex) {
         String resolvedMessage = resolveMessage(ex.getErrorCode(), null);
-        return ResponseEntity.status(HttpStatus.valueOf(ex.getHttpStatus()))
+        return ResponseEntity.status(WebErrorMapper.toHttpStatus(ex.getCategory()))
                 .body(ApiResponse.error(ex.getErrorCode(), resolvedMessage));
     }
 
@@ -77,7 +76,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleMaxUpload(MaxUploadSizeExceededException ex) {
         var ec = SysErrorCode.FILE_TOO_LARGE;
         String resolvedMessage = resolveMessage(ec, null);
-        return ResponseEntity.status(HttpStatus.valueOf(ec.httpStatus().value()))
+        return ResponseEntity.status(WebErrorMapper.toHttpStatus(ec.category()))
                 .body(ApiResponse.error(ec, resolvedMessage));
     }
 
@@ -86,7 +85,7 @@ public class GlobalExceptionHandler {
         log.warn("Resource not found: {} {}", ex.getHttpMethod(), ex.getResourcePath());
         var ec = SysErrorCode.RESOURCE_NOT_FOUND;
         String resolvedMessage = resolveMessage(ec, null);
-        return ResponseEntity.status(HttpStatus.valueOf(ec.httpStatus().value()))
+        return ResponseEntity.status(WebErrorMapper.toHttpStatus(ec.category()))
                 .body(ApiResponse.error(ec, resolvedMessage));
     }
 
@@ -95,7 +94,7 @@ public class GlobalExceptionHandler {
         log.error("Unhandled exception: ", ex);
         var ec = SysErrorCode.INTERNAL_SERVER_ERROR;
         String resolvedMessage = resolveMessage(ec, null);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+        return ResponseEntity.status(WebErrorMapper.toHttpStatus(ec.category()))
                 .body(ApiResponse.error(ec, resolvedMessage));
     }
 

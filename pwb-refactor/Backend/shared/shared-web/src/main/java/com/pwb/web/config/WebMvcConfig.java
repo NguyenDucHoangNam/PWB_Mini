@@ -1,6 +1,7 @@
 package com.pwb.web.config;
 
 import com.pwb.web.filter.CorrelationIdFilter;
+import com.pwb.web.security.CurrentClientIpArgumentResolver;
 import com.pwb.web.security.CurrentUserArgumentResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -17,10 +18,12 @@ import java.util.List;
 public class WebMvcConfig implements WebMvcConfigurer {
 
     private final CurrentUserArgumentResolver currentUserArgumentResolver;
+    private final CurrentClientIpArgumentResolver currentClientIpArgumentResolver;
 
     @Override
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
         resolvers.add(currentUserArgumentResolver);
+        resolvers.add(currentClientIpArgumentResolver);
     }
 
     @Bean

@@ -1,6 +1,7 @@
 package com.pwb.shared.exception;
 
 import lombok.Getter;
+
 import java.util.Map;
 import java.util.Optional;
 
@@ -43,7 +44,7 @@ public class BusinessException extends RuntimeException {
         return errorCode.code();
     }
 
-    public int getHttpStatus() {
-        return errorCode.httpStatus().value();
+    public ErrorCategory getCategory() {
+        return errorCode.category();
     }
 }

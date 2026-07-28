@@ -60,6 +60,6 @@ public class RefreshTokenUseCaseImpl implements RefreshTokenUseCase {
         TokenService.AccessToken access = tokenService.issueAccessToken(user);
         authEventPublisher.publishAuthSuccess(AuthSuccessEvent.of(user.getUserId(), user.getEmail().value()));
         log.info("Refresh token rotated: userId={}", user.getUserId());
-        return new LoginResult(access, rotated);
+        return new LoginResult(user, access, rotated);
     }
 }

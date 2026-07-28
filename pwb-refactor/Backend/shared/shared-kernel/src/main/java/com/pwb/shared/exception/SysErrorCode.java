@@ -1,21 +1,18 @@
 package com.pwb.shared.exception;
 
-import lombok.AllArgsConstructor;
-import org.springframework.http.HttpStatus;
-
-@AllArgsConstructor
 public enum SysErrorCode implements ErrorCode {
-    FILE_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE", "Uploaded file exceeds the maximum allowed size"),
-    RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", "The requested resource was not found"),
-    INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "An unexpected error occurred");
+    FILE_TOO_LARGE         (ErrorCategory.VALIDATION, "FILE_TOO_LARGE",          "Uploaded file exceeds the maximum allowed size"),
+    RESOURCE_NOT_FOUND     (ErrorCategory.NOT_FOUND,   "RESOURCE_NOT_FOUND",      "The requested resource was not found"),
+    INTERNAL_SERVER_ERROR  (ErrorCategory.INTERNAL,    "INTERNAL_SERVER_ERROR",   "An unexpected error occurred");
 
-    private final HttpStatus httpStatus;
+    private final ErrorCategory category;
     private final String code;
     private final String defaultMessage;
 
-    @Override
-    public HttpStatus httpStatus() {
-        return httpStatus;
+    SysErrorCode(ErrorCategory category, String code, String defaultMessage) {
+        this.category = category;
+        this.code = code;
+        this.defaultMessage = defaultMessage;
     }
 
     @Override
@@ -26,5 +23,10 @@ public enum SysErrorCode implements ErrorCode {
     @Override
     public String defaultMessage() {
         return defaultMessage;
+    }
+
+    @Override
+    public ErrorCategory category() {
+        return category;
     }
 }

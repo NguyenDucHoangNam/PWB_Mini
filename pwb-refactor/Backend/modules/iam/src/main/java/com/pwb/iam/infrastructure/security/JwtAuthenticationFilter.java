@@ -2,6 +2,7 @@ package com.pwb.iam.infrastructure.security;
 
 import com.pwb.iam.infrastructure.service.impl.JwtTokenProvider;
 import com.pwb.web.security.AuthenticatedUser;
+import com.pwb.web.security.CurrentClientIpArgumentResolver;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -22,7 +23,6 @@ import java.util.Set;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
-    private static final String CLIENT_IP_ATTRIBUTE = "clientIp";
 
     private final JwtTokenProvider tokenProvider;
     private final com.pwb.iam.domain.service.AccessTokenBlacklist blacklist;
@@ -31,7 +31,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         String clientIp = resolveClientIp(request);
-        request.setAttribute(CLIENT_IP_ATTRIBUTE, clientIp);
+        request.setAttribute(CurrentClientIpArgumentResolver.CLIENT_IP_ATTRIBUTE, clientIp);
 
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith(BEARER_PREFIX)) {
@@ -75,10 +75,5 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return (comma > 0 ? forwarded.substring(0, comma) : forwarded).trim();
         }
         return request.getRemoteAddr();
-    }
-
-    public static String currentClientIp(HttpServletRequest request) {
-        Object value = request.getAttribute(CLIENT_IP_ATTRIBUTE);
-        return value instanceof String s ? s : "unknown";
     }
 }

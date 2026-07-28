@@ -4,13 +4,11 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @AutoConfiguration
-@Configuration
 @ComponentScan(basePackages = {
         "com.pwb.iam.application",
         "com.pwb.iam.infrastructure",
@@ -25,7 +23,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
         LoginPolicyProperties.class,
         RateLimitProperties.class,
         PasswordResetProperties.class,
-        GoogleProperties.class
+        GoogleProperties.class,
+        SecurityProperties.class
 })
 public class IamAutoConfiguration {
 

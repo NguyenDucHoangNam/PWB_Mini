@@ -1,6 +1,6 @@
 package com.pwb.iam.infrastructure.security;
 
-import com.pwb.web.security.CurrentUserArgumentResolver;
+import com.pwb.iam.infrastructure.config.SecurityProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,15 +16,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private static final String[] PUBLIC_ENDPOINTS = {
-            "/api/v1/auth/register",
-            "/api/v1/auth/verify-otp",
-            "/api/v1/auth/resend-otp",
-            "/api/v1/auth/login",
-            "/api/v1/auth/refresh",
-            "/api/v1/auth/forgot-password",
-            "/api/v1/auth/reset-password",
-            "/api/v1/auth/google-login",
+    private static final String[] DEFAULT_PUBLIC_ENDPOINTS = {
             "/actuator/health",
             "/v3/api-docs/**",
             "/swagger-ui/**",
@@ -34,16 +26,19 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
     private final RestAccessDeniedHandler accessDeniedHandler;
+    private final SecurityProperties securityProperties;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        String[] publicEndpoints = resolvePublicEndpoints();
+
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        .requestMatchers(publicEndpoints).permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
@@ -52,5 +47,17 @@ public class SecurityConfig {
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
+    }
+
+    private String[] resolvePublicEndpoints() {
+        var configured = securityProperties.getPublicEndpoints();
+        var resolved = new java.util.LinkedHashSet<String>();
+        if (configured != null && !configured.isEmpty()) {
+            resolved.addAll(configured);
+        }
+        for (String endpoint : DEFAULT_PUBLIC_ENDPOINTS) {
+            resolved.add(endpoint);
+        }
+        return resolved.toArray(String[]::new);
     }
 }

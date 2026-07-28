@@ -84,7 +84,7 @@ public class LoginUseCaseImpl implements LoginUseCase {
         authEventPublisher.publishAuthSuccess(user.getUserId(), user.getEmail().value(), clientIp);
 
         log.info("Login success: userId={}", user.getUserId());
-        return new LoginResult(access, refresh);
+        return new LoginResult(user, access, refresh);
     }
 
     private void enforceRateLimit(String key, int limit) {

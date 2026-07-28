@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.pwb.shared.dto.ApiResponse;
 import com.pwb.shared.exception.ErrorCode;
+import com.pwb.web.exception.WebErrorMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
 
@@ -23,7 +24,7 @@ public final class ErrorResponseWriter {
 
     public static void write(HttpServletResponse response, ErrorCode errorCode, String message) throws IOException {
         ApiResponse<Void> body = ApiResponse.error(errorCode, message);
-        response.setStatus(errorCode.httpStatus().value());
+        response.setStatus(WebErrorMapper.toHttpStatus(errorCode.category()).value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         try {

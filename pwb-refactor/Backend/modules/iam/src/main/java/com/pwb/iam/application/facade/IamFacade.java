@@ -1,43 +1,41 @@
 package com.pwb.iam.application.facade;
 
-import com.pwb.iam.api.dto.request.ChangePasswordRequest;
-import com.pwb.iam.api.dto.request.CompleteProfileRequest;
-import com.pwb.iam.api.dto.request.ForgotPasswordRequest;
-import com.pwb.iam.api.dto.request.GoogleLoginRequest;
-import com.pwb.iam.api.dto.request.LoginRequest;
-import com.pwb.iam.api.dto.request.LogoutRequest;
-import com.pwb.iam.api.dto.request.RefreshTokenRequest;
-import com.pwb.iam.api.dto.request.RegisterRequest;
-import com.pwb.iam.api.dto.request.ResendOtpRequest;
-import com.pwb.iam.api.dto.request.ResetPasswordRequest;
-import com.pwb.iam.api.dto.request.VerifyOtpRequest;
-import com.pwb.iam.api.dto.response.AuthMessageResponse;
-import com.pwb.iam.api.dto.response.AuthResponse;
-import com.pwb.iam.api.dto.response.LogoutResponse;
+import com.pwb.iam.application.command.ChangePasswordCommand;
+import com.pwb.iam.application.command.CompleteProfileCommand;
+import com.pwb.iam.application.command.ForgotPasswordCommand;
+import com.pwb.iam.application.command.GoogleLoginCommand;
+import com.pwb.iam.application.command.LoginCommand;
+import com.pwb.iam.application.command.LogoutCommand;
+import com.pwb.iam.application.command.RefreshTokenCommand;
+import com.pwb.iam.application.command.RegisterCommand;
+import com.pwb.iam.application.command.ResendOtpCommand;
+import com.pwb.iam.application.command.ResetPasswordCommand;
+import com.pwb.iam.application.command.VerifyOtpCommand;
+import com.pwb.iam.application.usecase.ForgotPasswordUseCase;
 
 import java.util.UUID;
 
 public interface IamFacade {
 
-    AuthMessageResponse register(RegisterRequest request);
+    UUID register(RegisterCommand command);
 
-    AuthResponse verifyOtp(VerifyOtpRequest request);
+    AuthView verifyOtp(VerifyOtpCommand command);
 
-    AuthResponse completeProfile(UUID userId, CompleteProfileRequest request);
+    AuthView completeProfile(CompleteProfileCommand command);
 
-    AuthMessageResponse resendOtp(ResendOtpRequest request);
+    void resendOtp(ResendOtpCommand command);
 
-    AuthResponse login(LoginRequest request, String clientIp);
+    AuthView login(LoginCommand command);
 
-    AuthResponse refresh(RefreshTokenRequest request, String clientIp);
+    AuthView refresh(RefreshTokenCommand command);
 
-    LogoutResponse logout(UUID userId, String accessJti, long accessExpiresInSeconds, LogoutRequest request);
+    UUID logout(LogoutCommand command);
 
-    AuthResponse loginWithGoogle(GoogleLoginRequest request, String clientIp);
+    AuthView loginWithGoogle(GoogleLoginCommand command);
 
-    AuthMessageResponse forgotPassword(ForgotPasswordRequest request);
+    ForgotPasswordUseCase.Result forgotPassword(ForgotPasswordCommand command);
 
-    AuthMessageResponse resetPassword(ResetPasswordRequest request);
+    UUID resetPassword(ResetPasswordCommand command);
 
-    AuthMessageResponse changePassword(UUID userId, ChangePasswordRequest request);
+    UUID changePassword(ChangePasswordCommand command);
 }
