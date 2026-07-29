@@ -8,6 +8,7 @@ import com.pwb.iam.domain.event.AuthSuccessEvent;
 import com.pwb.iam.domain.exception.IamErrorCode;
 import com.pwb.iam.domain.exception.RefreshTokenExpiredException;
 import com.pwb.iam.domain.exception.RefreshTokenInvalidException;
+import com.pwb.iam.domain.model.AuthNextStep;
 import com.pwb.iam.domain.model.LoginPolicy;
 import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.repository.UserRepository;
@@ -59,7 +60,8 @@ public class RefreshTokenUseCaseImpl implements RefreshTokenUseCase {
 
         TokenService.AccessToken access = tokenService.issueAccessToken(user);
         authEventPublisher.publishAuthSuccess(AuthSuccessEvent.of(user.getUserId(), user.getEmail().value()));
-        log.info("Refresh token rotated: userId={}", user.getUserId());
-        return new LoginResult(user, access, rotated);
+        AuthNextStep nextStep = user.isOnboardingIncomplete() ? AuthNextStep.COMPLETE_PROFILE : AuthNextStep.NONE;
+        log.info("Refresh token rotated: userId={} nextStep={}", user.getUserId(), nextStep);
+        return new LoginResult(user, access, rotated, nextStep);
     }
 }

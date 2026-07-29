@@ -1,8 +1,5 @@
 package com.pwb.iam.domain.model;
 
-import com.pwb.iam.domain.exception.IamErrorCode;
-import com.pwb.shared.exception.BusinessException;
-
 import java.time.Instant;
 import java.util.UUID;
 
@@ -105,15 +102,16 @@ public final class OtpCode extends BaseEntity {
     }
 
     public void registerFailedAttempt() {
-        if (attempts + 1 >= MAX_ATTEMPTS) {
+        this.attempts += 1;
+        if (this.attempts >= MAX_ATTEMPTS) {
             this.attempts = MAX_ATTEMPTS;
             this.status = OtpStatus.LOCKED;
-            touch();
-            throw new BusinessException(IamErrorCode.AUTH_OTP_INVALID,
-                    java.util.Map.of("maxAttempts", MAX_ATTEMPTS));
         }
-        this.attempts += 1;
         touch();
+    }
+
+    public boolean hasReachedMaxAttempts() {
+        return this.attempts >= MAX_ATTEMPTS;
     }
 
     public boolean isLocked() {

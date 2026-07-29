@@ -8,6 +8,7 @@ import java.util.UUID;
 public record CompleteProfileRequest(
         UUID userId,
         @NotBlank @Size(min = 3, max = 64) String username,
-        @Size(max = 128) String fullName
+        @Size(max = 128) String fullName,
+        String newPassword
 ) {
 }

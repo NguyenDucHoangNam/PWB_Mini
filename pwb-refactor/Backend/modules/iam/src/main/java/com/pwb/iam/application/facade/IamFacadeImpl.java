@@ -23,6 +23,7 @@ import com.pwb.iam.application.usecase.RegisterUseCase;
 import com.pwb.iam.application.usecase.ResendOtpUseCase;
 import com.pwb.iam.application.usecase.ResetPasswordUseCase;
 import com.pwb.iam.application.usecase.VerifyOtpUseCase;
+import com.pwb.iam.domain.model.AuthNextStep;
 import com.pwb.iam.domain.model.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -53,26 +54,14 @@ public class IamFacadeImpl implements IamFacade {
 
     @Override
     public AuthView verifyOtp(VerifyOtpCommand command) {
-        User user = verifyOtpUseCase.execute(command);
-        return AuthView.profileOnly(
-                user.getUserId(),
-                user.getEmail() == null ? null : user.getEmail().value(),
-                user.getUsername(),
-                user.getStatus() == null ? null : user.getStatus().name(),
-                user.getRole() == null ? null : user.getRole().name()
-        );
+        LoginResult result = verifyOtpUseCase.execute(command);
+        return toAuthView(result);
     }
 
     @Override
     public AuthView completeProfile(CompleteProfileCommand command) {
-        User user = completeProfileUseCase.execute(command);
-        return AuthView.profileOnly(
-                user.getUserId(),
-                user.getEmail() == null ? null : user.getEmail().value(),
-                user.getUsername(),
-                user.getStatus() == null ? null : user.getStatus().name(),
-                user.getRole() == null ? null : user.getRole().name()
-        );
+        LoginResult result = completeProfileUseCase.execute(command);
+        return toAuthView(result);
     }
 
     @Override
@@ -126,7 +115,8 @@ public class IamFacadeImpl implements IamFacade {
                 user.getRole() == null ? null : user.getRole().name(),
                 result.accessToken().tokenValue(),
                 result.refreshToken().rawToken(),
-                result.accessToken().expiresInSeconds()
+                result.accessToken().expiresInSeconds(),
+                result.nextStep()
         );
     }
 }

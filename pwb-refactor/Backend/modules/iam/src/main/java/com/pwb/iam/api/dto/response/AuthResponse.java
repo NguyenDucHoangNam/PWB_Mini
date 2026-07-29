@@ -1,9 +1,10 @@
 package com.pwb.iam.api.dto.response;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.util.UUID;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class AuthResponse {
 
     private UUID userId;
@@ -15,8 +16,7 @@ public class AuthResponse {
     private long expiresIn;
     private String accessToken;
     private String refreshToken;
-    @JsonIgnore
-    private String message;
+    private String nextStep;
 
     public AuthResponse() {
     }
@@ -32,11 +32,12 @@ public class AuthResponse {
     }
 
     public static AuthResponse tokens(UUID userId, String email, String username, String status, String role,
-                                      String accessToken, String refreshToken, long expiresIn) {
+                                      String accessToken, String refreshToken, long expiresIn, String nextStep) {
         AuthResponse response = bearerOnly(userId, email, username, status, role);
         response.accessToken = accessToken;
         response.refreshToken = refreshToken;
         response.expiresIn = expiresIn;
+        response.nextStep = nextStep;
         return response;
     }
 
@@ -112,11 +113,11 @@ public class AuthResponse {
         this.refreshToken = refreshToken;
     }
 
-    public String getMessage() {
-        return message;
+    public String getNextStep() {
+        return nextStep;
     }
 
-    public void setMessage(String message) {
-        this.message = message;
+    public void setNextStep(String nextStep) {
+        this.nextStep = nextStep;
     }
 }

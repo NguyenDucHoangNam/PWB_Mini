@@ -6,12 +6,14 @@ import com.pwb.iam.domain.event.AuthEventPublisher;
 import com.pwb.iam.domain.event.OtpIssuedDomainEvent;
 import com.pwb.iam.domain.exception.IamErrorCode;
 import com.pwb.iam.domain.model.OtpCode;
+import com.pwb.iam.domain.model.OtpPurpose;
 import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.repository.OtpCodeRepository;
 import com.pwb.iam.domain.repository.UserRepository;
 import com.pwb.iam.domain.service.CooldownService;
 import com.pwb.iam.domain.service.OtpDeliveryPort;
 import com.pwb.iam.domain.service.OtpGenerator;
+import com.pwb.iam.infrastructure.config.OtpProperties;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +36,7 @@ public class ResendOtpUseCaseImpl implements ResendOtpUseCase {
     private final OtpDeliveryPort otpDeliveryPort;
     private final CooldownService cooldownService;
     private final AuthEventPublisher authEventPublisher;
+    private final OtpProperties otpProperties;
 
     @Override
     @Transactional
@@ -48,25 +51,32 @@ public class ResendOtpUseCaseImpl implements ResendOtpUseCase {
                     java.util.Map.of("cooldownSeconds", remaining));
         }
 
+        int dailyCount = otpCodeRepository.countIssuedToday(
+                user.getUserId(), OtpPurpose.REGISTER, Instant.now().minus(Duration.ofDays(1)));
+        if (dailyCount >= otpProperties.getDailyLimit()) {
+            log.warn("OTP daily limit exceeded: userId={} count={}", user.getUserId(), dailyCount);
+            throw new BusinessException(IamErrorCode.AUTH_OTP_DAILY_LIMIT_EXCEEDED);
+        }
+
         String rawCode = otpGenerator.generate();
         String codeHash = otpGenerator.hash(rawCode);
         Instant expiresAt = Instant.now().plus(Duration.ofMinutes(OTP_TTL_MINUTES));
 
         OtpDeliveryPort.DeliveryResult delivery = otpDeliveryPort.deliver(
-                user.getUserId(), user.getEmail().value(), command.purpose().name(), rawCode);
+                user.getUserId(), user.getEmail().value(), OtpPurpose.REGISTER.name(), rawCode);
         if (!delivery.delivered()) {
             throw new BusinessException(IamErrorCode.AUTH_RATE_LIMIT_EXCEEDED,
                     java.util.Map.of("cooldownSeconds", delivery.cooldown().toSeconds()));
         }
 
-        otpCodeRepository.deleteAllByUserAndPurpose(user.getUserId(), command.purpose());
+        otpCodeRepository.deleteAllByUserAndPurpose(user.getUserId(), OtpPurpose.REGISTER);
 
-        OtpCode otp = OtpCode.create(user.getUserId(), command.purpose(), codeHash, expiresAt);
+        OtpCode otp = OtpCode.create(user.getUserId(), OtpPurpose.REGISTER, codeHash, expiresAt);
         otpCodeRepository.save(otp);
 
         authEventPublisher.publishOtpIssued(
-                new OtpIssuedDomainEvent(user.getUserId(), user.getEmail().value(), command.purpose(), expiresAt));
+                new OtpIssuedDomainEvent(user.getUserId(), user.getEmail().value(), OtpPurpose.REGISTER, expiresAt));
 
-        log.info("OTP resent: userId={} purpose={}", user.getUserId(), command.purpose());
+        log.info("OTP resent: userId={}", user.getUserId());
     }
 }

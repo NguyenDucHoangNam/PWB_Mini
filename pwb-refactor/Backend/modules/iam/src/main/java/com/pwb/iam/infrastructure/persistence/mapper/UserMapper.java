@@ -6,22 +6,31 @@ import com.pwb.iam.domain.model.Role;
 import com.pwb.iam.domain.model.RoleName;
 import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.model.UserStatus;
+import com.pwb.iam.domain.repository.RoleRepository;
+import com.pwb.iam.infrastructure.persistence.entity.RoleJpaEntity;
 import com.pwb.iam.infrastructure.persistence.entity.UserJpaEntity;
+import com.pwb.iam.infrastructure.persistence.repository.RoleJpaRepository;
 import org.springframework.stereotype.Component;
+
+import java.util.Optional;
 
 @Component
 public class UserMapper {
 
-    private final RoleMapper roleMapper;
+    private final RoleRepository roleRepository;
+    private final RoleJpaRepository roleJpaRepository;
 
-    public UserMapper(RoleMapper roleMapper) {
-        this.roleMapper = roleMapper;
+    public UserMapper(RoleRepository roleRepository, RoleJpaRepository roleJpaRepository) {
+        this.roleRepository = roleRepository;
+        this.roleJpaRepository = roleJpaRepository;
     }
 
     public UserJpaEntity toEntity(User domain, UserJpaEntity existing) {
         if (domain == null) {
             return null;
         }
+        RoleJpaEntity managedRole = resolveManagedRole(domain.getRole());
+
         if (existing != null) {
             existing.setUsername(domain.getUsername());
             existing.setEmail(domain.getEmail() == null ? null : domain.getEmail().value());
@@ -30,7 +39,7 @@ public class UserMapper {
             existing.setAvatarUrl(domain.getAvatarUrl());
             existing.setPhone(domain.getPhone());
             existing.setStatus(domain.getStatus());
-            existing.setRole(roleMapper.toEntity(Role.of(domain.getRole(), null)));
+            existing.setRole(managedRole);
             existing.setOauthProvider(domain.getOauthProvider());
             existing.setOauthId(domain.getOauthId());
             existing.setProvisionalUsername(domain.isProvisionalUsername());
@@ -44,11 +53,19 @@ public class UserMapper {
                 .avatarUrl(domain.getAvatarUrl())
                 .phone(domain.getPhone())
                 .status(domain.getStatus())
-                .role(roleMapper.toEntity(Role.of(domain.getRole(), null)))
+                .role(managedRole)
                 .oauthProvider(domain.getOauthProvider() == null ? OAuthProvider.LOCAL : domain.getOauthProvider())
                 .oauthId(domain.getOauthId())
                 .provisionalUsername(domain.isProvisionalUsername())
                 .build();
+    }
+
+    private RoleJpaEntity resolveManagedRole(RoleName roleName) {
+        if (roleName == null) {
+            return null;
+        }
+        Optional<RoleJpaEntity> managed = roleJpaRepository.findByNameAndDeletedFalse(roleName.name());
+        return managed.orElse(null);
     }
 
     public User toDomain(UserJpaEntity entity) {

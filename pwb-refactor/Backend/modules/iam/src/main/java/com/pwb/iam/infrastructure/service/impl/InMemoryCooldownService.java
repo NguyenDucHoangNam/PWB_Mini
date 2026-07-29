@@ -3,6 +3,7 @@ package com.pwb.iam.infrastructure.service.impl;
 import com.pwb.iam.domain.service.CooldownService;
 import com.pwb.iam.infrastructure.config.OtpProperties;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -10,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
+@Profile("test")
 public class InMemoryCooldownService implements CooldownService {
 
     private final ConcurrentHashMap<String, Long> lastRegisterAt = new ConcurrentHashMap<>();

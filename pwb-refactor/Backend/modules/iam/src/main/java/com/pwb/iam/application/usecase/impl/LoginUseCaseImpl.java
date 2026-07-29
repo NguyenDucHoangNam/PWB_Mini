@@ -5,6 +5,7 @@ import com.pwb.iam.application.usecase.LoginResult;
 import com.pwb.iam.application.usecase.LoginUseCase;
 import com.pwb.iam.domain.event.AuthEventPublisher;
 import com.pwb.iam.domain.exception.IamErrorCode;
+import com.pwb.iam.domain.model.AuthNextStep;
 import com.pwb.iam.domain.model.LoginPolicy;
 import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.model.UserStatus;
@@ -83,8 +84,10 @@ public class LoginUseCaseImpl implements LoginUseCase {
 
         authEventPublisher.publishAuthSuccess(user.getUserId(), user.getEmail().value(), clientIp);
 
-        log.info("Login success: userId={}", user.getUserId());
-        return new LoginResult(user, access, refresh);
+        AuthNextStep nextStep = user.isOnboardingIncomplete() ? AuthNextStep.COMPLETE_PROFILE : AuthNextStep.NONE;
+
+        log.info("Login success: userId={} nextStep={}", user.getUserId(), nextStep);
+        return new LoginResult(user, access, refresh, nextStep);
     }
 
     private void enforceRateLimit(String key, int limit) {

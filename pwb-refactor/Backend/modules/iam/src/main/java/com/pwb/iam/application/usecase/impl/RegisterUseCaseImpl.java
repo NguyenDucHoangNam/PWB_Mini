@@ -21,6 +21,7 @@ import com.pwb.iam.domain.service.CooldownService;
 import com.pwb.iam.domain.service.OtpDeliveryPort;
 import com.pwb.iam.domain.service.OtpGenerator;
 import com.pwb.iam.domain.service.PasswordHasher;
+import com.pwb.iam.infrastructure.config.OtpProperties;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +37,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class RegisterUseCaseImpl implements RegisterUseCase {
 
-    private static final int OTP_TTL_MINUTES = 10;
     private static final int PROVISIONAL_USERNAME_RANDOM_LENGTH = 16;
     private static final String PROVISIONAL_USERNAME_PREFIX = "user_";
 
@@ -49,13 +49,18 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
     private final OtpDeliveryPort otpDeliveryPort;
     private final CooldownService cooldownService;
     private final AuthEventPublisher authEventPublisher;
+    private final OtpProperties otpProperties;
 
     @Override
     @Transactional
     public User execute(RegisterCommand command) {
         String email = command.email().trim().toLowerCase();
 
-        cooldownService.enforceRegisterCooldown(email);
+        long remaining = cooldownService.enforceRegisterCooldown(email);
+        if (remaining > 0) {
+            throw new BusinessException(IamErrorCode.AUTH_RATE_LIMIT_EXCEEDED,
+                    java.util.Map.of("cooldownSeconds", remaining));
+        }
 
         if (userRepository.existsByEmail(email)) {
             throw new BusinessException(IamErrorCode.EMAIL_ALREADY_REGISTERED);
@@ -88,7 +93,7 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
     private void issueOtp(User user, OtpPurpose purpose) {
         String rawCode = otpGenerator.generate();
         String codeHash = otpGenerator.hash(rawCode);
-        Instant expiresAt = Instant.now().plus(Duration.ofMinutes(OTP_TTL_MINUTES));
+        Instant expiresAt = Instant.now().plus(Duration.ofMinutes(otpProperties.getTtlMinutes()));
 
         OtpDeliveryPort.DeliveryResult delivery = otpDeliveryPort.deliver(user.getUserId(), user.getEmail().value(), purpose.name(), rawCode);
         if (!delivery.delivered()) {

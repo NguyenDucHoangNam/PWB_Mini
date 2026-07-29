@@ -29,6 +29,7 @@ import com.pwb.iam.application.facade.AuthView;
 import com.pwb.iam.application.facade.IamFacade;
 import com.pwb.iam.application.usecase.ForgotPasswordUseCase;
 import com.pwb.iam.domain.model.OtpPurpose;
+import com.pwb.shared.dto.ApiResponse;
 import com.pwb.web.message.MessageResolver;
 import com.pwb.web.security.CurrentClientIp;
 import com.pwb.web.security.CurrentUser;
@@ -64,92 +65,95 @@ public class AuthController {
     private final MessageResolver messageResolver;
 
     @PostMapping("/register")
-    public ResponseEntity<AuthMessageResponse> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<ApiResponse<AuthMessageResponse>> register(@Valid @RequestBody RegisterRequest request) {
         UUID userId = iamFacade.register(toCommand(request));
+        AuthMessageResponse body = AuthMessageResponse.of(userId, messageResolver.get(MSG_REGISTER));
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(AuthMessageResponse.of(userId, messageResolver.get(MSG_REGISTER)));
+                .body(ApiResponse.success(body));
     }
 
     @PostMapping("/verify-otp")
-    public ResponseEntity<AuthResponse> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
+    public ResponseEntity<ApiResponse<AuthResponse>> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
         AuthView view = iamFacade.verifyOtp(toCommand(request));
-        return ResponseEntity.ok(toAuthResponse(view, MSG_VERIFY_OTP));
+        return ResponseEntity.ok(ApiResponse.success(toAuthResponse(view)));
     }
 
     @PostMapping("/resend-otp")
-    public ResponseEntity<AuthMessageResponse> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
-        ResendOtpCommand command = new ResendOtpCommand(
-                request.userId(),
-                request.purpose() == null ? OtpPurpose.REGISTER : request.purpose()
-        );
+    public ResponseEntity<ApiResponse<AuthMessageResponse>> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
+        ResendOtpCommand command = new ResendOtpCommand(request.userId(), OtpPurpose.REGISTER);
         iamFacade.resendOtp(command);
-        return ResponseEntity.ok(AuthMessageResponse.of(request.userId(), messageResolver.get(MSG_OTP_RESENT)));
+        AuthMessageResponse body = AuthMessageResponse.of(request.userId(), messageResolver.get(MSG_OTP_RESENT));
+        return ResponseEntity.ok(ApiResponse.success(body));
     }
 
     @PostMapping("/complete-profile")
-    public ResponseEntity<AuthResponse> completeProfile(
+    public ResponseEntity<ApiResponse<AuthResponse>> completeProfile(
             @CurrentUser UUID userId,
             @Valid @RequestBody CompleteProfileRequest request
     ) {
-        CompleteProfileCommand command = new CompleteProfileCommand(userId, request.username(), request.fullName());
+        CompleteProfileCommand command = new CompleteProfileCommand(userId, request.username(), request.fullName(), request.newPassword());
         AuthView view = iamFacade.completeProfile(command);
-        return ResponseEntity.ok(toAuthResponse(view, MSG_COMPLETE_PROFILE));
+        return ResponseEntity.ok(ApiResponse.success(toAuthResponse(view)));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request, @CurrentClientIp String clientIp) {
+    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request, @CurrentClientIp String clientIp) {
         LoginCommand command = new LoginCommand(request.email(), request.password(), clientIp);
         AuthView view = iamFacade.login(command);
-        return ResponseEntity.ok(toAuthResponse(view, MSG_LOGIN_SUCCESS));
+        return ResponseEntity.ok(ApiResponse.success(toAuthResponse(view)));
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest request, @CurrentClientIp String clientIp) {
+    public ResponseEntity<ApiResponse<AuthResponse>> refresh(@Valid @RequestBody RefreshTokenRequest request, @CurrentClientIp String clientIp) {
         RefreshTokenCommand command = new RefreshTokenCommand(request.refreshToken(), clientIp);
         AuthView view = iamFacade.refresh(command);
-        return ResponseEntity.ok(toAuthResponse(view, MSG_REFRESH_SUCCESS));
+        return ResponseEntity.ok(ApiResponse.success(toAuthResponse(view)));
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<LogoutResponse> logout(
+    public ResponseEntity<ApiResponse<LogoutResponse>> logout(
             @CurrentUser UUID userId,
             @Valid @RequestBody LogoutRequest request
     ) {
         LogoutCommand command = new LogoutCommand(userId, request.refreshToken(), null, 0L);
         UUID resultUserId = iamFacade.logout(command);
-        return ResponseEntity.ok(LogoutResponse.of(resultUserId, messageResolver.get(MSG_LOGOUT_SUCCESS)));
+        LogoutResponse body = LogoutResponse.of(resultUserId, messageResolver.get(MSG_LOGOUT_SUCCESS));
+        return ResponseEntity.ok(ApiResponse.success(body));
     }
 
     @PostMapping("/google-login")
-    public ResponseEntity<AuthResponse> googleLogin(@Valid @RequestBody GoogleLoginRequest request, @CurrentClientIp String clientIp) {
+    public ResponseEntity<ApiResponse<AuthResponse>> googleLogin(@Valid @RequestBody GoogleLoginRequest request, @CurrentClientIp String clientIp) {
         GoogleLoginCommand command = new GoogleLoginCommand(request.idToken(), clientIp);
         AuthView view = iamFacade.loginWithGoogle(command);
-        return ResponseEntity.ok(toAuthResponse(view, MSG_GOOGLE_LOGIN_SUCCESS));
+        return ResponseEntity.ok(ApiResponse.success(toAuthResponse(view)));
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<AuthMessageResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+    public ResponseEntity<ApiResponse<AuthMessageResponse>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         ForgotPasswordCommand command = new ForgotPasswordCommand(request.email());
         ForgotPasswordUseCase.Result result = iamFacade.forgotPassword(command);
-        UUID userId = result == null ? null : result.userId();
-        return ResponseEntity.ok(AuthMessageResponse.of(userId, messageResolver.get(MSG_FORGOT_PASSWORD)));
+        UUID uid = result == null ? null : result.userId();
+        AuthMessageResponse body = AuthMessageResponse.of(uid, messageResolver.get(MSG_FORGOT_PASSWORD));
+        return ResponseEntity.ok(ApiResponse.success(body));
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<AuthMessageResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+    public ResponseEntity<ApiResponse<AuthMessageResponse>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         ResetPasswordCommand command = new ResetPasswordCommand(request.token(), request.newPassword());
         UUID userId = iamFacade.resetPassword(command);
-        return ResponseEntity.ok(AuthMessageResponse.of(userId, messageResolver.get(MSG_RESET_PASSWORD)));
+        AuthMessageResponse body = AuthMessageResponse.of(userId, messageResolver.get(MSG_RESET_PASSWORD));
+        return ResponseEntity.ok(ApiResponse.success(body));
     }
 
     @PostMapping("/change-password")
-    public ResponseEntity<AuthMessageResponse> changePassword(
+    public ResponseEntity<ApiResponse<AuthMessageResponse>> changePassword(
             @CurrentUser UUID userId,
             @Valid @RequestBody ChangePasswordRequest request
     ) {
         ChangePasswordCommand command = new ChangePasswordCommand(userId, request.currentPassword(), request.newPassword());
         UUID resultUserId = iamFacade.changePassword(command);
-        return ResponseEntity.ok(AuthMessageResponse.of(resultUserId, messageResolver.get(MSG_CHANGE_PASSWORD)));
+        AuthMessageResponse body = AuthMessageResponse.of(resultUserId, messageResolver.get(MSG_CHANGE_PASSWORD));
+        return ResponseEntity.ok(ApiResponse.success(body));
     }
 
     private static RegisterCommand toCommand(RegisterRequest request) {
@@ -157,27 +161,24 @@ public class AuthController {
     }
 
     private static VerifyOtpCommand toCommand(VerifyOtpRequest request) {
-        OtpPurpose purpose = request.purpose() == null ? OtpPurpose.REGISTER : request.purpose();
-        return new VerifyOtpCommand(request.userId(), purpose, request.code());
+        return new VerifyOtpCommand(request.userId(), OtpPurpose.REGISTER, request.code());
     }
 
-    private AuthResponse toAuthResponse(AuthView view, String messageKey) {
-        AuthResponse response;
+    private AuthResponse toAuthResponse(AuthView view) {
         if (view.accessToken() == null || view.refreshToken() == null) {
-            response = AuthResponse.bearerOnly(view.userId(), view.email(), view.username(), view.status(), view.role());
-        } else {
-            response = AuthResponse.tokens(
-                    view.userId(),
-                    view.email(),
-                    view.username(),
-                    view.status(),
-                    view.role(),
-                    view.accessToken(),
-                    view.refreshToken(),
-                    view.expiresInSeconds()
-            );
+            return AuthResponse.bearerOnly(
+                    view.userId(), view.email(), view.username(), view.status(), view.role());
         }
-        response.setMessage(messageResolver.get(messageKey));
-        return response;
+        return AuthResponse.tokens(
+                view.userId(),
+                view.email(),
+                view.username(),
+                view.status(),
+                view.role(),
+                view.accessToken(),
+                view.refreshToken(),
+                view.expiresInSeconds(),
+                view.nextStep() == null ? null : view.nextStep().name()
+        );
     }
 }

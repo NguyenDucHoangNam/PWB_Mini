@@ -5,6 +5,7 @@ import com.pwb.iam.application.usecase.GoogleLoginUseCase;
 import com.pwb.iam.application.usecase.LoginResult;
 import com.pwb.iam.domain.event.AuthEventPublisher;
 import com.pwb.iam.domain.exception.IamErrorCode;
+import com.pwb.iam.domain.model.AuthNextStep;
 import com.pwb.iam.domain.model.EmailAddress;
 import com.pwb.iam.domain.model.GoogleUserInfo;
 import com.pwb.iam.domain.model.OAuthProvider;
@@ -74,9 +75,10 @@ public class GoogleLoginUseCaseImpl implements GoogleLoginUseCase {
 
         authEventPublisher.publishGoogleLoginSuccess(user.getUserId(), user.getEmail().value(), clientIp);
 
-        log.info("Google login success: userId={}", user.getUserId());
+        AuthNextStep nextStep = user.isOnboardingIncomplete() ? AuthNextStep.COMPLETE_PROFILE : AuthNextStep.NONE;
+        log.info("Google login success: userId={} nextStep={}", user.getUserId(), nextStep);
 
-        return new LoginResult(user, access, refresh);
+        return new LoginResult(user, access, refresh, nextStep);
     }
 
     private void enforceRateLimit(String key, int limit) {

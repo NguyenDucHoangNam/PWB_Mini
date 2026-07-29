@@ -196,6 +196,35 @@ public final class User extends BaseEntity {
         touch();
     }
 
+    public void markActiveFromRegistration() {
+        if (this.status != UserStatus.PENDING_VERIFICATION) {
+            throw new com.pwb.iam.domain.exception.UserStateConflictException(
+                    com.pwb.iam.domain.exception.IamErrorCode.ACCOUNT_NOT_VERIFIED);
+        }
+        this.status = UserStatus.ACTIVE;
+        touch();
+    }
+
+    public boolean isOnboardingIncomplete() {
+        return this.status == UserStatus.ACTIVE && this.provisionalUsername;
+    }
+
+    public void completeProfile(String username, String fullName) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("username must not be blank");
+        }
+        if (this.status != UserStatus.ACTIVE || !this.provisionalUsername) {
+            throw new com.pwb.iam.domain.exception.UserStateConflictException(
+                    com.pwb.iam.domain.exception.IamErrorCode.ACCOUNT_NOT_VERIFIED);
+        }
+        this.username = username;
+        this.provisionalUsername = false;
+        if (fullName != null && !fullName.isBlank()) {
+            this.fullName = fullName;
+        }
+        touch();
+    }
+
     public void assignRole(RoleName newRole) {
         if (newRole == null) {
             throw new IllegalArgumentException("role must not be null");
