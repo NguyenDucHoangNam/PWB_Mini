@@ -1,6 +1,7 @@
 package com.pwb.iam.infrastructure.security;
 
-import com.pwb.iam.infrastructure.service.impl.JwtTokenProvider;
+import com.pwb.iam.domain.service.TokenManagerService;
+import com.pwb.iam.infrastructure.service.impl.TokenManagerServiceAdapter;
 import com.pwb.web.security.AuthenticatedUser;
 import com.pwb.web.security.CurrentClientIpArgumentResolver;
 import io.jsonwebtoken.Claims;
@@ -24,8 +25,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
 
-    private final JwtTokenProvider tokenProvider;
-    private final com.pwb.iam.domain.service.AccessTokenBlacklist blacklist;
+    private final TokenManagerServiceAdapter tokenManager;
+    private final TokenManagerService blacklistService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
@@ -36,10 +37,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith(BEARER_PREFIX)) {
             String token = header.substring(BEARER_PREFIX.length()).trim();
-            Claims claims = tokenProvider.parse(token);
+            Claims claims = tokenManager.parseAccessToken(token);
             if (claims != null) {
                 String jti = claims.getId();
-                if (jti != null && blacklist.isBlacklisted(jti)) {
+                if (jti != null && blacklistService.isAccessTokenBlacklisted(jti)) {
                     SecurityContextHolder.clearContext();
                 } else {
                     String subject = claims.getSubject();

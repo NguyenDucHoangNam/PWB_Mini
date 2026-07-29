@@ -12,9 +12,8 @@ import com.pwb.iam.domain.model.UserStatus;
 import com.pwb.iam.domain.repository.UserRepository;
 import com.pwb.iam.domain.service.LoginAttemptChecker;
 import com.pwb.iam.domain.service.PasswordHasher;
-import com.pwb.iam.domain.service.RateLimiter;
-import com.pwb.iam.domain.service.RefreshTokenManager;
-import com.pwb.iam.domain.service.TokenService;
+import com.pwb.iam.domain.service.ThrottlingService;
+import com.pwb.iam.domain.service.TokenManagerService;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,10 +29,9 @@ public class LoginUseCaseImpl implements LoginUseCase {
 
     private final UserRepository userRepository;
     private final PasswordHasher passwordHasher;
-    private final RateLimiter rateLimiter;
+    private final ThrottlingService throttlingService;
     private final LoginAttemptChecker attemptChecker;
-    private final TokenService tokenService;
-    private final RefreshTokenManager refreshTokenManager;
+    private final TokenManagerService tokenManagerService;
     private final AuthEventPublisher authEventPublisher;
     private final LoginPolicy loginPolicy;
 
@@ -79,8 +77,8 @@ public class LoginUseCaseImpl implements LoginUseCase {
 
         attemptChecker.reset(email);
 
-        TokenService.AccessToken access = tokenService.issueAccessToken(user);
-        RefreshTokenManager.RefreshToken refresh = refreshTokenManager.issue(user.getUserId());
+        TokenManagerService.AccessTokenInfo access = tokenManagerService.issueAccessToken(user);
+        TokenManagerService.RefreshTokenInfo refresh = tokenManagerService.issueRefreshToken(user.getUserId());
 
         authEventPublisher.publishAuthSuccess(user.getUserId(), user.getEmail().value(), clientIp);
 
@@ -91,7 +89,7 @@ public class LoginUseCaseImpl implements LoginUseCase {
     }
 
     private void enforceRateLimit(String key, int limit) {
-        RateLimiter.Decision decision = rateLimiter.consume(key, limit, Duration.ofMinutes(1));
+        ThrottlingService.ThrottleDecision decision = throttlingService.consume(key, limit, Duration.ofMinutes(1));
         if (!decision.allowed()) {
             throw new BusinessException(IamErrorCode.RATE_LIMITED,
                     java.util.Map.of("retryAfterSeconds", decision.retryAfterSeconds()));

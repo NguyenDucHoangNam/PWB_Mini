@@ -15,8 +15,7 @@ import com.pwb.iam.domain.model.UserStatus;
 import com.pwb.iam.domain.repository.OtpCodeRepository;
 import com.pwb.iam.domain.repository.UserRepository;
 import com.pwb.iam.domain.service.OtpGenerator;
-import com.pwb.iam.domain.service.RefreshTokenManager;
-import com.pwb.iam.domain.service.TokenService;
+import com.pwb.iam.domain.service.TokenManagerService;
 import com.pwb.iam.infrastructure.config.OtpProperties;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
@@ -35,8 +34,7 @@ public class VerifyOtpUseCaseImpl implements VerifyOtpUseCase {
     private final UserRepository userRepository;
     private final OtpCodeRepository otpCodeRepository;
     private final OtpGenerator otpGenerator;
-    private final TokenService tokenService;
-    private final RefreshTokenManager refreshTokenManager;
+    private final TokenManagerService tokenManagerService;
     private final AuthEventPublisher authEventPublisher;
     private final OtpProperties otpProperties;
 
@@ -81,8 +79,8 @@ public class VerifyOtpUseCaseImpl implements VerifyOtpUseCase {
         user.markActiveFromRegistration();
         user = userRepository.save(user);
 
-        TokenService.AccessToken access = tokenService.issueAccessToken(user);
-        RefreshTokenManager.RefreshToken refresh = refreshTokenManager.issue(user.getUserId());
+        TokenManagerService.AccessTokenInfo access = tokenManagerService.issueAccessToken(user);
+        TokenManagerService.RefreshTokenInfo refresh = tokenManagerService.issueRefreshToken(user.getUserId());
 
         AuthNextStep nextStep = user.isOnboardingIncomplete() ? AuthNextStep.COMPLETE_PROFILE : AuthNextStep.NONE;
 

@@ -11,8 +11,8 @@ import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.model.UserStatus;
 import com.pwb.iam.domain.repository.PasswordResetTokenRepository;
 import com.pwb.iam.domain.repository.UserRepository;
-import com.pwb.iam.domain.service.PasswordResetCooldown;
 import com.pwb.iam.domain.service.PasswordResetTokenService;
+import com.pwb.iam.domain.service.ThrottlingService;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +30,7 @@ public class ForgotPasswordUseCaseImpl implements ForgotPasswordUseCase {
     private final UserRepository userRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordResetTokenService passwordResetTokenService;
-    private final PasswordResetCooldown cooldownService;
+    private final ThrottlingService throttlingService;
     private final AuthEventPublisher authEventPublisher;
     private final PasswordResetPolicy passwordResetPolicy;
 
@@ -38,7 +38,7 @@ public class ForgotPasswordUseCaseImpl implements ForgotPasswordUseCase {
     @Transactional
     public Result execute(ForgotPasswordCommand command) {
         String email = command.email().trim().toLowerCase();
-        long cooldownRemaining = cooldownService.enforce(email);
+        long cooldownRemaining = throttlingService.enforceCooldown(email, ThrottlingService.CooldownPurpose.PASSWORD_RESET);
 
         if (cooldownRemaining > 0) {
             log.info("Password reset cooldown active: email={} remaining={}s", email, cooldownRemaining);

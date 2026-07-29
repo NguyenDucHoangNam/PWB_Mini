@@ -12,9 +12,8 @@ import com.pwb.iam.domain.model.AuthNextStep;
 import com.pwb.iam.domain.model.LoginPolicy;
 import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.repository.UserRepository;
-import com.pwb.iam.domain.service.RateLimiter;
-import com.pwb.iam.domain.service.RefreshTokenManager;
-import com.pwb.iam.domain.service.TokenService;
+import com.pwb.iam.domain.service.ThrottlingService;
+import com.pwb.iam.domain.service.TokenManagerService;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,10 +27,9 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class RefreshTokenUseCaseImpl implements RefreshTokenUseCase {
 
-    private final RefreshTokenManager refreshTokenManager;
-    private final TokenService tokenService;
+    private final TokenManagerService tokenManagerService;
     private final UserRepository userRepository;
-    private final RateLimiter rateLimiter;
+    private final ThrottlingService throttlingService;
     private final AuthEventPublisher authEventPublisher;
     private final LoginPolicy loginPolicy;
 
@@ -39,16 +37,16 @@ public class RefreshTokenUseCaseImpl implements RefreshTokenUseCase {
     @Transactional
     public LoginResult execute(RefreshTokenCommand command) {
         String clientIp = command.clientIp() == null ? "unknown" : command.clientIp();
-        RateLimiter.Decision decision = rateLimiter.consume(
+        ThrottlingService.ThrottleDecision decision = throttlingService.consume(
                 "refresh:ip:" + clientIp, loginPolicy.refreshPerMinute(), Duration.ofMinutes(1));
         if (!decision.allowed()) {
             throw new BusinessException(IamErrorCode.RATE_LIMITED,
                     java.util.Map.of("retryAfterSeconds", decision.retryAfterSeconds()));
         }
 
-        RefreshTokenManager.RefreshToken rotated;
+        TokenManagerService.RefreshTokenInfo rotated;
         try {
-            rotated = refreshTokenManager.rotate(command.rawRefreshToken());
+            rotated = tokenManagerService.rotateRefreshToken(command.rawRefreshToken());
         } catch (RefreshTokenExpiredException | RefreshTokenInvalidException ex) {
             throw ex;
         } catch (RuntimeException ex) {
@@ -58,7 +56,7 @@ public class RefreshTokenUseCaseImpl implements RefreshTokenUseCase {
         User user = userRepository.findById(rotated.userId())
                 .orElseThrow(() -> new RefreshTokenInvalidException("User not found for token"));
 
-        TokenService.AccessToken access = tokenService.issueAccessToken(user);
+        TokenManagerService.AccessTokenInfo access = tokenManagerService.issueAccessToken(user);
         authEventPublisher.publishAuthSuccess(AuthSuccessEvent.of(user.getUserId(), user.getEmail().value()));
         AuthNextStep nextStep = user.isOnboardingIncomplete() ? AuthNextStep.COMPLETE_PROFILE : AuthNextStep.NONE;
         log.info("Refresh token rotated: userId={} nextStep={}", user.getUserId(), nextStep);

@@ -9,8 +9,7 @@ import com.pwb.iam.domain.model.AuthNextStep;
 import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.model.UserStatus;
 import com.pwb.iam.domain.repository.UserRepository;
-import com.pwb.iam.domain.service.RefreshTokenManager;
-import com.pwb.iam.domain.service.TokenService;
+import com.pwb.iam.domain.service.TokenManagerService;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,8 +26,7 @@ public class CompleteProfileUseCaseImpl implements CompleteProfileUseCase {
     private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_-]{3,50}$");
 
     private final UserRepository userRepository;
-    private final TokenService tokenService;
-    private final RefreshTokenManager refreshTokenManager;
+    private final TokenManagerService tokenManagerService;
     private final AuthEventPublisher authEventPublisher;
 
     @Override
@@ -60,9 +58,9 @@ public class CompleteProfileUseCaseImpl implements CompleteProfileUseCase {
         user.completeProfile(canonicalUsername, command.fullName());
         User saved = userRepository.save(user);
 
-        refreshTokenManager.revokeAllForUser(saved.getUserId());
-        TokenService.AccessToken access = tokenService.issueAccessToken(saved);
-        RefreshTokenManager.RefreshToken refresh = refreshTokenManager.issue(saved.getUserId());
+        tokenManagerService.revokeAllRefreshTokensForUser(saved.getUserId());
+        TokenManagerService.AccessTokenInfo access = tokenManagerService.issueAccessToken(saved);
+        TokenManagerService.RefreshTokenInfo refresh = tokenManagerService.issueRefreshToken(saved.getUserId());
 
         log.info("Profile completed: userId={} username={}", saved.getUserId(), saved.getUsername());
         return new LoginResult(saved, access, refresh, AuthNextStep.NONE);

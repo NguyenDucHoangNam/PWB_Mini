@@ -1,12 +1,11 @@
 package com.pwb.iam.application.usecase.impl;
 
 import com.pwb.iam.application.command.RegisterCommand;
-import com.pwb.iam.application.policy.PasswordPolicyEnforcer;
+import com.pwb.iam.application.usecase.EnforcePasswordPolicyUseCase;
 import com.pwb.iam.application.usecase.RegisterUseCase;
 import com.pwb.iam.domain.event.AuthEventPublisher;
 import com.pwb.iam.domain.event.OtpIssuedDomainEvent;
 import com.pwb.iam.domain.exception.IamErrorCode;
-import com.pwb.iam.domain.exception.WeakPasswordException;
 import com.pwb.iam.domain.model.EmailAddress;
 import com.pwb.iam.domain.model.OtpCode;
 import com.pwb.iam.domain.model.OtpPurpose;
@@ -17,10 +16,10 @@ import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.repository.OtpCodeRepository;
 import com.pwb.iam.domain.repository.RoleRepository;
 import com.pwb.iam.domain.repository.UserRepository;
-import com.pwb.iam.domain.service.CooldownService;
 import com.pwb.iam.domain.service.OtpDeliveryPort;
 import com.pwb.iam.domain.service.OtpGenerator;
 import com.pwb.iam.domain.service.PasswordHasher;
+import com.pwb.iam.domain.service.ThrottlingService;
 import com.pwb.iam.infrastructure.config.OtpProperties;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
@@ -44,10 +43,10 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
     private final RoleRepository roleRepository;
     private final OtpCodeRepository otpCodeRepository;
     private final PasswordHasher passwordHasher;
-    private final PasswordPolicyEnforcer passwordPolicyEnforcer;
+    private final EnforcePasswordPolicyUseCase enforcePasswordPolicyUseCase;
     private final OtpGenerator otpGenerator;
     private final OtpDeliveryPort otpDeliveryPort;
-    private final CooldownService cooldownService;
+    private final ThrottlingService throttlingService;
     private final AuthEventPublisher authEventPublisher;
     private final OtpProperties otpProperties;
 
@@ -56,7 +55,7 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
     public User execute(RegisterCommand command) {
         String email = command.email().trim().toLowerCase();
 
-        long remaining = cooldownService.enforceRegisterCooldown(email);
+        long remaining = throttlingService.enforceCooldown(email, ThrottlingService.CooldownPurpose.REGISTER);
         if (remaining > 0) {
             throw new BusinessException(IamErrorCode.AUTH_RATE_LIMIT_EXCEEDED,
                     java.util.Map.of("cooldownSeconds", remaining));
@@ -66,7 +65,7 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
             throw new BusinessException(IamErrorCode.EMAIL_ALREADY_REGISTERED);
         }
 
-        passwordPolicyEnforcer.enforce(command.rawPassword());
+        enforcePasswordPolicyUseCase.enforce(command.rawPassword());
 
         RoleName roleName = roleRepository.findByName(RoleName.USER)
                 .map(Role::getName)

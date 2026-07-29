@@ -1,7 +1,7 @@
 package com.pwb.iam.application.usecase.impl;
 
 import com.pwb.iam.application.command.ResetPasswordCommand;
-import com.pwb.iam.application.policy.PasswordPolicyEnforcer;
+import com.pwb.iam.application.usecase.EnforcePasswordPolicyUseCase;
 import com.pwb.iam.application.usecase.ResetPasswordUseCase;
 import com.pwb.iam.domain.event.AuthEventPublisher;
 import com.pwb.iam.domain.exception.IamErrorCode;
@@ -15,7 +15,7 @@ import com.pwb.iam.domain.repository.PasswordResetTokenRepository;
 import com.pwb.iam.domain.repository.UserRepository;
 import com.pwb.iam.domain.service.PasswordHasher;
 import com.pwb.iam.domain.service.PasswordResetTokenService;
-import com.pwb.iam.domain.service.RefreshTokenManager;
+import com.pwb.iam.domain.service.TokenManagerService;
 import com.pwb.iam.infrastructure.persistence.repository.PasswordHistoryJpaRepository;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
@@ -36,8 +36,8 @@ public class ResetPasswordUseCaseImpl implements ResetPasswordUseCase {
     private final PasswordHistoryRepository passwordHistoryRepository;
     private final PasswordHistoryJpaRepository passwordHistoryJpaRepository;
     private final PasswordHasher passwordHasher;
-    private final PasswordPolicyEnforcer passwordPolicyEnforcer;
-    private final RefreshTokenManager refreshTokenManager;
+    private final EnforcePasswordPolicyUseCase enforcePasswordPolicyUseCase;
+    private final TokenManagerService tokenManagerService;
     private final AuthEventPublisher authEventPublisher;
 
     @Override
@@ -79,7 +79,7 @@ public class ResetPasswordUseCaseImpl implements ResetPasswordUseCase {
             }
         }
 
-        passwordPolicyEnforcer.enforce(command.newPassword());
+        enforcePasswordPolicyUseCase.enforce(command.newPassword());
 
         user.changePassword(Password.fromHash(passwordHasher.hash(command.newPassword())));
         User saved = userRepository.save(user);
@@ -95,7 +95,7 @@ public class ResetPasswordUseCaseImpl implements ResetPasswordUseCase {
             }
         }
 
-        refreshTokenManager.revokeAllForUser(saved.getUserId());
+        tokenManagerService.revokeAllRefreshTokensForUser(saved.getUserId());
         authEventPublisher.publishPasswordChanged(saved.getUserId(), saved.getEmail().value(), null);
 
         log.info("Password reset completed: userId={}", saved.getUserId());

@@ -1,8 +1,8 @@
 package com.pwb.iam.application.usecase.impl;
 
 import com.pwb.iam.application.command.ChangePasswordCommand;
-import com.pwb.iam.application.policy.PasswordPolicyEnforcer;
 import com.pwb.iam.application.usecase.ChangePasswordUseCase;
+import com.pwb.iam.application.usecase.EnforcePasswordPolicyUseCase;
 import com.pwb.iam.domain.event.AuthEventPublisher;
 import com.pwb.iam.domain.exception.IamErrorCode;
 import com.pwb.iam.domain.model.OAuthProvider;
@@ -12,7 +12,7 @@ import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.repository.PasswordHistoryRepository;
 import com.pwb.iam.domain.repository.UserRepository;
 import com.pwb.iam.domain.service.PasswordHasher;
-import com.pwb.iam.domain.service.RefreshTokenManager;
+import com.pwb.iam.domain.service.TokenManagerService;
 import com.pwb.iam.infrastructure.persistence.repository.PasswordHistoryJpaRepository;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
@@ -29,8 +29,8 @@ public class ChangePasswordUseCaseImpl implements ChangePasswordUseCase {
     private final PasswordHistoryRepository passwordHistoryRepository;
     private final PasswordHistoryJpaRepository passwordHistoryJpaRepository;
     private final PasswordHasher passwordHasher;
-    private final PasswordPolicyEnforcer passwordPolicyEnforcer;
-    private final RefreshTokenManager refreshTokenManager;
+    private final EnforcePasswordPolicyUseCase enforcePasswordPolicyUseCase;
+    private final TokenManagerService tokenManagerService;
     private final AuthEventPublisher authEventPublisher;
 
     @Override
@@ -65,7 +65,7 @@ public class ChangePasswordUseCaseImpl implements ChangePasswordUseCase {
             throw new BusinessException(IamErrorCode.AUTH_PASSWORD_REUSED);
         }
 
-        passwordPolicyEnforcer.enforce(command.newPassword());
+        enforcePasswordPolicyUseCase.enforce(command.newPassword());
 
         user.changePassword(Password.fromHash(passwordHasher.hash(command.newPassword())));
         User saved = userRepository.save(user);
@@ -76,7 +76,7 @@ public class ChangePasswordUseCaseImpl implements ChangePasswordUseCase {
             passwordHistoryRepository.deleteOldestByUserId(command.userId(), toDelete);
         }
 
-        refreshTokenManager.revokeAllForUser(saved.getUserId());
+        tokenManagerService.revokeAllRefreshTokensForUser(saved.getUserId());
         authEventPublisher.publishPasswordChanged(saved.getUserId(), saved.getEmail().value(), null);
 
         log.info("Password changed: userId={}", saved.getUserId());

@@ -10,9 +10,9 @@ import com.pwb.iam.domain.model.OtpPurpose;
 import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.repository.OtpCodeRepository;
 import com.pwb.iam.domain.repository.UserRepository;
-import com.pwb.iam.domain.service.CooldownService;
 import com.pwb.iam.domain.service.OtpDeliveryPort;
 import com.pwb.iam.domain.service.OtpGenerator;
+import com.pwb.iam.domain.service.ThrottlingService;
 import com.pwb.iam.infrastructure.config.OtpProperties;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +34,7 @@ public class ResendOtpUseCaseImpl implements ResendOtpUseCase {
     private final OtpCodeRepository otpCodeRepository;
     private final OtpGenerator otpGenerator;
     private final OtpDeliveryPort otpDeliveryPort;
-    private final CooldownService cooldownService;
+    private final ThrottlingService throttlingService;
     private final AuthEventPublisher authEventPublisher;
     private final OtpProperties otpProperties;
 
@@ -44,7 +44,7 @@ public class ResendOtpUseCaseImpl implements ResendOtpUseCase {
         User user = userRepository.findById(command.userId())
                 .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_FOUND));
 
-        long remaining = cooldownService.enforceResendOtpCooldown(user.getEmail().value());
+        long remaining = throttlingService.enforceCooldown(user.getEmail().value(), ThrottlingService.CooldownPurpose.RESEND_OTP);
         if (remaining > 0) {
             log.info("OTP resend throttled: userId={} remainingSeconds={}", user.getUserId(), remaining);
             throw new BusinessException(IamErrorCode.AUTH_RATE_LIMIT_EXCEEDED,
