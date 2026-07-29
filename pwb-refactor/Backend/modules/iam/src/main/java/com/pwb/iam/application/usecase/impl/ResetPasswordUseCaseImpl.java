@@ -7,13 +7,16 @@ import com.pwb.iam.domain.event.AuthEventPublisher;
 import com.pwb.iam.domain.exception.IamErrorCode;
 import com.pwb.iam.domain.model.OAuthProvider;
 import com.pwb.iam.domain.model.Password;
+import com.pwb.iam.domain.model.PasswordHistory;
 import com.pwb.iam.domain.model.PasswordResetToken;
 import com.pwb.iam.domain.model.User;
+import com.pwb.iam.domain.repository.PasswordHistoryRepository;
 import com.pwb.iam.domain.repository.PasswordResetTokenRepository;
 import com.pwb.iam.domain.repository.UserRepository;
 import com.pwb.iam.domain.service.PasswordHasher;
 import com.pwb.iam.domain.service.PasswordResetTokenService;
 import com.pwb.iam.domain.service.RefreshTokenManager;
+import com.pwb.iam.infrastructure.persistence.repository.PasswordHistoryJpaRepository;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +33,8 @@ public class ResetPasswordUseCaseImpl implements ResetPasswordUseCase {
     private final UserRepository userRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordResetTokenService passwordResetTokenService;
+    private final PasswordHistoryRepository passwordHistoryRepository;
+    private final PasswordHistoryJpaRepository passwordHistoryJpaRepository;
     private final PasswordHasher passwordHasher;
     private final PasswordPolicyEnforcer passwordPolicyEnforcer;
     private final RefreshTokenManager refreshTokenManager;
@@ -60,6 +65,20 @@ public class ResetPasswordUseCaseImpl implements ResetPasswordUseCase {
             throw new BusinessException(IamErrorCode.AUTH_OAUTH_USER_NO_PASSWORD);
         }
 
+        if (user.getPassword() != null && user.getPassword().hash() != null) {
+            passwordHistoryRepository.save(
+                    PasswordHistory.create(user.getUserId(), user.getPassword().hash())
+            );
+        }
+
+        var history = passwordHistoryRepository.findByUserIdOrderByCreatedAtDesc(
+                user.getUserId(), PasswordHistory.MAX_HISTORY_SIZE);
+        for (PasswordHistory entry : history) {
+            if (passwordHasher.matches(command.newPassword(), entry.getPasswordHash())) {
+                throw new BusinessException(IamErrorCode.AUTH_PASSWORD_RECENTLY_USED);
+            }
+        }
+
         passwordPolicyEnforcer.enforce(command.newPassword());
 
         user.changePassword(Password.fromHash(passwordHasher.hash(command.newPassword())));
@@ -67,6 +86,14 @@ public class ResetPasswordUseCaseImpl implements ResetPasswordUseCase {
 
         resetToken.markUsed(now);
         passwordResetTokenRepository.save(resetToken);
+
+        if (user.getPassword() != null) {
+            long count = passwordHistoryJpaRepository.countByUserIdAndDeletedFalse(user.getUserId());
+            if (count > PasswordHistory.MAX_HISTORY_SIZE) {
+                int toDelete = (int) (count - PasswordHistory.MAX_HISTORY_SIZE);
+                passwordHistoryRepository.deleteOldestByUserId(user.getUserId(), toDelete);
+            }
+        }
 
         refreshTokenManager.revokeAllForUser(saved.getUserId());
         authEventPublisher.publishPasswordChanged(saved.getUserId(), saved.getEmail().value(), null);

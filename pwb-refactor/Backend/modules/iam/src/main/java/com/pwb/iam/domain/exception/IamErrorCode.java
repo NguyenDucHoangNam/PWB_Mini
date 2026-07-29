@@ -21,6 +21,7 @@ public enum IamErrorCode implements ErrorCode {
     RATE_LIMITED                      (ErrorCategory.TOO_MANY_REQUESTS,"IAM_014", "Too many requests. Please slow down."),
     AUTH_INVALID_CURRENT_PASSWORD     (ErrorCategory.VALIDATION,       "IAM_015", "Current password is incorrect."),
     AUTH_PASSWORD_REUSED              (ErrorCategory.VALIDATION,       "IAM_016", "New password must be different from the current one."),
+    AUTH_PASSWORD_RECENTLY_USED       (ErrorCategory.VALIDATION,       "IAM_030", "Password was recently used. Please choose a different password."),
     USERNAME_ALREADY_TAKEN            (ErrorCategory.CONFLICT,         "IAM_028", "Username is already taken."),
     USERNAME_INVALID                  (ErrorCategory.VALIDATION,       "IAM_029", "Username must be 3-50 characters and contain only letters, numbers, underscores, or hyphens."),
     AUTH_RESET_TOKEN_INVALID          (ErrorCategory.VALIDATION,       "IAM_014", "Password reset token is invalid or expired."),

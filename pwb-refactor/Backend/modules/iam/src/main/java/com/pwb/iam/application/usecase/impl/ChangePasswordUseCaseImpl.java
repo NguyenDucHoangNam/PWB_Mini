@@ -7,10 +7,13 @@ import com.pwb.iam.domain.event.AuthEventPublisher;
 import com.pwb.iam.domain.exception.IamErrorCode;
 import com.pwb.iam.domain.model.OAuthProvider;
 import com.pwb.iam.domain.model.Password;
+import com.pwb.iam.domain.model.PasswordHistory;
 import com.pwb.iam.domain.model.User;
+import com.pwb.iam.domain.repository.PasswordHistoryRepository;
 import com.pwb.iam.domain.repository.UserRepository;
 import com.pwb.iam.domain.service.PasswordHasher;
 import com.pwb.iam.domain.service.RefreshTokenManager;
+import com.pwb.iam.infrastructure.persistence.repository.PasswordHistoryJpaRepository;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class ChangePasswordUseCaseImpl implements ChangePasswordUseCase {
 
     private final UserRepository userRepository;
+    private final PasswordHistoryRepository passwordHistoryRepository;
+    private final PasswordHistoryJpaRepository passwordHistoryJpaRepository;
     private final PasswordHasher passwordHasher;
     private final PasswordPolicyEnforcer passwordPolicyEnforcer;
     private final RefreshTokenManager refreshTokenManager;
@@ -43,6 +48,19 @@ public class ChangePasswordUseCaseImpl implements ChangePasswordUseCase {
         if (!passwordHasher.matches(command.currentPassword(), user.getPassword().hash())) {
             throw new BusinessException(IamErrorCode.AUTH_INVALID_CURRENT_PASSWORD);
         }
+
+        passwordHistoryRepository.save(
+                PasswordHistory.create(command.userId(), user.getPassword().hash())
+        );
+
+        var history = passwordHistoryRepository.findByUserIdOrderByCreatedAtDesc(
+                command.userId(), PasswordHistory.MAX_HISTORY_SIZE);
+        for (PasswordHistory entry : history) {
+            if (passwordHasher.matches(command.newPassword(), entry.getPasswordHash())) {
+                throw new BusinessException(IamErrorCode.AUTH_PASSWORD_RECENTLY_USED);
+            }
+        }
+
         if (passwordHasher.matches(command.newPassword(), user.getPassword().hash())) {
             throw new BusinessException(IamErrorCode.AUTH_PASSWORD_REUSED);
         }
@@ -51,6 +69,12 @@ public class ChangePasswordUseCaseImpl implements ChangePasswordUseCase {
 
         user.changePassword(Password.fromHash(passwordHasher.hash(command.newPassword())));
         User saved = userRepository.save(user);
+
+        long count = passwordHistoryJpaRepository.countByUserIdAndDeletedFalse(command.userId());
+        if (count > PasswordHistory.MAX_HISTORY_SIZE) {
+            int toDelete = (int) (count - PasswordHistory.MAX_HISTORY_SIZE);
+            passwordHistoryRepository.deleteOldestByUserId(command.userId(), toDelete);
+        }
 
         refreshTokenManager.revokeAllForUser(saved.getUserId());
         authEventPublisher.publishPasswordChanged(saved.getUserId(), saved.getEmail().value(), null);
