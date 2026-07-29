@@ -25,6 +25,7 @@
         <module>shared/shared-web</module>
         <module>shared/shared-infrastructure</module>
         <module>modules/iam</module>
+        <module>modules/audio</module>
     </modules>
 
     <properties>
