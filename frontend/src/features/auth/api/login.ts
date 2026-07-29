@@ -20,7 +20,7 @@ export const loginWithGoogle = ({
 }: {
   data: OAuth2LoginRequest;
 }): Promise<ApiResponse<AuthResponse>> => {
-  return apiClient.post<ApiResponse<AuthResponse>>("/auth/google", data).then((res) => res.data);
+  return apiClient.post<ApiResponse<AuthResponse>>("/auth/google-login", data).then((res) => res.data);
 };
 
 type UseLoginOptions = {

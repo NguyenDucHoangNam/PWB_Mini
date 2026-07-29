@@ -115,7 +115,12 @@ public class AuthController {
             @CurrentUser UUID userId,
             @Valid @RequestBody LogoutRequest request
     ) {
-        LogoutCommand command = new LogoutCommand(userId, request.refreshToken(), null, 0L);
+        LogoutCommand command = new LogoutCommand(
+                userId,
+                request.refreshToken(),
+                request.accessJti(),
+                request.accessExpiresInSeconds()
+        );
         UUID resultUserId = iamFacade.logout(command);
         LogoutResponse body = LogoutResponse.of(resultUserId, messageResolver.get(MSG_LOGOUT_SUCCESS));
         return ResponseEntity.ok(ApiResponse.success(body));
