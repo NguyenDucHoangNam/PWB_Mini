@@ -2,6 +2,7 @@ package com.pwb.infra.mail.config;
 
 import com.pwb.infra.mail.properties.MailProperties;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,6 +15,7 @@ import org.springframework.mail.javamail.JavaMailSenderImpl;
 public class MailConfig {
 
     @Bean
+    @ConditionalOnMissingBean
     public JavaMailSender javaMailSender(
             @org.springframework.beans.factory.annotation.Value("${spring.mail.host:localhost}") String host,
             @org.springframework.beans.factory.annotation.Value("${spring.mail.port:1025}") int port,
