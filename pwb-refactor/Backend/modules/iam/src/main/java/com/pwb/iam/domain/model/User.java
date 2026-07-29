@@ -1,9 +1,10 @@
 package com.pwb.iam.domain.model;
 
-import java.time.Instant;
+import com.pwb.shared.domain.DomainBaseEntity;
+
 import java.util.UUID;
 
-public final class User extends BaseEntity {
+public final class User extends DomainBaseEntity {
 
     private final UUID userId;
     private String username;

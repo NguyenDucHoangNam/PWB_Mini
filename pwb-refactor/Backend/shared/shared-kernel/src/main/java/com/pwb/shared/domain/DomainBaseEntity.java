@@ -1,13 +1,13 @@
-package com.pwb.iam.domain.model;
+package com.pwb.shared.domain;
 
 import java.time.Instant;
 
-public abstract class BaseEntity {
+public abstract class DomainBaseEntity {
 
     private Instant createdAt;
     private Instant updatedAt;
 
-    protected BaseEntity() {
+    protected DomainBaseEntity() {
     }
 
     public Instant getCreatedAt() {

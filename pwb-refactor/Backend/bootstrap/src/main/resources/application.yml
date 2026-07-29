@@ -3,6 +3,7 @@ spring:
     name: pwb-backend
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+    include: dev-users
   jpa:
     open-in-view: false
   flyway:
@@ -19,6 +20,9 @@ logging:
     org.hibernate: WARN
 
 pwb:
+  cors:
+    allowed-origins:
+      - http://localhost:3000
   outbox:
     enabled: true
     relay:

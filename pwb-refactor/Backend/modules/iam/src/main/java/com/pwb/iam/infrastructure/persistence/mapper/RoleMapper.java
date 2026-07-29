@@ -18,7 +18,7 @@ public class RoleMapper {
         } catch (IllegalArgumentException ex) {
             name = null;
         }
-        return Role.of(name, entity.getDescription());
+        return Role.of(entity.getId(), name, entity.getDescription());
     }
 
     public RoleJpaEntity toEntity(Role domain) {

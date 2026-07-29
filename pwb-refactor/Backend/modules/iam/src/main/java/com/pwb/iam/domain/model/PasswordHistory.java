@@ -1,9 +1,11 @@
 package com.pwb.iam.domain.model;
 
+import com.pwb.shared.domain.DomainBaseEntity;
+
 import java.time.Instant;
 import java.util.UUID;
 
-public final class PasswordHistory extends BaseEntity {
+public final class PasswordHistory extends DomainBaseEntity {
 
     public static final int MAX_HISTORY_SIZE = 5;
 

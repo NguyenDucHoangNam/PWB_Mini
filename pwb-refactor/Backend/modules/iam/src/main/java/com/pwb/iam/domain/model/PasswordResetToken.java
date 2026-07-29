@@ -1,9 +1,11 @@
 package com.pwb.iam.domain.model;
 
+import com.pwb.shared.domain.DomainBaseEntity;
+
 import java.time.Instant;
 import java.util.UUID;
 
-public final class PasswordResetToken extends BaseEntity {
+public final class PasswordResetToken extends DomainBaseEntity {
 
     private final UUID tokenId;
     private final UUID userId;

@@ -24,7 +24,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
         RateLimitProperties.class,
         PasswordResetProperties.class,
         GoogleProperties.class,
-        SecurityProperties.class
+        SecurityProperties.class,
+        SeederProperties.class
 })
 public class IamAutoConfiguration {
 

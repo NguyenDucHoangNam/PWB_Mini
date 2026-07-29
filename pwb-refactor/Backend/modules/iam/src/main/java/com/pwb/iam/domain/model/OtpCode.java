@@ -1,9 +1,11 @@
 package com.pwb.iam.domain.model;
 
+import com.pwb.shared.domain.DomainBaseEntity;
+
 import java.time.Instant;
 import java.util.UUID;
 
-public final class OtpCode extends BaseEntity {
+public final class OtpCode extends DomainBaseEntity {
 
     public static final int MAX_ATTEMPTS = 5;
 
