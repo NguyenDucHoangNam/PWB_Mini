@@ -50,16 +50,12 @@ import java.util.UUID;
 public class AuthController {
 
     private static final String MSG_REGISTER = "AUTH_REGISTER_MESSAGE";
-    private static final String MSG_VERIFY_OTP = "AUTH_VERIFY_OTP_SUCCESSFUL";
-    private static final String MSG_COMPLETE_PROFILE = "AUTH_COMPLETE_PROFILE_SUCCESSFUL";
     private static final String MSG_OTP_RESENT = "AUTH_OTP_RESENT";
-    private static final String MSG_LOGIN_SUCCESS = "AUTH_LOGIN_SUCCESSFUL";
-    private static final String MSG_REFRESH_SUCCESS = "AUTH_REFRESH_TOKEN_SUCCESSFUL";
     private static final String MSG_LOGOUT_SUCCESS = "AUTH_LOGOUT_SUCCESSFUL";
-    private static final String MSG_GOOGLE_LOGIN_SUCCESS = "AUTH_GOOGLE_LOGIN_SUCCESSFUL";
     private static final String MSG_FORGOT_PASSWORD = "AUTH_FORGOT_PASSWORD_EMAIL_SENT";
     private static final String MSG_RESET_PASSWORD = "AUTH_PASSWORD_RESET_SUCCESSFUL";
     private static final String MSG_CHANGE_PASSWORD = "AUTH_PASSWORD_UPDATED";
+    private static final String MSG_UNAUTHORIZED = "AUTH_ACCESS_DENIED";
 
     private final IamFacade iamFacade;
     private final MessageResolver messageResolver;
@@ -91,6 +87,10 @@ public class AuthController {
             @CurrentUser UUID userId,
             @Valid @RequestBody CompleteProfileRequest request
     ) {
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("UNAUTHORIZED", messageResolver.get(MSG_UNAUTHORIZED)));
+        }
         CompleteProfileCommand command = new CompleteProfileCommand(userId, request.username(), request.fullName(), request.newPassword());
         AuthView view = iamFacade.completeProfile(command);
         return ResponseEntity.ok(ApiResponse.success(toAuthResponse(view)));
@@ -115,6 +115,10 @@ public class AuthController {
             @CurrentUser UUID userId,
             @Valid @RequestBody LogoutRequest request
     ) {
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("UNAUTHORIZED", messageResolver.get(MSG_UNAUTHORIZED)));
+        }
         LogoutCommand command = new LogoutCommand(
                 userId,
                 request.refreshToken(),
@@ -155,6 +159,10 @@ public class AuthController {
             @CurrentUser UUID userId,
             @Valid @RequestBody ChangePasswordRequest request
     ) {
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("UNAUTHORIZED", messageResolver.get(MSG_UNAUTHORIZED)));
+        }
         ChangePasswordCommand command = new ChangePasswordCommand(userId, request.currentPassword(), request.newPassword());
         UUID resultUserId = iamFacade.changePassword(command);
         AuthMessageResponse body = AuthMessageResponse.of(resultUserId, messageResolver.get(MSG_CHANGE_PASSWORD));
