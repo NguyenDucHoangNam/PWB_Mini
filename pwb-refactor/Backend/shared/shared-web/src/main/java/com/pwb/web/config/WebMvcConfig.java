@@ -1,7 +1,11 @@
 package com.pwb.web.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.web.filter.CorrelationIdFilter;
+import com.pwb.web.filter.HttpRateLimitFilter;
+import com.pwb.web.filter.HttpRateLimitService;
 import com.pwb.web.security.CurrentClientIpArgumentResolver;
+import com.pwb.web.security.CurrentUserAgentArgumentResolver;
 import com.pwb.web.security.CurrentUserArgumentResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,6 +25,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     private final CurrentUserArgumentResolver currentUserArgumentResolver;
     private final CurrentClientIpArgumentResolver currentClientIpArgumentResolver;
+    private final CurrentUserAgentArgumentResolver currentUserAgentArgumentResolver;
 
     @Value("${pwb.cors.allowed-origins:http://localhost:3000}")
     private List<String> allowedOrigins;
@@ -30,7 +35,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addMapping("/**")
                 .allowedOrigins(allowedOrigins.toArray(new String[0]))
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-                .allowedHeaders("*")
+                .allowedHeaders("Authorization", "Content-Type", "X-Correlation-Id")
                 .allowCredentials(true)
                 .maxAge(3600);
     }
@@ -39,6 +44,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
         resolvers.add(currentUserArgumentResolver);
         resolvers.add(currentClientIpArgumentResolver);
+        resolvers.add(currentUserAgentArgumentResolver);
     }
 
     @Bean
@@ -47,6 +53,20 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 10);
         registration.addUrlPatterns("/*");
         registration.setName("correlationIdFilter");
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<HttpRateLimitFilter> httpRateLimitFilter(
+            HttpRateLimitService rateLimitService,
+            RateLimitProperties rateLimitProperties,
+            ObjectMapper objectMapper
+    ) {
+        FilterRegistrationBean<HttpRateLimitFilter> registration = new FilterRegistrationBean<>(
+                new HttpRateLimitFilter(rateLimitService, rateLimitProperties, objectMapper));
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 20);
+        registration.addUrlPatterns("/*");
+        registration.setName("httpRateLimitFilter");
         return registration;
     }
 }

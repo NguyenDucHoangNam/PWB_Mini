@@ -1,0 +1,12 @@
+[# th:text="${pageTitle}" /]
+
+[# th:text="#{email.provisional_username_reminder.headline}"/]
+=====================================
+
+[# th:text="#{email.provisional_username_reminder.intro}"/] [(${currentUsername})]
+
+[# th:text="#{email.provisional_username_reminder.cta_prompt}"/]
+
+[# th:text="#{email.provisional_username_reminder.cta}"/]: [(${updateLink})]
+
+[# th:text="#{email.footer.tagline}"/]

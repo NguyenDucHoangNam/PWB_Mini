@@ -4,6 +4,8 @@ import com.pwb.iam.domain.model.OAuthProvider;
 import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.model.UserStatus;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -24,4 +26,6 @@ public interface UserRepository {
     boolean existsByEmail(String email);
 
     boolean existsByUsername(String username);
+
+    List<User> findProvisionalUsersCreatedBefore(Instant cutoff);
 }

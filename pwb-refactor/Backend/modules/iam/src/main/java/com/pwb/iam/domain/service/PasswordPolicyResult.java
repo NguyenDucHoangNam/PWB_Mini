@@ -2,13 +2,13 @@ package com.pwb.iam.domain.service;
 
 import java.util.List;
 
-public record PasswordPolicyResult(boolean valid, List<PasswordPolicyViolation> violations) {
+public record PasswordPolicyResult(boolean valid, List<String> messages) {
 
-    public boolean isInvalid() {
-        return !valid;
+    public static PasswordPolicyResult ok() {
+        return new PasswordPolicyResult(true, List.of());
     }
 
-    public static PasswordPolicyResult of(List<PasswordPolicyViolation> violations) {
-        return new PasswordPolicyResult(violations == null || violations.isEmpty(), violations == null ? List.of() : violations);
+    public static PasswordPolicyResult failure(List<String> messages) {
+        return new PasswordPolicyResult(false, messages == null ? List.of() : messages);
     }
 }

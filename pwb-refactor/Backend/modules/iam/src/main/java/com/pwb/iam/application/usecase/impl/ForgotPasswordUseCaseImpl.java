@@ -11,8 +11,11 @@ import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.model.UserStatus;
 import com.pwb.iam.domain.repository.PasswordResetTokenRepository;
 import com.pwb.iam.domain.repository.UserRepository;
+import com.pwb.iam.domain.service.EmailDeliveryPort;
+import com.pwb.iam.domain.service.EmailEnqueueCommand;
 import com.pwb.iam.domain.service.PasswordResetTokenService;
 import com.pwb.iam.domain.service.ThrottlingService;
+import com.pwb.infra.mail.api.EmailTemplate;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -33,6 +37,7 @@ public class ForgotPasswordUseCaseImpl implements ForgotPasswordUseCase {
     private final ThrottlingService throttlingService;
     private final AuthEventPublisher authEventPublisher;
     private final PasswordResetPolicy passwordResetPolicy;
+    private final EmailDeliveryPort emailDeliveryPort;
 
     @Override
     @Transactional
@@ -71,8 +76,21 @@ public class ForgotPasswordUseCaseImpl implements ForgotPasswordUseCase {
         passwordResetTokenRepository.save(PasswordResetToken.create(user.getUserId(), tokenHash, expiresAt));
 
         String resetLink = passwordResetTokenService.buildResetLink(rawToken);
+
+        Map<String, String> variables = Map.of(
+                "resetLink", resetLink,
+                "ttlMinutes", String.valueOf(passwordResetPolicy.tokenTtlMinutes())
+        );
+        emailDeliveryPort.enqueue(new EmailEnqueueCommand(
+                user.getUserId(),
+                user.getEmail().value(),
+                EmailTemplate.PASSWORD_RESET,
+                variables,
+                command.locale()
+        ));
+
         authEventPublisher.publishPasswordResetRequested(
-                user.getUserId(), user.getEmail().value(), resetLink, passwordResetPolicy.tokenTtlMinutes());
+                user.getUserId(), user.getEmail().value(), resetLink, passwordResetPolicy.tokenTtlMinutes(), command.userAgent());
 
         log.info("Password reset requested: userId={}", user.getUserId());
         return Result.sent(user.getUserId(), (int) passwordResetPolicy.cooldownSeconds());

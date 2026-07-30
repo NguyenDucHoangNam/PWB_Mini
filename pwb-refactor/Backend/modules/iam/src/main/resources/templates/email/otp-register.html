@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <h2 style="margin:0 0 16px 0;color:#1f2937;font-size:22px;font-weight:bold;"
+        th:text="#{email.otp_register.headline}">Verify your PWB account</h2>
+    <p style="margin:0 0 16px 0;color:#4b5563;font-size:16px;line-height:1.6;"
+       th:text="#{email.otp_register.intro}">Your OTP code is:</p>
+    <h1 style="margin:0 0 16px 0;color:#2563eb;font-size:32px;letter-spacing:4px;text-align:center;
+               font-family:'Courier New',monospace;"
+        th:text="${code}">000000</h1>
+    <p style="margin:0 0 8px 0;color:#6b7280;font-size:14px;line-height:1.5;">
+        <span th:text="#{email.otp_register.ttl_notice(${ttlMinutes})}">This code is valid for 10 minutes.</span>
+    </p>
+</div>
+</body>
+</html>

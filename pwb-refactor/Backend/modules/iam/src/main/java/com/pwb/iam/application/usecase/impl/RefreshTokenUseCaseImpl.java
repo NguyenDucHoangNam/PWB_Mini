@@ -55,7 +55,7 @@ public class RefreshTokenUseCaseImpl implements RefreshTokenUseCase {
         }
 
         TokenManagerService.AccessTokenInfo access = tokenManagerService.issueAccessToken(user);
-        authEventPublisher.publishAuthSuccess(AuthSuccessEvent.of(user.getUserId(), user.getEmail().value()));
+        authEventPublisher.publishAuthSuccess(AuthSuccessEvent.of(user.getUserId(), user.getEmail().value(), clientIp, null));
         AuthNextStep nextStep = user.isOnboardingIncomplete() ? AuthNextStep.COMPLETE_PROFILE : AuthNextStep.NONE;
         log.info("Refresh token rotated: userId={} nextStep={}", user.getUserId(), nextStep);
         return new LoginResult(user, access, rotated, nextStep);

@@ -52,6 +52,9 @@ public class AuditLogJpaEntity {
     @Column(name = "client_ip", length = 64)
     private String clientIp;
 
+    @Column(name = "user_agent", length = 512)
+    private String userAgent;
+
     @Column(name = "success", nullable = false)
     private boolean success;
 

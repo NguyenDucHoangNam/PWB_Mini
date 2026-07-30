@@ -9,8 +9,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.stream.Collectors;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -21,11 +19,9 @@ public class ValidatePasswordPolicyUseCaseImpl implements ValidatePasswordPolicy
     @Override
     public void validate(String rawPassword) {
         PasswordPolicyResult result = passwordPolicyService.validate(rawPassword);
-        if (result.isInvalid()) {
-            String reasons = result.violations().stream()
-                    .map(Enum::name)
-                    .collect(Collectors.joining(", "));
-            throw new BusinessException(IamErrorCode.WEAK_PASSWORD, reasons);
+        if (!result.valid()) {
+            throw new BusinessException(IamErrorCode.WEAK_PASSWORD,
+                    java.util.Map.of("violations", result.messages()));
         }
     }
 }

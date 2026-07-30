@@ -2,12 +2,16 @@ package com.pwb.iam.infrastructure.service.impl;
 
 import com.pwb.iam.domain.model.PasswordResetPolicy;
 import com.pwb.iam.domain.service.ThrottlingService;
+import com.pwb.iam.infrastructure.config.RateLimitProperties;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -20,8 +24,33 @@ public class ThrottlingServiceAdapter implements ThrottlingService {
     private static final String PASSWORD_RESET_COOLDOWN_PREFIX = "iam:password-reset:cooldown:";
     private static final Duration DEFAULT_COOLDOWN = Duration.ofSeconds(60);
 
+    private static final String RATE_LIMIT_LUA_SCRIPT = """
+            local key = KEYS[1]
+            local limit = tonumber(ARGV[1])
+            local window = tonumber(ARGV[2])
+            local count = redis.call('INCR', key)
+            if count == 1 then
+                redis.call('EXPIRE', key, window)
+            end
+            local ttl = redis.call('TTL', key)
+            if count > limit then
+                return {0, ttl}
+            else
+                return {1, limit - count}
+            end
+            """;
+
     private final StringRedisTemplate redis;
     private final PasswordResetPolicy passwordResetPolicy;
+    private final RateLimitProperties rateLimitProperties;
+
+    private final DefaultRedisScript<List> rateLimitScript = new DefaultRedisScript<>();
+
+    @PostConstruct
+    void initLuaScript() {
+        rateLimitScript.setScriptText(RATE_LIMIT_LUA_SCRIPT);
+        rateLimitScript.setResultType(List.class);
+    }
 
     @Override
     public ThrottleDecision consume(String key, int limit, Duration window) {
@@ -30,21 +59,29 @@ public class ThrottlingServiceAdapter implements ThrottlingService {
         }
         String redisKey = RATE_LIMIT_PREFIX + key;
         try {
-            Long count = redis.opsForValue().increment(redisKey);
-            if (count == null) {
+            @SuppressWarnings("unchecked")
+            List<Object> result = redis.execute(
+                    rateLimitScript,
+                    List.of(redisKey),
+                    String.valueOf(limit),
+                    String.valueOf(window.getSeconds())
+            );
+            if (result == null || result.size() < 2) {
                 return ThrottleDecision.allow(limit);
             }
-            if (count == 1L) {
-                redis.expire(redisKey, window);
+            long allowed = ((Number) result.get(0)).longValue();
+            long value = ((Number) result.get(1)).longValue();
+            if (allowed == 0) {
+                log.warn("Rate limit exceeded: key={} retryAfter={}s", key, value);
+                return ThrottleDecision.deny(value);
             }
-            long ttl = redis.getExpire(redisKey);
-            long retryAfter = Math.max(ttl, 1L);
-            if (count > limit) {
-                log.warn("Rate limit exceeded: key={} count={} limit={}", key, count, limit);
-                return ThrottleDecision.deny(retryAfter);
-            }
-            return ThrottleDecision.allow(Math.max(0L, limit - count));
+            return ThrottleDecision.allow(value);
         } catch (Exception ex) {
+            if (rateLimitProperties.isFailClosedForCriticalOps()) {
+                log.error("Redis unavailable, fail-closed for critical operation: key={} reason={}", key, ex.getMessage());
+                throw new com.pwb.shared.exception.BusinessException(
+                        com.pwb.iam.domain.exception.IamErrorCode.SERVICE_UNAVAILABLE);
+            }
             log.warn("Redis unavailable, fail-open: key={} reason={}", key, ex.getMessage());
             return ThrottleDecision.allow(limit);
         }

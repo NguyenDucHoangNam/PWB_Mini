@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <h2 style="margin:0 0 16px 0;color:#1f2937;font-size:22px;font-weight:bold;"
+        th:text="#{email.provisional_username_reminder.headline}">Complete your username</h2>
+    <p style="margin:0 0 8px 0;color:#4b5563;font-size:16px;line-height:1.6;">
+        <span th:text="#{email.provisional_username_reminder.intro}">Your current provisional username is:</span>
+        <strong th:text="${currentUsername}" style="color:#1f2937;">username</strong>
+    </p>
+    <p style="margin:0 0 16px 0;color:#4b5563;font-size:16px;line-height:1.6;"
+       th:text="#{email.provisional_username_reminder.cta_prompt}">Please update your username to complete your profile:</p>
+    <div th:replace="~{email/fragments/button :: button(${updateLink}, #{email.provisional_username_reminder.cta})}"></div>
+</div>
+</body>
+</html>

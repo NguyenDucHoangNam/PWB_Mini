@@ -6,25 +6,27 @@ public interface AuthEventPublisher {
 
     void publishAuthSuccess(AuthSuccessEvent event);
 
-    void publishAuthSuccess(UUID userId, String email, String clientIp);
+    void publishAuthSuccess(UUID userId, String email, String clientIp, String userAgent);
 
-    void publishLoginFailed(String email, String clientIp, String reason);
+    void publishLoginFailed(String email, String clientIp, String userAgent, String reason);
 
-    void publishLogout(UUID userId, String email, String clientIp);
+    void publishLogout(UUID userId, String email, String clientIp, String userAgent);
+
+    void publishLogout(UUID userId, String clientIp, String userAgent);
 
     void publishOtpIssued(OtpIssuedDomainEvent event);
 
     void publishOtpVerified(OtpVerifiedDomainEvent event);
 
-    void publishPasswordResetRequested(UUID userId, String email, String resetLink, long ttlMinutes);
+    void publishPasswordResetRequested(UUID userId, String email, String resetLink, long ttlMinutes, String userAgent);
 
-    void publishPasswordChanged(UUID userId, String email, String clientIp);
+    void publishPasswordChanged(UUID userId, String email, String clientIp, String userAgent);
 
     void publishUserRegisteredGoogle(UUID userId, String email, String fullName);
 
     void publishUserLinkedGoogle(UUID userId, String email, String fullName);
 
-    void publishGoogleLoginSuccess(UUID userId, String email, String clientIp);
+    void publishGoogleLoginSuccess(UUID userId, String email, String clientIp, String userAgent);
 
-    void publishGoogleLoginFailed(String email, String clientIp, String reason);
+    void publishGoogleLoginFailed(String email, String clientIp, String userAgent, String reason);
 }

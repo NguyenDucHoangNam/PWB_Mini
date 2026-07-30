@@ -61,6 +61,17 @@ public class RedisLoginAttemptChecker implements LoginAttemptChecker {
     }
 
     @Override
+    public void resetIpLock(String email, String clientIp) {
+        if (email != null) {
+            redis.delete(IP_FAIL_PREFIX + email.toLowerCase());
+        }
+        if (clientIp != null && !clientIp.isBlank()) {
+            redis.delete(IP_FAIL_PREFIX + clientIp);
+            redis.delete(IP_LOCK_PREFIX + clientIp);
+        }
+    }
+
+    @Override
     public LockState isLocked(String email, String clientIp) {
         if (email != null) {
             Long ttl = redis.getExpire(EMAIL_LOCK_PREFIX + email.toLowerCase());

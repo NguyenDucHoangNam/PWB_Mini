@@ -15,9 +15,12 @@ import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.model.UserStatus;
 import com.pwb.iam.domain.repository.RoleRepository;
 import com.pwb.iam.domain.repository.UserRepository;
+import com.pwb.iam.domain.service.EmailDeliveryPort;
+import com.pwb.iam.domain.service.EmailEnqueueCommand;
 import com.pwb.iam.domain.service.GoogleTokenVerifierPort;
 import com.pwb.iam.domain.service.ThrottlingService;
 import com.pwb.iam.domain.service.TokenManagerService;
+import com.pwb.infra.mail.api.EmailTemplate;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -42,17 +46,19 @@ public class GoogleLoginUseCaseImpl implements GoogleLoginUseCase {
     private final AuthEventPublisher authEventPublisher;
     private final ThrottlingService throttlingService;
     private final com.pwb.iam.domain.model.LoginPolicy loginPolicy;
+    private final EmailDeliveryPort emailDeliveryPort;
 
     @Override
     @Transactional
     public LoginResult execute(GoogleLoginCommand command) {
         String clientIp = command.clientIp() == null ? "unknown" : command.clientIp();
+        String userAgent = command.userAgent();
 
         GoogleUserInfo payload;
         try {
             payload = googleTokenVerifier.verify(command.idToken());
         } catch (BusinessException ex) {
-            authEventPublisher.publishGoogleLoginFailed("unknown", clientIp, ex.getMessage());
+            authEventPublisher.publishGoogleLoginFailed("unknown", clientIp, userAgent, ex.getMessage());
             throw ex;
         }
 
@@ -65,7 +71,7 @@ public class GoogleLoginUseCaseImpl implements GoogleLoginUseCase {
                 .orElse(null);
 
         if (user == null) {
-            user = handleNewGoogleUser(payload);
+            user = handleNewGoogleUser(payload, command.locale());
         } else {
             user = handleExistingGoogleUser(user, payload);
         }
@@ -77,7 +83,7 @@ public class GoogleLoginUseCaseImpl implements GoogleLoginUseCase {
         TokenManagerService.AccessTokenInfo access = tokenManagerService.issueAccessToken(user);
         TokenManagerService.RefreshTokenInfo refresh = tokenManagerService.issueRefreshToken(user.getUserId());
 
-        authEventPublisher.publishGoogleLoginSuccess(user.getUserId(), user.getEmail().value(), clientIp);
+        authEventPublisher.publishGoogleLoginSuccess(user.getUserId(), user.getEmail().value(), clientIp, userAgent);
 
         AuthNextStep nextStep = user.isOnboardingIncomplete() ? AuthNextStep.COMPLETE_PROFILE : AuthNextStep.NONE;
         log.info("Google login success: userId={} nextStep={}", user.getUserId(), nextStep);
@@ -93,7 +99,7 @@ public class GoogleLoginUseCaseImpl implements GoogleLoginUseCase {
         }
     }
 
-    private User handleNewGoogleUser(GoogleUserInfo payload) {
+    private User handleNewGoogleUser(GoogleUserInfo payload, String locale) {
         User byEmail = userRepository.findByEmail(payload.email()).orElse(null);
 
         if (byEmail != null) {
@@ -136,8 +142,24 @@ public class GoogleLoginUseCaseImpl implements GoogleLoginUseCase {
         User saved = userRepository.save(fresh);
         authEventPublisher.publishUserRegisteredGoogle(
                 saved.getUserId(), saved.getEmail().value(), saved.getFullName());
+        enqueueWelcomeGoogle(saved, locale);
         log.info("Registered new Google user: userId={}", saved.getUserId());
         return saved;
+    }
+
+    private void enqueueWelcomeGoogle(User user, String locale) {
+        Map<String, String> variables = Map.of(
+                "displayName", user.getFullName() == null || user.getFullName().isBlank()
+                        ? "bạn"
+                        : user.getFullName()
+        );
+        emailDeliveryPort.enqueue(new EmailEnqueueCommand(
+                user.getUserId(),
+                user.getEmail().value(),
+                EmailTemplate.WELCOME_GOOGLE,
+                variables,
+                locale
+        ));
     }
 
     private User handleExistingGoogleUser(User user, GoogleUserInfo payload) {

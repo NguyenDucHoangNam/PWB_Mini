@@ -20,13 +20,13 @@ public class IamPolicyConfig {
     }
 
     @Bean
-    public LoginPolicy loginPolicy(RateLimitProperties rateLimit) {
+    public LoginPolicy loginPolicy(RateLimitProperties rateLimit, LoginPolicyProperties loginPolicy) {
         return new LoginPolicy(
                 rateLimit.getLoginPerMinute(),
                 rateLimit.getRefreshPerMinute(),
                 rateLimit.getLoginPerMinute(),
-                5,
-                15
+                loginPolicy.getMaxFailures(),
+                loginPolicy.getLockMinutes()
         );
     }
 }

@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,19 +18,52 @@ public interface OutboxEventJpaRepository extends JpaRepository<OutboxEventJpaEn
 
     @Modifying
     @Query(value = """
-            UPDATE outbox_events
-            SET status = 'PROCESSING', next_attempt_at = :nextAttempt
-            WHERE id IN (
-                SELECT id FROM outbox_events
-                WHERE status = 'PENDING' AND next_attempt_at <= :now
+            WITH claimed AS (
+                SELECT id
+                FROM outbox_events
+                WHERE status = 'PENDING'
+                  AND next_attempt_at <= :now
                 ORDER BY created_at
                 LIMIT :batch
                 FOR UPDATE SKIP LOCKED
             )
+            UPDATE outbox_events o
+            SET status = 'PROCESSING',
+                next_attempt_at = :nextAttempt,
+                lease_until = :leaseUntil
+            FROM claimed
+            WHERE o.id = claimed.id
+            RETURNING o.id
             """, nativeQuery = true)
-    int claimBatch(@Param("batch") int batch,
-                   @Param("now") Instant now,
-                   @Param("nextAttempt") Instant nextAttempt);
+    List<UUID> claimBatch(@Param("batch") int batch,
+                          @Param("now") Instant now,
+                          @Param("nextAttempt") Instant nextAttempt,
+                          @Param("leaseUntil") Instant leaseUntil);
 
-    List<OutboxEventJpaEntity> findByStatus(OutboxStatus status);
+    @Modifying
+    @Query(value = """
+            WITH reclaimed AS (
+                SELECT id
+                FROM outbox_events
+                WHERE status = 'PROCESSING'
+                  AND lease_until IS NOT NULL
+                  AND lease_until <= :now
+                ORDER BY created_at
+                LIMIT :batch
+                FOR UPDATE SKIP LOCKED
+            )
+            UPDATE outbox_events o
+            SET next_attempt_at = :nextAttempt,
+                lease_until = :leaseUntil
+            FROM reclaimed
+            WHERE o.id = reclaimed.id
+            RETURNING o.id
+            """, nativeQuery = true)
+    List<UUID> reclaimExpiredLease(@Param("batch") int batch,
+                                    @Param("now") Instant now,
+                                    @Param("nextAttempt") Instant nextAttempt,
+                                    @Param("leaseUntil") Instant leaseUntil);
+
+    List<OutboxEventJpaEntity> findAllByIdInAndStatusOrderByCreatedAtAsc(
+            Collection<UUID> ids, OutboxStatus status);
 }

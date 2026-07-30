@@ -83,6 +83,9 @@ public class OutboxEventJpaEntity {
     @Column(name = "next_attempt_at", nullable = false)
     private Instant nextAttemptAt;
 
+    @Column(name = "lease_until")
+    private Instant leaseUntil;
+
     @Version
     private Long version;
 }

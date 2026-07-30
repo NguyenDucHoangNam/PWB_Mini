@@ -56,7 +56,7 @@ public class VerifyOtpUseCaseImpl implements VerifyOtpUseCase {
 
         AuthNextStep nextStep = user.isOnboardingIncomplete() ? AuthNextStep.COMPLETE_PROFILE : AuthNextStep.NONE;
 
-        authEventPublisher.publishAuthSuccess(AuthSuccessEvent.of(user.getUserId(), user.getEmail().value()));
+        authEventPublisher.publishAuthSuccess(AuthSuccessEvent.of(user.getUserId(), user.getEmail().value(), null, null));
         authEventPublisher.publishOtpVerified(new OtpVerifiedDomainEvent(
                 user.getUserId(), user.getEmail().value(), OtpPurpose.REGISTER, now));
 

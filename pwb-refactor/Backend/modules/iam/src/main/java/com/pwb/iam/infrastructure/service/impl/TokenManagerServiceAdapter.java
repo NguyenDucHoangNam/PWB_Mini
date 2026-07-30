@@ -5,8 +5,12 @@ import com.pwb.iam.domain.service.TokenManagerService;
 import com.pwb.iam.infrastructure.config.JwtProperties;
 import com.pwb.iam.infrastructure.config.RefreshTokenProperties;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.security.SignatureException;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -199,9 +203,12 @@ public class TokenManagerServiceAdapter implements TokenManagerService {
         return redis.opsForValue().get(tokenKey(sha256(rawToken))) == null;
     }
 
-    public Claims parseAccessToken(String token) {
+    public ParseResult parseAccessTokenWithResult(String token) {
+        if (token == null || token.isBlank()) {
+            return ParseResult.failure(JwtError.MISSING);
+        }
         try {
-            return Jwts.parser()
+            Claims claims = Jwts.parser()
                     .verifyWith(signingKey())
                     .requireIssuer(jwtProperties.getIssuer())
                     .requireAudience(jwtProperties.getAudience())
@@ -209,9 +216,22 @@ public class TokenManagerServiceAdapter implements TokenManagerService {
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
+            return ParseResult.success(claims);
+        } catch (ExpiredJwtException ex) {
+            log.debug("JWT expired: {}", ex.getMessage());
+            return ParseResult.failure(JwtError.EXPIRED);
+        } catch (MalformedJwtException ex) {
+            log.debug("JWT malformed: {}", ex.getMessage());
+            return ParseResult.failure(JwtError.MALFORMED);
+        } catch (SignatureException ex) {
+            log.warn("JWT signature invalid: {}", ex.getMessage());
+            return ParseResult.failure(JwtError.INVALID_SIGNATURE);
+        } catch (UnsupportedJwtException ex) {
+            log.debug("JWT unsupported: {}", ex.getMessage());
+            return ParseResult.failure(JwtError.UNSUPPORTED);
         } catch (JwtException ex) {
             log.debug("JWT parse failed: {}", ex.getMessage());
-            return null;
+            return ParseResult.failure(JwtError.UNKNOWN);
         }
     }
 

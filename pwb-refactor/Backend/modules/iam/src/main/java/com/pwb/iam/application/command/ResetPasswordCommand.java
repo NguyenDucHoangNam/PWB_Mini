@@ -1,6 +1,6 @@
 package com.pwb.iam.application.command;
 
-public record ResetPasswordCommand(String token, String newPassword) {
+public record ResetPasswordCommand(String token, String newPassword, String userAgent) {
 
     public ResetPasswordCommand {
         if (token == null || token.isBlank()) {

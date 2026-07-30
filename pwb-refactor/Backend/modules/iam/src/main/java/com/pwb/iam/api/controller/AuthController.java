@@ -33,12 +33,14 @@ import com.pwb.shared.dto.ApiResponse;
 import com.pwb.web.message.MessageResolver;
 import com.pwb.web.security.CurrentClientIp;
 import com.pwb.web.security.CurrentUser;
+import com.pwb.web.security.CurrentUserAgent;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -97,8 +99,12 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request, @CurrentClientIp String clientIp) {
-        LoginCommand command = new LoginCommand(request.email(), request.password(), clientIp);
+    public ResponseEntity<ApiResponse<AuthResponse>> login(
+            @Valid @RequestBody LoginRequest request,
+            @CurrentClientIp String clientIp,
+            @CurrentUserAgent String userAgent
+    ) {
+        LoginCommand command = new LoginCommand(request.email(), request.password(), clientIp, userAgent);
         AuthView view = iamFacade.login(command);
         return ResponseEntity.ok(ApiResponse.success(toAuthResponse(view)));
     }
@@ -114,6 +120,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<LogoutResponse>> logout(
             @CurrentUser UUID userId,
             @CurrentClientIp String clientIp,
+            @CurrentUserAgent String userAgent,
             @Valid @RequestBody LogoutRequest request
     ) {
         if (userId == null) {
@@ -125,7 +132,8 @@ public class AuthController {
                 request.refreshToken(),
                 request.accessJti(),
                 request.accessExpiresInSeconds(),
-                clientIp
+                clientIp,
+                userAgent
         );
         UUID resultUserId = iamFacade.logout(command);
         LogoutResponse body = LogoutResponse.of(resultUserId, messageResolver.get(MSG_LOGOUT_SUCCESS));
@@ -133,15 +141,24 @@ public class AuthController {
     }
 
     @PostMapping("/google-login")
-    public ResponseEntity<ApiResponse<AuthResponse>> googleLogin(@Valid @RequestBody GoogleLoginRequest request, @CurrentClientIp String clientIp) {
-        GoogleLoginCommand command = new GoogleLoginCommand(request.idToken(), clientIp);
+    public ResponseEntity<ApiResponse<AuthResponse>> googleLogin(
+            @Valid @RequestBody GoogleLoginRequest request,
+            @CurrentClientIp String clientIp,
+            @CurrentUserAgent String userAgent,
+            @RequestHeader(value = "Accept-Language", defaultValue = "vi") String acceptLanguage
+    ) {
+        GoogleLoginCommand command = new GoogleLoginCommand(request.idToken(), clientIp, userAgent, normalizeLocale(acceptLanguage));
         AuthView view = iamFacade.loginWithGoogle(command);
         return ResponseEntity.ok(ApiResponse.success(toAuthResponse(view)));
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<ApiResponse<AuthMessageResponse>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        ForgotPasswordCommand command = new ForgotPasswordCommand(request.email());
+    public ResponseEntity<ApiResponse<AuthMessageResponse>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request,
+            @CurrentUserAgent String userAgent,
+            @RequestHeader(value = "Accept-Language", defaultValue = "vi") String acceptLanguage
+    ) {
+        ForgotPasswordCommand command = new ForgotPasswordCommand(request.email(), userAgent, normalizeLocale(acceptLanguage));
         ForgotPasswordUseCase.Result result = iamFacade.forgotPassword(command);
         UUID uid = result == null ? null : result.userId();
         AuthMessageResponse body = AuthMessageResponse.of(uid, messageResolver.get(MSG_FORGOT_PASSWORD));
@@ -149,8 +166,11 @@ public class AuthController {
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<ApiResponse<AuthMessageResponse>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
-        ResetPasswordCommand command = new ResetPasswordCommand(request.token(), request.newPassword());
+    public ResponseEntity<ApiResponse<AuthMessageResponse>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request,
+            @CurrentUserAgent String userAgent
+    ) {
+        ResetPasswordCommand command = new ResetPasswordCommand(request.token(), request.newPassword(), userAgent);
         UUID userId = iamFacade.resetPassword(command);
         AuthMessageResponse body = AuthMessageResponse.of(userId, messageResolver.get(MSG_RESET_PASSWORD));
         return ResponseEntity.ok(ApiResponse.success(body));
@@ -159,13 +179,14 @@ public class AuthController {
     @PostMapping("/change-password")
     public ResponseEntity<ApiResponse<AuthMessageResponse>> changePassword(
             @CurrentUser UUID userId,
+            @CurrentUserAgent String userAgent,
             @Valid @RequestBody ChangePasswordRequest request
     ) {
         if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("UNAUTHORIZED", messageResolver.get(MSG_UNAUTHORIZED)));
         }
-        ChangePasswordCommand command = new ChangePasswordCommand(userId, request.currentPassword(), request.newPassword());
+        ChangePasswordCommand command = new ChangePasswordCommand(userId, request.currentPassword(), request.newPassword(), userAgent);
         UUID resultUserId = iamFacade.changePassword(command);
         AuthMessageResponse body = AuthMessageResponse.of(resultUserId, messageResolver.get(MSG_CHANGE_PASSWORD));
         return ResponseEntity.ok(ApiResponse.success(body));
@@ -177,6 +198,17 @@ public class AuthController {
 
     private static VerifyOtpCommand toCommand(VerifyOtpRequest request) {
         return new VerifyOtpCommand(request.userId(), request.code());
+    }
+
+    private static String normalizeLocale(String acceptLanguage) {
+        if (acceptLanguage == null || acceptLanguage.isBlank()) {
+            return "vi";
+        }
+        String primary = acceptLanguage.split(",")[0].trim();
+        if (primary.isBlank()) {
+            return "vi";
+        }
+        return java.util.Set.of("vi", "en").contains(primary) ? primary : "vi";
     }
 
     private AuthResponse toAuthResponse(AuthView view) {

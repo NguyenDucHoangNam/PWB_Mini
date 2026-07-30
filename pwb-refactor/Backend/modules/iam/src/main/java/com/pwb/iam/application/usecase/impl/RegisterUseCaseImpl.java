@@ -16,11 +16,13 @@ import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.repository.OtpCodeRepository;
 import com.pwb.iam.domain.repository.RoleRepository;
 import com.pwb.iam.domain.repository.UserRepository;
-import com.pwb.iam.domain.service.OtpDeliveryPort;
+import com.pwb.iam.domain.service.EmailDeliveryPort;
+import com.pwb.iam.domain.service.EmailEnqueueCommand;
 import com.pwb.iam.domain.service.OtpGenerator;
 import com.pwb.iam.domain.service.PasswordHasher;
 import com.pwb.iam.domain.service.ThrottlingService;
 import com.pwb.iam.infrastructure.config.OtpProperties;
+import com.pwb.infra.mail.api.EmailTemplate;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -45,7 +48,7 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
     private final PasswordHasher passwordHasher;
     private final ValidatePasswordPolicyUseCase validatePasswordPolicyUseCase;
     private final OtpGenerator otpGenerator;
-    private final OtpDeliveryPort otpDeliveryPort;
+    private final EmailDeliveryPort emailDeliveryPort;
     private final ThrottlingService throttlingService;
     private final AuthEventPublisher authEventPublisher;
     private final OtpProperties otpProperties;
@@ -94,11 +97,17 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
         String codeHash = otpGenerator.hash(rawCode);
         Instant expiresAt = Instant.now().plus(Duration.ofMinutes(otpProperties.getTtlMinutes()));
 
-        OtpDeliveryPort.DeliveryResult delivery = otpDeliveryPort.deliver(user.getUserId(), user.getEmail().value(), purpose.name(), rawCode);
-        if (!delivery.delivered()) {
-            throw new BusinessException(IamErrorCode.AUTH_RATE_LIMIT_EXCEEDED,
-                    java.util.Map.of("cooldownSeconds", delivery.cooldown().toSeconds()));
-        }
+        Map<String, String> variables = Map.of(
+                "code", rawCode,
+                "ttlMinutes", String.valueOf(otpProperties.getTtlMinutes())
+        );
+        emailDeliveryPort.enqueue(new EmailEnqueueCommand(
+                user.getUserId(),
+                user.getEmail().value(),
+                EmailTemplate.OTP_REGISTER,
+                variables,
+                null
+        ));
 
         otpCodeRepository.deleteAllByUserAndPurpose(user.getUserId(), purpose);
 

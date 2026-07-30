@@ -11,4 +11,5 @@ public class RateLimitProperties {
 
     private int loginPerMinute = 10;
     private int refreshPerMinute = 30;
+    private boolean failClosedForCriticalOps = false;
 }

@@ -40,6 +40,7 @@ public class LoginUseCaseImpl implements LoginUseCase {
     public LoginResult execute(LoginCommand command) {
         String email = command.email().trim().toLowerCase();
         String clientIp = command.clientIp() == null ? "unknown" : command.clientIp();
+        String userAgent = command.userAgent();
 
         enforceRateLimit("login:ip:" + clientIp, loginPolicy.loginPerMinute());
         enforceRateLimit("login:email:" + email, loginPolicy.loginPerMinute());
@@ -47,7 +48,7 @@ public class LoginUseCaseImpl implements LoginUseCase {
         LoginAttemptChecker.LockState lockState = attemptChecker.isLocked(email, clientIp);
         if (lockState.locked()) {
             log.warn("Login rejected - account locked: email={} ip={} retryAfter={}", email, clientIp, lockState.retryAfterSeconds());
-            authEventPublisher.publishLoginFailed(email, clientIp, "ACCOUNT_LOCKED");
+            authEventPublisher.publishLoginFailed(email, clientIp, userAgent, "ACCOUNT_LOCKED");
             throw new BusinessException(IamErrorCode.ACCOUNT_LOCKED,
                     java.util.Map.of("retryAfterSeconds", lockState.retryAfterSeconds()));
         }
@@ -55,32 +56,33 @@ public class LoginUseCaseImpl implements LoginUseCase {
         User user = userRepository.findByEmail(email).orElse(null);
         if (user == null) {
             attemptChecker.recordFailure(email, clientIp);
-            authEventPublisher.publishLoginFailed(email, clientIp, "USER_NOT_FOUND");
+            authEventPublisher.publishLoginFailed(email, clientIp, userAgent, "USER_NOT_FOUND");
             throw new BusinessException(IamErrorCode.LOGIN_BAD_CREDENTIALS);
         }
 
         if (user.getPassword() == null || !passwordHasher.matches(command.rawPassword(), user.getPassword().hash())) {
             attemptChecker.recordFailure(email, clientIp);
             log.warn("Login failed - bad credentials: email={}", email);
-            authEventPublisher.publishLoginFailed(email, clientIp, "BAD_CREDENTIALS");
+            authEventPublisher.publishLoginFailed(email, clientIp, userAgent, "BAD_CREDENTIALS");
             throw new BusinessException(IamErrorCode.LOGIN_BAD_CREDENTIALS);
         }
 
         if (user.getStatus() == UserStatus.BANNED || user.getStatus() == UserStatus.DELETED) {
-            authEventPublisher.publishLoginFailed(email, clientIp, "ACCOUNT_INACTIVE");
+            authEventPublisher.publishLoginFailed(email, clientIp, userAgent, "ACCOUNT_INACTIVE");
             throw new BusinessException(IamErrorCode.ACCOUNT_INACTIVE);
         }
         if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
-            authEventPublisher.publishLoginFailed(email, clientIp, "ACCOUNT_NOT_VERIFIED");
+            authEventPublisher.publishLoginFailed(email, clientIp, userAgent, "ACCOUNT_NOT_VERIFIED");
             throw new BusinessException(IamErrorCode.ACCOUNT_NOT_VERIFIED);
         }
 
         attemptChecker.reset(email);
+        attemptChecker.resetIpLock(email, clientIp);
 
         TokenManagerService.AccessTokenInfo access = tokenManagerService.issueAccessToken(user);
         TokenManagerService.RefreshTokenInfo refresh = tokenManagerService.issueRefreshToken(user.getUserId());
 
-        authEventPublisher.publishAuthSuccess(user.getUserId(), user.getEmail().value(), clientIp);
+        authEventPublisher.publishAuthSuccess(user.getUserId(), user.getEmail().value(), clientIp, userAgent);
 
         AuthNextStep nextStep = user.isOnboardingIncomplete() ? AuthNextStep.COMPLETE_PROFILE : AuthNextStep.NONE;
 

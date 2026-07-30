@@ -1,10 +1,8 @@
 package com.pwb.infra.outbox.scheduler;
 
-import com.pwb.infra.outbox.core.OutboxStatus;
 import com.pwb.infra.outbox.persistence.entity.OutboxEventJpaEntity;
 import com.pwb.infra.outbox.persistence.repository.OutboxEventJpaRepository;
 import com.pwb.infra.outbox.properties.OutboxProperties;
-import com.pwb.infra.outbox.sink.OutboxPublishException;
 import com.pwb.infra.outbox.sink.OutboxPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,15 +10,22 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Component
 @ConditionalOnProperty(name = "pwb.outbox.relay.enabled", havingValue = "true", matchIfMissing = true)
 @RequiredArgsConstructor
 public class OutboxRelayScheduler {
+
+    private static final Duration DEFAULT_LEASE = Duration.ofSeconds(60);
 
     private final OutboxEventJpaRepository repository;
     private final OutboxPublisher publisher;
@@ -31,47 +36,48 @@ public class OutboxRelayScheduler {
     public void relay() {
         Instant now = Instant.now();
         int batchSize = properties.getRelay().getBatchSize();
-        Instant claimAt = now.plusSeconds(properties.getRetry().getBackoffSeconds()[0]);
+        Instant nextAttempt = now.plusSeconds(properties.getRetry().getBackoffSeconds()[0]);
+        Instant leaseUntil = now.plus(DEFAULT_LEASE);
 
-        int claimed = repository.claimBatch(batchSize, now, claimAt);
-        if (claimed == 0) {
+        List<UUID> reclaimed = repository.reclaimExpiredLease(batchSize, now, nextAttempt, leaseUntil);
+        int remaining = Math.max(0, batchSize - reclaimed.size());
+        List<UUID> fresh = remaining == 0
+                ? List.of()
+                : repository.claimBatch(remaining, now, nextAttempt, leaseUntil);
+
+        List<UUID> claimedIds = new ArrayList<>(reclaimed.size() + fresh.size());
+        claimedIds.addAll(reclaimed);
+        claimedIds.addAll(fresh);
+
+        if (claimedIds.isEmpty()) {
             return;
         }
 
-        List<OutboxEventJpaEntity> events = repository.findByStatus(OutboxStatus.PROCESSING);
-        for (OutboxEventJpaEntity event : events) {
-            processEvent(event);
+        List<OutboxEventJpaEntity> events =
+                repository.findAllByIdInAndStatusOrderByCreatedAtAsc(claimedIds,
+                        com.pwb.infra.outbox.core.OutboxStatus.PROCESSING);
+        if (events.isEmpty()) {
+            return;
         }
-    }
 
-    private void processEvent(OutboxEventJpaEntity event) {
-        try {
-            publisher.publish(event);
-            event.setStatus(OutboxStatus.SENT);
-            event.setSentAt(Instant.now());
-            event.setLastError(null);
-        } catch (OutboxPublishException ex) {
-            handleFailure(event, ex);
-        }
-    }
+        Runnable submit = () -> events.forEach(ev -> {
+            try {
+                publisher.publish(ev);
+            } catch (Exception ex) {
+                log.error("OUTBOX.relay.submit failed: id={} reason={}",
+                        ev.getId(), ex.getMessage());
+            }
+        });
 
-    private void handleFailure(OutboxEventJpaEntity event, OutboxPublishException ex) {
-        int currentRetry = event.getRetryCount();
-        event.setRetryCount(currentRetry + 1);
-        event.setLastError(ex.getMessage());
-
-        if (currentRetry + 1 >= properties.getRetry().getMaxAttempts()) {
-            event.setStatus(OutboxStatus.FAILED);
-            log.error("OUTBOX.publish permanently failed: id={} retries={} error={}",
-                    event.getId(), event.getRetryCount(), ex.getMessage());
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    submit.run();
+                }
+            });
         } else {
-            int[] backoffSeconds = properties.getRetry().getBackoffSeconds();
-            int attemptIndex = Math.min(currentRetry, backoffSeconds.length - 1);
-            long backoff = backoffSeconds[attemptIndex];
-            event.setNextAttemptAt(Instant.now().plusSeconds(backoff));
-            event.setStatus(OutboxStatus.PENDING);
-            log.warn("OUTBOX.publish failed: id={} retry={} backoff={}s error={}",
-                    event.getId(), event.getRetryCount(), backoff, ex.getMessage());
+            submit.run();
         }
     }
 }

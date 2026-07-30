@@ -3,7 +3,8 @@ package com.pwb.iam.application.command;
 public record LoginCommand(
         String email,
         String rawPassword,
-        String clientIp
+        String clientIp,
+        String userAgent
 ) {
 
     public LoginCommand {

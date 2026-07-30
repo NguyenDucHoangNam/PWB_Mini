@@ -1,0 +1,12 @@
+[# th:text="${pageTitle}" /]
+
+[# th:text="#{email.welcome_google.headline}"/]
+=====================================
+
+[# th:text="#{email.welcome_google.greeting(${displayName})}"/]
+
+[# th:text="#{email.welcome_google.body}"/]
+
+[# th:text="#{email.welcome_google.support}"/]
+
+[# th:text="#{email.footer.tagline}"/]

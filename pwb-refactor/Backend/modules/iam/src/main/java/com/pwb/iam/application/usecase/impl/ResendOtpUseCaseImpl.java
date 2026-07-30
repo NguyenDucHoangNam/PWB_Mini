@@ -10,10 +10,12 @@ import com.pwb.iam.domain.model.OtpPurpose;
 import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.repository.OtpCodeRepository;
 import com.pwb.iam.domain.repository.UserRepository;
-import com.pwb.iam.domain.service.OtpDeliveryPort;
+import com.pwb.iam.domain.service.EmailDeliveryPort;
+import com.pwb.iam.domain.service.EmailEnqueueCommand;
 import com.pwb.iam.domain.service.OtpGenerator;
 import com.pwb.iam.domain.service.ThrottlingService;
 import com.pwb.iam.infrastructure.config.OtpProperties;
+import com.pwb.infra.mail.api.EmailTemplate;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,12 +30,10 @@ import java.time.Instant;
 @RequiredArgsConstructor
 public class ResendOtpUseCaseImpl implements ResendOtpUseCase {
 
-    private static final int OTP_TTL_MINUTES = 10;
-
     private final UserRepository userRepository;
     private final OtpCodeRepository otpCodeRepository;
     private final OtpGenerator otpGenerator;
-    private final OtpDeliveryPort otpDeliveryPort;
+    private final EmailDeliveryPort emailDeliveryPort;
     private final ThrottlingService throttlingService;
     private final AuthEventPublisher authEventPublisher;
     private final OtpProperties otpProperties;
@@ -60,19 +60,24 @@ public class ResendOtpUseCaseImpl implements ResendOtpUseCase {
 
         String rawCode = otpGenerator.generate();
         String codeHash = otpGenerator.hash(rawCode);
-        Instant expiresAt = Instant.now().plus(Duration.ofMinutes(OTP_TTL_MINUTES));
+        Instant expiresAt = Instant.now().plus(Duration.ofMinutes(otpProperties.getTtlMinutes()));
 
         otpCodeRepository.deleteAllByUserAndPurpose(user.getUserId(), OtpPurpose.REGISTER);
 
         OtpCode otp = OtpCode.create(user.getUserId(), OtpPurpose.REGISTER, codeHash, expiresAt);
         otpCodeRepository.save(otp);
 
-        OtpDeliveryPort.DeliveryResult delivery = otpDeliveryPort.deliver(
-                user.getUserId(), user.getEmail().value(), OtpPurpose.REGISTER.name(), rawCode);
-        if (!delivery.delivered()) {
-            throw new BusinessException(IamErrorCode.AUTH_RATE_LIMIT_EXCEEDED,
-                    java.util.Map.of("cooldownSeconds", delivery.cooldown().toSeconds()));
-        }
+        java.util.Map<String, String> variables = java.util.Map.of(
+                "code", rawCode,
+                "ttlMinutes", String.valueOf(otpProperties.getTtlMinutes())
+        );
+        emailDeliveryPort.enqueue(new EmailEnqueueCommand(
+                user.getUserId(),
+                user.getEmail().value(),
+                EmailTemplate.OTP_REGISTER,
+                variables,
+                null
+        ));
 
         authEventPublisher.publishOtpIssued(
                 new OtpIssuedDomainEvent(user.getUserId(), user.getEmail().value(), OtpPurpose.REGISTER, expiresAt));

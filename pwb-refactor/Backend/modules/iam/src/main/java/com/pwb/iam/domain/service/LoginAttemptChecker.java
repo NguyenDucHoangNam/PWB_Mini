@@ -6,6 +6,8 @@ public interface LoginAttemptChecker {
 
     void reset(String email);
 
+    void resetIpLock(String email, String clientIp);
+
     LockState isLocked(String email, String clientIp);
 
     record LockState(boolean locked, long retryAfterSeconds) {

@@ -6,10 +6,12 @@ import com.pwb.iam.domain.service.PasswordPolicyViolation;
 import com.pwb.iam.infrastructure.config.PasswordPolicyProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 @Slf4j
 @Service
@@ -17,11 +19,15 @@ import java.util.List;
 public class PasswordPolicyAdapter implements PasswordPolicyService {
 
     private final PasswordPolicyProperties policyProperties;
+    private final MessageSource messageSource;
 
     @Override
     public PasswordPolicyResult validate(String rawPassword) {
         if (rawPassword == null || rawPassword.isBlank()) {
-            return PasswordPolicyResult.of(List.of());
+            return PasswordPolicyResult.failure(List.of(
+                    messageSource.getMessage(PasswordPolicyViolation.NULL_PASSWORD.messageKey(),
+                            null, Locale.getDefault())
+            ));
         }
 
         List<PasswordPolicyViolation> violations = new ArrayList<>();
@@ -49,8 +55,22 @@ public class PasswordPolicyAdapter implements PasswordPolicyService {
         }
 
         if (violations.isEmpty()) {
-            return PasswordPolicyResult.of(List.of());
+            return PasswordPolicyResult.ok();
         }
-        return PasswordPolicyResult.of(List.copyOf(violations));
+
+        List<String> messages = violations.stream()
+                .map(this::resolveMessage)
+                .toList();
+        return PasswordPolicyResult.failure(messages);
+    }
+
+    private String resolveMessage(PasswordPolicyViolation violation) {
+        return switch (violation) {
+            case TOO_SHORT -> messageSource.getMessage(violation.messageKey(),
+                    new Object[]{policyProperties.getMinLength()}, Locale.getDefault());
+            case TOO_LONG -> messageSource.getMessage(violation.messageKey(),
+                    new Object[]{policyProperties.getMaxLength()}, Locale.getDefault());
+            default -> messageSource.getMessage(violation.messageKey(), null, Locale.getDefault());
+        };
     }
 }

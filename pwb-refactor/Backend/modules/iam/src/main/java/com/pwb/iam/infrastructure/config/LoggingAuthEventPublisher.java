@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -19,33 +20,42 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class LoggingAuthEventPublisher implements AuthEventPublisher {
 
+    private static final String KEY_LOCKOUT_REASON = "lockoutReason";
+    private static final String KEY_TTL_MINUTES = "ttlMinutes";
+
     private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
     public void publishAuthSuccess(AuthSuccessEvent event) {
-        publishAuthSuccess(event.userId(), event.email(), event.clientIp());
+        publishAuthSuccess(event.userId(), event.email(), event.clientIp(), event.userAgent());
     }
 
     @Override
-    public void publishAuthSuccess(UUID userId, String email, String clientIp) {
+    public void publishAuthSuccess(UUID userId, String email, String clientIp, String userAgent) {
         log.info("Auth success: userId={} ip={}", userId, clientIp);
         applicationEventPublisher.publishEvent(new AuditPersistRequested(
-                AuditLogEntry.of(AuditEventType.LOGIN_SUCCESS, userId, email, clientIp, true, null)));
+                AuditLogEntry.of(AuditEventType.LOGIN_SUCCESS, userId, email, clientIp, userAgent, true, null, Map.of())));
     }
 
     @Override
-    public void publishLoginFailed(String email, String clientIp, String reason) {
+    public void publishLoginFailed(String email, String clientIp, String userAgent, String reason) {
         String maskedEmail = maskEmail(email);
         log.info("Login failed: emailMasked={} ip={} reason={}", maskedEmail, clientIp, reason);
+        Map<String, Object> metadata = Map.of(KEY_LOCKOUT_REASON, reason);
         applicationEventPublisher.publishEvent(new AuditPersistRequested(
-                AuditLogEntry.of(AuditEventType.LOGIN_FAILED, null, email, clientIp, false, reason)));
+                AuditLogEntry.of(AuditEventType.LOGIN_FAILED, null, maskedEmail, clientIp, userAgent, false, reason, metadata)));
     }
 
     @Override
-    public void publishLogout(UUID userId, String email, String clientIp) {
+    public void publishLogout(UUID userId, String email, String clientIp, String userAgent) {
+        publishLogout(userId, clientIp, userAgent);
+    }
+
+    @Override
+    public void publishLogout(UUID userId, String clientIp, String userAgent) {
         log.info("Logout: userId={} ip={}", userId, clientIp);
         applicationEventPublisher.publishEvent(new AuditPersistRequested(
-                AuditLogEntry.of(AuditEventType.LOGOUT, userId, email, clientIp, true, null)));
+                AuditLogEntry.of(AuditEventType.LOGOUT, userId, null, clientIp, userAgent, true, null, Map.of())));
     }
 
     @Override
@@ -61,17 +71,18 @@ public class LoggingAuthEventPublisher implements AuthEventPublisher {
     }
 
     @Override
-    public void publishPasswordResetRequested(UUID userId, String email, String resetLink, long ttlMinutes) {
+    public void publishPasswordResetRequested(UUID userId, String email, String resetLink, long ttlMinutes, String userAgent) {
         log.info("Password reset requested: userId={} ttlMinutes={}", userId, ttlMinutes);
+        Map<String, Object> metadata = Map.of(KEY_TTL_MINUTES, ttlMinutes);
         applicationEventPublisher.publishEvent(new AuditPersistRequested(
-                AuditLogEntry.of(AuditEventType.PASSWORD_RESET_REQUESTED, userId, email, null, true, null)));
+                AuditLogEntry.of(AuditEventType.PASSWORD_RESET_REQUESTED, userId, maskEmail(email), null, userAgent, true, null, metadata)));
     }
 
     @Override
-    public void publishPasswordChanged(UUID userId, String email, String clientIp) {
+    public void publishPasswordChanged(UUID userId, String email, String clientIp, String userAgent) {
         log.info("Password changed: userId={} ip={}", userId, clientIp);
         applicationEventPublisher.publishEvent(new AuditPersistRequested(
-                AuditLogEntry.of(AuditEventType.PASSWORD_CHANGED, userId, email, clientIp, true, null)));
+                AuditLogEntry.of(AuditEventType.PASSWORD_CHANGED, userId, email, clientIp, userAgent, true, null, Map.of())));
     }
 
     @Override
@@ -85,18 +96,19 @@ public class LoggingAuthEventPublisher implements AuthEventPublisher {
     }
 
     @Override
-    public void publishGoogleLoginSuccess(UUID userId, String email, String clientIp) {
+    public void publishGoogleLoginSuccess(UUID userId, String email, String clientIp, String userAgent) {
         log.info("Google login success: userId={} ip={}", userId, clientIp);
         applicationEventPublisher.publishEvent(new AuditPersistRequested(
-                AuditLogEntry.of(AuditEventType.GOOGLE_LOGIN_SUCCESS, userId, email, clientIp, true, null)));
+                AuditLogEntry.of(AuditEventType.GOOGLE_LOGIN_SUCCESS, userId, email, clientIp, userAgent, true, null, Map.of())));
     }
 
     @Override
-    public void publishGoogleLoginFailed(String email, String clientIp, String reason) {
+    public void publishGoogleLoginFailed(String email, String clientIp, String userAgent, String reason) {
         String maskedEmail = maskEmail(email);
         log.info("Google login failed: emailMasked={} ip={} reason={}", maskedEmail, clientIp, reason);
+        Map<String, Object> metadata = Map.of(KEY_LOCKOUT_REASON, reason);
         applicationEventPublisher.publishEvent(new AuditPersistRequested(
-                AuditLogEntry.of(AuditEventType.GOOGLE_LOGIN_FAILED, null, email, clientIp, false, reason)));
+                AuditLogEntry.of(AuditEventType.GOOGLE_LOGIN_FAILED, null, maskedEmail, clientIp, userAgent, false, reason, metadata)));
     }
 
     private static String maskEmail(String email) {

@@ -22,6 +22,7 @@ public class AuditLogMapper {
                 .actorEmail(entry.actorEmail())
                 .targetId(entry.targetId())
                 .clientIp(entry.clientIp())
+                .userAgent(entry.userAgent())
                 .success(entry.success())
                 .failureReason(entry.failureReason())
                 .metadata(entry.metadata() == null ? Map.of() : entry.metadata())
@@ -41,6 +42,7 @@ public class AuditLogMapper {
                 entity.getActorEmail(),
                 entity.getTargetId(),
                 entity.getClientIp(),
+                entity.getUserAgent(),
                 entity.isSuccess(),
                 entity.getFailureReason(),
                 entity.getMetadata() == null ? Map.of() : entity.getMetadata(),

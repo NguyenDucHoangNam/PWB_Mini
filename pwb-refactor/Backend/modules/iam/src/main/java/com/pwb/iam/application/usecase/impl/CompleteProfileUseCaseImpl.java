@@ -56,7 +56,7 @@ public class CompleteProfileUseCaseImpl implements CompleteProfileUseCase {
 
         if (command.newPassword() != null && !command.newPassword().isBlank()) {
             PasswordPolicyResult policyResult = passwordPolicyService.validate(command.newPassword());
-            if (policyResult.isInvalid()) {
+            if (!policyResult.valid()) {
                 throw new BusinessException(IamErrorCode.WEAK_PASSWORD);
             }
             user.changePassword(Password.fromHash(passwordHasher.hash(command.newPassword())));
