@@ -280,7 +280,7 @@ shared-infrastructure/src/main/java/com/pwb/infra/
     ├── config/
     ├── dto/              # UploadResult, PresignedUrlResult
     ├── exception/
-    ├── impl/             # S3StorageServiceImpl, LocalStorageServiceImpl
+    ├── impl/             # S3StorageServiceImpl
     ├── properties/
     └── util/
 ```
@@ -312,20 +312,9 @@ public interface StorageService {
 
 // Implementation - đặt tên theo loại
 public class S3StorageServiceImpl implements StorageService { }
-public class LocalStorageServiceImpl implements StorageService { }
-
-// Factory/Picker
-@Configuration
-public class StorageConfig {
-    @Bean
-    public StorageService storageService(StorageProperties properties) {
-        return switch (properties.getProvider()) {
-            case S3 -> new S3StorageServiceImpl(...);
-            case LOCAL -> new LocalStorageServiceImpl(...);
-        };
-    }
-}
 ```
+
+**Lưu ý**: Project hiện chỉ hỗ trợ S3 — không còn LocalStorage. Mọi môi trường (dev/prod) đều dùng S3 (MinIO local cho dev, AWS S3 thật cho prod).
 
 ### 5.5 Outbox Pattern
 

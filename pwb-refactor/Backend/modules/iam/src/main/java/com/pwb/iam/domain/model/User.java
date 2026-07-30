@@ -6,8 +6,9 @@ import java.util.UUID;
 
 public final class User extends DomainBaseEntity {
 
+    private static final int FULL_NAME_MAX_LENGTH = 128;
+
     private final UUID userId;
-    private String username;
     private EmailAddress email;
     private Password password;
     private String fullName;
@@ -17,11 +18,9 @@ public final class User extends DomainBaseEntity {
     private RoleName role;
     private OAuthProvider oauthProvider;
     private String oauthId;
-    private boolean provisionalUsername;
 
     private User(
             UUID userId,
-            String username,
             EmailAddress email,
             Password password,
             String fullName,
@@ -30,11 +29,9 @@ public final class User extends DomainBaseEntity {
             UserStatus status,
             RoleName role,
             OAuthProvider oauthProvider,
-            String oauthId,
-            boolean provisionalUsername
+            String oauthId
     ) {
         this.userId = userId;
-        this.username = username;
         this.email = email;
         this.password = password;
         this.fullName = fullName;
@@ -44,46 +41,39 @@ public final class User extends DomainBaseEntity {
         this.role = role;
         this.oauthProvider = oauthProvider;
         this.oauthId = oauthId;
-        this.provisionalUsername = provisionalUsername;
     }
 
     public static User createLocal(
-            String username,
             EmailAddress email,
             Password password,
             String fullName,
             RoleName role
     ) {
-        if (username == null || username.isBlank()) {
-            throw new IllegalArgumentException("username must not be blank");
-        }
         if (email == null) {
             throw new IllegalArgumentException("email must not be null");
         }
         if (password == null || !password.isHashed()) {
             throw new IllegalArgumentException("password must be hashed");
         }
+        String normalizedFullName = normalizeFullName(fullName);
         if (role == null) {
             role = RoleName.USER;
         }
         return new User(
                 UUID.randomUUID(),
-                username,
                 email,
                 password,
-                fullName,
+                normalizedFullName,
                 null,
                 null,
                 UserStatus.PENDING_VERIFICATION,
                 role,
                 OAuthProvider.LOCAL,
-                null,
-                true
+                null
         );
     }
 
     public static User createGoogle(
-            String username,
             EmailAddress email,
             String oauthId,
             String fullName,
@@ -95,61 +85,61 @@ public final class User extends DomainBaseEntity {
         if (oauthId == null || oauthId.isBlank()) {
             throw new IllegalArgumentException("oauthId must not be blank");
         }
+        String normalizedFullName = fullName == null || fullName.isBlank() ? null : normalizeFullName(fullName);
         return new User(
                 UUID.randomUUID(),
-                username,
                 email,
                 null,
-                fullName,
+                normalizedFullName,
                 avatarUrl,
                 null,
                 UserStatus.PENDING_VERIFICATION,
                 RoleName.USER,
                 OAuthProvider.GOOGLE,
-                oauthId,
-                true
+                oauthId
         );
     }
 
     public static User rehydrate(
             UUID userId,
-            String username,
-            EmailAddress email,
+            String email,
             String passwordHash,
             String fullName,
             String avatarUrl,
             String phone,
             UserStatus status,
-            RoleName role,
+            String roleName,
             OAuthProvider oauthProvider,
-            String oauthId,
-            boolean provisionalUsername
+            String oauthId
     ) {
+        EmailAddress emailAddress = (email == null || email.isBlank()) ? null : EmailAddress.of(email);
         Password password = (passwordHash == null || passwordHash.isBlank())
                 ? null
                 : Password.fromHash(passwordHash);
+        RoleName role = null;
+        if (roleName != null && !roleName.isBlank()) {
+            try {
+                role = RoleName.valueOf(roleName);
+            } catch (IllegalArgumentException ex) {
+                role = null;
+            }
+        }
         return new User(
                 userId,
-                username,
-                email,
+                emailAddress,
                 password,
                 fullName,
                 avatarUrl,
                 phone,
-                status,
+                status == null ? UserStatus.PENDING_VERIFICATION : status,
                 role,
                 oauthProvider,
-                oauthId,
-                provisionalUsername
+                oauthId
         );
     }
 
     public UUID getUserId() {
         return userId;
-    }
-
-    public String getUsername() {
-        return username;
     }
 
     public EmailAddress getEmail() {
@@ -192,10 +182,6 @@ public final class User extends DomainBaseEntity {
         return oauthProvider != null && oauthProvider != OAuthProvider.LOCAL;
     }
 
-    public boolean isProvisionalUsername() {
-        return provisionalUsername;
-    }
-
     public void markActive() {
         this.status = UserStatus.ACTIVE;
         touch();
@@ -219,23 +205,7 @@ public final class User extends DomainBaseEntity {
     }
 
     public boolean isOnboardingIncomplete() {
-        return this.status == UserStatus.ACTIVE && this.provisionalUsername;
-    }
-
-    public void completeProfile(String username, String fullName) {
-        if (username == null || username.isBlank()) {
-            throw new IllegalArgumentException("username must not be blank");
-        }
-        if (this.status != UserStatus.ACTIVE || !this.provisionalUsername) {
-            throw new com.pwb.iam.domain.exception.UserStateConflictException(
-                    com.pwb.iam.domain.exception.IamErrorCode.ACCOUNT_NOT_VERIFIED);
-        }
-        this.username = username;
-        this.provisionalUsername = false;
-        if (fullName != null && !fullName.isBlank()) {
-            this.fullName = fullName;
-        }
-        touch();
+        return false;
     }
 
     public void assignRole(RoleName newRole) {
@@ -254,17 +224,10 @@ public final class User extends DomainBaseEntity {
         touch();
     }
 
-    public void changeUsername(String username) {
-        if (username == null || username.isBlank()) {
-            throw new IllegalArgumentException("username must not be blank");
-        }
-        this.username = username;
-        this.provisionalUsername = false;
-        touch();
-    }
-
     public void updateProfile(String fullName, String phone, String avatarUrl) {
-        this.fullName = fullName;
+        if (fullName != null) {
+            this.fullName = normalizeFullName(fullName);
+        }
         this.phone = phone;
         this.avatarUrl = avatarUrl;
         touch();
@@ -276,7 +239,7 @@ public final class User extends DomainBaseEntity {
     }
 
     public void changeFullName(String fullName) {
-        this.fullName = fullName;
+        this.fullName = normalizeFullName(fullName);
         touch();
     }
 
@@ -290,5 +253,16 @@ public final class User extends DomainBaseEntity {
         this.oauthProvider = provider;
         this.oauthId = oauthId;
         touch();
+    }
+
+    private static String normalizeFullName(String fullName) {
+        if (fullName == null || fullName.isBlank()) {
+            throw new IllegalArgumentException("fullName must not be blank");
+        }
+        String trimmed = fullName.trim();
+        if (trimmed.length() > FULL_NAME_MAX_LENGTH) {
+            throw new IllegalArgumentException("fullName must not exceed " + FULL_NAME_MAX_LENGTH + " characters");
+        }
+        return trimmed;
     }
 }

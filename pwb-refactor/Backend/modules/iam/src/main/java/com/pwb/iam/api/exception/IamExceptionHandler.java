@@ -54,9 +54,6 @@ public class IamExceptionHandler {
         Matcher m = CONSTRAINT_PATTERN.matcher(message);
         if (m.find()) {
             String constraint = m.group(1);
-            if (constraint.contains("username")) {
-                return "username";
-            }
             if (constraint.contains("email")) {
                 return "email";
             }

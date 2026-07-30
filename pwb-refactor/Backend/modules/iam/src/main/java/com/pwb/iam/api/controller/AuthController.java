@@ -1,7 +1,6 @@
 package com.pwb.iam.api.controller;
 
 import com.pwb.iam.api.dto.request.ChangePasswordRequest;
-import com.pwb.iam.api.dto.request.CompleteProfileRequest;
 import com.pwb.iam.api.dto.request.ForgotPasswordRequest;
 import com.pwb.iam.api.dto.request.GoogleLoginRequest;
 import com.pwb.iam.api.dto.request.LoginRequest;
@@ -15,7 +14,6 @@ import com.pwb.iam.api.dto.response.AuthMessageResponse;
 import com.pwb.iam.api.dto.response.AuthResponse;
 import com.pwb.iam.api.dto.response.LogoutResponse;
 import com.pwb.iam.application.command.ChangePasswordCommand;
-import com.pwb.iam.application.command.CompleteProfileCommand;
 import com.pwb.iam.application.command.ForgotPasswordCommand;
 import com.pwb.iam.application.command.GoogleLoginCommand;
 import com.pwb.iam.application.command.LoginCommand;
@@ -85,21 +83,6 @@ public class AuthController {
         iamFacade.resendOtp(command);
         AuthMessageResponse body = AuthMessageResponse.of(request.userId(), messageResolver.get(MSG_OTP_RESENT));
         return ResponseEntity.ok(ApiResponse.success(body));
-    }
-
-    @PostMapping("/complete-profile")
-    public ResponseEntity<ApiResponse<AuthResponse>> completeProfile(
-            @CurrentUser UUID userId,
-            @CurrentClientIp String clientIp,
-            @Valid @RequestBody CompleteProfileRequest request
-    ) {
-        if (userId == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("UNAUTHORIZED", messageResolver.get(MSG_UNAUTHORIZED)));
-        }
-        CompleteProfileCommand command = new CompleteProfileCommand(userId, request.username(), request.fullName(), request.newPassword(), clientIp);
-        AuthView view = iamFacade.completeProfile(command);
-        return ResponseEntity.ok(ApiResponse.success(toAuthResponse(view)));
     }
 
     @PostMapping("/login")
@@ -216,12 +199,12 @@ public class AuthController {
     private AuthResponse toAuthResponse(AuthView view) {
         if (view.accessToken() == null || view.refreshToken() == null) {
             return AuthResponse.bearerOnly(
-                    view.userId(), view.email(), view.username(), view.status(), view.role());
+                    view.userId(), view.email(), view.fullName(), view.status(), view.role());
         }
         return AuthResponse.tokens(
                 view.userId(),
                 view.email(),
-                view.username(),
+                view.fullName(),
                 view.status(),
                 view.role(),
                 view.accessToken(),

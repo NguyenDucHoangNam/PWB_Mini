@@ -25,8 +25,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
         PasswordResetProperties.class,
         GoogleProperties.class,
         SecurityProperties.class,
-        SeederProperties.class,
-        IamReminderProperties.class
+        SeederProperties.class
 })
 public class IamAutoConfiguration {
 

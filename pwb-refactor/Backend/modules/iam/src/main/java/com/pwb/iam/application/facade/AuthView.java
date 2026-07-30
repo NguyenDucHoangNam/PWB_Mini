@@ -7,7 +7,7 @@ import java.util.UUID;
 public record AuthView(
         UUID userId,
         String email,
-        String username,
+        String fullName,
         String status,
         String role,
         String accessToken,
@@ -16,17 +16,17 @@ public record AuthView(
         AuthNextStep nextStep
 ) {
 
-    public static AuthView profileOnly(UUID userId, String email, String username, String status, String role) {
-        return new AuthView(userId, email, username, status, role, null, null, 0L, AuthNextStep.NONE);
+    public static AuthView profileOnly(UUID userId, String email, String fullName, String status, String role) {
+        return new AuthView(userId, email, fullName, status, role, null, null, 0L, AuthNextStep.NONE);
     }
 
-    public static AuthView withTokens(UUID userId, String email, String username, String status, String role,
+    public static AuthView withTokens(UUID userId, String email, String fullName, String status, String role,
                                       String accessToken, String refreshToken, long expiresInSeconds) {
-        return new AuthView(userId, email, username, status, role, accessToken, refreshToken, expiresInSeconds, AuthNextStep.NONE);
+        return new AuthView(userId, email, fullName, status, role, accessToken, refreshToken, expiresInSeconds, AuthNextStep.NONE);
     }
 
-    public static AuthView withTokens(UUID userId, String email, String username, String status, String role,
+    public static AuthView withTokens(UUID userId, String email, String fullName, String status, String role,
                                       String accessToken, String refreshToken, long expiresInSeconds, AuthNextStep nextStep) {
-        return new AuthView(userId, email, username, status, role, accessToken, refreshToken, expiresInSeconds, nextStep);
+        return new AuthView(userId, email, fullName, status, role, accessToken, refreshToken, expiresInSeconds, nextStep);
     }
 }

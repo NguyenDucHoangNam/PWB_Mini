@@ -1,7 +1,6 @@
 package com.pwb.iam.application.facade;
 
 import com.pwb.iam.application.command.ChangePasswordCommand;
-import com.pwb.iam.application.command.CompleteProfileCommand;
 import com.pwb.iam.application.command.ForgotPasswordCommand;
 import com.pwb.iam.application.command.GoogleLoginCommand;
 import com.pwb.iam.application.command.LoginCommand;
@@ -12,7 +11,6 @@ import com.pwb.iam.application.command.ResendOtpCommand;
 import com.pwb.iam.application.command.ResetPasswordCommand;
 import com.pwb.iam.application.command.VerifyOtpCommand;
 import com.pwb.iam.application.usecase.ChangePasswordUseCase;
-import com.pwb.iam.application.usecase.CompleteProfileUseCase;
 import com.pwb.iam.application.usecase.ForgotPasswordUseCase;
 import com.pwb.iam.application.usecase.GoogleLoginUseCase;
 import com.pwb.iam.application.usecase.LoginResult;
@@ -23,7 +21,6 @@ import com.pwb.iam.application.usecase.RegisterUseCase;
 import com.pwb.iam.application.usecase.ResendOtpUseCase;
 import com.pwb.iam.application.usecase.ResetPasswordUseCase;
 import com.pwb.iam.application.usecase.VerifyOtpUseCase;
-import com.pwb.iam.domain.model.AuthNextStep;
 import com.pwb.iam.domain.model.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -36,7 +33,6 @@ public class IamFacadeImpl implements IamFacade {
 
     private final RegisterUseCase registerUseCase;
     private final VerifyOtpUseCase verifyOtpUseCase;
-    private final CompleteProfileUseCase completeProfileUseCase;
     private final ResendOtpUseCase resendOtpUseCase;
     private final LoginUseCase loginUseCase;
     private final RefreshTokenUseCase refreshTokenUseCase;
@@ -55,12 +51,6 @@ public class IamFacadeImpl implements IamFacade {
     @Override
     public AuthView verifyOtp(VerifyOtpCommand command) {
         LoginResult result = verifyOtpUseCase.execute(command);
-        return toAuthView(result);
-    }
-
-    @Override
-    public AuthView completeProfile(CompleteProfileCommand command) {
-        LoginResult result = completeProfileUseCase.execute(command);
         return toAuthView(result);
     }
 
@@ -110,7 +100,7 @@ public class IamFacadeImpl implements IamFacade {
         return AuthView.withTokens(
                 user.getUserId(),
                 user.getEmail() == null ? null : user.getEmail().value(),
-                user.getUsername(),
+                user.getFullName(),
                 user.getStatus() == null ? null : user.getStatus().name(),
                 user.getRole() == null ? null : user.getRole().name(),
                 result.accessToken().tokenValue(),

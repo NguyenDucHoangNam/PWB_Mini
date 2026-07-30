@@ -1,7 +1,6 @@
 package com.pwb.iam.application.facade;
 
 import com.pwb.iam.application.command.ChangePasswordCommand;
-import com.pwb.iam.application.command.CompleteProfileCommand;
 import com.pwb.iam.application.command.ForgotPasswordCommand;
 import com.pwb.iam.application.command.GoogleLoginCommand;
 import com.pwb.iam.application.command.LoginCommand;
@@ -20,8 +19,6 @@ public interface IamFacade {
     UUID register(RegisterCommand command);
 
     AuthView verifyOtp(VerifyOtpCommand command);
-
-    AuthView completeProfile(CompleteProfileCommand command);
 
     void resendOtp(ResendOtpCommand command);
 

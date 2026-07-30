@@ -43,7 +43,6 @@ spring:
 
 app:
   storage:
-    provider: ${STORAGE_PROVIDER:S3}
     max-file-size-bytes: 10485760
     s3:
       bucket: ${STORAGE_S3_BUCKET}
@@ -54,8 +53,6 @@ app:
       path-style-access: ${STORAGE_S3_PATH_STYLE:false}
       presigned-url-expiration-minutes: 60
       multipart-upload-threshold-bytes: 26214400
-    local:
-      base-path: ${STORAGE_LOCAL_BASE_PATH:/tmp/pwb-storage}
 
   mail:
     from-address: ${MAIL_FROM_ADDRESS:noreply@pwb.com}

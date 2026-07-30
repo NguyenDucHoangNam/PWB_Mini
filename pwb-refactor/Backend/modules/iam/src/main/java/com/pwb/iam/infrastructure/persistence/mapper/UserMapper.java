@@ -2,8 +2,6 @@ package com.pwb.iam.infrastructure.persistence.mapper;
 
 import com.pwb.iam.domain.model.EmailAddress;
 import com.pwb.iam.domain.model.OAuthProvider;
-import com.pwb.iam.domain.model.Role;
-import com.pwb.iam.domain.model.RoleName;
 import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.model.UserStatus;
 import com.pwb.iam.domain.repository.RoleRepository;
@@ -32,7 +30,6 @@ public class UserMapper {
         RoleJpaEntity managedRole = resolveManagedRole(domain.getRole());
 
         if (existing != null) {
-            existing.setUsername(domain.getUsername());
             existing.setEmail(domain.getEmail() == null ? null : domain.getEmail().value());
             existing.setPassword(domain.getPassword() == null ? null : domain.getPassword().hash());
             existing.setFullName(domain.getFullName());
@@ -42,11 +39,9 @@ public class UserMapper {
             existing.setRole(managedRole);
             existing.setOauthProvider(domain.getOauthProvider());
             existing.setOauthId(domain.getOauthId());
-            existing.setProvisionalUsername(domain.isProvisionalUsername());
             return existing;
         }
         return UserJpaEntity.builder()
-                .username(domain.getUsername())
                 .email(domain.getEmail() == null ? null : domain.getEmail().value())
                 .password(domain.getPassword() == null ? null : domain.getPassword().hash())
                 .fullName(domain.getFullName())
@@ -56,11 +51,10 @@ public class UserMapper {
                 .role(managedRole)
                 .oauthProvider(domain.getOauthProvider() == null ? OAuthProvider.LOCAL : domain.getOauthProvider())
                 .oauthId(domain.getOauthId())
-                .provisionalUsername(domain.isProvisionalUsername())
                 .build();
     }
 
-    private RoleJpaEntity resolveManagedRole(RoleName roleName) {
+    private RoleJpaEntity resolveManagedRole(com.pwb.iam.domain.model.RoleName roleName) {
         if (roleName == null) {
             return null;
         }
@@ -72,28 +66,18 @@ public class UserMapper {
         if (entity == null) {
             return null;
         }
-        EmailAddress email = entity.getEmail() == null ? null : EmailAddress.of(entity.getEmail());
-        RoleName role = null;
-        if (entity.getRole() != null && entity.getRole().getName() != null) {
-            try {
-                role = RoleName.valueOf(entity.getRole().getName());
-            } catch (IllegalArgumentException ex) {
-                role = null;
-            }
-        }
+        String roleName = entity.getRole() == null ? null : entity.getRole().getName();
         return User.rehydrate(
                 entity.getId(),
-                entity.getUsername(),
-                email,
+                entity.getEmail(),
                 entity.getPassword(),
                 entity.getFullName(),
                 entity.getAvatarUrl(),
                 entity.getPhone(),
                 entity.getStatus() == null ? UserStatus.PENDING_VERIFICATION : entity.getStatus(),
-                role,
+                roleName,
                 entity.getOauthProvider(),
-                entity.getOauthId(),
-                entity.isProvisionalUsername()
+                entity.getOauthId()
         );
     }
 }

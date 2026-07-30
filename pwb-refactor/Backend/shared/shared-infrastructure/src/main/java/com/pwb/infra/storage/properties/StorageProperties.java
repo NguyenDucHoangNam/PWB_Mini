@@ -19,8 +19,6 @@ public class StorageProperties {
 
     private S3 s3;
 
-    private Local local;
-
     @Data
     @Builder
     @NoArgsConstructor
@@ -35,14 +33,5 @@ public class StorageProperties {
         private boolean pathStyleAccess;
         private int presignedUrlExpirationMinutes;
         private long multipartUploadThresholdBytes;
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Local {
-
-        private String basePath;
     }
 }

@@ -29,15 +29,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.util.Map;
-import java.util.UUID;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class GoogleLoginUseCaseImpl implements GoogleLoginUseCase {
-
-    private static final int PROVISIONAL_USERNAME_RANDOM_LENGTH = 16;
-    private static final String PROVISIONAL_USERNAME_PREFIX = "user_";
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -125,9 +121,7 @@ public class GoogleLoginUseCaseImpl implements GoogleLoginUseCase {
             return saved;
         }
 
-        String username = generateProvisionalUsername();
         User fresh = User.createGoogle(
-                username,
                 EmailAddress.of(payload.email()),
                 payload.sub(),
                 payload.name(),
@@ -179,10 +173,5 @@ public class GoogleLoginUseCaseImpl implements GoogleLoginUseCase {
             return saved;
         }
         return user;
-    }
-
-    private String generateProvisionalUsername() {
-        String hex = UUID.randomUUID().toString().replace("-", "");
-        return PROVISIONAL_USERNAME_PREFIX + hex.substring(0, PROVISIONAL_USERNAME_RANDOM_LENGTH);
     }
 }

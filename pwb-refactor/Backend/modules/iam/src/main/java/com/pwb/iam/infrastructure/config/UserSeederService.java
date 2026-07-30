@@ -52,11 +52,6 @@ public class UserSeederService {
             return;
         }
 
-        if (userRepository.existsByUsername(seedUser.getUsername())) {
-            log.debug("Username already exists, skipping: username={}", seedUser.getUsername());
-            return;
-        }
-
         RoleName roleName = parseRoleName(seedUser.getRole());
         UserStatus userStatus = parseUserStatus(seedUser.getStatus());
 
@@ -64,7 +59,6 @@ public class UserSeederService {
         EmailAddress email = EmailAddress.of(seedUser.getEmail());
 
         User user = User.createLocal(
-                seedUser.getUsername(),
                 email,
                 hashedPassword,
                 seedUser.getFullName(),
@@ -73,7 +67,6 @@ public class UserSeederService {
 
         if (userStatus == UserStatus.ACTIVE) {
             user.markActive();
-            user.completeProfile(seedUser.getUsername(), seedUser.getFullName());
         }
 
         userRepository.save(user);

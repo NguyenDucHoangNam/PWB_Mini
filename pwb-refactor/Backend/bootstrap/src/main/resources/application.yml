@@ -85,11 +85,6 @@ pwb:
     google:
       client-id: ${GOOGLE_CLIENT_ID:}
       clock-skew-seconds: 30
-    reminder:
-      cron: "0 0 9 * * *"
-      frontend-url: ${FRONTEND_URL:http://localhost:3000}
-      complete-profile-path: /complete-profile
-      min-age-hours: 24
     audit:
       consumer:
         enabled: true

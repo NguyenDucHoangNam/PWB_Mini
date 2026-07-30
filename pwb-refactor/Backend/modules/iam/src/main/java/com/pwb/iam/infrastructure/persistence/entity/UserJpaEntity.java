@@ -32,7 +32,6 @@ import java.util.UUID;
         },
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_iam_users_email", columnNames = "email"),
-                @UniqueConstraint(name = "uk_iam_users_username", columnNames = "username"),
                 @UniqueConstraint(name = "uk_iam_users_oauth", columnNames = {"oauth_provider", "oauth_id"})
         }
 )
@@ -43,16 +42,13 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class UserJpaEntity extends IamJpaBaseEntity {
 
-    @Column(name = "username", nullable = false, length = 64)
-    private String username;
-
     @Column(name = "email", nullable = false, length = 255)
     private String email;
 
     @Column(name = "password", length = 255)
     private String password;
 
-    @Column(name = "full_name", length = 128)
+    @Column(name = "full_name", nullable = false, length = 128)
     private String fullName;
 
     @Column(name = "avatar_url", length = 512)
@@ -75,9 +71,6 @@ public class UserJpaEntity extends IamJpaBaseEntity {
 
     @Column(name = "oauth_id", length = 255)
     private String oauthId;
-
-    @Column(name = "is_provisional_username", nullable = false)
-    private boolean provisionalUsername;
 
     public UUID getRoleId() {
         return role == null ? null : role.getId();

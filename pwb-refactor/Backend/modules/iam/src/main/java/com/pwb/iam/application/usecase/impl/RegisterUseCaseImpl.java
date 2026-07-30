@@ -32,15 +32,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
-import java.util.UUID;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class RegisterUseCaseImpl implements RegisterUseCase {
-
-    private static final int PROVISIONAL_USERNAME_RANDOM_LENGTH = 16;
-    private static final String PROVISIONAL_USERNAME_PREFIX = "user_";
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -74,10 +70,8 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
                 .map(Role::getName)
                 .orElseThrow(() -> new BusinessException(IamErrorCode.ROLE_NOT_FOUND));
 
-        String username = generateProvisionalUsername();
         String hashed = passwordHasher.hash(command.rawPassword());
         User user = User.createLocal(
-                username,
                 EmailAddress.of(email),
                 Password.fromHash(hashed),
                 command.fullName(),
@@ -116,10 +110,5 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
 
         authEventPublisher.publishOtpIssued(
                 new OtpIssuedDomainEvent(user.getUserId(), user.getEmail().value(), purpose, expiresAt));
-    }
-
-    private String generateProvisionalUsername() {
-        String hex = UUID.randomUUID().toString().replace("-", "");
-        return PROVISIONAL_USERNAME_PREFIX + hex.substring(0, PROVISIONAL_USERNAME_RANDOM_LENGTH);
     }
 }

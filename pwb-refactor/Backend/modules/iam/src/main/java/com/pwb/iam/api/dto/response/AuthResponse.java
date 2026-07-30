@@ -9,7 +9,7 @@ public class AuthResponse {
 
     private UUID userId;
     private String email;
-    private String username;
+    private String fullName;
     private String status;
     private String role;
     private String tokenType = "Bearer";
@@ -21,19 +21,19 @@ public class AuthResponse {
     public AuthResponse() {
     }
 
-    public static AuthResponse bearerOnly(UUID userId, String email, String username, String status, String role) {
+    public static AuthResponse bearerOnly(UUID userId, String email, String fullName, String status, String role) {
         AuthResponse response = new AuthResponse();
         response.userId = userId;
         response.email = email;
-        response.username = username;
+        response.fullName = fullName;
         response.status = status;
         response.role = role;
         return response;
     }
 
-    public static AuthResponse tokens(UUID userId, String email, String username, String status, String role,
+    public static AuthResponse tokens(UUID userId, String email, String fullName, String status, String role,
                                       String accessToken, String refreshToken, long expiresIn, String nextStep) {
-        AuthResponse response = bearerOnly(userId, email, username, status, role);
+        AuthResponse response = bearerOnly(userId, email, fullName, status, role);
         response.accessToken = accessToken;
         response.refreshToken = refreshToken;
         response.expiresIn = expiresIn;
@@ -57,12 +57,12 @@ public class AuthResponse {
         this.email = email;
     }
 
-    public String getUsername() {
-        return username;
+    public String getFullName() {
+        return fullName;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
     }
 
     public String getStatus() {

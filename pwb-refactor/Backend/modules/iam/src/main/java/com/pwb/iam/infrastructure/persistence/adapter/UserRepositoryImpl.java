@@ -10,8 +10,6 @@ import com.pwb.iam.infrastructure.persistence.repository.UserJpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
-import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -51,15 +49,6 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
-    public Optional<User> findByUsername(String username) {
-        if (username == null) {
-            return Optional.empty();
-        }
-        return userJpaRepository.findByUsernameAndDeletedFalse(username)
-                .map(userMapper::toDomain);
-    }
-
-    @Override
     public Optional<User> findByIdAndStatus(UUID id, UserStatus status) {
         return userJpaRepository.findByIdAndStatusAndDeletedFalse(id, status)
                 .map(userMapper::toDomain);
@@ -74,17 +63,5 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public boolean existsByEmail(String email) {
         return email != null && userJpaRepository.existsByEmailAndDeletedFalse(email.toLowerCase());
-    }
-
-    @Override
-    public boolean existsByUsername(String username) {
-        return username != null && userJpaRepository.existsByUsernameAndDeletedFalse(username);
-    }
-
-    @Override
-    public List<User> findProvisionalUsersCreatedBefore(Instant cutoff) {
-        return userJpaRepository.findProvisionalUsersCreatedBefore(cutoff).stream()
-                .map(userMapper::toDomain)
-                .toList();
     }
 }

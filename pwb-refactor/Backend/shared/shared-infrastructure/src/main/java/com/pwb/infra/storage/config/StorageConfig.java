@@ -2,7 +2,6 @@ package com.pwb.infra.storage.config;
 
 import com.pwb.infra.storage.properties.StorageProperties;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,7 +25,6 @@ import java.net.URI;
 public class StorageConfig {
 
     @Bean
-    @ConditionalOnProperty(name = "app.storage.provider", havingValue = "S3")
     public S3Client s3Client(StorageProperties properties) {
         StorageProperties.S3 s3 = properties.getS3();
         log.info("Initializing S3 client: bucket={}, region={}, endpoint={}",
@@ -47,7 +45,6 @@ public class StorageConfig {
     }
 
     @Bean
-    @ConditionalOnProperty(name = "app.storage.provider", havingValue = "S3")
     public S3AsyncClient s3AsyncClient(StorageProperties properties) {
         StorageProperties.S3 s3 = properties.getS3();
 
@@ -66,7 +63,6 @@ public class StorageConfig {
     }
 
     @Bean(destroyMethod = "close")
-    @ConditionalOnProperty(name = "app.storage.provider", havingValue = "S3")
     public S3TransferManager s3TransferManager(S3AsyncClient asyncClient) {
         log.info("Initializing S3 Transfer Manager");
         return S3TransferManager.builder().s3Client(asyncClient).build();

@@ -17,7 +17,6 @@ public class SeederProperties {
 
     @Data
     public static class SeedUser {
-        private String username;
         private String email;
         private String password;
         private String fullName;
