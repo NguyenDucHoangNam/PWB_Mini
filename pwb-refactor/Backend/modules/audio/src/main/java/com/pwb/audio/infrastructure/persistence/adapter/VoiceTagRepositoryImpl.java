@@ -6,6 +6,8 @@ import com.pwb.audio.infrastructure.persistence.entity.VoiceTagJpaEntity;
 import com.pwb.audio.infrastructure.persistence.mapper.VoiceTagMapper;
 import com.pwb.audio.infrastructure.persistence.repository.VoiceTagJpaRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -62,5 +64,11 @@ public class VoiceTagRepositoryImpl implements VoiceTagRepository {
     @Override
     public boolean existsByVoiceTagIdInConfig(UUID voiceTagId) {
         return voiceTagJpaRepository.existsByVoiceTagIdInConfig(voiceTagId);
+    }
+
+    @Override
+    public Page<VoiceTag> findAllByUserId(UUID userId, Pageable pageable) {
+        return voiceTagJpaRepository.findAllByUserIdAndDeletedFalse(userId, pageable)
+                .map(voiceTagMapper::toDomain);
     }
 }

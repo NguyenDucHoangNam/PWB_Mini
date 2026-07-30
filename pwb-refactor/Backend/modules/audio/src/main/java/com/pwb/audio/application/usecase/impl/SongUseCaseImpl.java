@@ -22,6 +22,8 @@ import com.pwb.infra.outbox.api.OutboxEnqueueHelper;
 import com.pwb.infra.kafka.properties.KafkaTopicProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -72,6 +74,13 @@ public class SongUseCaseImpl implements SongUseCase {
                 .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.SONG_NOT_FOUND));
 
         return toSongView(song);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<SongView> listSongs(UUID userId, Pageable pageable) {
+        return songRepository.findAllByUserId(userId, pageable)
+                .map(this::toSongView);
     }
 
     @Override

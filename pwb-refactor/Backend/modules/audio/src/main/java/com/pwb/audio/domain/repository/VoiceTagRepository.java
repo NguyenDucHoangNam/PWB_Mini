@@ -2,6 +2,8 @@ package com.pwb.audio.domain.repository;
 
 import com.pwb.audio.domain.enums.VoiceTagType;
 import com.pwb.audio.domain.model.VoiceTag;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -21,4 +23,6 @@ public interface VoiceTagRepository {
     boolean existsByIdAndUserId(UUID id, UUID userId);
 
     boolean existsByVoiceTagIdInConfig(UUID voiceTagId);
+
+    Page<VoiceTag> findAllByUserId(UUID userId, Pageable pageable);
 }

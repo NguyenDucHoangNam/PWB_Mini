@@ -5,6 +5,8 @@ import com.pwb.audio.application.view.PresignedUrlView;
 import com.pwb.audio.application.view.SongTagConfigView;
 import com.pwb.audio.application.view.SongView;
 import com.pwb.audio.application.view.VoiceTagView;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.UUID;
 
@@ -13,6 +15,8 @@ public interface AudioFacade {
     SongView uploadSong(UploadSongCommand command);
 
     SongView getSong(UUID userId, UUID songId);
+
+    Page<SongView> listSongs(UUID userId, Pageable pageable);
 
     SongView updateSong(UpdateSongCommand command);
 
@@ -26,11 +30,15 @@ public interface AudioFacade {
 
     VoiceTagView createVoiceTag(CreateVoiceTagCommand command);
 
+    VoiceTagView getVoiceTag(UUID userId, UUID voiceTagId);
+
     VoiceTagView updateVoiceTag(UpdateVoiceTagCommand command);
 
     void deleteVoiceTag(DeleteVoiceTagCommand command);
 
     VoiceTagView markVoiceTagDefault(UUID userId, UUID voiceTagId);
+
+    Page<VoiceTagView> listVoiceTags(UUID userId, Pageable pageable);
 
     PresignedUrlView getVoiceTagUploadUrl(UUID userId, String filename, long expirationSeconds);
 }

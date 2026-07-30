@@ -6,6 +6,8 @@ import com.pwb.audio.infrastructure.persistence.entity.SongJpaEntity;
 import com.pwb.audio.infrastructure.persistence.mapper.SongMapper;
 import com.pwb.audio.infrastructure.persistence.repository.SongJpaRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -47,5 +49,11 @@ public class SongRepositoryImpl implements SongRepository {
     @Override
     public boolean existsByIdAndUserId(UUID id, UUID userId) {
         return songJpaRepository.existsByIdAndUserIdAndDeletedFalse(id, userId);
+    }
+
+    @Override
+    public Page<Song> findAllByUserId(UUID userId, Pageable pageable) {
+        return songJpaRepository.findAllByUserIdAndDeletedFalse(userId, pageable)
+                .map(songMapper::toDomain);
     }
 }

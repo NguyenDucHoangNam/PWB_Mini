@@ -8,6 +8,8 @@ import com.pwb.audio.application.view.SongTagConfigView;
 import com.pwb.audio.application.view.SongView;
 import com.pwb.audio.application.view.VoiceTagView;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -27,6 +29,11 @@ public class AudioFacadeImpl implements AudioFacade {
     @Override
     public SongView getSong(UUID userId, UUID songId) {
         return songUseCase.getSong(userId, songId);
+    }
+
+    @Override
+    public Page<SongView> listSongs(UUID userId, Pageable pageable) {
+        return songUseCase.listSongs(userId, pageable);
     }
 
     @Override
@@ -60,6 +67,11 @@ public class AudioFacadeImpl implements AudioFacade {
     }
 
     @Override
+    public VoiceTagView getVoiceTag(UUID userId, UUID voiceTagId) {
+        return voiceTagUseCase.getVoiceTag(userId, voiceTagId);
+    }
+
+    @Override
     public VoiceTagView updateVoiceTag(UpdateVoiceTagCommand command) {
         return voiceTagUseCase.updateVoiceTag(command);
     }
@@ -72,6 +84,11 @@ public class AudioFacadeImpl implements AudioFacade {
     @Override
     public VoiceTagView markVoiceTagDefault(UUID userId, UUID voiceTagId) {
         return voiceTagUseCase.markDefault(userId, voiceTagId);
+    }
+
+    @Override
+    public Page<VoiceTagView> listVoiceTags(UUID userId, Pageable pageable) {
+        return voiceTagUseCase.listVoiceTags(userId, pageable);
     }
 
     @Override

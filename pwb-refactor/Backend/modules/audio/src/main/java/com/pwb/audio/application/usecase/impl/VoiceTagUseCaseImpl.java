@@ -15,6 +15,8 @@ import com.pwb.audio.domain.service.TextToSpeechPort;
 import com.pwb.audio.infrastructure.service.StoragePort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,6 +70,14 @@ public class VoiceTagUseCaseImpl implements VoiceTagUseCase {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public VoiceTagView getVoiceTag(UUID userId, UUID voiceTagId) {
+        VoiceTag voiceTag = voiceTagRepository.findByIdAndUserId(voiceTagId, userId)
+                .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.VOICE_TAG_NOT_FOUND));
+        return toVoiceTagView(voiceTag);
+    }
+
+    @Override
     @Transactional
     public VoiceTagView updateVoiceTag(UpdateVoiceTagCommand command) {
         VoiceTag voiceTag = voiceTagRepository.findByIdAndUserId(command.voiceTagId(), command.userId())
@@ -118,6 +128,13 @@ public class VoiceTagUseCaseImpl implements VoiceTagUseCase {
 
         log.info("Voice tag marked as default: voiceTagId={}", saved.getId());
         return toVoiceTagView(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<VoiceTagView> listVoiceTags(UUID userId, Pageable pageable) {
+        return voiceTagRepository.findAllByUserId(userId, pageable)
+                .map(this::toVoiceTagView);
     }
 
     @Override
