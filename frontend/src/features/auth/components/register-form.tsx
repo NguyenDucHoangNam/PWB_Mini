@@ -35,6 +35,7 @@ const RATE_LIMIT_CODE = "AUTH_RATE_LIMIT_EXCEEDED";
 const EMAIL_EXISTS_CODES = new Set([
   "EMAIL_ALREADY_REGISTERED_AUTH",
   "EMAIL_ALREADY_EXISTS",
+  "IAM_001",
   "IAM_020",
 ]);
 const FIELD_MAPPING: Record<string, string> = {
@@ -48,6 +49,13 @@ export function RegisterForm() {
   const { mutate: registerMutate, isPending } = useRegister();
   const { mutate: loginWithGoogleMutate } = useLoginWithGoogle();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const isAuthenticated = useAuthStore((state) => !!state.accessToken);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace("/");
+    }
+  }, [isAuthenticated, router]);
 
   const {
     register,

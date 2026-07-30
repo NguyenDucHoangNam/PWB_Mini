@@ -8,6 +8,8 @@ public interface ThrottlingService {
 
     long enforceCooldown(String email, CooldownPurpose purpose);
 
+    long enforceCooldownForPasswordReset(String email);
+
     enum CooldownPurpose {
         REGISTER,
         RESEND_OTP,

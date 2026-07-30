@@ -188,6 +188,10 @@ public final class User extends DomainBaseEntity {
         return oauthId;
     }
 
+    public boolean isOAuthUser() {
+        return oauthProvider != null && oauthProvider != OAuthProvider.LOCAL;
+    }
+
     public boolean isProvisionalUsername() {
         return provisionalUsername;
     }

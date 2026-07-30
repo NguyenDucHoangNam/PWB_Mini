@@ -24,6 +24,7 @@ const OTP_LOCKED_CODE = "AUTH_OTP_LOCKED";
 const OTP_INVALID_CODE = "AUTH_OTP_INVALID";
 const OTP_EXPIRED_CODE = "AUTH_OTP_EXPIRED";
 const OTP_RESEND_COOLDOWN_CODE = "AUTH_RATE_LIMIT_EXCEEDED";
+const OTP_DAILY_LIMIT_CODE = "AUTH_OTP_DAILY_LIMIT_EXCEEDED";
 const COOLDOWN_MESSAGE_PATTERN = /(\d+)\s*(giây|seconds|s)\b/i;
 
 function extractCooldownSeconds(message: string | undefined | null): number | null {
@@ -39,6 +40,7 @@ export function OtpForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const isAuthenticated = useAuthStore((state) => !!state.accessToken);
 
   const userId = searchParams.get("userId") || "";
   const [otpCode, setOtpCode] = useState("");
@@ -47,6 +49,12 @@ export function OtpForm() {
   const [otpInvalid, setOtpInvalid] = useState(false);
 
   const otpInputRef = useRef<OtpInputHandle>(null);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace("/");
+    }
+  }, [isAuthenticated, router]);
 
   useEffect(() => {
     if (!userId) {
@@ -179,6 +187,12 @@ export function OtpForm() {
             } else {
               cooldown.setFromServer(Date.now(), resendCooldownTtl);
             }
+          }
+          if (errorCode === OTP_DAILY_LIMIT_CODE) {
+            const apiError = sanitizeApiMessage(err, t("dailyLimitError"));
+            setError(apiError);
+            toast.error(t("dailyLimitError"));
+            return;
           }
           const apiError = sanitizeApiMessage(err, t("resendFailed"));
           setError(apiError);

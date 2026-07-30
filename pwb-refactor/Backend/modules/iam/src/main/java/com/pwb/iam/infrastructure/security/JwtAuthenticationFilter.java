@@ -16,8 +16,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -54,10 +54,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     .userId(subject)
                                     .email(claims.get("email", String.class))
                                     .authorities(authorities)
-                                    .isOAuthUser(false)
+                                    .isOAuthUser(claims.get("oauth", Boolean.class) != null && claims.get("oauth", Boolean.class))
                                     .build();
+                            Set<org.springframework.security.core.authority.SimpleGrantedAuthority> grantedAuthorities = authorities.stream()
+                                    .map(org.springframework.security.core.authority.SimpleGrantedAuthority::new)
+                                    .collect(Collectors.toSet());
                             UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                                    principal, null, List.of());
+                                    principal, null, grantedAuthorities);
                             SecurityContextHolder.getContext().setAuthentication(auth);
                         } catch (IllegalArgumentException ex) {
                             SecurityContextHolder.clearContext();

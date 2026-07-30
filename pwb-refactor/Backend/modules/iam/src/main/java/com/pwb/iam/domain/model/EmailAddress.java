@@ -8,15 +8,15 @@ public record EmailAddress(String value) {
             "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
     );
 
-    public EmailAddress {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("email must not be blank");
-        }
+    public EmailAddress(String value) {
         String normalized = value.trim().toLowerCase();
-        if (!RFC_5322_SIMPLIFIED.matcher(normalized).matches()) {
+        if (normalized.contains("..")
+                || normalized.startsWith(".")
+                || normalized.endsWith(".")
+                || !RFC_5322_SIMPLIFIED.matcher(normalized).matches()) {
             throw new IllegalArgumentException("email is not valid: " + value);
         }
-        value = normalized;
+        this.value = normalized;
     }
 
     public static EmailAddress of(String raw) {

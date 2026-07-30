@@ -38,7 +38,7 @@ public class ForgotPasswordUseCaseImpl implements ForgotPasswordUseCase {
     @Transactional
     public Result execute(ForgotPasswordCommand command) {
         String email = command.email().trim().toLowerCase();
-        long cooldownRemaining = throttlingService.enforceCooldown(email, ThrottlingService.CooldownPurpose.PASSWORD_RESET);
+        long cooldownRemaining = throttlingService.enforceCooldownForPasswordReset(email);
 
         if (cooldownRemaining > 0) {
             log.info("Password reset cooldown active: email={} remaining={}s", email, cooldownRemaining);

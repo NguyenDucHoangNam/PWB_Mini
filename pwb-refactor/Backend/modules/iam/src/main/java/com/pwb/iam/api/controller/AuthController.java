@@ -113,6 +113,7 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<LogoutResponse>> logout(
             @CurrentUser UUID userId,
+            @CurrentClientIp String clientIp,
             @Valid @RequestBody LogoutRequest request
     ) {
         if (userId == null) {
@@ -123,7 +124,8 @@ public class AuthController {
                 userId,
                 request.refreshToken(),
                 request.accessJti(),
-                request.accessExpiresInSeconds()
+                request.accessExpiresInSeconds(),
+                clientIp
         );
         UUID resultUserId = iamFacade.logout(command);
         LogoutResponse body = LogoutResponse.of(resultUserId, messageResolver.get(MSG_LOGOUT_SUCCESS));
@@ -174,7 +176,7 @@ public class AuthController {
     }
 
     private static VerifyOtpCommand toCommand(VerifyOtpRequest request) {
-        return new VerifyOtpCommand(request.userId(), OtpPurpose.REGISTER, request.code());
+        return new VerifyOtpCommand(request.userId(), request.code());
     }
 
     private AuthResponse toAuthResponse(AuthView view) {

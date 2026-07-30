@@ -25,4 +25,6 @@ public interface AuthEventPublisher {
     void publishUserLinkedGoogle(UUID userId, String email, String fullName);
 
     void publishGoogleLoginSuccess(UUID userId, String email, String clientIp);
+
+    void publishGoogleLoginFailed(String email, String clientIp, String reason);
 }

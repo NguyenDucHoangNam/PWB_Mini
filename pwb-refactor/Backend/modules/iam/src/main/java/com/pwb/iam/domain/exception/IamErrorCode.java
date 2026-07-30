@@ -24,8 +24,9 @@ public enum IamErrorCode implements ErrorCode {
     AUTH_PASSWORD_RECENTLY_USED       (ErrorCategory.VALIDATION,       "IAM_030", "Password was recently used. Please choose a different password."),
     USERNAME_ALREADY_TAKEN            (ErrorCategory.CONFLICT,         "IAM_028", "Username is already taken."),
     USERNAME_INVALID                  (ErrorCategory.VALIDATION,       "IAM_029", "Username must be 3-50 characters and contain only letters, numbers, underscores, or hyphens."),
-    AUTH_RESET_TOKEN_INVALID          (ErrorCategory.VALIDATION,       "IAM_014", "Password reset token is invalid or expired."),
-    AUTH_OAUTH_USER_NO_PASSWORD       (ErrorCategory.VALIDATION,       "IAM_015", "OAuth account does not have a password."),
+    AUTH_RESET_TOKEN_INVALID          (ErrorCategory.VALIDATION,       "IAM_031", "Password reset token is invalid or expired."),
+    AUTH_PROFILE_ALREADY_COMPLETED   (ErrorCategory.CONFLICT,         "IAM_032", "User profile has already been completed."),
+    AUTH_OAUTH_USER_NO_PASSWORD       (ErrorCategory.VALIDATION,       "IAM_033", "OAuth account does not have a password."),
     PASSWORD_RESET_COOLDOWN           (ErrorCategory.TOO_MANY_REQUESTS,"IAM_017", "Please wait before requesting another password reset."),
     ROLE_NOT_FOUND                    (ErrorCategory.INTERNAL,         "IAM_018", "Default role does not exist in database."),
     AUTH_OTP_INVALID                  (ErrorCategory.VALIDATION,       "IAM_021", "Invalid OTP code."),
@@ -34,7 +35,8 @@ public enum IamErrorCode implements ErrorCode {
     AUTH_OTP_DAILY_LIMIT_EXCEEDED     (ErrorCategory.TOO_MANY_REQUESTS,"IAM_027", "You have reached the daily OTP request limit. Please try again tomorrow."),
     AUTH_GOOGLE_TOKEN_INVALID         (ErrorCategory.UNAUTHORIZED,     "IAM_GOOGLE_001", "Google ID token is invalid or expired."),
     AUTH_GOOGLE_EMAIL_NOT_VERIFIED    (ErrorCategory.UNAUTHORIZED,     "IAM_GOOGLE_002", "Google email is not verified."),
-    ACCESS_DENIED                     (ErrorCategory.FORBIDDEN,        "IAM_ACCESS_001", "Access denied due to insufficient permissions.");
+    ACCESS_DENIED                     (ErrorCategory.FORBIDDEN,        "IAM_ACCESS_001", "Access denied due to insufficient permissions."),
+    SERVICE_UNAVAILABLE              (ErrorCategory.INTERNAL,         "IAM_034", "Service temporarily unavailable. Please try again later.");
 
     IamErrorCode(ErrorCategory category, String code, String defaultMessage) {
         this.category = category;

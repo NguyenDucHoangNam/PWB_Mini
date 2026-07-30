@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useLogin, useLoginWithGoogle } from "../api/login";
 import { useAuthStore } from "../stores/use-auth-store";
 import { useGoogleIdentity } from "../hooks/use-google-identity";
 import { useCaptureReturnTo } from "@/hooks/use-return-to";
+import { broadcastAuthMessage } from "@/lib/broadcast-channel";
 import { decodeJwtExpiry } from "@/lib/jwt-decode";
 import { asApiError } from "@/lib/api-client";
 import type { AuthUser } from "../types";
@@ -20,18 +21,29 @@ import { toast } from "sonner";
 export function LoginForm() {
   const t = useTranslations("auth.login");
   const router = useRouter();
+  const pathname = usePathname();
+  const locale = pathname.split("/")[1] || "vi";
   const { mutate: loginMutate, isPending } = useLogin();
   const { mutate: loginWithGoogleMutate } = useLoginWithGoogle();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const isAuthenticated = useAuthStore((state) => !!state.accessToken);
   const emailInputRef = useRef<HTMLInputElement>(null);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isGooglePending, setIsGooglePending] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace("/");
+    }
+  }, [isAuthenticated, router]);
 
   const handleGoogleCredentialRef = useRef<((idToken: string) => void) | null>(null);
-  const { setContainerRef: googleContainerRef } = useGoogleIdentity((idToken) =>
-    handleGoogleCredentialRef.current?.(idToken),
+  const { setContainerRef: googleContainerRef } = useGoogleIdentity(
+    (idToken) => handleGoogleCredentialRef.current?.(idToken),
+    locale,
   );
 
   useCaptureReturnTo();
@@ -99,6 +111,7 @@ export function LoginForm() {
 
   const handleGoogleCredential = useCallback(
     (idToken: string) => {
+      setIsGooglePending(true);
       loginWithGoogleMutate(
         { data: { idToken } },
         {
@@ -115,13 +128,16 @@ export function LoginForm() {
               };
               toast.success(t("successToast"));
               handleAuthSuccess(data.accessToken, user);
+              broadcastAuthMessage({ type: "TOKEN_UPDATED", token: data.accessToken, user });
               redirectAfterLogin(data.nextStep);
             } else {
               toast.error(response.message || t("errorToast"));
             }
+            setIsGooglePending(false);
           },
           onError: asApiError((err) => {
             toast.error(err.message || t("errorToast"));
+            setIsGooglePending(false);
           }),
         },
       );
@@ -231,7 +247,7 @@ export function LoginForm() {
       {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
         <div
           ref={googleContainerRef}
-          className="flex justify-center w-full [&_iframe]:!visible"
+          className={`flex justify-center w-full [&_iframe]:!visible ${isGooglePending ? "pointer-events-none opacity-50" : ""}`}
         />
       )}
 

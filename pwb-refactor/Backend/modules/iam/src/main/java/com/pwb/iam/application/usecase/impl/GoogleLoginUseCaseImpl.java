@@ -48,7 +48,13 @@ public class GoogleLoginUseCaseImpl implements GoogleLoginUseCase {
     public LoginResult execute(GoogleLoginCommand command) {
         String clientIp = command.clientIp() == null ? "unknown" : command.clientIp();
 
-        GoogleUserInfo payload = googleTokenVerifier.verify(command.idToken());
+        GoogleUserInfo payload;
+        try {
+            payload = googleTokenVerifier.verify(command.idToken());
+        } catch (BusinessException ex) {
+            authEventPublisher.publishGoogleLoginFailed("unknown", clientIp, ex.getMessage());
+            throw ex;
+        }
 
         enforceRateLimit("google-login:ip:" + clientIp, loginPolicy.googleLoginPerMinute());
         enforceRateLimit(

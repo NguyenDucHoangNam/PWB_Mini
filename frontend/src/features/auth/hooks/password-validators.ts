@@ -82,3 +82,16 @@ export function evaluatePasswordRules(password: string): PasswordRule[] {
     { id: "noWhitespace", passed: !hasWhitespace },
   ];
 }
+
+export function isPasswordValid(password: string): boolean {
+  return evaluatePasswordRules(password).every((rule) => rule.passed);
+}
+
+export const passwordValidators = [
+  { id: "minLength", isValid: (p: string) => p.length >= PASSWORD_MIN_LENGTH },
+  { id: "upper", isValid: (p: string) => /[A-Z]/.test(p) },
+  { id: "lower", isValid: (p: string) => /[a-z]/.test(p) },
+  { id: "digit", isValid: (p: string) => /\d/.test(p) },
+  { id: "special", isValid: (p: string) => /[^A-Za-z0-9]/.test(p) },
+  { id: "noWhitespace", isValid: (p: string) => !/\s/.test(p) },
+];

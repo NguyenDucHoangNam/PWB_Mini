@@ -6,11 +6,11 @@ import com.pwb.iam.application.usecase.RefreshTokenUseCase;
 import com.pwb.iam.domain.event.AuthEventPublisher;
 import com.pwb.iam.domain.event.AuthSuccessEvent;
 import com.pwb.iam.domain.exception.IamErrorCode;
-import com.pwb.iam.domain.exception.RefreshTokenExpiredException;
 import com.pwb.iam.domain.exception.RefreshTokenInvalidException;
 import com.pwb.iam.domain.model.AuthNextStep;
 import com.pwb.iam.domain.model.LoginPolicy;
 import com.pwb.iam.domain.model.User;
+import com.pwb.iam.domain.model.UserStatus;
 import com.pwb.iam.domain.repository.UserRepository;
 import com.pwb.iam.domain.service.ThrottlingService;
 import com.pwb.iam.domain.service.TokenManagerService;
@@ -45,16 +45,14 @@ public class RefreshTokenUseCaseImpl implements RefreshTokenUseCase {
         }
 
         TokenManagerService.RefreshTokenInfo rotated;
-        try {
-            rotated = tokenManagerService.rotateRefreshToken(command.rawRefreshToken());
-        } catch (RefreshTokenExpiredException | RefreshTokenInvalidException ex) {
-            throw ex;
-        } catch (RuntimeException ex) {
-            throw new RefreshTokenInvalidException(ex.getMessage());
-        }
+        rotated = tokenManagerService.rotateRefreshToken(command.rawRefreshToken());
 
         User user = userRepository.findById(rotated.userId())
                 .orElseThrow(() -> new RefreshTokenInvalidException("User not found for token"));
+
+        if (user.getStatus() == UserStatus.BANNED || user.getStatus() == UserStatus.DELETED) {
+            throw new BusinessException(IamErrorCode.ACCOUNT_INACTIVE);
+        }
 
         TokenManagerService.AccessTokenInfo access = tokenManagerService.issueAccessToken(user);
         authEventPublisher.publishAuthSuccess(AuthSuccessEvent.of(user.getUserId(), user.getEmail().value()));

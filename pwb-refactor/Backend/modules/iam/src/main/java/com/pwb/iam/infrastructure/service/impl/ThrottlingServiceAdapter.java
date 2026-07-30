@@ -60,6 +60,15 @@ public class ThrottlingServiceAdapter implements ThrottlingService {
         return checkAndSetCooldown(key, cooldown);
     }
 
+    public long enforceCooldownForPasswordReset(String email) {
+        if (email == null || email.isBlank()) {
+            return 0L;
+        }
+        String key = resolveCooldownKey(email, CooldownPurpose.PASSWORD_RESET);
+        Duration cooldown = resolveCooldownDuration(CooldownPurpose.PASSWORD_RESET);
+        return checkAndSetCooldownStrict(key, cooldown);
+    }
+
     private String resolveCooldownKey(String email, CooldownPurpose purpose) {
         String normalized = email.toLowerCase();
         return switch (purpose) {
@@ -89,6 +98,23 @@ public class ThrottlingServiceAdapter implements ThrottlingService {
         } catch (Exception ex) {
             log.warn("Redis unavailable for cooldown check: key={} reason={}", key, ex.getMessage());
             return 0L;
+        }
+    }
+
+    private long checkAndSetCooldownStrict(String key, Duration cooldown) {
+        try {
+            Boolean set = redis.opsForValue().setIfAbsent(key, "1", cooldown);
+            if (Boolean.FALSE.equals(set)) {
+                Long ttl = redis.getExpire(key);
+                long remaining = ttl != null && ttl > 0 ? ttl : cooldown.toSeconds();
+                log.debug("Cooldown active: key={} remaining={}s", key, remaining);
+                return remaining;
+            }
+            return 0L;
+        } catch (Exception ex) {
+            log.error("Redis unavailable, fail-closed for password reset: key={} reason={}", key, ex.getMessage());
+            throw new com.pwb.shared.exception.BusinessException(
+                    com.pwb.iam.domain.exception.IamErrorCode.SERVICE_UNAVAILABLE);
         }
     }
 }

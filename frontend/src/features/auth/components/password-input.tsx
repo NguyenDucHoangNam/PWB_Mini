@@ -23,8 +23,15 @@ export const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputPro
         <button
           type="button"
           onClick={() => setShowPassword(!showPassword)}
-          className="absolute inset-y-0 right-0 flex items-center pr-3 text-neutral-400 hover:text-black dark:hover:text-white"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setShowPassword(!showPassword);
+            }
+          }}
+          className="absolute inset-y-0 right-0 flex items-center pr-3 text-neutral-400 hover:text-black dark:hover:text-white cursor-pointer"
           aria-label={showPassword ? t("hidePassword") : t("showPassword")}
+          tabIndex={0}
         >
           {showPassword ? (
             /* EyeOff Icon */

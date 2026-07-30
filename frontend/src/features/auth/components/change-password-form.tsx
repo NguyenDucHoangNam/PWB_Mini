@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useChangePassword } from "../api/change-password";
 import { usePasswordStrength } from "../hooks/use-password-strength";
 import { PasswordInput } from "./password-input";
 import { PasswordStrengthBar } from "./password-strength-bar";
+import { PasswordRules } from "./password-rules";
+import { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH } from "../hooks/password-validators";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -13,6 +16,7 @@ import { asApiError } from "@/lib/api-client";
 
 export function ChangePasswordForm() {
   const t = useTranslations("profile.changePassword");
+  const router = useRouter();
   const { mutate: changePasswordMutate, isPending } = useChangePassword();
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -31,8 +35,13 @@ export function ChangePasswordForm() {
       return;
     }
 
-    if (newPassword.length < 8) {
+    if (newPassword.length < PASSWORD_MIN_LENGTH) {
       setError(t("minLen"));
+      return;
+    }
+
+    if (newPassword.length > PASSWORD_MAX_LENGTH) {
+      setError(t("maxLen") || "Password must be at most 128 characters");
       return;
     }
 
@@ -92,6 +101,19 @@ export function ChangePasswordForm() {
             {t("oauthOnly")}
           </p>
         </div>
+        <div className="flex flex-col gap-3 w-full max-w-xs">
+          <a
+            href="https://myaccount.google.com/security"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-medium text-blue-600 hover:underline"
+          >
+            {t("manageInGoogle")}
+          </a>
+          <Button variant="ghost" onClick={() => router.back()} className="text-sm">
+            {t("goBack")}
+          </Button>
+        </div>
       </div>
     );
   }
@@ -103,7 +125,7 @@ export function ChangePasswordForm() {
       {error && (
         <div
           role="alert"
-          className="rounded-lg bg-neutral-100 p-3 text-xs font-semibold text-neutral-800 dark:bg-neutral-900 dark:text-neutral-200"
+          className="rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-600 dark:bg-red-950/20 dark:text-red-400 border border-red-100/50 dark:border-red-950/30"
         >
           {error}
         </div>
@@ -133,6 +155,7 @@ export function ChangePasswordForm() {
             required
           />
           <PasswordStrengthBar strength={strength} />
+          <PasswordRules password={newPassword} />
         </div>
 
         <div className="flex flex-col gap-1.5">

@@ -91,6 +91,14 @@ public class LoggingAuthEventPublisher implements AuthEventPublisher {
                 AuditLogEntry.of(AuditEventType.GOOGLE_LOGIN_SUCCESS, userId, email, clientIp, true, null)));
     }
 
+    @Override
+    public void publishGoogleLoginFailed(String email, String clientIp, String reason) {
+        String maskedEmail = maskEmail(email);
+        log.info("Google login failed: emailMasked={} ip={} reason={}", maskedEmail, clientIp, reason);
+        applicationEventPublisher.publishEvent(new AuditPersistRequested(
+                AuditLogEntry.of(AuditEventType.GOOGLE_LOGIN_FAILED, null, email, clientIp, false, reason)));
+    }
+
     private static String maskEmail(String email) {
         if (email == null || email.isBlank()) {
             return "unknown";

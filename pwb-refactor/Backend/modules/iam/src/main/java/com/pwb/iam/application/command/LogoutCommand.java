@@ -6,6 +6,7 @@ public record LogoutCommand(
         UUID userId,
         String rawRefreshToken,
         String accessJti,
-        long accessExpiresInSeconds
+        long accessExpiresInSeconds,
+        String clientIp
 ) {
 }

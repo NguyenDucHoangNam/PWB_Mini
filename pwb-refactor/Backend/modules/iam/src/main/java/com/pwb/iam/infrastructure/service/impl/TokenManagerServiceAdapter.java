@@ -10,6 +10,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -60,6 +61,7 @@ public class TokenManagerServiceAdapter implements TokenManagerService {
                 .claim("email", user.getEmail() == null ? null : user.getEmail().value())
                 .claim("role", user.getRole() == null ? null : user.getRole().name())
                 .claim("status", user.getStatus() == null ? null : user.getStatus().name())
+                .claim("oauth", user.isOAuthUser())
                 .signWith(signingKey())
                 .compact();
 
@@ -103,8 +105,6 @@ public class TokenManagerServiceAdapter implements TokenManagerService {
             throw new IllegalArgumentException("invalid refresh token");
         }
         Long ttlSeconds = redis.getExpire(key);
-        redis.delete(key);
-        redis.opsForSet().remove(userSetKey(userId), hash);
         if (ttlSeconds == null || ttlSeconds <= 0) {
             ttlSeconds = refreshProperties.getTtlSeconds();
         }
@@ -112,9 +112,26 @@ public class TokenManagerServiceAdapter implements TokenManagerService {
         String newRaw = generateToken();
         String newHash = sha256(newRaw);
         Instant expiresAt = Instant.now().plus(ttl);
-        redis.opsForValue().set(tokenKey(newHash), userId.toString(), ttl);
-        redis.opsForSet().add(userSetKey(userId), newHash);
-        redis.expire(userSetKey(userId), ttl);
+        String newKey = tokenKey(newHash);
+        String setKey = userSetKey(userId);
+
+        redis.execute((RedisCallback<Object>) connection -> {
+            byte[] newKeyBytes = newKey.getBytes(StandardCharsets.UTF_8);
+            byte[] userIdBytes = userIdStr.getBytes(StandardCharsets.UTF_8);
+            byte[] setKeyBytes = setKey.getBytes(StandardCharsets.UTF_8);
+            byte[] newHashBytes = newHash.getBytes(StandardCharsets.UTF_8);
+
+            connection.multi();
+            connection.hashCommands().hSet(newKeyBytes, userIdBytes, new byte[0]);
+            connection.keyCommands().expire(newKeyBytes, ttl.getSeconds());
+            connection.setCommands().sAdd(setKeyBytes, newHashBytes);
+            connection.keyCommands().expire(setKeyBytes, ttl.getSeconds());
+            connection.keyCommands().del(key.getBytes(StandardCharsets.UTF_8));
+            connection.setCommands().sRem(userSetKey(userId).getBytes(StandardCharsets.UTF_8), hash.getBytes(StandardCharsets.UTF_8));
+            connection.exec();
+            return null;
+        });
+
         log.info("Refresh token rotated: userId={}", userId);
         return new RefreshTokenInfo(newRaw, userId, expiresAt, ttl);
     }

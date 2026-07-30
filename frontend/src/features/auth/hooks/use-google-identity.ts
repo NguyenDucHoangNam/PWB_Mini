@@ -31,6 +31,7 @@ function initGis(
   clientId: string,
   onCredential: (idToken: string) => void,
   buttonContainer: HTMLElement,
+  locale?: string,
 ): boolean {
   if (typeof window === "undefined") return false;
   const id = window.google?.accounts?.id;
@@ -54,13 +55,13 @@ function initGis(
     text: "continue_with",
     shape: "rectangular",
     theme: "outline",
-    locale: "en",
+    locale: locale || "en",
   });
 
   return true;
 }
 
-export function useGoogleIdentity(onCredential: (idToken: string) => void) {
+export function useGoogleIdentity(onCredential: (idToken: string) => void, locale?: string) {
   const callbackRef = useRef(onCredential);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState(false);
@@ -78,10 +79,11 @@ export function useGoogleIdentity(onCredential: (idToken: string) => void) {
         clientId,
         (idToken) => callbackRef.current(idToken),
         node,
+        locale,
       );
       if (ok) setReady(true);
     }
-  }, [ready]);
+  }, [ready, locale]);
 
   useEffect(() => {
     if (ready) return;
@@ -92,9 +94,10 @@ export function useGoogleIdentity(onCredential: (idToken: string) => void) {
       clientId,
       (idToken) => callbackRef.current(idToken),
       container,
+      locale,
     );
     if (ok) setReady(true);
-  }, [ready]);
+  }, [ready, locale]);
 
   return {
     ready,

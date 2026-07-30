@@ -6,13 +6,18 @@ import com.pwb.iam.application.usecase.LoginResult;
 import com.pwb.iam.domain.event.AuthEventPublisher;
 import com.pwb.iam.domain.exception.IamErrorCode;
 import com.pwb.iam.domain.model.AuthNextStep;
+import com.pwb.iam.domain.model.Password;
 import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.model.UserStatus;
 import com.pwb.iam.domain.repository.UserRepository;
+import com.pwb.iam.domain.service.PasswordPolicyResult;
+import com.pwb.iam.domain.service.PasswordPolicyService;
+import com.pwb.iam.domain.service.PasswordHasher;
 import com.pwb.iam.domain.service.TokenManagerService;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +33,8 @@ public class CompleteProfileUseCaseImpl implements CompleteProfileUseCase {
     private final UserRepository userRepository;
     private final TokenManagerService tokenManagerService;
     private final AuthEventPublisher authEventPublisher;
+    private final PasswordPolicyService passwordPolicyService;
+    private final PasswordHasher passwordHasher;
 
     @Override
     @Transactional
@@ -35,15 +42,11 @@ public class CompleteProfileUseCaseImpl implements CompleteProfileUseCase {
         User user = userRepository.findById(command.userId())
                 .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_FOUND));
 
-        if (command.newPassword() != null && !command.newPassword().isBlank()) {
-            log.warn("CompleteProfile called with newPassword, ignoring: userId={}", command.userId());
-        }
-
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new BusinessException(IamErrorCode.ACCOUNT_NOT_VERIFIED);
         }
         if (!user.isProvisionalUsername()) {
-            throw new BusinessException(IamErrorCode.ACCOUNT_INACTIVE);
+            throw new BusinessException(IamErrorCode.AUTH_PROFILE_ALREADY_COMPLETED);
         }
 
         String canonicalUsername = command.username().trim().toLowerCase();
@@ -51,18 +54,25 @@ public class CompleteProfileUseCaseImpl implements CompleteProfileUseCase {
             throw new BusinessException(IamErrorCode.USERNAME_INVALID);
         }
 
-        if (userRepository.existsByUsername(canonicalUsername)) {
-            throw new BusinessException(IamErrorCode.USERNAME_ALREADY_TAKEN);
+        if (command.newPassword() != null && !command.newPassword().isBlank()) {
+            PasswordPolicyResult policyResult = passwordPolicyService.validate(command.newPassword());
+            if (policyResult.isInvalid()) {
+                throw new BusinessException(IamErrorCode.WEAK_PASSWORD);
+            }
+            user.changePassword(Password.fromHash(passwordHasher.hash(command.newPassword())));
         }
 
-        user.completeProfile(canonicalUsername, command.fullName());
-        User saved = userRepository.save(user);
+        try {
+            user.completeProfile(canonicalUsername, command.fullName());
+            User saved = userRepository.save(user);
+            tokenManagerService.revokeAllRefreshTokensForUser(saved.getUserId());
+            TokenManagerService.AccessTokenInfo access = tokenManagerService.issueAccessToken(saved);
+            TokenManagerService.RefreshTokenInfo refresh = tokenManagerService.issueRefreshToken(saved.getUserId());
 
-        tokenManagerService.revokeAllRefreshTokensForUser(saved.getUserId());
-        TokenManagerService.AccessTokenInfo access = tokenManagerService.issueAccessToken(saved);
-        TokenManagerService.RefreshTokenInfo refresh = tokenManagerService.issueRefreshToken(saved.getUserId());
-
-        log.info("Profile completed: userId={} username={}", saved.getUserId(), saved.getUsername());
-        return new LoginResult(saved, access, refresh, AuthNextStep.NONE);
+            log.info("Profile completed: userId={} username={}", saved.getUserId(), saved.getUsername());
+            return new LoginResult(saved, access, refresh, AuthNextStep.NONE);
+        } catch (DataIntegrityViolationException e) {
+            throw new BusinessException(IamErrorCode.USERNAME_ALREADY_TAKEN);
+        }
     }
 }

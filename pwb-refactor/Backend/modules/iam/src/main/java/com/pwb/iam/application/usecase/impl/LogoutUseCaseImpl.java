@@ -26,6 +26,6 @@ public class LogoutUseCaseImpl implements LogoutUseCase {
         if (command.accessJti() != null && !command.accessJti().isBlank() && command.accessExpiresInSeconds() > 0) {
             tokenManagerService.blacklistAccessToken(command.accessJti(), command.accessExpiresInSeconds());
         }
-        authEventPublisher.publishLogout(command.userId(), null, null);
+        authEventPublisher.publishLogout(command.userId(), command.clientIp(), null);
     }
 }

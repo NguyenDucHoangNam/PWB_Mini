@@ -8,6 +8,8 @@ import { useResetPassword } from "../api/reset-password";
 import { usePasswordStrength } from "../hooks/use-password-strength";
 import { PasswordInput } from "./password-input";
 import { PasswordStrengthBar } from "./password-strength-bar";
+import { PasswordRules } from "./password-rules";
+import { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH } from "../hooks/password-validators";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -36,8 +38,13 @@ export function ResetPasswordForm() {
       return;
     }
 
-    if (newPassword.length < 8) {
+    if (newPassword.length < PASSWORD_MIN_LENGTH) {
       setError(t("minLen"));
+      return;
+    }
+
+    if (newPassword.length > PASSWORD_MAX_LENGTH) {
+      setError(t("maxLen") || "Password must be at most 128 characters");
       return;
     }
 
@@ -57,7 +64,7 @@ export function ResetPasswordForm() {
             setIsSuccess(true);
             setTimeout(() => {
               router.push("/login");
-            }, 2000);
+            }, 5000);
           } else {
             setError(response.message || t("errorToast"));
           }
@@ -159,6 +166,7 @@ export function ResetPasswordForm() {
           required
         />
         <PasswordStrengthBar strength={strength} />
+        <PasswordRules password={newPassword} />
       </div>
 
       <div className="flex flex-col gap-1.5">

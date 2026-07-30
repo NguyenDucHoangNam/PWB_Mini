@@ -32,6 +32,21 @@ public class PasswordPolicyAdapter implements PasswordPolicyService {
         if (rawPassword.length() > policyProperties.getMaxLength()) {
             violations.add(PasswordPolicyViolation.TOO_LONG);
         }
+        if (!rawPassword.matches(".*[A-Z].*")) {
+            violations.add(PasswordPolicyViolation.MISSING_UPPER);
+        }
+        if (!rawPassword.matches(".*[a-z].*")) {
+            violations.add(PasswordPolicyViolation.MISSING_LOWER);
+        }
+        if (!rawPassword.matches(".*\\d.*")) {
+            violations.add(PasswordPolicyViolation.MISSING_DIGIT);
+        }
+        if (!rawPassword.matches(".*[^a-zA-Z0-9].*")) {
+            violations.add(PasswordPolicyViolation.MISSING_SPECIAL);
+        }
+        if (rawPassword.contains(" ")) {
+            violations.add(PasswordPolicyViolation.CONTAINS_WHITESPACE);
+        }
 
         if (violations.isEmpty()) {
             return PasswordPolicyResult.of(List.of());
