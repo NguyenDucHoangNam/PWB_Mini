@@ -12,12 +12,12 @@ export type UserStatus =
   | "BANNED"
   | "DELETED";
 
-export type AuthNextStep = "NONE" | "COMPLETE_PROFILE";
+export type AuthNextStep = "NONE";
 
 export interface AuthUser {
   userId: string;
   email: string;
-  username: string;
+  fullName: string;
   role?: string;
   status: UserStatus;
   oauthProvider: OAuthProvider;
@@ -30,6 +30,7 @@ export interface AuthResponse {
   expiresIn: number;
   userId: string;
   email: string;
+  fullName?: string;
   status: UserStatus;
   role?: string;
   nextStep: AuthNextStep;
@@ -42,6 +43,7 @@ export interface OAuth2LoginRequest {
 export interface RegisterRequest {
   email: string;
   password: string;
+  fullName: string;
 }
 
 export interface AuthMessageResponse {
@@ -83,12 +85,6 @@ export interface ChangePasswordRequest {
   newPassword: string;
 }
 
-export interface CompleteProfileRequest {
-  username: string;
-  fullName?: string;
-  newPassword?: string;
-}
-
 export interface RefreshAccessTokenResponse {
   accessToken: string;
   refreshToken: string;
@@ -96,6 +92,7 @@ export interface RefreshAccessTokenResponse {
   expiresIn: number;
   userId: string;
   email: string;
+  fullName?: string;
   status: UserStatus;
   role?: string;
   nextStep: AuthNextStep;

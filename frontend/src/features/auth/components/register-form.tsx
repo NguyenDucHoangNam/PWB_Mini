@@ -41,6 +41,7 @@ const EMAIL_EXISTS_CODES = new Set([
 const FIELD_MAPPING: Record<string, string> = {
   email: "email",
   password: "password",
+  fullName: "fullName",
 };
 
 export function RegisterForm() {
@@ -70,6 +71,7 @@ export function RegisterForm() {
     defaultValues: {
       email: "",
       password: "",
+      fullName: "",
       confirmPassword: "",
     },
   });
@@ -91,11 +93,7 @@ export function RegisterForm() {
   useCaptureReturnTo();
 
   const redirectAfterLogin = useCallback(
-    (nextStep?: string) => {
-      if (nextStep === "COMPLETE_PROFILE") {
-        router.push("/complete-profile");
-        return;
-      }
+    (_nextStep?: string) => {
       router.push("/");
     },
     [router],
@@ -112,7 +110,7 @@ export function RegisterForm() {
               const user: AuthUser = {
                 userId: data.userId,
                 email: data.email,
-                username: "",
+                fullName: data.fullName ?? "",
                 role: data.role,
                 status: data.status,
                 oauthProvider: "GOOGLE",
@@ -148,6 +146,7 @@ export function RegisterForm() {
         data: {
           email: values.email.trim(),
           password: values.password,
+          fullName: values.fullName.trim(),
         },
       },
       {
@@ -222,6 +221,23 @@ export function RegisterForm() {
           <p>{errors.root.message}</p>
         </div>
       )}
+
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="fullName">{t("fullNameLabel")}</Label>
+        <Input
+          id="fullName"
+          type="text"
+          disabled={isPending}
+          aria-invalid={!!errors.fullName}
+          {...register("fullName")}
+          placeholder={t("fullNamePlaceholder")}
+        />
+        {errors.fullName?.message && (
+          <span className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
+            {t(errors.fullName.message as never)}
+          </span>
+        )}
+      </div>
 
       <div className="flex flex-col gap-1">
         <Label htmlFor="email">{t("emailLabel")}</Label>

@@ -1,13 +1,13 @@
 import type { AuthResponse, AuthUser } from "../types";
 
 export function mapAuthResponseToUser(
-  response: Pick<AuthResponse, "userId" | "email" | "status" | "role">,
+  response: Pick<AuthResponse, "userId" | "email" | "fullName" | "status" | "role">,
   fallback?: Partial<AuthUser>,
 ): AuthUser {
   return {
     userId: response.userId,
     email: response.email,
-    username: fallback?.username ?? "",
+    fullName: response.fullName ?? fallback?.fullName ?? "",
     role: response.role,
     status: response.status,
     oauthProvider: fallback?.oauthProvider ?? "LOCAL",

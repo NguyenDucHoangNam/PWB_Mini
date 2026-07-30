@@ -55,11 +55,7 @@ export function LoginForm() {
   }, []);
 
   const redirectAfterLogin = useCallback(
-    (nextStep?: string) => {
-      if (nextStep === "COMPLETE_PROFILE") {
-        router.push("/complete-profile");
-        return;
-      }
+    (_nextStep?: string) => {
       router.push("/");
     },
     [router],
@@ -89,7 +85,7 @@ export function LoginForm() {
             const user: AuthUser = {
               userId: data.userId,
               email: data.email,
-              username: "",
+              fullName: data.fullName ?? "",
               role: data.role,
               status: data.status,
               oauthProvider: "LOCAL",
@@ -121,7 +117,7 @@ export function LoginForm() {
               const user: AuthUser = {
                 userId: data.userId,
                 email: data.email,
-                username: "",
+                fullName: data.fullName ?? "",
                 role: data.role,
                 status: data.status,
                 oauthProvider: "GOOGLE",

@@ -19,7 +19,6 @@
     "features": "Features",
     "contact": "Contact",
     "dashboard": "Playlist",
-    "liveRooms": "Live Rooms",
     "profile": "Profile settings",
     "sessions": "Sessions",
     "logout": "Log out",
@@ -39,7 +38,6 @@
     "support": "Support",
     "legal": "Legal",
     "dashboard": "Playlist",
-    "liveRooms": "Live Rooms",
     "demoSharing": "Demo Sharing",
     "contact": "Contact:",
     "faq": "FAQ",
@@ -81,7 +79,7 @@
       "fillAll": "Please fill in all information",
       "successToast": "Logged in successfully",
       "errorToast": "Login failed",
-      "incorrectCredentials": "Incorrect username/email or password.",
+      "incorrectCredentials": "Incorrect email or password.",
       "accountLocked": "Account locked due to too many attempts. Please try again later or reset your password.",
       "accountBanned": "Your account has been disabled. Please contact support.",
       "resetPasswordLink": "Reset password now",
@@ -103,27 +101,19 @@
       "submit": "REGISTER",
       "submitting": "Registering...",
       "fillAll": "Please fill in all fields",
-      "invalidUsername": "Invalid username (minimum 3 characters, alphanumeric and underscore only)",
       "minPassword": "Password must be 12-128 characters and include uppercase, lowercase, digit and special character",
       "passwordTooShort": "Password must be at least 12 characters",
       "passwordMismatch": "Passwords do not match",
       "fullNameRequired": "Full name is required",
-      "usernameRequired": "Username is required",
       "emailRequired": "Email is required",
       "invalidEmail": "Invalid email address",
       "passwordRequired": "Password is required",
-      "usernameTaken": "Username is already taken",
       "successToast": "Registered successfully! Please check your email for the OTP code.",
       "errorToast": "Registration failed",
-      "checkingUsername": "Checking...",
-      "usernameAvailable": "✓ Username available",
-      "usernameUnavailable": "✗ Username already taken",
       "registerTitle": "CREATE AN ACCOUNT",
       "registerDesc": "Create an account to collaborate on audio online.",
-      "fullNameLabel": "Display Name (Full Name) *",
+      "fullNameLabel": "Full Name *",
       "fullNamePlaceholder": "Your full name",
-      "usernameRequirementsLabel": "Username * (Alphanumeric and underscore only, min 3 characters)",
-      "usernamePlaceholder": "Desired username",
       "emailLabel": "Email Address *",
       "emailPlaceholder": "email@example.com",
       "passwordRequirementsLabel": "Password * (12+ chars, 1 upper, 1 lower, 1 digit, 1 special char)",
@@ -137,7 +127,7 @@
       "otpHint": "This email is already pending verification. Enter the latest OTP code to update your registration details.",
       "otpRequired": "OTP code is required to update pending registration",
       "maxPassword": "Password must not exceed 128 characters",
-      "fullNameLength": "Full name must be between 2 and 100 characters",
+      "fullNameLength": "Full name must not exceed 128 characters",
       "emailLength": "Email must not exceed 255 characters",
       "passwordComplexity": "Password must be 12-128 characters and include uppercase, lowercase, digit and special character",
       "confirmPasswordRequired": "Please confirm your password",
@@ -241,25 +231,6 @@
       "confirmPasswordPlaceholder": "Confirm new password",
       "submitBtn": "RESET PASSWORD"
     },
-    "completeProfile": {
-      "title": "COMPLETE YOUR PROFILE",
-      "desc": "Pick a username and set an optional password to finish setting up your account.",
-      "usernameLabel": "Username *",
-      "usernamePlaceholder": "Choose a unique username",
-      "fullNameLabel": "Full Name",
-      "fullNamePlaceholder": "Your display name",
-      "passwordLabel": "Password (optional)",
-      "passwordPlaceholder": "Set a new password or leave blank to keep the generated one",
-      "submit": "COMPLETE PROFILE",
-      "submitting": "Saving...",
-      "successToast": "Profile completed successfully",
-      "errorToast": "Could not complete profile",
-      "usernameRequired": "Username must be at least 3 characters",
-      "usernameLength": "Username must not exceed 50 characters",
-      "usernameInvalid": "Only letters, digits, underscores and hyphens are allowed",
-      "fullNameLength": "Full name must not exceed 100 characters",
-      "passwordComplexity": "Password must be 8-128 characters with uppercase, lowercase, digit and special character"
-    },
     "captcha": {
       "loadFailed": "Could not load CAPTCHA. Please check your network connection.",
       "retry": "Retry"
@@ -271,7 +242,6 @@
     "formTitle": "PERSONAL DETAILS",
     "avatarTitle": "Avatar image",
     "avatarHelp": "Drag & drop or click to choose a picture (.jpg, .jpeg, .png) max 2MB",
-    "username": "Username",
     "email": "Email",
     "role": "Role",
     "fullName": "Full Name *",
@@ -765,307 +735,6 @@
     "startOffset": {
       "min": "Start offset must be at least {min}",
       "max": "Start offset must not exceed {max}"
-    },
-    "liveroom": {
-      "title": {
-        "required": "Title is required",
-        "maxlength": "Title must not exceed {max} characters"
-      },
-      "description": {
-        "maxlength": "Description must not exceed {max} characters"
-      },
-      "capacity": {
-        "range": "Max participants must be between 2 and 5"
-      },
-      "displayname": {
-        "length": "Display name must not exceed {max} characters"
-      },
-      "schedule": {
-        "future": "Scheduled time must be in the future",
-        "invalid": "Scheduled time is invalid"
-      },
-      "askMessage": {
-        "maxlength": "Message must not exceed {max} characters"
-      }
-    }
-  },
-  "liveroom": {
-    "nav": {
-      "title": "Live Rooms",
-      "subtitle": "Manage your live audio rooms.",
-      "listenerTitle": "Live Room",
-      "listenerSubtitle": "Join as a listener and follow along in real time.",
-      "settingsTab": "Settings",
-      "listenersTab": "Listeners"
-    },
-    "list": {
-      "filterAll": "All",
-      "filterActive": "Active",
-      "filterPaused": "Paused",
-      "filterEnded": "Ended",
-      "empty": "You haven't created any live rooms yet",
-      "createBtn": "Create room",
-      "prev": "Prev",
-      "next": "Next",
-      "loading": "Loading rooms..."
-    },
-    "status": {
-      "active": "Active",
-      "paused": "Paused",
-      "ended": "Ended"
-    },
-    "mode": {
-      "PUBLIC": "Public",
-      "PRIVATE": "Private"
-    },
-    "card": {
-      "capacity": "{current}/{max} listeners",
-      "createdAt": "Created {date}",
-      "startedAt": "Started {date}",
-      "endedAt": "Ended {date}",
-      "scheduled": "Starts {date}",
-      "manage": "Manage",
-      "end": "End room",
-      "view": "View room"
-    },
-    "form": {
-      "titleLabel": "Title",
-      "titlePlaceholder": "Enter a title for your room",
-      "descriptionLabel": "Description",
-      "descriptionPlaceholder": "Optional. Describe your room",
-      "modeLabel": "Room type",
-      "modePublic": "Public - Anyone with code can join",
-      "modePrivate": "Private - Host approval required",
-      "capacityLabel": "Max participants",
-      "capacityHint": "Between 2 and 5",
-      "submitCreate": "Create room",
-      "submitUpdate": "Save changes",
-      "submitting": "Saving...",
-      "createSuccess": "Room created successfully",
-      "updateSuccess": "Room updated successfully"
-    },
-    "askToJoin": {
-      "titleLabel": "Ask to join",
-      "subtitle": "Send a request to the host. They'll let you in when ready.",
-      "displayNameLabel": "Display name",
-      "displayNamePlaceholder": "How should we show you to the host?",
-      "messageLabel": "Message (optional)",
-      "messagePlaceholder": "Hi! I'd like to join.",
-      "submitBtn": "Ask to join",
-      "submitting": "Sending request...",
-      "success": "Request sent. Waiting for host...",
-      "startPreview": "Test camera and microphone"
-    },
-    "preJoin": {
-      "joinBtn": "Join Room",
-      "askBtn": "Ask to Join",
-      "joining": "Joining...",
-      "requesting": "Sending...",
-      "roomNotActive": "This room is not active."
-    },
-    "waitingRoom": {
-      "title": "Waiting for host",
-      "subtitle": "Your request has been sent. The host will decide shortly.",
-      "cancelBtn": "Cancel request",
-      "cancelling": "Cancelling...",
-      "elapsedSeconds": "{seconds}s waiting",
-      "elapsedMinutes": "{minutes}m waiting",
-      "timeoutHint": "If the host doesn't respond, you can cancel and try again."
-    },
-    "rejected": {
-      "title": "Request declined",
-      "subtitle": "The host declined your request to join.",
-      "reasonLabel": "Reason from host",
-      "askAgainBtn": "Ask again",
-      "backBtn": "Back"
-    },
-    "hostWaitingRoom": {
-      "tabLabel": "Waiting room",
-      "title": "People waiting",
-      "empty": "No one is waiting right now.",
-      "count": "{count} waiting",
-      "admitBtn": "Admit",
-      "declineBtn": "Decline",
-      "admitting": "Admitting...",
-      "justNow": "just now",
-      "requestedAgo": "{time} ago",
-      "roleLabel": "Role",
-      "hostToastNewRequest": "{name} wants to join"
-    },
-    "media": {
-      "title": "Media",
-      "stage": "Stage",
-      "youBadge": "You",
-      "micOn": "Mic on",
-      "micOff": "Mic off",
-      "cameraOn": "Camera on",
-      "cameraOff": "Camera off",
-      "devices": "Devices",
-      "selectMic": "Microphone",
-      "selectCamera": "Camera",
-      "permissionDenied": "Camera or microphone access denied.",
-      "startMedia": "Start camera",
-      "stopMedia": "Stop camera",
-      "leave": "Leave room",
-      "connecting": "Connecting...",
-      "noParticipants": "No one else is here yet.",
-      "remoteCameraOff": "Camera is off",
-      "remoteMuted": "Muted"
-    },
-    "declineDialog": {
-      "title": "Decline request",
-      "message": "Send a reason (optional) so {name} knows why.",
-      "reasonLabel": "Reason (optional)",
-      "reasonPlaceholder": "e.g. Wrong room, full capacity...",
-      "confirm": "Decline",
-      "cancel": "Cancel"
-    },
-    "endDialog": {
-      "title": "End this room?",
-      "message": "All listeners will be disconnected immediately. This action cannot be undone.",
-      "confirm": "End room",
-      "success": "Room ended"
-    },
-    "leaveConfirm": {
-      "title": "Leave this room?",
-      "message": "You will leave the room. The room stays active for others.",
-      "confirm": "Leave",
-      "cancel": "Stay",
-      "leaving": "Leaving..."
-    },
-    "hostLeaveDialog": {
-      "title": "Leave or end?",
-      "message": "You can leave and let others continue, or end the room for everyone.",
-      "leaveOnly": "Leave only",
-      "endRoom": "End room",
-      "cancel": "Stay",
-      "leaving": "Leaving...",
-      "ending": "Ending..."
-    },
-    "leaveDialog": {
-      "title": "Leave this room?",
-      "message": "You will leave the room but it stays active. Other listeners can continue. You can rejoin anytime.",
-      "confirm": "Leave room",
-      "cancel": "Stay"
-    },
-    "existsCheck": {
-      "checking": "Checking...",
-      "existsActive": "Room is live",
-      "existsInactive": "Room is not available",
-      "notFound": "Room not found",
-      "realtimeConnecting": "Connecting to real-time updates..."
-    },
-    "participant": {
-      "title": "Listeners",
-      "count": "{count} active",
-      "hostBadge": "Host",
-      "youBadge": "You",
-      "joinedAt": "Joined {time}",
-      "leftAt": "Left",
-      "empty": "No listeners yet",
-      "displayNameLabel": "Display name",
-      "displayNamePlaceholder": "How should we show you to the host?",
-      "joinedHeader": "You are in the room",
-      "leaving": "Leaving...",
-      "leaveRoom": "Leave room",
-      "ending": "Ending...",
-      "endRoom": "End room",
-      "hostInGuestTabHint": "You opened the room as a participant. To manage settings, waiting room, and participants, switch back to the dashboard tab.",
-      "roleLabel": "Role"
-    },
-    "errors": {
-      "roomNotFound": "Room not found",
-      "codeExists": "Room code already exists",
-      "hostAlreadyActive": "You already have an active room",
-      "notHost": "Only the host can modify this room",
-      "alreadyEnded": "Room has already ended",
-      "codeGenFailed": "Failed to generate a unique room code",
-      "invalidCapacity": "Max participants must be between 2 and 5",
-      "full": "Room is at maximum capacity",
-      "notJoined": "You have not joined this room",
-      "alreadyJoined": "You have already joined this room",
-      "joinRequestNotFound": "Join request not found",
-      "joinRequestAlreadyDecided": "This request has already been decided",
-      "joinRequestNotPending": "This request is no longer pending",
-      "joinRequestNotOwner": "You can only cancel your own join request",
-      "generic": "Something went wrong",
-      "proOnlyHost": "Live Rooms hosting is available to PRO accounts only. Upgrade your plan to create and manage rooms.",
-      "invalidCodeLength": "Room code must be 6 characters (letters and digits)",
-      "screenShareNotSupported": "Screen sharing is not supported in this browser",
-      "screenShareFailed": "Could not start screen sharing",
-      "playbackNoSong": "No song is selected for this room yet",
-      "playbackNotHost": "Only the host can select a song for this room",
-      "songNotOwnedByCaller": "You can only select songs you own",
-      "playbackRoomNotActive": "Room is no longer active",
-      "playbackInvalidRate": "Playback rate must be 1.00, 1.50, or 2.00",
-      "playbackInvalidLoop": "Loop mode must be OFF or ONE"
-    },
-    "joinByCode": {
-      "title": "Join with a room code",
-      "subtitle": "Got a 6-character code from the host? Enter it here to ask to join.",
-      "inputLabel": "Room code",
-      "placeholder": "ABC123",
-      "submitBtn": "Join",
-      "hint": "Codes are case-insensitive. The host will see your request and let you in."
-    },
-    "actions": {
-      "back": "Back",
-      "joinRoom": "Join Room",
-      "requestToJoin": "Request to Join",
-      "waitingTitle": "Waiting for approval...",
-      "waitingSubtitle": "The host will let you in soon",
-      "cancel": "Cancel",
-      "requestRejected": "Request Rejected",
-      "tryAgain": "Try Again",
-      "notActive": "This room is not active"
-    },
-    "immersive": {
-      "close": "Close",
-      "people": "People",
-      "chat": "Chat",
-      "chatPlaceholder": "Type a message...",
-      "chatEmpty": "No messages yet. Start the conversation!",
-      "chatSend": "Send",
-      "leaveConfirm": "Leave this room?",
-      "handRaise": "Raise hand",
-      "screenShareStart": "Share screen",
-      "screenShareStop": "Stop sharing"
-    },
-    "playback": {
-      "title": "Music",
-      "empty": "No song is playing yet.",
-      "choose": "Pick a song",
-      "change": "Change song",
-      "play": "Play",
-      "pause": "Pause",
-      "reconcile": "Re-sync playback",
-      "seekBack": "Back 30 seconds",
-      "seekForward": "Forward 30 seconds",
-      "rate": "Playback speed",
-      "loopOne": "Loop this song",
-      "shuffle": "Shuffle",
-      "status": {
-        "empty": "Idle",
-        "playing": "Playing",
-        "paused": "Paused",
-        "ended": "Ended",
-        "cleared": "Cleared"
-      },
-      "toast": {
-        "cleared": "Song was cleared by its owner",
-        "ended": "Song finished. Pick another to continue."
-      },
-      "picker": {
-        "title": "Pick a song to share",
-        "subtitle": "Choose a song with voice tag or the original to play for the room.",
-        "loading": "Loading your songs...",
-        "empty": "You don't have any playable songs yet.",
-        "voiceTag": "Voice tag",
-        "original": "Original",
-        "submit": "Play for the room",
-        "submitting": "Saving...",
-        "cancel": "Cancel"
-      }
     }
   }
 }

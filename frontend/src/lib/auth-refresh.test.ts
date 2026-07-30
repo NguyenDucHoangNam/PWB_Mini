@@ -4,7 +4,7 @@ import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 const sampleAuthUser = {
   userId: "u-1",
   email: "u@x.com",
-  username: "u",
+  fullName: "Nguyen Van A",
   role: "USER",
   status: "ACTIVE" as const,
   oauthProvider: "LOCAL" as const,

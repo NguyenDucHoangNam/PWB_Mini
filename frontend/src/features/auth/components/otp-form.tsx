@@ -106,18 +106,14 @@ export function OtpForm() {
             setAuth(data.accessToken, {
               userId: data.userId,
               email: data.email,
-              username: "",
+              fullName: data.fullName ?? "",
               role: data.role,
               status: data.status,
               oauthProvider: "LOCAL",
             }, expiresAt ?? undefined);
             pendingRegistration.clear();
             toast.success(t("successToast"));
-            if (data.nextStep === "COMPLETE_PROFILE") {
-              router.push("/complete-profile");
-            } else {
-              router.push("/");
-            }
+            router.push("/");
           } else {
             setError(response.message || t("errorToast"));
             setOtpInvalid(true);

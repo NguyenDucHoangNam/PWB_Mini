@@ -68,7 +68,7 @@ export const refreshAccessToken = async (): Promise<string> => {
       user = {
         userId: data.userId,
         email: data.email,
-        username: "",
+        fullName: data.fullName ?? "",
         role: data.role,
         status: data.status,
         oauthProvider: "LOCAL",

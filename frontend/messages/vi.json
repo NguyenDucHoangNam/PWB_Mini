@@ -19,7 +19,6 @@
     "features": "Tính năng",
     "contact": "Liên hệ",
     "dashboard": "Playlist",
-    "liveRooms": "Phòng Trực Tiếp",
     "profile": "Hồ sơ cá nhân",
     "sessions": "Quản lý phiên",
     "logout": "Đăng xuất",
@@ -39,7 +38,6 @@
     "support": "Hỗ trợ",
     "legal": "Pháp lý",
     "dashboard": "Playlist",
-    "liveRooms": "Phòng Trực Tiếp",
     "demoSharing": "Demo Sharing",
     "contact": "Liên hệ:",
     "faq": "FAQ",
@@ -103,27 +101,19 @@
       "submit": "ĐĂNG KÝ",
       "submitting": "Đang đăng ký...",
       "fillAll": "Vui lòng điền đầy đủ các trường",
-      "invalidUsername": "Tên đăng nhập không hợp lệ (tối thiểu 3 ký tự, chỉ chứa chữ, số, gạch dưới)",
       "minPassword": "Mật khẩu phải có 12-128 ký tự và bao gồm chữ hoa, chữ thường, chữ số và ký tự đặc biệt",
       "passwordTooShort": "Mật khẩu phải có ít nhất 12 ký tự",
       "passwordMismatch": "Mật khẩu nhập lại không khớp",
       "fullNameRequired": "Họ và tên không được để trống",
-      "usernameRequired": "Tên đăng nhập không được để trống",
       "emailRequired": "Email không được để trống",
       "invalidEmail": "Địa chỉ email không hợp lệ",
       "passwordRequired": "Mật khẩu không được để trống",
-      "usernameTaken": "Tên đăng nhập đã tồn tại trên hệ thống",
       "successToast": "Đăng ký thành công! Vui lòng kiểm tra email nhận mã OTP.",
       "errorToast": "Đăng ký thất bại",
-      "checkingUsername": "Đang kiểm tra...",
-      "usernameAvailable": "✓ Tên đăng nhập khả dụng",
-      "usernameUnavailable": "✗ Tên đăng nhập đã được sử dụng",
       "registerTitle": "ĐĂNG KÝ TÀI KHOẢN",
       "registerDesc": "Tạo tài khoản để cộng tác âm nhạc trực tuyến.",
-      "fullNameLabel": "Tên hiển thị (Họ và tên) *",
+      "fullNameLabel": "Họ và tên *",
       "fullNamePlaceholder": "Họ và tên của bạn",
-      "usernameRequirementsLabel": "Tên đăng nhập * (Chỉ chữ, số, gạch dưới, tối thiểu 3 ký tự)",
-      "usernamePlaceholder": "Tên đăng nhập mong muốn",
       "emailLabel": "Địa chỉ Email *",
       "emailPlaceholder": "email@example.com",
       "passwordRequirementsLabel": "Mật khẩu * (12+ ký tự, 1 hoa, 1 thường, 1 số, 1 ký tự đặc biệt)",
@@ -137,7 +127,7 @@
       "otpHint": "Email này đang chờ xác thực. Nhập mã OTP mới nhất để cập nhật thông tin đăng ký.",
       "otpRequired": "Cần mã OTP để cập nhật thông tin đăng ký đang chờ",
       "maxPassword": "Mật khẩu không quá 128 ký tự",
-      "fullNameLength": "Họ và tên phải có từ 2 đến 100 ký tự",
+      "fullNameLength": "Họ và tên không được vượt quá 128 ký tự",
       "emailLength": "Email không quá 255 ký tự",
       "passwordComplexity": "Mật khẩu phải có 12-128 ký tự và bao gồm chữ hoa, chữ thường, chữ số và ký tự đặc biệt",
       "confirmPasswordRequired": "Vui lòng nhập lại mật khẩu",
@@ -241,25 +231,6 @@
       "confirmPasswordPlaceholder": "Nhập lại mật khẩu mới",
       "submitBtn": "ĐẶT LẠI MẬT KHẨU"
     },
-    "completeProfile": {
-      "title": "HOÀN TẤT HỒ SƠ",
-      "desc": "Chọn username và đặt mật khẩu (tuỳ chọn) để hoàn tất tài khoản của bạn.",
-      "usernameLabel": "Username *",
-      "usernamePlaceholder": "Chọn một username duy nhất",
-      "fullNameLabel": "Họ và tên",
-      "fullNamePlaceholder": "Tên hiển thị của bạn",
-      "passwordLabel": "Mật khẩu (tuỳ chọn)",
-      "passwordPlaceholder": "Đặt mật khẩu mới hoặc bỏ trống để giữ mật khẩu được tạo tự động",
-      "submit": "HOÀN TẤT HỒ SƠ",
-      "submitting": "Đang lưu...",
-      "successToast": "Hoàn tất hồ sơ thành công",
-      "errorToast": "Không thể hoàn tất hồ sơ",
-      "usernameRequired": "Username phải có ít nhất 3 ký tự",
-      "usernameLength": "Username không được vượt quá 50 ký tự",
-      "usernameInvalid": "Chỉ cho phép chữ cái, chữ số, dấu gạch dưới và dấu gạch ngang",
-      "fullNameLength": "Họ tên không được vượt quá 100 ký tự",
-      "passwordComplexity": "Mật khẩu phải có 8-128 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt"
-    },
     "captcha": {
       "loadFailed": "Không thể tải CAPTCHA. Vui lòng kiểm tra kết nối mạng.",
       "retry": "Tải lại"
@@ -271,7 +242,6 @@
     "formTitle": "THÔNG TIN CÁ NHÂN",
     "avatarTitle": "Ảnh đại diện",
     "avatarHelp": "Kéo thả hoặc nhấn chọn file ảnh (.jpg, .jpeg, .png) tối đa 2MB",
-    "username": "Tên đăng nhập",
     "email": "Email",
     "role": "Vai trò",
     "fullName": "Họ và tên *",
@@ -765,310 +735,7 @@
     "startOffset": {
       "min": "Bỏ qua đầu tối thiểu là {min}",
       "max": "Bỏ qua đầu tối đa là {max}"
-    },
-    "liveroom": {
-      "title": {
-        "required": "Tiêu đề không được để trống",
-        "maxlength": "Tiêu đề không được quá {max} ký tự"
-      },
-      "description": {
-        "maxlength": "Mô tả không được quá {max} ký tự"
-      },
-      "mode": {
-        "required": "Vui lòng chọn chế độ phòng"
-      },
-      "password": {
-        "length": "Mật khẩu phải có từ 4 đến 64 ký tự"
-      },
-      "capacity": {
-        "range": "Số người tham gia tối đa phải từ 2 đến 5"
-      },
-      "displayname": {
-        "length": "Tên hiển thị phải có từ 1 đến 100 ký tự"
-      },
-      "schedule": {
-        "future": "Thời gian hẹn phải ở trong tương lai",
-        "invalid": "Thời gian hẹn không hợp lệ"
-      }
-    }
-  },
-  "liveroom": {
-    "nav": {
-      "title": "Phòng Trực Tiếp",
-      "subtitle": "Quản lý các phòng âm thanh trực tiếp của bạn.",
-      "listenerTitle": "Phòng Trực Tiếp",
-      "listenerSubtitle": "Tham gia với vai trò người nghe và theo dõi theo thời gian thực.",
-      "settingsTab": "Cài đặt",
-      "listenersTab": "Người nghe"
-    },
-    "list": {
-      "filterAll": "Tất cả",
-      "filterActive": "Đang hoạt động",
-      "filterPaused": "Tạm dừng",
-      "filterEnded": "Đã kết thúc",
-      "empty": "Bạn chưa tạo phòng trực tiếp nào",
-      "createBtn": "Tạo phòng",
-      "prev": "Trước",
-      "next": "Sau",
-      "loading": "Đang tải danh sách phòng..."
-    },
-    "status": {
-      "active": "Đang hoạt động",
-      "paused": "Tạm dừng",
-      "ended": "Đã kết thúc"
-    },
-    "mode": {
-      "PUBLIC": "Công khai",
-      "PRIVATE": "Riêng tư"
-    },
-    "card": {
-      "capacity": "{current}/{max} người nghe",
-      "createdAt": "Tạo lúc {date}",
-      "startedAt": "Bắt đầu {date}",
-      "endedAt": "Kết thúc {date}",
-      "scheduled": "Bắt đầu {date}",
-      "manage": "Quản lý",
-      "end": "Kết thúc phòng",
-      "view": "Xem phòng"
-    },
-    "form": {
-      "titleLabel": "Tiêu đề",
-      "titlePlaceholder": "Nhập tiêu đề cho phòng của bạn",
-      "descriptionLabel": "Mô tả",
-      "descriptionPlaceholder": "Tùy chọn. Mô tả phòng của bạn",
-      "modeLabel": "Loại phòng",
-      "modePublic": "Công khai - Ai có mã đều có thể vào",
-      "modePrivate": "Riêng tư - Cần chủ phòng duyệt",
-      "capacityLabel": "Số người tham gia tối đa",
-      "capacityHint": "Từ 2 đến 5",
-      "submitCreate": "Tạo phòng",
-      "submitUpdate": "Lưu thay đổi",
-      "submitting": "Đang lưu...",
-      "createSuccess": "Tạo phòng thành công",
-      "updateSuccess": "Đã cập nhật phòng"
-    },
-    "askToJoin": {
-      "titleLabel": "Xin vào phòng",
-      "subtitle": "Gửi yêu cầu đến chủ phòng. Họ sẽ cho bạn vào khi sẵn sàng.",
-      "displayNameLabel": "Tên hiển thị",
-      "displayNamePlaceholder": "Tên bạn muốn hiện với chủ phòng?",
-      "messageLabel": "Lời nhắn (tùy chọn)",
-      "messagePlaceholder": "Chào! Mình muốn tham gia.",
-      "submitBtn": "Xin vào phòng",
-      "submitting": "Đang gửi yêu cầu...",
-      "success": "Đã gửi yêu cầu. Đang chờ chủ phòng...",
-      "startPreview": "Kiểm tra camera và micro"
-    },
-    "preJoin": {
-      "joinBtn": "Vào phòng",
-      "askBtn": "Xin vào phòng",
-      "joining": "Đang vào...",
-      "requesting": "Đang gửi...",
-      "roomNotActive": "Phòng chưa hoạt động."
-    },
-    "waitingRoom": {
-      "title": "Đang chờ chủ phòng",
-      "subtitle": "Yêu cầu của bạn đã được gửi. Chủ phòng sẽ quyết định trong giây lát.",
-      "cancelBtn": "Hủy yêu cầu",
-      "cancelling": "Đang hủy...",
-      "elapsedSeconds": "Đã chờ {seconds} giây",
-      "elapsedMinutes": "Đã chờ {minutes} phút",
-      "timeoutHint": "Nếu chủ phòng không phản hồi, bạn có thể hủy và thử lại."
-    },
-    "rejected": {
-      "title": "Yêu cầu bị từ chối",
-      "subtitle": "Chủ phòng đã từ chối yêu cầu vào phòng của bạn.",
-      "reasonLabel": "Lý do từ chủ phòng",
-      "askAgainBtn": "Xin vào lại",
-      "backBtn": "Quay lại"
-    },
-    "hostWaitingRoom": {
-      "tabLabel": "Phòng chờ",
-      "title": "Người đang chờ",
-      "empty": "Hiện không có ai đang chờ.",
-      "count": "{count} đang chờ",
-      "admitBtn": "Cho vào",
-      "declineBtn": "Từ chối",
-      "admitting": "Đang cho vào...",
-      "justNow": "vừa xong",
-      "requestedAgo": "{time} trước",
-      "roleLabel": "Vai trò",
-      "hostToastNewRequest": "{name} muốn vào phòng"
-    },
-    "media": {
-      "title": "Media",
-      "stage": "Sân khấu",
-      "youBadge": "Bạn",
-      "micOn": "Mic đang bật",
-      "micOff": "Mic đang tắt",
-      "cameraOn": "Camera đang bật",
-      "cameraOff": "Camera đang tắt",
-      "devices": "Thiết bị",
-      "selectMic": "Microphone",
-      "selectCamera": "Camera",
-      "permissionDenied": "Quyền truy cập camera hoặc mic bị từ chối.",
-      "startMedia": "Bật camera",
-      "stopMedia": "Tắt camera",
-      "leave": "Rời phòng",
-      "connecting": "Đang kết nối...",
-      "noParticipants": "Chưa có ai trong phòng.",
-      "remoteCameraOff": "Camera đang tắt",
-      "remoteMuted": "Đang tắt mic"
-    },
-    "declineDialog": {
-      "title": "Từ chối yêu cầu",
-      "message": "Gửi kèm lý do (tùy chọn) để {name} biết lý do.",
-      "reasonLabel": "Lý do (tùy chọn)",
-      "reasonPlaceholder": "VD: Nhầm phòng, hết chỗ...",
-      "confirm": "Từ chối",
-      "cancel": "Hủy"
-    },
-    "endDialog": {
-      "title": "Kết thúc phòng này?",
-      "message": "Tất cả người nghe sẽ bị ngắt kết nối ngay lập tức. Hành động này không thể hoàn tác.",
-      "confirm": "Kết thúc phòng",
-      "success": "Đã kết thúc phòng"
-    },
-    "leaveConfirm": {
-      "title": "Rời khỏi phòng?",
-      "message": "Bạn sẽ rời phòng. Phòng vẫn hoạt động cho những người khác.",
-      "confirm": "Rời phòng",
-      "cancel": "Ở lại",
-      "leaving": "Đang rời..."
-    },
-    "hostLeaveDialog": {
-      "title": "Rời hay kết thúc?",
-      "message": "Bạn có thể rời để người khác tiếp tục, hoặc kết thúc phòng cho tất cả mọi người.",
-      "leaveOnly": "Rời thôi",
-      "endRoom": "Kết thúc phòng",
-      "cancel": "Ở lại",
-      "leaving": "Đang rời...",
-      "ending": "Đang kết thúc..."
-    },
-    "leaveDialog": {
-      "title": "Rời khỏi phòng?",
-      "message": "Bạn sẽ rời phòng nhưng phòng vẫn hoạt động. Người nghe khác vẫn có thể tiếp tục. Bạn có thể vào lại bất kỳ lúc nào.",
-      "confirm": "Rời phòng",
-      "cancel": "Ở lại"
-    },
-    "existsCheck": {
-      "checking": "Đang kiểm tra...",
-      "existsActive": "Phòng đang phát trực tiếp",
-      "existsInactive": "Phòng hiện không khả dụng",
-      "notFound": "Không tìm thấy phòng",
-      "realtimeConnecting": "Đang kết nối cập nhật thời gian thực..."
-    },
-    "participant": {
-      "title": "Người nghe",
-      "count": "{count} đang hoạt động",
-      "hostBadge": "Chủ phòng",
-      "youBadge": "Bạn",
-      "joinedAt": "Tham gia {time}",
-      "leftAt": "Đã rời",
-      "empty": "Chưa có người nghe nào",
-      "displayNameLabel": "Tên hiển thị",
-      "displayNamePlaceholder": "Tên bạn muốn hiện với chủ phòng?",
-      "joinedHeader": "Bạn đang ở trong phòng",
-      "leaving": "Đang rời...",
-      "leaveRoom": "Rời phòng",
-      "ending": "Đang kết thúc...",
-      "endRoom": "Kết thúc phòng",
-      "hostInGuestTabHint": "Bạn đang mở phòng với vai trò người tham gia. Để chỉnh cài đặt, quản lý phòng chờ và người nghe, hãy chuyển lại tab dashboard.",
-      "roleLabel": "Vai trò"
-    },
-    "errors": {
-      "roomNotFound": "Không tìm thấy phòng",
-      "codeExists": "Mã phòng đã tồn tại",
-      "hostAlreadyActive": "Bạn đã có một phòng đang hoạt động",
-      "notHost": "Chỉ chủ phòng mới có thể chỉnh sửa phòng này",
-      "alreadyEnded": "Phòng đã kết thúc",
-      "codeGenFailed": "Không thể tạo mã phòng duy nhất",
-      "invalidCapacity": "Số người tham gia tối đa phải từ 2 đến 5",
-      "full": "Phòng đã đạt sức chứa tối đa",
-      "notJoined": "Bạn chưa tham gia phòng này",
-      "alreadyJoined": "Bạn đã tham gia phòng này rồi",
-      "joinRequestNotFound": "Không tìm thấy yêu cầu vào phòng",
-      "joinRequestAlreadyDecided": "Yêu cầu này đã được quyết định rồi",
-      "joinRequestNotPending": "Yêu cầu này không còn ở trạng thái chờ",
-      "joinRequestNotOwner": "Bạn chỉ có thể hủy yêu cầu vào phòng của chính bạn",
-      "generic": "Đã có lỗi xảy ra",
-      "proOnlyHost": "Tính năng tạo và quản lý Phòng Trực Tiếp chỉ dành cho tài khoản PRO. Nâng cấp gói của bạn để sử dụng.",
-      "invalidCodeLength": "Mã phòng phải gồm 6 ký tự (chữ cái và chữ số)",
-      "screenShareNotSupported": "Trình duyệt này không hỗ trợ chia sẻ màn hình",
-      "screenShareFailed": "Không thể bắt đầu chia sẻ màn hình",
-      "playbackNoSong": "Phòng chưa có bài hát nào được chọn",
-      "playbackNotHost": "Chỉ chủ phòng mới có thể chọn bài hát cho phòng này",
-      "songNotOwnedByCaller": "Bạn chỉ có thể chọn bài hát của chính mình",
-      "playbackRoomNotActive": "Phòng đã kết thúc",
-      "playbackInvalidRate": "Tốc độ phát phải là 1.00, 1.50 hoặc 2.00",
-      "playbackInvalidLoop": "Chế độ lặp phải là OFF hoặc ONE"
-    },
-    "joinByCode": {
-      "title": "Vào phòng bằng mã",
-      "subtitle": "Có mã 6 ký tự từ chủ phòng? Nhập vào đây để gửi yêu cầu tham gia.",
-      "inputLabel": "Mã phòng",
-      "placeholder": "ABC123",
-      "submitBtn": "Tham gia",
-      "hint": "Mã không phân biệt hoa thường. Chủ phòng sẽ thấy yêu cầu và cho bạn vào."
-    },
-    "actions": {
-      "back": "Quay lại",
-      "joinRoom": "Vào phòng",
-      "requestToJoin": "Yêu cầu vào phòng",
-      "waitingTitle": "Đang chờ được chấp nhận...",
-      "waitingSubtitle": "Chủ phòng sẽ cho bạn vào sớm thôi",
-      "cancel": "Hủy",
-      "requestRejected": "Yêu cầu bị từ chối",
-      "tryAgain": "Thử lại",
-      "notActive": "Phòng này hiện không hoạt động"
-    },
-    "immersive": {
-      "close": "Đóng",
-      "people": "Mọi người",
-      "chat": "Trò chuyện",
-      "chatPlaceholder": "Nhập tin nhắn...",
-      "chatEmpty": "Chưa có tin nhắn nào. Hãy bắt đầu cuộc trò chuyện!",
-      "chatSend": "Gửi",
-      "leaveConfirm": "Rời khỏi phòng này?",
-      "handRaise": "Giơ tay xin phát biểu",
-      "screenShareStart": "Chia sẻ màn hình",
-      "screenShareStop": "Dừng chia sẻ"
-    },
-    "playback": {
-      "title": "Nhạc",
-      "empty": "Chưa có bài hát nào đang phát.",
-      "choose": "Chọn bài hát",
-      "change": "Đổi bài hát",
-      "play": "Phát",
-      "pause": "Tạm dừng",
-      "reconcile": "Đồng bộ lại",
-      "seekBack": "Tua lùi 30 giây",
-      "seekForward": "Tua tới 30 giây",
-      "rate": "Tốc độ phát",
-      "loopOne": "Lặp bài này",
-      "shuffle": "Trộn bài",
-      "status": {
-        "empty": "Rảnh",
-        "playing": "Đang phát",
-        "paused": "Tạm dừng",
-        "ended": "Đã kết thúc",
-        "cleared": "Đã xoá"
-      },
-      "toast": {
-        "cleared": "Bài hát đã bị chủ sở hữu xoá khỏi phòng",
-        "ended": "Bài hát đã kết thúc. Hãy chọn bài khác để tiếp tục."
-      },
-      "picker": {
-        "title": "Chọn bài hát để phát chung",
-        "subtitle": "Chọn bài đã có voice tag hoặc bản gốc để phát cho phòng.",
-        "loading": "Đang tải danh sách bài hát...",
-        "empty": "Bạn chưa có bài hát nào có thể phát.",
-        "voiceTag": "Voice tag",
-        "original": "Bản gốc",
-        "submit": "Phát cho phòng",
-        "submitting": "Đang lưu...",
-        "cancel": "Huỷ"
-      }
     }
   }
 }
+
