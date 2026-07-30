@@ -13,6 +13,7 @@ import org.thymeleaf.spring6.SpringTemplateEngine;
 
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Component
@@ -20,8 +21,7 @@ import java.util.Map;
 public class ThymeleafEmailRenderer {
 
     private static final String HTML_TEMPLATE_PREFIX = "email/";
-    private static final String TEXT_TEMPLATE_SUFFIX = ".txt";
-    private static final String CONTENT_FRAGMENT = "::content";
+    private static final String CONTENT_FRAGMENT_SELECTOR = "content";
     private static final String DEFAULT_LOCALE = "vi";
 
     private final SpringTemplateEngine emailTemplateEngine;
@@ -30,10 +30,9 @@ public class ThymeleafEmailRenderer {
     public String renderHtml(EmailTemplate template, Map<String, String> variables, String localeTag) {
         Locale locale = resolveLocale(localeTag);
         Context context = buildContext(variables, locale, resolveSubject(template, localeTag));
-        String contentTemplate = HTML_TEMPLATE_PREFIX + template.name().toLowerCase().replace('_', '-')
-                + CONTENT_FRAGMENT;
+        String templateName = HTML_TEMPLATE_PREFIX + template.name().toLowerCase().replace('_', '-');
         try {
-            return emailTemplateEngine.process(contentTemplate, context);
+            return emailTemplateEngine.process(templateName, Set.of(CONTENT_FRAGMENT_SELECTOR), context);
         } catch (TemplateInputException ex) {
             throw new MailTemplateException(
                     "HTML template input error for " + template.name() + ": " + ex.getMessage(), ex);
@@ -47,8 +46,7 @@ public class ThymeleafEmailRenderer {
     public String renderText(EmailTemplate template, Map<String, String> variables, String localeTag) {
         Locale locale = resolveLocale(localeTag);
         Context context = buildContext(variables, locale, resolveSubject(template, localeTag));
-        String templateName = HTML_TEMPLATE_PREFIX + template.name().toLowerCase().replace('_', '-')
-                + TEXT_TEMPLATE_SUFFIX;
+        String templateName = HTML_TEMPLATE_PREFIX + template.name().toLowerCase().replace('_', '-');
         try {
             return emailTemplateEngine.process(templateName, context);
         } catch (TemplateInputException ex) {

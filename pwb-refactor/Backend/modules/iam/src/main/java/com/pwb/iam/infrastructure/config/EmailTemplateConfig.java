@@ -16,7 +16,8 @@ public class EmailTemplateConfig {
     @Bean
     public SpringTemplateEngine emailTemplateEngine(MessageSource messageSource) {
         SpringTemplateEngine engine = new SpringTemplateEngine();
-        engine.setTemplateResolver(emailHtmlTemplateResolver());
+        engine.addTemplateResolver(emailHtmlTemplateResolver());
+        engine.addTemplateResolver(emailTextTemplateResolver());
         engine.setMessageSource(messageSource);
         engine.setEnableSpringELCompiler(true);
         return engine;
@@ -26,7 +27,7 @@ public class EmailTemplateConfig {
     public ITemplateResolver emailHtmlTemplateResolver() {
         ClassLoaderTemplateResolver resolver = new ClassLoaderTemplateResolver();
         resolver.setPrefix(TEMPLATE_PREFIX);
-        resolver.setSuffix("");
+        resolver.setSuffix(".html");
         resolver.setTemplateMode("HTML");
         resolver.setCharacterEncoding(TEMPLATE_ENCODING);
         resolver.setCacheable(true);
@@ -39,7 +40,7 @@ public class EmailTemplateConfig {
     public ITemplateResolver emailTextTemplateResolver() {
         ClassLoaderTemplateResolver resolver = new ClassLoaderTemplateResolver();
         resolver.setPrefix(TEMPLATE_PREFIX);
-        resolver.setSuffix("");
+        resolver.setSuffix(".txt");
         resolver.setTemplateMode("TEXT");
         resolver.setCharacterEncoding(TEMPLATE_ENCODING);
         resolver.setCacheable(true);

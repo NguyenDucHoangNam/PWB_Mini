@@ -6,6 +6,19 @@ import { refreshAccessToken } from "./auth-refresh";
 import { isPublicPath } from "./config";
 import { SKIP_REFRESH_HEADER, shouldSkipRefresh } from "./request-flags";
 
+function parseRetryAfterHeader(headers: Record<string, string>): number | undefined {
+  const candidates = ["retry-after", "ratelimit-reset", "x-ratelimit-reset"];
+  for (const key of candidates) {
+    const value = headers[key] ?? headers[key.toUpperCase()];
+    if (value === undefined || value === null) continue;
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      return Math.ceil(numeric);
+    }
+  }
+  return undefined;
+}
+
 function getCookie(name: string): string | null {
   if (typeof document === "undefined") return null;
   const value = `; ${document.cookie}`;
@@ -39,6 +52,7 @@ export class ApiError<T = unknown> extends Error {
   timestamp?: string;
   traceId?: string | null;
   code?: string;
+  retryAfterSeconds?: number;
 
   constructor(params: {
     status: number;
@@ -49,6 +63,7 @@ export class ApiError<T = unknown> extends Error {
     timestamp?: string;
     traceId?: string | null;
     message?: string;
+    retryAfterSeconds?: number;
   }) {
     super(params.message ?? params.errors?.[0]?.message ?? "API Error");
     this.name = "ApiError";
@@ -60,6 +75,9 @@ export class ApiError<T = unknown> extends Error {
     if (params.timestamp) this.timestamp = params.timestamp;
     if (params.traceId) this.traceId = params.traceId;
     this.code = params.errors?.[0]?.code;
+    if (typeof params.retryAfterSeconds === "number" && params.retryAfterSeconds > 0) {
+      this.retryAfterSeconds = params.retryAfterSeconds;
+    }
   }
 }
 
@@ -147,12 +165,16 @@ apiClient.interceptors.response.use(
       }
     }
 
+    const rawHeaders = Object.fromEntries(
+      Object.entries(error.response.headers).map(([k, v]) => [k, String(v)]),
+    );
+    const retryAfterSeconds = parseRetryAfterHeader(rawHeaders);
+
     const apiError = new ApiError({
       ...(error.response.data as ApiResponse<unknown>),
       status: error.response.status,
-      headers: Object.fromEntries(
-        Object.entries(error.response.headers).map(([k, v]) => [k, String(v)]),
-      ),
+      headers: rawHeaders,
+      retryAfterSeconds,
     });
     if (!originalRequest[SKIP_REFRESH_HEADER]) {
       originalRequest[SKIP_REFRESH_HEADER] = true;

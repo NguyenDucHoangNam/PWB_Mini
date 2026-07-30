@@ -93,7 +93,10 @@
       "cancel": "Hủy bỏ",
       "captchaRequired": "Bạn đã thử quá nhiều lần. Vui lòng hoàn thành xác minh CAPTCHA.",
       "captchaInvalid": "Xác minh CAPTCHA thất bại. Vui lòng thử lại.",
-      "captchaServiceUnavailable": "Dịch vụ CAPTCHA tạm thời không khả dụng. Vui lòng thử lại sau."
+      "captchaServiceUnavailable": "Dịch vụ CAPTCHA tạm thời không khả dụng. Vui lòng thử lại sau.",
+      "rateLimitErrorWithSeconds": "Bạn đã thao tác quá nhiều. Vui lòng thử lại sau {seconds} giây.",
+      "rateLimitToastWithSeconds": "Bạn đã thao tác quá nhiều. Vui lòng thử lại sau {seconds} giây.",
+      "retryCountdownText": "Thử lại sau {seconds}s"
     },
     "register": {
       "title": "ĐĂNG KÝ",
@@ -132,6 +135,8 @@
       "passwordComplexity": "Mật khẩu phải có 12-128 ký tự và bao gồm chữ hoa, chữ thường, chữ số và ký tự đặc biệt",
       "confirmPasswordRequired": "Vui lòng nhập lại mật khẩu",
       "rateLimitError": "Bạn đã thử quá nhiều lần. Vui lòng đợi ít phút rồi thử lại.",
+      "rateLimitErrorWithSeconds": "Bạn đã thử quá nhiều lần. Vui lòng đợi {seconds} giây rồi thử lại.",
+      "retryCountdownText": "Thử lại sau {seconds}s",
       "emailExistsHint": "Email này đã được đăng ký. Vui lòng kiểm tra hòm thư (kể cả spam) hoặc đăng nhập.",
       "or": "HOẶC",
       "emailExistsLoginCta": "Đăng nhập ngay",
@@ -195,6 +200,7 @@
       "rateLimitError": "Gửi yêu cầu quá nhanh. Vui lòng thử lại sau.",
       "rateLimitToastWithSeconds": "Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau {seconds} giây.",
       "rateLimitErrorWithSeconds": "Gửi yêu cầu quá nhanh. Vui lòng thử lại sau {seconds} giây.",
+      "retryCountdownText": "Thử lại sau {seconds}s",
       "errorToast": "Không thể xử lý yêu cầu. Vui lòng thử lại.",
       "errorToastTitle": "Gửi yêu cầu thất bại",
       "submittedTitle": "KIỂM TRA HÒM THƯ CỦA BẠN",
@@ -276,7 +282,9 @@
       "minLen": "Mật khẩu mới phải chứa ít nhất 8 ký tự",
       "reuseError": "Mật khẩu mới không được trùng mật khẩu cũ",
       "notMatch": "Mật khẩu xác nhận không khớp",
-      "incorrectOld": "Mật khẩu hiện tại không chính xác"
+      "incorrectOld": "Mật khẩu hiện tại không chính xác",
+      "rateLimitErrorWithSeconds": "Bạn đã thao tác quá nhiều. Vui lòng thử lại sau {seconds} giây.",
+      "retryCountdownText": "Thử lại sau {seconds}s"
     },
     "dangerZone": {
       "title": "VÙNG NGUY HIỂM",

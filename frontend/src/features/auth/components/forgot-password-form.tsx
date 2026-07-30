@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useForgotPassword } from "../api/forgot-password";
+import { useRetryCountdown } from "../hooks/use-retry-countdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,7 @@ export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const retryCountdown = useRetryCountdown();
 
   const { mutate: forgotMutate, isPending } = useForgotPassword();
 
@@ -42,18 +44,16 @@ export function ForgotPasswordForm() {
         },
         onError: asApiError((err) => {
           if (err.status === 429) {
-            const retryAfter = Number(err.headers?.["retry-after"]);
-            if (Number.isFinite(retryAfter) && retryAfter > 0) {
-              toast.warning(t("rateLimitToastWithSeconds", { seconds: retryAfter }));
-              setError(t("rateLimitErrorWithSeconds", { seconds: retryAfter }));
-            } else {
-              toast.warning(t("rateLimitToast"));
-              setError(t("rateLimitError"));
-            }
-          } else {
-            setError(err.message || t("errorToast"));
-            toast.error(t("errorToastTitle"));
+            retryCountdown.startFromError(err.retryAfterSeconds);
+            const msg = err.retryAfterSeconds
+              ? t("rateLimitErrorWithSeconds", { seconds: err.retryAfterSeconds })
+              : t("rateLimitError");
+            setError(msg);
+            toast.warning(msg);
+            return;
           }
+          setError(err.message || t("errorToast"));
+          toast.error(t("errorToastTitle"));
         }),
       },
     );
@@ -132,7 +132,7 @@ export function ForgotPasswordForm() {
         type="submit"
         variant="default"
         size="lg"
-        disabled={isPending}
+        disabled={isPending || retryCountdown.isActive}
         className="w-full justify-center h-10 font-bold"
       >
         {isPending ? (
@@ -151,6 +151,8 @@ export function ForgotPasswordForm() {
             </svg>
             {t("submitting")}
           </span>
+        ) : retryCountdown.isActive ? (
+          t("retryCountdownText", { seconds: retryCountdown.remaining })
         ) : (
           t("submit")
         )}

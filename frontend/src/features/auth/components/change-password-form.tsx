@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useChangePassword } from "../api/change-password";
 import { usePasswordStrength } from "../hooks/use-password-strength";
+import { useRetryCountdown } from "../hooks/use-retry-countdown";
 import { PasswordInput } from "./password-input";
 import { PasswordStrengthBar } from "./password-strength-bar";
 import { PasswordRules } from "./password-rules";
@@ -24,6 +25,7 @@ export function ChangePasswordForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isOauthOnly, setIsOauthOnly] = useState(false);
+  const retryCountdown = useRetryCountdown();
 
   const strength = usePasswordStrength(newPassword);
 
@@ -78,6 +80,12 @@ export function ChangePasswordForm() {
             setError(t("incorrectOld"));
           } else if (apiError?.code === "AUTH_PASSWORD_REUSED") {
             setError(t("reuseError"));
+          } else if (err.status === 429) {
+            retryCountdown.startFromError(err.retryAfterSeconds);
+            const msg = err.retryAfterSeconds
+              ? t("rateLimitErrorWithSeconds", { seconds: err.retryAfterSeconds })
+              : t("error");
+            setError(msg);
           } else {
             setError(err.message || t("error"));
           }
@@ -182,7 +190,7 @@ export function ChangePasswordForm() {
         type="submit"
         variant="default"
         size="lg"
-        disabled={isPending}
+        disabled={isPending || retryCountdown.isActive}
         className="w-full justify-center h-10 font-bold mt-2"
       >
         {isPending ? (
@@ -197,6 +205,8 @@ export function ChangePasswordForm() {
             </svg>
             {t("submitting")}
           </span>
+        ) : retryCountdown.isActive ? (
+          t("retryCountdownText", { seconds: retryCountdown.remaining })
         ) : (
           t("submit")
         )}

@@ -10,6 +10,7 @@ import { useRegister } from "../api/register";
 import { useLoginWithGoogle } from "../api/login";
 import { useAuthStore } from "../stores/use-auth-store";
 import { useGoogleIdentity } from "../hooks/use-google-identity";
+import { useRetryCountdown } from "../hooks/use-retry-countdown";
 import { useCaptureReturnTo } from "@/hooks/use-return-to";
 import { decodeJwtExpiry } from "@/lib/jwt-decode";
 import { asApiError, type ApiError } from "@/lib/api-client";
@@ -51,6 +52,7 @@ export function RegisterForm() {
   const { mutate: loginWithGoogleMutate } = useLoginWithGoogle();
   const setAuth = useAuthStore((state) => state.setAuth);
   const isAuthenticated = useAuthStore((state) => !!state.accessToken);
+  const retryCountdown = useRetryCountdown();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -169,8 +171,12 @@ export function RegisterForm() {
         onError: asApiError<unknown>((err: ApiError) => {
           const errorCode = err.errors?.[0]?.code;
           if (err.status === 429 || errorCode === RATE_LIMIT_CODE) {
-            setError("root", { message: t("rateLimitError") });
-            toast.error(t("rateLimitError"));
+            retryCountdown.startFromError(err.retryAfterSeconds);
+            const msg = err.retryAfterSeconds
+              ? t("rateLimitErrorWithSeconds", { seconds: err.retryAfterSeconds })
+              : t("rateLimitError");
+            setError("root", { message: msg });
+            toast.error(msg);
             return;
           }
           if (errorCode && EMAIL_EXISTS_CODES.has(errorCode)) {
@@ -299,7 +305,7 @@ export function RegisterForm() {
         type="submit"
         variant="default"
         size="lg"
-        disabled={isPending || !isValid || (email.trim().length > 0 && !emailFormatValid)}
+        disabled={isPending || retryCountdown.isActive || !isValid || (email.trim().length > 0 && !emailFormatValid)}
         className="w-full justify-center h-10 font-bold mt-2"
       >
         {isPending ? (
@@ -307,6 +313,8 @@ export function RegisterForm() {
             <Spinner size="sm" className="text-white dark:text-black" />
             {t("submitting")}
           </span>
+        ) : retryCountdown.isActive ? (
+          t("retryCountdownText", { seconds: retryCountdown.remaining })
         ) : (
           t("submit")
         )}

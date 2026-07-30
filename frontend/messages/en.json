@@ -93,7 +93,10 @@
       "cancel": "Cancel",
       "captchaRequired": "Too many failed attempts. Please complete the CAPTCHA verification.",
       "captchaInvalid": "CAPTCHA verification failed. Please try again.",
-      "captchaServiceUnavailable": "CAPTCHA service is temporarily unavailable. Please try again later."
+      "captchaServiceUnavailable": "CAPTCHA service is temporarily unavailable. Please try again later.",
+      "rateLimitErrorWithSeconds": "Too many attempts. Please try again in {seconds} seconds.",
+      "rateLimitToastWithSeconds": "Too many attempts. Please try again in {seconds} seconds.",
+      "retryCountdownText": "Retry in {seconds}s"
     },
     "register": {
       "title": "REGISTER",
@@ -132,6 +135,8 @@
       "passwordComplexity": "Password must be 12-128 characters and include uppercase, lowercase, digit and special character",
       "confirmPasswordRequired": "Please confirm your password",
       "rateLimitError": "Too many attempts. Please wait a few minutes before trying again.",
+      "rateLimitErrorWithSeconds": "Too many attempts. Please wait {seconds} seconds before trying again.",
+      "retryCountdownText": "Retry in {seconds}s",
       "emailExistsHint": "This email is already registered. Please check your inbox (including spam) or sign in.",
       "or": "OR",
       "emailExistsLoginCta": "Sign in now",
@@ -195,6 +200,7 @@
       "rateLimitError": "Sending requests too fast. Please try again later.",
       "rateLimitToastWithSeconds": "You have submitted too many requests. Please try again in {seconds} seconds.",
       "rateLimitErrorWithSeconds": "Sending requests too fast. Please try again in {seconds} seconds.",
+      "retryCountdownText": "Retry in {seconds}s",
       "errorToast": "Could not process request. Please try again.",
       "errorToastTitle": "Sending request failed",
       "submittedTitle": "CHECK YOUR MAILBOX",
@@ -276,7 +282,9 @@
       "minLen": "New password must be at least 8 characters long",
       "reuseError": "New password must be different from the old password",
       "notMatch": "Confirmed password does not match",
-      "incorrectOld": "Incorrect current password"
+      "incorrectOld": "Incorrect current password",
+      "rateLimitErrorWithSeconds": "Too many attempts. Please try again in {seconds} seconds.",
+      "retryCountdownText": "Retry in {seconds}s"
     },
     "dangerZone": {
       "title": "DANGER ZONE",

@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useLogin, useLoginWithGoogle } from "../api/login";
 import { useAuthStore } from "../stores/use-auth-store";
 import { useGoogleIdentity } from "../hooks/use-google-identity";
+import { useRetryCountdown } from "../hooks/use-retry-countdown";
 import { useCaptureReturnTo } from "@/hooks/use-return-to";
 import { broadcastAuthMessage } from "@/lib/broadcast-channel";
 import { decodeJwtExpiry } from "@/lib/jwt-decode";
@@ -33,6 +34,7 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isGooglePending, setIsGooglePending] = useState(false);
+  const retryCountdown = useRetryCountdown();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -98,6 +100,20 @@ export function LoginForm() {
           }
         },
         onError: asApiError((err) => {
+          if (err.status === 429) {
+            retryCountdown.startFromError(err.retryAfterSeconds);
+            setError(
+              err.retryAfterSeconds
+                ? t("rateLimitErrorWithSeconds", { seconds: retryCountdown.remaining })
+                : t("errorToast"),
+            );
+            toast.error(
+              err.retryAfterSeconds
+                ? t("rateLimitToastWithSeconds", { seconds: err.retryAfterSeconds })
+                : t("errorToast"),
+            );
+            return;
+          }
           setError(err.message || t("errorToast"));
           toast.error(t("errorToast"));
         }),
@@ -213,7 +229,7 @@ export function LoginForm() {
         type="submit"
         variant="default"
         size="lg"
-        disabled={isPending}
+        disabled={isPending || retryCountdown.isActive}
         className="w-full justify-center h-10 font-bold"
         tabIndex={3}
       >
@@ -229,6 +245,8 @@ export function LoginForm() {
             </svg>
             {t("submitting")}
           </span>
+        ) : retryCountdown.isActive ? (
+          t("retryCountdownText", { seconds: retryCountdown.remaining })
         ) : (
           t("submit")
         )}
