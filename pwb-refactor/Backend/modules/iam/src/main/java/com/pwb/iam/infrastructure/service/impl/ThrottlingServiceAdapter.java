@@ -3,6 +3,8 @@ package com.pwb.iam.infrastructure.service.impl;
 import com.pwb.iam.domain.model.PasswordResetPolicy;
 import com.pwb.iam.domain.service.ThrottlingService;
 import com.pwb.iam.infrastructure.config.RateLimitProperties;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,45 +45,54 @@ public class ThrottlingServiceAdapter implements ThrottlingService {
     private final StringRedisTemplate redis;
     private final PasswordResetPolicy passwordResetPolicy;
     private final RateLimitProperties rateLimitProperties;
+    private final MeterRegistry meterRegistry;
 
-    private final DefaultRedisScript<List> rateLimitScript = new DefaultRedisScript<>();
+    @SuppressWarnings("rawtypes")
+    private final DefaultRedisScript rateLimitScript = new DefaultRedisScript<>();
 
     @PostConstruct
+    @SuppressWarnings("rawtypes")
     void initLuaScript() {
         rateLimitScript.setScriptText(RATE_LIMIT_LUA_SCRIPT);
         rateLimitScript.setResultType(List.class);
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public ThrottleDecision consume(String key, int limit, Duration window) {
         if (key == null || key.isBlank()) {
             return ThrottleDecision.allow(limit);
         }
         String redisKey = RATE_LIMIT_PREFIX + key;
+        String scope = resolveScope(key);
         try {
-            @SuppressWarnings("unchecked")
-            List<Object> result = redis.execute(
+            List<Object> result = (List<Object>) redis.execute(
                     rateLimitScript,
                     List.of(redisKey),
                     String.valueOf(limit),
                     String.valueOf(window.getSeconds())
             );
             if (result == null || result.size() < 2) {
+                recordMetric(scope, "allow", "redis-error");
                 return ThrottleDecision.allow(limit);
             }
             long allowed = ((Number) result.get(0)).longValue();
             long value = ((Number) result.get(1)).longValue();
             if (allowed == 0) {
+                recordMetric(scope, "deny", "limit-exceeded");
                 log.warn("Rate limit exceeded: key={} retryAfter={}s", key, value);
                 return ThrottleDecision.deny(value);
             }
+            recordMetric(scope, "allow", "ok");
             return ThrottleDecision.allow(value);
         } catch (Exception ex) {
             if (rateLimitProperties.isFailClosedForCriticalOps()) {
+                recordMetric(scope, "deny", "fail-closed");
                 log.error("Redis unavailable, fail-closed for critical operation: key={} reason={}", key, ex.getMessage());
                 throw new com.pwb.shared.exception.BusinessException(
                         com.pwb.iam.domain.exception.IamErrorCode.SERVICE_UNAVAILABLE);
             }
+            recordMetric(scope, "allow", "fail-open");
             log.warn("Redis unavailable, fail-open: key={} reason={}", key, ex.getMessage());
             return ThrottleDecision.allow(limit);
         }
@@ -153,5 +164,25 @@ public class ThrottlingServiceAdapter implements ThrottlingService {
             throw new com.pwb.shared.exception.BusinessException(
                     com.pwb.iam.domain.exception.IamErrorCode.SERVICE_UNAVAILABLE);
         }
+    }
+
+    private String resolveScope(String key) {
+        if (key == null || key.isBlank()) {
+            return "unknown";
+        }
+        int colon = key.indexOf(':');
+        return colon > 0 ? key.substring(0, colon) : key;
+    }
+
+    private void recordMetric(String scope, String decision, String reason) {
+        if (meterRegistry == null) {
+            return;
+        }
+        Counter.builder("pwb.ratelimit.iam.decision")
+                .tag("scope", scope)
+                .tag("decision", decision)
+                .tag("reason", reason)
+                .register(meterRegistry)
+                .increment();
     }
 }

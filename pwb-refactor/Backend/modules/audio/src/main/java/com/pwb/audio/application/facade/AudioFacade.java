@@ -14,6 +14,8 @@ public interface AudioFacade {
 
     SongView uploadSong(UploadSongCommand command);
 
+    SongView uploadSongMultipart(UploadSongMultipartCommand command);
+
     SongView getSong(UUID userId, UUID songId);
 
     Page<SongView> listSongs(UUID userId, Pageable pageable);

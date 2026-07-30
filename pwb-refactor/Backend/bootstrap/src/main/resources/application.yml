@@ -8,6 +8,12 @@ spring:
     open-in-view: false
   flyway:
     out-of-order: true
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+  codec:
+    max-in-memory-size: 2MB
 
 server:
   port: 8080

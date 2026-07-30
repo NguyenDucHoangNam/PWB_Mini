@@ -68,6 +68,29 @@ public class SongUseCaseImpl implements SongUseCase {
     }
 
     @Override
+    @Transactional
+    public SongView uploadSongMultipart(UploadSongMultipartCommand command) {
+        log.info("Uploading song (multipart): userId={}, title={}, format={}",
+                command.userId(), command.title(), command.format().value());
+
+        Song song = Song.create(
+                command.userId(),
+                command.title(),
+                command.artist(),
+                command.album(),
+                command.originalS3Key(),
+                command.fileSizeBytes(),
+                command.durationSeconds(),
+                command.format()
+        );
+
+        Song saved = songRepository.save(song);
+        log.info("Song uploaded (multipart): songId={}", saved.getId());
+
+        return toSongView(saved);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public SongView getSong(UUID userId, UUID songId) {
         Song song = songRepository.findByIdAndUserId(songId, userId)

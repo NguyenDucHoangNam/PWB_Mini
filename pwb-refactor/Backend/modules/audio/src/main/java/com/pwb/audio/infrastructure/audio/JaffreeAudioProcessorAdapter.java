@@ -121,16 +121,16 @@ public class JaffreeAudioProcessorAdapter implements AudioProcessorPort {
         double fadeInSeconds = Math.max(0.0, fadeIn / 1000.0);
         double fadeOutSeconds = Math.max(0.0, fadeOut / 1000.0);
 
-        return String.format(
-                "[1:a]volume=%.2f,afade=t=in:st=0:d=%.2f,afade=t=out:st=%.2f:d=%.2f%s;[0:a][%s]amix=inputs=2:duration=first:dropout_transition=0%s",
-                volumeFactor,
-                fadeInSeconds,
-                (double) start,
-                fadeOutSeconds,
-                VOICE_LABEL,
-                "tag",
-                OUTPUT_LABEL
-        );
+        String voiceChain =
+                "[1:a]volume=" + String.format("%.2f", volumeFactor) +
+                ",afade=t=in:st=0:d=" + String.format("%.2f", fadeInSeconds) +
+                ",afade=t=out:st=" + (double) start + ":d=" + String.format("%.2f", fadeOutSeconds) +
+                "[" + VOICE_LABEL + "]";
+
+        String mixChain =
+                ";[0:a][" + VOICE_LABEL + "]amix=inputs=2:duration=first:dropout_transition=0[" + OUTPUT_LABEL + "]";
+
+        return voiceChain + mixChain;
     }
 
     private Integer probeDuration(Path file) {

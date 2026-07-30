@@ -47,7 +47,8 @@ public class ForgotPasswordUseCaseImpl implements ForgotPasswordUseCase {
 
         if (cooldownRemaining > 0) {
             log.info("Password reset cooldown active: email={} remaining={}s", email, cooldownRemaining);
-            return Result.cooldown(null, (int) cooldownRemaining);
+            throw new BusinessException(IamErrorCode.RATE_LIMITED,
+                    java.util.Map.of("retryAfterSeconds", cooldownRemaining));
         }
 
         User user = userRepository.findByEmail(email).orElse(null);

@@ -1,10 +1,13 @@
 package com.pwb.iam.application.command;
 
+import java.util.UUID;
+
 public record CompleteProfileCommand(
-        java.util.UUID userId,
+        UUID userId,
         String username,
         String fullName,
-        String newPassword
+        String newPassword,
+        String clientIp
 ) {
 
     public CompleteProfileCommand {
@@ -14,9 +17,16 @@ public record CompleteProfileCommand(
         if (username == null || username.isBlank()) {
             throw new IllegalArgumentException("username must not be blank");
         }
+        if (clientIp == null || clientIp.isBlank()) {
+            clientIp = "unknown";
+        }
     }
 
-    public CompleteProfileCommand(java.util.UUID userId, String username, String fullName) {
-        this(userId, username, fullName, null);
+    public CompleteProfileCommand(UUID userId, String username, String fullName) {
+        this(userId, username, fullName, null, "unknown");
+    }
+
+    public CompleteProfileCommand(UUID userId, String username, String fullName, String newPassword) {
+        this(userId, username, fullName, newPassword, "unknown");
     }
 }

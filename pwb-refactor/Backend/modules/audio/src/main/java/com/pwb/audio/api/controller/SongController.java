@@ -1,7 +1,10 @@
 package com.pwb.audio.api.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.audio.api.dto.request.ConfigureVoiceTagRequest;
 import com.pwb.audio.api.dto.request.UpdateSongRequest;
+import com.pwb.audio.api.dto.request.UploadSongMetadata;
 import com.pwb.audio.api.dto.request.UploadSongRequest;
 import com.pwb.audio.api.dto.response.PresignedUrlResponse;
 import com.pwb.audio.api.dto.response.SongResponse;
@@ -10,10 +13,17 @@ import com.pwb.audio.application.command.ConfigureVoiceTagCommand;
 import com.pwb.audio.application.command.DeleteSongCommand;
 import com.pwb.audio.application.command.UpdateSongCommand;
 import com.pwb.audio.application.command.UploadSongCommand;
+import com.pwb.audio.application.command.UploadSongMultipartCommand;
+import com.pwb.audio.application.exception.AudioBusinessException;
+import com.pwb.audio.application.exception.AudioErrorCode;
 import com.pwb.audio.application.facade.AudioFacade;
 import com.pwb.audio.application.view.PresignedUrlView;
 import com.pwb.audio.application.view.SongTagConfigView;
 import com.pwb.audio.application.view.SongView;
+import com.pwb.audio.domain.model.vo.AudioFormat;
+import com.pwb.audio.infrastructure.audio.AudioProbeService;
+import com.pwb.audio.infrastructure.service.StoragePort;
+import com.pwb.infra.storage.util.MediaTypeUtils;
 import com.pwb.shared.dto.ApiResponse;
 import com.pwb.shared.dto.PageResponse;
 import com.pwb.web.message.MessageResolver;
@@ -25,6 +35,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,8 +45,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.UUID;
 
 @RestController
@@ -52,6 +66,9 @@ public class SongController {
 
     private final AudioFacade audioFacade;
     private final MessageResolver messageResolver;
+    private final StoragePort storagePort;
+    private final AudioProbeService audioProbeService;
+    private final ObjectMapper objectMapper;
 
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse<SongResponse>> uploadSong(
@@ -63,6 +80,52 @@ public class SongController {
         }
         UploadSongCommand command = toUploadCommand(userId, request);
         SongView view = audioFacade.uploadSong(command);
+        SongResponse body = SongResponse.from(view);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(messageResolver.get(MSG_SONG_UPLOADED), body));
+    }
+
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<SongResponse>> uploadSongMultipart(
+            @CurrentUser UUID userId,
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("metadata") String metadataJson
+    ) throws IOException {
+        if (userId == null) {
+            return unauthorized();
+        }
+        if (file.isEmpty()) {
+            throw new AudioBusinessException(AudioErrorCode.INVALID_AUDIO_FILE, "File must not be empty");
+        }
+
+        UploadSongMetadata metadata = parseMetadata(metadataJson);
+
+        byte[] head = readHead(file, 4096);
+        String contentType = MediaTypeUtils.detectFromBytes(head);
+        if ("application/octet-stream".equals(contentType)) {
+            throw new AudioBusinessException(AudioErrorCode.INVALID_AUDIO_FILE,
+                    "Unsupported audio format. Supported formats: mp3, wav, flac");
+        }
+
+        String ext = extensionFromContentType(contentType);
+        Integer durationSeconds = audioProbeService.probeDurationFromBytes(file.getBytes(), ext);
+
+        byte[] fullBytes = file.getBytes();
+        String originalS3Key = "audio/originals/" + userId + "/" + UUID.randomUUID() + "." + ext;
+        storagePort.uploadBytes(originalS3Key, fullBytes, contentType);
+
+        UploadSongMultipartCommand command = new UploadSongMultipartCommand(
+                userId,
+                metadata.title(),
+                metadata.artist(),
+                metadata.album(),
+                originalS3Key,
+                (long) fullBytes.length,
+                durationSeconds,
+                AudioFormat.of(ext)
+        );
+
+        SongView view = audioFacade.uploadSongMultipart(command);
         SongResponse body = SongResponse.from(view);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(messageResolver.get(MSG_SONG_UPLOADED), body));
@@ -208,5 +271,30 @@ public class SongController {
 
     private static <T> ResponseEntity<ApiResponse<T>> unauthorized() {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
+    private UploadSongMetadata parseMetadata(String metadataJson) {
+        try {
+            return objectMapper.readValue(metadataJson, UploadSongMetadata.class);
+        } catch (JsonProcessingException ex) {
+            throw new AudioBusinessException(AudioErrorCode.INVALID_AUDIO_FILE, "Invalid metadata JSON");
+        }
+    }
+
+    private byte[] readHead(MultipartFile file, int size) throws IOException {
+        byte[] full = file.getBytes();
+        int len = Math.min(full.length, size);
+        byte[] head = new byte[len];
+        System.arraycopy(full, 0, head, 0, len);
+        return head;
+    }
+
+    private String extensionFromContentType(String contentType) {
+        return switch (contentType) {
+            case "audio/mpeg" -> "mp3";
+            case "audio/wav" -> "wav";
+            case "audio/flac" -> "flac";
+            default -> "bin";
+        };
     }
 }

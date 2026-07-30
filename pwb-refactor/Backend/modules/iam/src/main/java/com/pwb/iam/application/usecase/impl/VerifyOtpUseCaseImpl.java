@@ -14,6 +14,7 @@ import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.repository.OtpCodeRepository;
 import com.pwb.iam.domain.repository.UserRepository;
 import com.pwb.iam.domain.service.OtpGenerator;
+import com.pwb.iam.domain.service.ThrottlingService;
 import com.pwb.iam.domain.service.TokenManagerService;
 import com.pwb.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 
 @Slf4j
@@ -28,15 +30,21 @@ import java.time.Instant;
 @RequiredArgsConstructor
 public class VerifyOtpUseCaseImpl implements VerifyOtpUseCase {
 
+    private static final int VERIFY_OTP_LIMIT_PER_MINUTE = 10;
+
     private final UserRepository userRepository;
     private final OtpCodeRepository otpCodeRepository;
     private final OtpGenerator otpGenerator;
     private final TokenManagerService tokenManagerService;
     private final AuthEventPublisher authEventPublisher;
+    private final ThrottlingService throttlingService;
 
     @Override
     @Transactional
     public LoginResult execute(VerifyOtpCommand command) {
+        enforceRateLimit("verify-otp:userId:" + command.userId(), VERIFY_OTP_LIMIT_PER_MINUTE);
+        enforceRateLimit("verify-otp:ip:" + command.clientIp(), VERIFY_OTP_LIMIT_PER_MINUTE);
+
         User user = userRepository.findById(command.userId())
                 .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_FOUND));
 
@@ -56,11 +64,19 @@ public class VerifyOtpUseCaseImpl implements VerifyOtpUseCase {
 
         AuthNextStep nextStep = user.isOnboardingIncomplete() ? AuthNextStep.COMPLETE_PROFILE : AuthNextStep.NONE;
 
-        authEventPublisher.publishAuthSuccess(AuthSuccessEvent.of(user.getUserId(), user.getEmail().value(), null, null));
+        authEventPublisher.publishAuthSuccess(AuthSuccessEvent.of(user.getUserId(), user.getEmail().value(), command.clientIp(), null));
         authEventPublisher.publishOtpVerified(new OtpVerifiedDomainEvent(
                 user.getUserId(), user.getEmail().value(), OtpPurpose.REGISTER, now));
 
         log.info("OTP verified: userId={} nextStep={}", user.getUserId(), nextStep);
         return new LoginResult(user, access, refresh, nextStep);
+    }
+
+    private void enforceRateLimit(String key, int limit) {
+        ThrottlingService.ThrottleDecision decision = throttlingService.consume(key, limit, Duration.ofMinutes(1));
+        if (!decision.allowed()) {
+            throw new BusinessException(IamErrorCode.RATE_LIMITED,
+                    java.util.Map.of("retryAfterSeconds", decision.retryAfterSeconds()));
+        }
     }
 }

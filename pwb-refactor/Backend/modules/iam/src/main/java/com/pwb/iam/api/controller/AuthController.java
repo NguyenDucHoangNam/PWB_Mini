@@ -71,8 +71,11 @@ public class AuthController {
     }
 
     @PostMapping("/verify-otp")
-    public ResponseEntity<ApiResponse<AuthResponse>> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
-        AuthView view = iamFacade.verifyOtp(toCommand(request));
+    public ResponseEntity<ApiResponse<AuthResponse>> verifyOtp(
+            @Valid @RequestBody VerifyOtpRequest request,
+            @CurrentClientIp String clientIp
+    ) {
+        AuthView view = iamFacade.verifyOtp(new VerifyOtpCommand(request.userId(), request.code(), clientIp));
         return ResponseEntity.ok(ApiResponse.success(toAuthResponse(view)));
     }
 
@@ -87,13 +90,14 @@ public class AuthController {
     @PostMapping("/complete-profile")
     public ResponseEntity<ApiResponse<AuthResponse>> completeProfile(
             @CurrentUser UUID userId,
+            @CurrentClientIp String clientIp,
             @Valid @RequestBody CompleteProfileRequest request
     ) {
         if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("UNAUTHORIZED", messageResolver.get(MSG_UNAUTHORIZED)));
         }
-        CompleteProfileCommand command = new CompleteProfileCommand(userId, request.username(), request.fullName(), request.newPassword());
+        CompleteProfileCommand command = new CompleteProfileCommand(userId, request.username(), request.fullName(), request.newPassword(), clientIp);
         AuthView view = iamFacade.completeProfile(command);
         return ResponseEntity.ok(ApiResponse.success(toAuthResponse(view)));
     }
@@ -156,9 +160,10 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthMessageResponse>> forgotPassword(
             @Valid @RequestBody ForgotPasswordRequest request,
             @CurrentUserAgent String userAgent,
+            @CurrentClientIp String clientIp,
             @RequestHeader(value = "Accept-Language", defaultValue = "vi") String acceptLanguage
     ) {
-        ForgotPasswordCommand command = new ForgotPasswordCommand(request.email(), userAgent, normalizeLocale(acceptLanguage));
+        ForgotPasswordCommand command = new ForgotPasswordCommand(request.email(), userAgent, normalizeLocale(acceptLanguage), clientIp);
         ForgotPasswordUseCase.Result result = iamFacade.forgotPassword(command);
         UUID uid = result == null ? null : result.userId();
         AuthMessageResponse body = AuthMessageResponse.of(uid, messageResolver.get(MSG_FORGOT_PASSWORD));
@@ -180,13 +185,14 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthMessageResponse>> changePassword(
             @CurrentUser UUID userId,
             @CurrentUserAgent String userAgent,
+            @CurrentClientIp String clientIp,
             @Valid @RequestBody ChangePasswordRequest request
     ) {
         if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("UNAUTHORIZED", messageResolver.get(MSG_UNAUTHORIZED)));
         }
-        ChangePasswordCommand command = new ChangePasswordCommand(userId, request.currentPassword(), request.newPassword(), userAgent);
+        ChangePasswordCommand command = new ChangePasswordCommand(userId, request.currentPassword(), request.newPassword(), userAgent, clientIp);
         UUID resultUserId = iamFacade.changePassword(command);
         AuthMessageResponse body = AuthMessageResponse.of(resultUserId, messageResolver.get(MSG_CHANGE_PASSWORD));
         return ResponseEntity.ok(ApiResponse.success(body));
@@ -194,10 +200,6 @@ public class AuthController {
 
     private static RegisterCommand toCommand(RegisterRequest request) {
         return new RegisterCommand(request.email(), request.password(), request.fullName());
-    }
-
-    private static VerifyOtpCommand toCommand(VerifyOtpRequest request) {
-        return new VerifyOtpCommand(request.userId(), request.code());
     }
 
     private static String normalizeLocale(String acceptLanguage) {

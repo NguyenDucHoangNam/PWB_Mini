@@ -17,7 +17,9 @@ public enum AudioErrorCode implements ErrorCode {
     STORAGE_ERROR             (ErrorCategory.INTERNAL,          "AUDIO_010", "Failed to interact with storage service."),
     TTS_ERROR                 (ErrorCategory.INTERNAL,          "AUDIO_011", "Text-to-speech synthesis failed."),
     PROCESSING_FAILED         (ErrorCategory.INTERNAL,          "AUDIO_013", "Audio processing failed."),
-    UNAUTHORIZED_ACCESS       (ErrorCategory.FORBIDDEN,         "AUDIO_012", "You do not have permission to access this resource.");
+    UNAUTHORIZED_ACCESS       (ErrorCategory.FORBIDDEN,         "AUDIO_012", "You do not have permission to access this resource."),
+    INVALID_AUDIO_FILE        (ErrorCategory.VALIDATION,        "AUDIO_014", "Invalid or unsupported audio file."),
+    AUDIO_PROBE_FAILED        (ErrorCategory.INTERNAL,          "AUDIO_015", "Failed to probe audio file metadata.");
 
     AudioErrorCode(ErrorCategory category, String code, String defaultMessage) {
         this.category = category;

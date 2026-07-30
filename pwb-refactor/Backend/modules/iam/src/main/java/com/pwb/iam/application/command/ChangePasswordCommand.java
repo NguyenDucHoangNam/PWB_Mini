@@ -2,7 +2,7 @@ package com.pwb.iam.application.command;
 
 import java.util.UUID;
 
-public record ChangePasswordCommand(UUID userId, String currentPassword, String newPassword, String userAgent) {
+public record ChangePasswordCommand(UUID userId, String currentPassword, String newPassword, String userAgent, String clientIp) {
 
     public ChangePasswordCommand {
         if (userId == null) {
@@ -13,6 +13,9 @@ public record ChangePasswordCommand(UUID userId, String currentPassword, String 
         }
         if (newPassword == null || newPassword.isBlank()) {
             throw new IllegalArgumentException("newPassword must not be blank");
+        }
+        if (clientIp == null || clientIp.isBlank()) {
+            clientIp = "unknown";
         }
     }
 }

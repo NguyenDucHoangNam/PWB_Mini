@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.web.filter.CorrelationIdFilter;
 import com.pwb.web.filter.HttpRateLimitFilter;
 import com.pwb.web.filter.HttpRateLimitService;
+import com.pwb.web.message.MessageResolver;
 import com.pwb.web.security.CurrentClientIpArgumentResolver;
 import com.pwb.web.security.CurrentUserAgentArgumentResolver;
 import com.pwb.web.security.CurrentUserArgumentResolver;
@@ -60,10 +61,11 @@ public class WebMvcConfig implements WebMvcConfigurer {
     public FilterRegistrationBean<HttpRateLimitFilter> httpRateLimitFilter(
             HttpRateLimitService rateLimitService,
             RateLimitProperties rateLimitProperties,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            MessageResolver messageResolver
     ) {
         FilterRegistrationBean<HttpRateLimitFilter> registration = new FilterRegistrationBean<>(
-                new HttpRateLimitFilter(rateLimitService, rateLimitProperties, objectMapper));
+                new HttpRateLimitFilter(rateLimitService, rateLimitProperties, objectMapper, messageResolver));
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 20);
         registration.addUrlPatterns("/*");
         registration.setName("httpRateLimitFilter");

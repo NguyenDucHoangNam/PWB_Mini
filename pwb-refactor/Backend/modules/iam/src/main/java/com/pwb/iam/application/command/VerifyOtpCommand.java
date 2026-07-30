@@ -4,7 +4,8 @@ import java.util.UUID;
 
 public record VerifyOtpCommand(
         UUID userId,
-        String code
+        String code,
+        String clientIp
 ) {
 
     public VerifyOtpCommand {
@@ -14,5 +15,12 @@ public record VerifyOtpCommand(
         if (code == null || code.isBlank()) {
             throw new IllegalArgumentException("code must not be blank");
         }
+        if (clientIp == null || clientIp.isBlank()) {
+            clientIp = "unknown";
+        }
+    }
+
+    public VerifyOtpCommand(UUID userId, String code) {
+        this(userId, code, "unknown");
     }
 }

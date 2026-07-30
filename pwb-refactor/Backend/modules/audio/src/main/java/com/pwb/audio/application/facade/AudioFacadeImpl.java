@@ -27,6 +27,11 @@ public class AudioFacadeImpl implements AudioFacade {
     }
 
     @Override
+    public SongView uploadSongMultipart(UploadSongMultipartCommand command) {
+        return songUseCase.uploadSongMultipart(command);
+    }
+
+    @Override
     public SongView getSong(UUID userId, UUID songId) {
         return songUseCase.getSong(userId, songId);
     }

@@ -3,6 +3,7 @@ package com.pwb.iam.infrastructure.security;
 import com.pwb.iam.domain.service.TokenManagerService;
 import com.pwb.iam.infrastructure.service.impl.TokenManagerServiceAdapter;
 import com.pwb.web.security.AuthenticatedUser;
+import com.pwb.web.security.ClientIpResolver;
 import com.pwb.web.security.CurrentClientIpArgumentResolver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +28,6 @@ import java.util.stream.Collectors;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
-    private static final String X_FORWARDED_FOR = "X-Forwarded-For";
 
     private final TokenManagerServiceAdapter tokenManager;
     private final TokenManagerService blacklistService;
@@ -38,7 +38,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        String clientIp = resolveClientIp(request);
+        String clientIp = ClientIpResolver.resolve(request, trustedProxies);
         request.setAttribute(CurrentClientIpArgumentResolver.CLIENT_IP_ATTRIBUTE, clientIp);
 
         String header = request.getHeader("Authorization");
@@ -81,24 +81,5 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
         chain.doFilter(request, response);
-    }
-
-    private String resolveClientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader(X_FORWARDED_FOR);
-        if (isProxyTrusted(request)) {
-            if (forwarded != null && !forwarded.isBlank()) {
-                int comma = forwarded.indexOf(',');
-                return (comma > 0 ? forwarded.substring(0, comma) : forwarded).trim();
-            }
-        }
-        return request.getRemoteAddr();
-    }
-
-    private boolean isProxyTrusted(HttpServletRequest request) {
-        if (trustedProxies == null || trustedProxies.isEmpty()) {
-            return false;
-        }
-        String remoteAddr = request.getRemoteAddr();
-        return trustedProxies.contains(remoteAddr);
     }
 }
