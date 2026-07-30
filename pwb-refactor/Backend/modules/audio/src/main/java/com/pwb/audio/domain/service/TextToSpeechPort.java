@@ -1,7 +1,5 @@
 package com.pwb.audio.domain.service;
 
-import com.pwb.audio.domain.model.TtsRequest;
-import com.pwb.audio.domain.model.TtsResult;
 import com.pwb.audio.domain.model.TtsVoice;
 
 import java.util.List;

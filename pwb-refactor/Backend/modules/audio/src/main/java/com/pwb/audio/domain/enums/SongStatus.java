@@ -4,5 +4,6 @@ public enum SongStatus {
     UPLOADED,
     PROCESSING,
     PROCESSED,
-    FAILED
+    FAILED,
+    DELETED
 }

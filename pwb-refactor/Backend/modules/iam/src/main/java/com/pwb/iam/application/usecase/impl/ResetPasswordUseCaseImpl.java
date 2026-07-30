@@ -1,7 +1,7 @@
 package com.pwb.iam.application.usecase.impl;
 
 import com.pwb.iam.application.command.ResetPasswordCommand;
-import com.pwb.iam.application.usecase.EnforcePasswordPolicyUseCase;
+import com.pwb.iam.application.usecase.ValidatePasswordPolicyUseCase;
 import com.pwb.iam.application.usecase.ResetPasswordUseCase;
 import com.pwb.iam.domain.event.AuthEventPublisher;
 import com.pwb.iam.domain.exception.IamErrorCode;
@@ -36,7 +36,7 @@ public class ResetPasswordUseCaseImpl implements ResetPasswordUseCase {
     private final PasswordHistoryRepository passwordHistoryRepository;
     private final PasswordHistoryJpaRepository passwordHistoryJpaRepository;
     private final PasswordHasher passwordHasher;
-    private final EnforcePasswordPolicyUseCase enforcePasswordPolicyUseCase;
+    private final ValidatePasswordPolicyUseCase validatePasswordPolicyUseCase;
     private final TokenManagerService tokenManagerService;
     private final AuthEventPublisher authEventPublisher;
 
@@ -79,7 +79,7 @@ public class ResetPasswordUseCaseImpl implements ResetPasswordUseCase {
             }
         }
 
-        enforcePasswordPolicyUseCase.enforce(command.newPassword());
+        validatePasswordPolicyUseCase.validate(command.newPassword());
 
         user.changePassword(Password.fromHash(passwordHasher.hash(command.newPassword())));
         User saved = userRepository.save(user);

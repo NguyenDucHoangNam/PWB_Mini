@@ -1,8 +1,12 @@
 package com.pwb.iam.domain.model;
 
+import com.pwb.iam.domain.exception.IamErrorCode;
+import com.pwb.iam.domain.exception.OtpVerificationException;
+import com.pwb.iam.domain.service.OtpGenerator;
 import com.pwb.shared.domain.DomainBaseEntity;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 public final class OtpCode extends DomainBaseEntity {
@@ -122,6 +126,25 @@ public final class OtpCode extends DomainBaseEntity {
 
     public boolean isPending() {
         return status == OtpStatus.PENDING;
+    }
+
+    public void verify(String rawCode, OtpGenerator generator) {
+        if (isLocked()) {
+            throw new OtpVerificationException(IamErrorCode.AUTH_OTP_INVALID,
+                    Map.of("maxAttemptsReached", true));
+        }
+        if (isExpired(Instant.now())) {
+            throw new OtpVerificationException(IamErrorCode.AUTH_OTP_EXPIRED);
+        }
+        if (!generator.matches(rawCode, codeHash)) {
+            registerFailedAttempt();
+            if (isLocked()) {
+                throw new OtpVerificationException(IamErrorCode.AUTH_OTP_INVALID,
+                        Map.of("maxAttemptsReached", true));
+            }
+            throw new OtpVerificationException(IamErrorCode.AUTH_OTP_INVALID);
+        }
+        markVerified(Instant.now());
     }
 
     public enum OtpStatus {

@@ -1,6 +1,6 @@
 package com.pwb.iam.application.usecase.impl;
 
-import com.pwb.iam.application.usecase.EnforcePasswordPolicyUseCase;
+import com.pwb.iam.application.usecase.ValidatePasswordPolicyUseCase;
 import com.pwb.iam.domain.exception.IamErrorCode;
 import com.pwb.iam.domain.service.PasswordPolicyResult;
 import com.pwb.iam.domain.service.PasswordPolicyService;
@@ -14,12 +14,12 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class EnforcePasswordPolicyUseCaseImpl implements EnforcePasswordPolicyUseCase {
+public class ValidatePasswordPolicyUseCaseImpl implements ValidatePasswordPolicyUseCase {
 
     private final PasswordPolicyService passwordPolicyService;
 
     @Override
-    public void enforce(String rawPassword) {
+    public void validate(String rawPassword) {
         PasswordPolicyResult result = passwordPolicyService.validate(rawPassword);
         if (result.isInvalid()) {
             String reasons = result.violations().stream()

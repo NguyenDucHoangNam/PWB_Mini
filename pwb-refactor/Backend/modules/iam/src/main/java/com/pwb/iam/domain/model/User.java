@@ -206,6 +206,14 @@ public final class User extends DomainBaseEntity {
         touch();
     }
 
+    public void verifyOtp() {
+        if (this.status == UserStatus.BANNED || this.status == UserStatus.DELETED) {
+            throw new com.pwb.iam.domain.exception.UserStateConflictException(
+                    com.pwb.iam.domain.exception.IamErrorCode.ACCOUNT_INACTIVE);
+        }
+        markActiveFromRegistration();
+    }
+
     public boolean isOnboardingIncomplete() {
         return this.status == UserStatus.ACTIVE && this.provisionalUsername;
     }

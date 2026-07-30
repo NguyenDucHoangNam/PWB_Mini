@@ -1,7 +1,7 @@
 package com.pwb.iam.application.usecase.impl;
 
 import com.pwb.iam.application.command.RegisterCommand;
-import com.pwb.iam.application.usecase.EnforcePasswordPolicyUseCase;
+import com.pwb.iam.application.usecase.ValidatePasswordPolicyUseCase;
 import com.pwb.iam.application.usecase.RegisterUseCase;
 import com.pwb.iam.domain.event.AuthEventPublisher;
 import com.pwb.iam.domain.event.OtpIssuedDomainEvent;
@@ -43,7 +43,7 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
     private final RoleRepository roleRepository;
     private final OtpCodeRepository otpCodeRepository;
     private final PasswordHasher passwordHasher;
-    private final EnforcePasswordPolicyUseCase enforcePasswordPolicyUseCase;
+    private final ValidatePasswordPolicyUseCase validatePasswordPolicyUseCase;
     private final OtpGenerator otpGenerator;
     private final OtpDeliveryPort otpDeliveryPort;
     private final ThrottlingService throttlingService;
@@ -65,7 +65,7 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
             throw new BusinessException(IamErrorCode.EMAIL_ALREADY_REGISTERED);
         }
 
-        enforcePasswordPolicyUseCase.enforce(command.rawPassword());
+        validatePasswordPolicyUseCase.validate(command.rawPassword());
 
         RoleName roleName = roleRepository.findByName(RoleName.USER)
                 .map(Role::getName)

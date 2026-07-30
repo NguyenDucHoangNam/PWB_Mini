@@ -102,7 +102,7 @@ public class SongUseCaseImpl implements SongUseCase {
         Song song = songRepository.findByIdAndUserId(command.songId(), command.userId())
                 .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.SONG_NOT_FOUND));
 
-        song.markFailed("Deleted by user");
+        song.markDeleted();
         songRepository.save(song);
 
         log.info("Song deleted: songId={}", song.getId());
@@ -140,13 +140,13 @@ public class SongUseCaseImpl implements SongUseCase {
         Song song = songRepository.findByIdAndUserId(songId, userId)
                 .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.SONG_NOT_FOUND));
 
-        if (!song.canTriggerProcessing()) {
+        try {
+            song.triggerProcessing();
+        } catch (Song.ProcessingStateException ex) {
             throw new AudioBusinessException(AudioErrorCode.PROCESSING_ALREADY_STARTED);
         }
 
-        song.markProcessing();
         Song saved = songRepository.save(song);
-
         publishSongProcessingRequested(saved.getId(), userId);
 
         log.info("Processing triggered: songId={}", saved.getId());

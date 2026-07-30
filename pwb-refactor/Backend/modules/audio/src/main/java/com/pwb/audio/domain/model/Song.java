@@ -227,4 +227,26 @@ public final class Song extends DomainBaseEntity {
     public boolean canTriggerProcessing() {
         return this.status == SongStatus.UPLOADED || this.status == SongStatus.FAILED;
     }
+
+    public void triggerProcessing() {
+        if (!canTriggerProcessing()) {
+            throw new ProcessingStateException("Cannot trigger processing from current status: " + status);
+        }
+        this.processedS3Key = null;
+        this.status = SongStatus.PROCESSING;
+        this.lastError = null;
+        touch();
+    }
+
+    public void markDeleted() {
+        this.status = SongStatus.DELETED;
+        this.processedS3Key = null;
+        touch();
+    }
+
+    public static class ProcessingStateException extends RuntimeException {
+        public ProcessingStateException(String message) {
+            super(message);
+        }
+    }
 }

@@ -1,4 +1,4 @@
-package com.pwb.audio.domain.model;
+package com.pwb.audio.domain.service;
 
 public record TtsRequest(
         String text,
