@@ -110,18 +110,6 @@ export function ProfilePage() {
     }
   };
 
-  const getStatusLabel = (status: string | null | undefined) => {
-    if (!status) return "-";
-    const statusMap: Record<string, string> = {
-      ACTIVE: "Active",
-      PENDING_VERIFICATION: "Pending Verification",
-      BANNED: "Banned",
-      DELETED: "Deleted",
-      PENDING_DELETION: "Pending Deletion",
-    };
-    return statusMap[status] ?? status;
-  };
-
   const getRoleLabel = (role: string | null | undefined) => {
     if (!role) return "-";
     const roleMap: Record<string, string> = {
@@ -130,6 +118,26 @@ export function ProfilePage() {
       USER: "User",
     };
     return roleMap[role] ?? role;
+  };
+
+  const getRoleBorderColor = (role: string | null | undefined) => {
+    if (!role) return "border-neutral-300 dark:border-neutral-600";
+    const borderMap: Record<string, string> = {
+      ADMIN: "border-red-500",
+      PRO: "border-amber-500",
+      USER: "border-blue-500",
+    };
+    return borderMap[role] ?? "border-neutral-300 dark:border-neutral-600";
+  };
+
+  const getRoleBgColor = (role: string | null | undefined) => {
+    if (!role) return "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300";
+    const bgMap: Record<string, string> = {
+      ADMIN: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+      PRO: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+      USER: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+    };
+    return bgMap[role] ?? "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300";
   };
 
   return (
@@ -151,23 +159,28 @@ export function ProfilePage() {
 
           <div className="flex flex-col gap-6 sm:flex-row">
             <div className="flex flex-col items-center gap-4">
-              <div className="relative">
-                {profile.avatarUrl ? (
-                  <img
-                    src={profile.avatarUrl}
-                    alt="Avatar"
-                    className="h-24 w-24 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-24 w-24 items-center justify-center rounded-full bg-neutral-200 text-2xl font-bold text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">
-                    {profile.fullName?.charAt(0)?.toUpperCase() ?? "?"}
-                  </div>
-                )}
-                {uploadAvatarMutation.isPending && (
-                  <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50">
-                    <Spinner className="h-6 w-6 text-white" />
-                  </div>
-                )}
+              <div className="flex flex-col items-center gap-2">
+                <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${getRoleBgColor(profile.role)}`}>
+                  {getRoleLabel(profile.role)}
+                </span>
+                <div className={`relative rounded-full ring-2 ring-offset-2 ring-offset-white dark:ring-offset-neutral-950 ${getRoleBorderColor(profile.role)}`}>
+                  {profile.avatarUrl ? (
+                    <img
+                      src={profile.avatarUrl}
+                      alt="Avatar"
+                      className="h-24 w-24 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-neutral-200 text-2xl font-bold text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">
+                      {profile.fullName?.charAt(0)?.toUpperCase() ?? "?"}
+                    </div>
+                  )}
+                  {uploadAvatarMutation.isPending && (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50">
+                      <Spinner className="h-6 w-6 text-white" />
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="flex flex-col items-center gap-2">
@@ -199,28 +212,6 @@ export function ProfilePage() {
                   </label>
                   <Input
                     value={profile.email ?? "-"}
-                    disabled
-                    className="bg-neutral-50 dark:bg-neutral-900"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                    {t("role")}
-                  </label>
-                  <Input
-                    value={getRoleLabel(profile.role)}
-                    disabled
-                    className="bg-neutral-50 dark:bg-neutral-900"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                    Status
-                  </label>
-                  <Input
-                    value={getStatusLabel(profile.status)}
                     disabled
                     className="bg-neutral-50 dark:bg-neutral-900"
                   />
