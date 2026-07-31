@@ -41,7 +41,6 @@ import java.util.UUID;
 public class VoiceTagController {
 
     private static final String MSG_VOICE_TAG_UPDATED = "AUDIO_VOICE_TAG_UPDATED";
-    private static final String MSG_VOICE_TAG_DEFAULT = "AUDIO_VOICE_TAG_DEFAULT";
     private static final String MSG_TTS_VOICE_TAG_CREATED = "AUDIO_TTS_VOICE_TAG_CREATED";
 
     private final AudioFacade audioFacade;
@@ -64,19 +63,6 @@ public class VoiceTagController {
         VoiceTagResponse body = VoiceTagResponse.from(view);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(messageResolver.get(MSG_TTS_VOICE_TAG_CREATED), body));
-    }
-
-    @GetMapping("/{voiceTagId}")
-    public ResponseEntity<ApiResponse<VoiceTagResponse>> getVoiceTag(
-            @CurrentUser UUID userId,
-            @PathVariable UUID voiceTagId
-    ) {
-        if (userId == null) {
-            return unauthorized();
-        }
-        VoiceTagView view = audioFacade.getVoiceTag(userId, voiceTagId);
-        VoiceTagResponse body = VoiceTagResponse.from(view);
-        return ResponseEntity.ok(ApiResponse.success(body));
     }
 
     @GetMapping
@@ -126,19 +112,6 @@ public class VoiceTagController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/{voiceTagId}/mark-default")
-    public ResponseEntity<ApiResponse<VoiceTagResponse>> markDefault(
-            @CurrentUser UUID userId,
-            @PathVariable UUID voiceTagId
-    ) {
-        if (userId == null) {
-            return unauthorized();
-        }
-        VoiceTagView view = audioFacade.markVoiceTagDefault(userId, voiceTagId);
-        VoiceTagResponse body = VoiceTagResponse.from(view);
-        return ResponseEntity.ok(ApiResponse.success(messageResolver.get(MSG_VOICE_TAG_DEFAULT), body));
-    }
-
     @GetMapping("/{voiceTagId}/audio")
     public ResponseEntity<ApiResponse<AudioUrlResponse>> getAudioUrl(
             @CurrentUser UUID userId,
@@ -156,9 +129,7 @@ public class VoiceTagController {
         return new UpdateVoiceTagCommand(
                 userId,
                 voiceTagId,
-                request.name(),
-                request.sourceText(),
-                request.languageCode()
+                request.name()
         );
     }
 

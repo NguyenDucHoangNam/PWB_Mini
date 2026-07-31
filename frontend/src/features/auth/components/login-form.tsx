@@ -122,6 +122,12 @@ export function LoginForm() {
           }
         },
         onError: asApiError((err) => {
+          if (err.code === "IAM_005" || err.code === "ACCOUNT_LOCKED") {
+            const lockedMsg = t("accountLocked");
+            setError(lockedMsg);
+            toast.error(lockedMsg);
+            return;
+          }
           if (err.status === 429) {
             retryCountdown.startFromError(err.retryAfterSeconds);
             setError(

@@ -20,15 +20,9 @@ export const ttsFormSchema = z.object({
 export type TtsFormValues = z.infer<typeof ttsFormSchema>;
 
 export const LANGUAGE_CODE_VALUES = [
+  "vi-VN",
   "en-US",
   "en-GB",
-  "vi-VN",
-  "ja-JP",
-  "ko-KR",
-  "zh-CN",
-  "es-ES",
-  "fr-FR",
-  "de-DE",
 ] as const;
 
 export type LanguageCode = (typeof LANGUAGE_CODE_VALUES)[number];

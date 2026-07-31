@@ -155,16 +155,6 @@ public final class VoiceTag extends DomainBaseEntity {
         touch();
     }
 
-    public void markDefault() {
-        this.isDefault = true;
-        touch();
-    }
-
-    public void unmarkDefault() {
-        this.isDefault = false;
-        touch();
-    }
-
     public void markDeleted() {
         this.isDefault = false;
         touch();

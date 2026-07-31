@@ -25,7 +25,7 @@ public class UpdateProfileUseCaseImpl implements UpdateProfileUseCase {
         User user = userRepository.findById(command.userId())
                 .orElseThrow(() -> new BusinessException(IamErrorCode.USER_NOT_FOUND));
 
-        user.updateProfile(command.fullName(), null, null);
+        user.changeFullName(command.fullName());
         User saved = userRepository.save(user);
 
         log.info("Profile updated: userId={}", saved.getUserId());

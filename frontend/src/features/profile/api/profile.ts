@@ -57,15 +57,22 @@ type UseUpdateProfileOptions = {
 
 export const useUpdateProfile = ({ mutationConfig }: UseUpdateProfileOptions = {}) => {
   const queryClient = useQueryClient();
-  const setAvatarUrl = useAuthStore((state) => state.setAvatarUrl);
+  const setUser = useAuthStore((state) => state.setUser);
   return useMutation({
     ...mutationConfig,
     mutationFn: updateProfile,
     onSuccess: (response, variables, onMutateResult, context) => {
       queryClient.invalidateQueries({ queryKey: [PROFILE_KEY] });
-      const newAvatarUrl = response?.data?.avatarUrl;
-      if (newAvatarUrl) {
-        setAvatarUrl(newAvatarUrl);
+      const updatedData = response?.data;
+      if (updatedData) {
+        const currentUser = useAuthStore.getState().user;
+        if (currentUser) {
+          setUser({
+            ...currentUser,
+            fullName: updatedData.fullName ?? currentUser.fullName,
+            avatarUrl: updatedData.avatarUrl ?? currentUser.avatarUrl,
+          });
+        }
       }
       mutationConfig?.onSuccess?.(response, variables, onMutateResult, context);
     },

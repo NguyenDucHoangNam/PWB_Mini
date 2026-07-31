@@ -10,18 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { VoiceTagCard } from "@/features/voice/components/voice-tag-card";
 import { useListVoiceTags } from "@/features/voice/api/voice-tags";
-import type { VoiceTagType } from "@/features/voice/types";
 
-type TypeFilter = "ALL" | VoiceTagType;
-
-const ALLOWED_TYPES: ReadonlySet<VoiceTagType> = new Set(["TTS", "UPLOADED"]);
-
-function parseTypeFilter(value: string | null): TypeFilter {
-  if (value && ALLOWED_TYPES.has(value as VoiceTagType)) {
-    return value as TypeFilter;
-  }
-  return "ALL";
-}
 
 function parsePage(value: string | null): number {
   const parsed = Number(value ?? "0");
@@ -37,10 +26,6 @@ export function DashboardVoiceTagsTab() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const filter = useMemo(
-    () => parseTypeFilter(searchParams.get("type")),
-    [searchParams],
-  );
   const page = useMemo(() => parsePage(searchParams.get("page")), [searchParams]);
 
   const updateQuery = (next: Record<string, string | null>) => {
@@ -56,21 +41,10 @@ export function DashboardVoiceTagsTab() {
   const { data, isLoading, isFetching, isError, refetch } = useListVoiceTags({
     page,
     size: DEFAULT_PAGE_SIZE,
-    type: filter === "ALL" ? undefined : filter,
   });
 
   const items = data?.success && data.data ? data.data.content : [];
   const totalPages = data?.success && data.data ? data.data.totalPages : 0;
-
-  const filters: { value: TypeFilter; label: string }[] = [
-    { value: "ALL", label: tList("all") },
-    { value: "TTS", label: t("type.TTS") },
-    { value: "UPLOADED", label: t("type.UPLOADED") },
-  ];
-
-  const setFilter = (value: TypeFilter) => {
-    updateQuery({ type: value === "ALL" ? null : value, page: null });
-  };
 
   const setPage = (newPage: number) => {
     updateQuery({ page: newPage === 0 ? null : String(newPage) });
@@ -78,24 +52,6 @@ export function DashboardVoiceTagsTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-2">
-        {filters.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => setFilter(opt.value)}
-            aria-pressed={filter === opt.value}
-            className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-              filter === opt.value
-                ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-                : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-black dark:text-neutral-300 dark:hover:bg-neutral-900"
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-
       <div className="rounded-xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-black">
         {isLoading || isFetching ? (
           <div className="flex items-center justify-center gap-3 p-12 text-sm text-neutral-500">

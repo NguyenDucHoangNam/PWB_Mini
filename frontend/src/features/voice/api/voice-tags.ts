@@ -33,13 +33,6 @@ export const listVoiceTags = ({
     .get("/voice-tags", { params: { page, size, type } })
     .then((res) => res.data);
 
-export const getVoiceTag = ({
-  voiceTagId,
-}: {
-  voiceTagId: string;
-}): Promise<ApiResponse<VoiceTag>> =>
-  apiClient.get(`/voice-tags/${voiceTagId}`).then((res) => res.data);
-
 export const updateVoiceTag = ({
   voiceTagId,
   data,
@@ -101,24 +94,6 @@ export const useListVoiceTags = ({
   useQuery({
     queryKey: [VOICE_TAGS_KEY, { page, size, type }],
     queryFn: () => listVoiceTags({ page, size, type }),
-    ...queryConfig,
-  });
-
-type UseVoiceTagOptions = {
-  queryConfig?: QueryConfig<typeof getVoiceTag>;
-};
-
-export const useVoiceTag = ({
-  voiceTagId,
-  queryConfig,
-}: {
-  voiceTagId: string;
-  queryConfig?: QueryConfig<typeof getVoiceTag>;
-}) =>
-  useQuery({
-    queryKey: voiceTagKey(voiceTagId),
-    queryFn: () => getVoiceTag({ voiceTagId }),
-    enabled: Boolean(voiceTagId),
     ...queryConfig,
   });
 

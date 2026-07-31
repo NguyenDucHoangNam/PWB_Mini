@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Service
 @ConditionalOnClass(name = "com.github.kokorin.jaffree.ffmpeg.FFmpeg")
-@ConditionalOnProperty(name = "pwb.audio.processor.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "pwb.audio.processor.mode", havingValue = "local", matchIfMissing = true)
 public class JaffreeAudioProcessorAdapter implements AudioProcessorPort {
 
     private static final String VOICE_LABEL = "[tag]";

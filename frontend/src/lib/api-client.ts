@@ -63,6 +63,7 @@ export class ApiError<T = unknown> extends Error {
     timestamp?: string;
     traceId?: string | null;
     message?: string;
+    code?: string;
     retryAfterSeconds?: number;
   }) {
     super(params.message ?? params.errors?.[0]?.message ?? "API Error");
@@ -74,7 +75,7 @@ export class ApiError<T = unknown> extends Error {
     if (params.errors) this.errors = params.errors;
     if (params.timestamp) this.timestamp = params.timestamp;
     if (params.traceId) this.traceId = params.traceId;
-    this.code = params.errors?.[0]?.code;
+    this.code = params.code ?? params.errors?.[0]?.code;
     if (typeof params.retryAfterSeconds === "number" && params.retryAfterSeconds > 0) {
       this.retryAfterSeconds = params.retryAfterSeconds;
     }

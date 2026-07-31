@@ -90,7 +90,7 @@
       "successToast": "Logged in successfully",
       "errorToast": "Login failed",
       "incorrectCredentials": "Incorrect email or password.",
-      "accountLocked": "Account locked due to too many attempts. Please try again later or reset your password.",
+      "accountLocked": "Your account has been temporarily locked due to too many failed login attempts. Please try again later or reset your password.",
       "accountBanned": "Your account has been disabled. Please contact support.",
       "resetPasswordLink": "Reset password now",
       "or": "OR",
@@ -662,15 +662,9 @@
       "retry": "Retry",
       "emptyHint": "Create a Voice Tag with AI (TTS) to add audio branding to your songs.",
       "languageCodes": {
-        "en-US": "English (US)",
-        "en-GB": "English (UK)",
         "vi-VN": "Vietnamese",
-        "ja-JP": "Japanese",
-        "ko-KR": "Korean",
-        "zh-CN": "Chinese (Simplified)",
-        "es-ES": "Spanish",
-        "fr-FR": "French",
-        "de-DE": "German"
+        "en-US": "English (US)",
+        "en-GB": "English (UK)"
       }
     },
     "songs": {

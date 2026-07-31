@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useId } from "react";
 import { useTranslations } from "next-intl";
-import { Camera, Loader2, Lock, Mail, ShieldCheck, User as UserIcon } from "lucide-react";
+import { Camera, Loader2, Lock, Mail, ShieldCheck, User as UserIcon, Crown } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -265,6 +265,7 @@ export function ProfilePage() {
         fullName={profile.fullName ?? null}
         avatarUrl={profile.avatarUrl ?? null}
         roleLabel={getRoleLabel(profile.role)}
+        role={profile.role}
         avatarTitle={t("avatarTitle")}
         isUploading={uploadAvatarMutation.isPending}
         fileInputRef={fileInputRef}
@@ -361,6 +362,7 @@ interface ProfileHeroProps {
   fullName: string | null;
   avatarUrl: string | null;
   roleLabel: string;
+  role?: string | null;
   avatarTitle: string;
   onGoSecurity: () => void;
   onAvatarChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -376,6 +378,7 @@ function ProfileHero({
   fullName,
   avatarUrl,
   roleLabel,
+  role,
   avatarTitle,
   onGoSecurity,
   onAvatarChange,
@@ -389,17 +392,32 @@ function ProfileHero({
   const fallbackInitial =
     fullName?.trim().charAt(0).toUpperCase() ?? email?.charAt(0).toUpperCase() ?? "?";
   const resolvedFullName = fullName?.trim() || email || "—";
+  const isPro = role === "PRO" || roleLabel === "PRO";
 
   return (
     <section className="relative overflow-hidden rounded-2xl border border-neutral-200 bg-gradient-to-br from-white via-white to-neutral-50 p-6 shadow-sm ring-1 ring-black/5 sm:p-8 dark:border-neutral-800 dark:from-neutral-950 dark:via-neutral-950 dark:to-neutral-900 dark:ring-white/5">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-neutral-300 to-transparent dark:via-neutral-700" />
       <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">
         <div className="relative shrink-0">
-          <div className="flex size-24 items-center justify-center overflow-hidden rounded-full bg-neutral-100 text-2xl font-bold text-neutral-600 ring-2 ring-neutral-200 dark:bg-neutral-800 dark:text-neutral-200 dark:ring-neutral-700 sm:size-28">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt={resolvedFullName} className="h-full w-full object-cover" />
-            ) : (
-              fallbackInitial
+          <div
+            className={cn(
+              "relative flex size-24 items-center justify-center rounded-full p-1 transition-all duration-200 sm:size-28",
+              isPro
+                ? "bg-gradient-to-tr from-amber-500 via-amber-300 to-yellow-400 shadow-xl shadow-amber-500/25"
+                : "bg-neutral-100 ring-2 ring-neutral-200 dark:bg-neutral-800 dark:ring-neutral-700",
+            )}
+          >
+            <div className="flex size-full items-center justify-center overflow-hidden rounded-full bg-white text-2xl font-bold text-neutral-600 dark:bg-neutral-900 dark:text-neutral-200">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={resolvedFullName} className="h-full w-full object-cover" />
+              ) : (
+                fallbackInitial
+              )}
+            </div>
+            {isPro && (
+              <span className="absolute top-0 right-0 z-10 flex size-7 items-center justify-center rounded-full bg-gradient-to-tr from-amber-400 to-yellow-500 text-black shadow-md ring-2 ring-white dark:ring-neutral-950 sm:size-8">
+                <Crown className="size-4 fill-black stroke-black" />
+              </span>
             )}
           </div>
           {isUploading && (
@@ -429,9 +447,16 @@ function ProfileHero({
         </div>
 
         <div className="min-w-0 flex-1">
-          <span className="inline-flex items-center rounded-full bg-neutral-900 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-50 dark:bg-neutral-50 dark:text-neutral-900">
-            {roleLabel}
-          </span>
+          {isPro ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-500 to-yellow-500 px-3 py-1 text-xs font-bold uppercase tracking-wider text-black shadow-sm shadow-amber-500/20">
+              <Crown className="size-3.5 fill-black stroke-black" />
+              {roleLabel}
+            </span>
+          ) : (
+            <span className="inline-flex items-center rounded-full bg-neutral-900 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-50 dark:bg-neutral-50 dark:text-neutral-900">
+              {roleLabel}
+            </span>
+          )}
           <h1 className="mt-3 truncate text-2xl font-bold tracking-tight text-neutral-900 sm:text-3xl dark:text-neutral-50">
             {resolvedFullName}
           </h1>
@@ -548,50 +573,41 @@ function PersonalTab({
   labels,
 }: PersonalTabProps) {
   return (
-    <div role="tabpanel" className="grid gap-6 p-6 sm:p-8 md:grid-cols-3">
-      <div className="md:col-span-1">
-        <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-50">
-          {labels.fullName}
-        </h2>
-        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">{labels.placeholder}</p>
-      </div>
+    <div role="tabpanel" className="space-y-5 p-6 sm:p-8">
+      <FieldGroup label={labels.email}>
+        <Input value={email ?? "-"} disabled className="bg-neutral-50 dark:bg-neutral-900" />
+      </FieldGroup>
 
-      <div className="space-y-5 md:col-span-2">
-        <FieldGroup label={labels.email}>
-          <Input value={email ?? "-"} disabled className="bg-neutral-50 dark:bg-neutral-900" />
-        </FieldGroup>
-
-        <FieldGroup label={labels.fullName}>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-            <Input
-              value={fullName}
-              onChange={(e) => onChangeFullName(e.target.value)}
-              onFocus={onFocusFullName}
-              placeholder={labels.placeholder}
-              maxLength={128}
-              className="flex-1"
-              aria-label={labels.fullName}
-            />
-            {isEditing && (
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={onCancel} disabled={isSaving} type="button">
-                  {labels.cancel}
-                </Button>
-                <Button onClick={onSave} disabled={isSaving} type="button">
-                  {isSaving ? (
-                    <span className="flex items-center gap-2">
-                      <Loader2 className="size-4 animate-spin" />
-                      {labels.saving}
-                    </span>
-                  ) : (
-                    labels.save
-                  )}
-                </Button>
-              </div>
-            )}
-          </div>
-        </FieldGroup>
-      </div>
+      <FieldGroup label={labels.fullName}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+          <Input
+            value={fullName}
+            onChange={(e) => onChangeFullName(e.target.value)}
+            onFocus={onFocusFullName}
+            placeholder={labels.placeholder}
+            maxLength={128}
+            className="flex-1"
+            aria-label={labels.fullName}
+          />
+          {isEditing && (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onCancel} disabled={isSaving} type="button">
+                {labels.cancel}
+              </Button>
+              <Button onClick={onSave} disabled={isSaving} type="button">
+                {isSaving ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="size-4 animate-spin" />
+                    {labels.saving}
+                  </span>
+                ) : (
+                  labels.save
+                )}
+              </Button>
+            </div>
+          )}
+        </div>
+      </FieldGroup>
     </div>
   );
 }

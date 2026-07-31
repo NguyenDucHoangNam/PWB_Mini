@@ -12,13 +12,9 @@ public interface VoiceTagUseCase {
 
     VoiceTagView createVoiceTagTts(UUID userId, String name, String text, String languageCode);
 
-    VoiceTagView getVoiceTag(UUID userId, UUID voiceTagId);
-
     VoiceTagView updateVoiceTag(UpdateVoiceTagCommand command);
 
     void deleteVoiceTag(DeleteVoiceTagCommand command);
-
-    VoiceTagView markDefault(UUID userId, UUID voiceTagId);
 
     Page<VoiceTagView> listVoiceTags(UUID userId, Pageable pageable);
 

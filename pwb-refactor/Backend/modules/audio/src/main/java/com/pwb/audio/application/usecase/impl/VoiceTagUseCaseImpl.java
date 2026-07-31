@@ -58,14 +58,6 @@ public class VoiceTagUseCaseImpl implements VoiceTagUseCase {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public VoiceTagView getVoiceTag(UUID userId, UUID voiceTagId) {
-        VoiceTag voiceTag = voiceTagRepository.findByIdAndUserId(voiceTagId, userId)
-                .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.VOICE_TAG_NOT_FOUND));
-        return toVoiceTagView(voiceTag);
-    }
-
-    @Override
     @Transactional
     public VoiceTagView updateVoiceTag(UpdateVoiceTagCommand command) {
         VoiceTag voiceTag = voiceTagRepository.findByIdAndUserId(command.voiceTagId(), command.userId())
@@ -78,10 +70,6 @@ public class VoiceTagUseCaseImpl implements VoiceTagUseCase {
         }
 
         voiceTag.updateMetadata(command.name());
-
-        if (voiceTag.isTts()) {
-            voiceTag.updateTtsParams(command.sourceText(), command.languageCode());
-        }
 
         VoiceTag saved = voiceTagRepository.save(voiceTag);
         log.info("Voice tag updated: voiceTagId={}", saved.getId());
@@ -103,19 +91,6 @@ public class VoiceTagUseCaseImpl implements VoiceTagUseCase {
         voiceTagRepository.save(voiceTag);
 
         log.info("Voice tag deleted: voiceTagId={}", voiceTag.getId());
-    }
-
-    @Override
-    @Transactional
-    public VoiceTagView markDefault(UUID userId, UUID voiceTagId) {
-        VoiceTag voiceTag = voiceTagRepository.findByIdAndUserId(voiceTagId, userId)
-                .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.VOICE_TAG_NOT_FOUND));
-
-        voiceTag.markDefault();
-        VoiceTag saved = voiceTagRepository.save(voiceTag);
-
-        log.info("Voice tag marked as default: voiceTagId={}", saved.getId());
-        return toVoiceTagView(saved);
     }
 
     @Override

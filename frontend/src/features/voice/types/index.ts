@@ -73,9 +73,7 @@ export interface CreateTtsVoiceTagRequest {
 }
 
 export interface UpdateVoiceTagRequest {
-  name?: string;
-  text?: string;
-  languageCode?: string;
+  name: string;
 }
 
 export interface UploadSongRequest {

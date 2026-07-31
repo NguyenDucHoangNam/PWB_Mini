@@ -90,7 +90,7 @@
       "successToast": "Đăng nhập thành công",
       "errorToast": "Đăng nhập thất bại",
       "incorrectCredentials": "Mật khẩu hoặc tài khoản không chính xác.",
-      "accountLocked": "Tài khoản đã bị khóa do nhập sai quá nhiều. Vui lòng thử lại sau hoặc đặt lại mật khẩu.",
+      "accountLocked": "Tài khoản của bạn đã bị tạm khóa do nhập sai mật khẩu quá nhiều lần. Vui lòng thử lại sau hoặc đặt lại mật khẩu.",
       "accountBanned": "Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ hỗ trợ.",
       "resetPasswordLink": "Đặt lại mật khẩu ngay",
       "or": "HOẶC",
@@ -662,15 +662,9 @@
       "retry": "Thử lại",
       "emptyHint": "Tạo Voice Tag bằng AI (TTS) để chèn chữ ký âm thanh vào bài hát của bạn.",
       "languageCodes": {
-        "en-US": "Tiếng Anh (Mỹ)",
-        "en-GB": "Tiếng Anh (Anh)",
         "vi-VN": "Tiếng Việt",
-        "ja-JP": "Tiếng Nhật",
-        "ko-KR": "Tiếng Hàn",
-        "zh-CN": "Tiếng Trung (Giản thể)",
-        "es-ES": "Tiếng Tây Ban Nha",
-        "fr-FR": "Tiếng Pháp",
-        "de-DE": "Tiếng Đức"
+        "en-US": "Tiếng Anh (Mỹ)",
+        "en-GB": "Tiếng Anh (Anh)"
       }
     },
     "songs": {

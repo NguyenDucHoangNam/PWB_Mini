@@ -67,6 +67,10 @@ app:
 
 pwb:
   audio:
+    processor:
+      mode: ${PWB_AUDIO_PROCESSOR_MODE:docker}
+      docker-container-name: ${PWB_AUDIO_PROCESSOR_DOCKER_CONTAINER:pwb-ffmpeg}
+      working-dir: ${PWB_AUDIO_PROCESSOR_WORKING_DIR:./tmp/pwb-audio}
     tts:
       google:
         credentials-path: ${GCP_TTS_CREDENTIALS_PATH:classpath:tts/producerworkbench-1059f8c52ba4.json}

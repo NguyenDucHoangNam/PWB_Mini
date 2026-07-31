@@ -12,9 +12,9 @@ import java.util.Locale;
 public class MessageSourceConfig {
 
     private static final String SHARED_WEB_BUNDLE = "classpath:messages/messages";
-    private static final String IAM_BUNDLE = "classpath:modules/iam/messages/messages";
-    private static final String AUDIO_BUNDLE = "classpath:modules/audio/messages/messages";
-    private static final String SHARED_INFRA_BUNDLE = "classpath:shared-infrastructure/messages/messages";
+    private static final String IAM_BUNDLE = "classpath:iam/messages";
+    private static final String AUDIO_BUNDLE = "classpath:audio/messages";
+    private static final String SHARED_INFRA_BUNDLE = "classpath:infra/messages";
 
     @Bean
     public MessageSource messageSource() {

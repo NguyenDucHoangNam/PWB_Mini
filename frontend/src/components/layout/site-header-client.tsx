@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { MobileDrawer } from "./mobile-drawer";
 import { UserDropdown, LogOut } from "./user-dropdown";
 import { LocaleSwitcher } from "./locale-switcher";
-import { User as UserIcon, ShieldCheck } from "lucide-react";
+import { User as UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useProGuard } from "@/features/auth/hooks/use-pro-guard";
@@ -108,11 +108,6 @@ export function SiteHeaderClient() {
       icon: <UserIcon aria-hidden="true" />,
     },
     {
-      label: t("changePassword"),
-      href: "/dashboard/profile#security",
-      icon: <ShieldCheck aria-hidden="true" />,
-    },
-    {
       label: t("logout"),
       onSelect: handleLogout,
       icon: <LogOut aria-hidden="true" />,
@@ -152,6 +147,7 @@ export function SiteHeaderClient() {
               (isLoggedIn ? (
                 <UserDropdown
                   user={user}
+                  isPro={isPro}
                   labels={{
                     logout: t("logout"),
                     account: t("account"),

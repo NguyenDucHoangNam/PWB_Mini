@@ -1,10 +1,12 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { standardSchemaResolver as zodResolver } from "@hookform/resolvers/standard-schema";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { ChevronDown, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +14,7 @@ import { asApiError } from "@/lib/api-client";
 import { useCreateTtsVoiceTag } from "../api/voice-tags";
 import { resolveVoiceErrorMessage } from "../lib/resolve-voice-error-message";
 import { ttsFormSchema, LANGUAGE_CODE_VALUES, type TtsFormValues } from "../schemas/voice-tag-schema";
+import { LanguageFlagIcon } from "./language-flag";
 
 interface TtsFormProps {
   onCancel?: () => void;
@@ -27,18 +30,35 @@ export function TtsForm({ onCancel, onSuccess }: TtsFormProps) {
   const tValidation = useTranslations("validation");
   const router = useRouter();
 
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<TtsFormValues>({
     resolver: zodResolver(ttsFormSchema),
     defaultValues: {
       name: "",
       text: "",
-      languageCode: "en-US",
+      languageCode: "vi-VN",
     },
   });
+
+  const selectedLang = watch("languageCode");
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setLangDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const { mutate: createTts, isPending } = useCreateTtsVoiceTag({
     mutationConfig: {
@@ -108,19 +128,56 @@ export function TtsForm({ onCancel, onSuccess }: TtsFormProps) {
         )}
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 relative" ref={dropdownRef}>
         <Label htmlFor="tts-language">{t("languageLabel")}</Label>
-        <select
+        <button
           id="tts-language"
-          {...register("languageCode")}
-          className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+          type="button"
+          onClick={() => setLangDropdownOpen((prev) => !prev)}
+          className="h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm flex items-center justify-between outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-neutral-950"
         >
-          {LANGUAGE_CODE_VALUES.map((lang) => (
-            <option key={lang} value={lang}>
-              {tLanguageCodes(lang)}
-            </option>
-          ))}
-        </select>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <LanguageFlagIcon langCode={selectedLang} className="h-3.5 w-[20px] rounded-[1px] shrink-0" />
+            <span className="truncate text-neutral-900 dark:text-neutral-100 font-medium">
+              {tLanguageCodes(selectedLang)}
+            </span>
+          </div>
+          <ChevronDown
+            className={`size-4 text-neutral-500 transition-transform duration-200 shrink-0 ${
+              langDropdownOpen ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+
+        {langDropdownOpen && (
+          <div className="absolute top-[calc(100%+4px)] left-0 z-50 w-full rounded-lg border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-800 dark:bg-neutral-950 animate-in fade-in-0 zoom-in-95">
+            {LANGUAGE_CODE_VALUES.map((lang) => {
+              const isSelected = selectedLang === lang;
+              return (
+                <button
+                  key={lang}
+                  type="button"
+                  onClick={() => {
+                    setValue("languageCode", lang, { shouldValidate: true });
+                    setLangDropdownOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between rounded-md px-2.5 py-2 text-sm transition-colors ${
+                    isSelected
+                      ? "bg-neutral-100 font-semibold text-neutral-900 dark:bg-neutral-900 dark:text-neutral-50"
+                      : "text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-900/60"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <LanguageFlagIcon langCode={lang} className="h-3.5 w-[20px] rounded-[1px] shrink-0" />
+                    <span className="truncate">{tLanguageCodes(lang)}</span>
+                  </div>
+                  {isSelected && <Check className="size-4 text-neutral-900 dark:text-neutral-100 shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {errors.languageCode && (
           <p className="text-xs text-red-600 dark:text-red-400">{renderError("languagecode")}</p>
         )}

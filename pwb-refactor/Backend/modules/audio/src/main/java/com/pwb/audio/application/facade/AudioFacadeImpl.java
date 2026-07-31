@@ -82,11 +82,6 @@ public class AudioFacadeImpl implements AudioFacade {
     }
 
     @Override
-    public VoiceTagView getVoiceTag(UUID userId, UUID voiceTagId) {
-        return voiceTagUseCase.getVoiceTag(userId, voiceTagId);
-    }
-
-    @Override
     public VoiceTagView updateVoiceTag(UpdateVoiceTagCommand command) {
         return voiceTagUseCase.updateVoiceTag(command);
     }
@@ -94,11 +89,6 @@ public class AudioFacadeImpl implements AudioFacade {
     @Override
     public void deleteVoiceTag(DeleteVoiceTagCommand command) {
         voiceTagUseCase.deleteVoiceTag(command);
-    }
-
-    @Override
-    public VoiceTagView markVoiceTagDefault(UUID userId, UUID voiceTagId) {
-        return voiceTagUseCase.markDefault(userId, voiceTagId);
     }
 
     @Override

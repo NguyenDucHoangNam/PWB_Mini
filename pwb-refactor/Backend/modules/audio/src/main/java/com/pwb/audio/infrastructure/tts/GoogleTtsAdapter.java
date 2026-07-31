@@ -59,12 +59,22 @@ public class GoogleTtsAdapter implements TextToSpeechPort {
                     .setText(request.text())
                     .build();
 
-            VoiceSelectionParams voiceParams = VoiceSelectionParams.newBuilder()
-                    .setLanguageCode(Optional.ofNullable(request.languageCode())
-                            .orElse(properties.getDefaultLanguageCode()))
-                    .setName(Optional.ofNullable(request.voiceName())
-                            .orElse(properties.getDefaultVoiceName()))
-                    .build();
+            String targetLang = Optional.ofNullable(request.languageCode())
+                    .filter(l -> !l.isBlank())
+                    .orElse(properties.getDefaultLanguageCode());
+
+            VoiceSelectionParams.Builder voiceParamsBuilder = VoiceSelectionParams.newBuilder()
+                    .setLanguageCode(targetLang);
+
+            if (request.voiceName() != null && !request.voiceName().isBlank()) {
+                voiceParamsBuilder.setName(request.voiceName());
+            } else if (targetLang.equalsIgnoreCase(properties.getDefaultLanguageCode())
+                    && properties.getDefaultVoiceName() != null
+                    && !properties.getDefaultVoiceName().isBlank()) {
+                voiceParamsBuilder.setName(properties.getDefaultVoiceName());
+            }
+
+            VoiceSelectionParams voiceParams = voiceParamsBuilder.build();
 
             AudioConfig audioConfig = AudioConfig.newBuilder()
                     .setAudioEncoding(parseEncoding(properties.getAudioEncoding()))

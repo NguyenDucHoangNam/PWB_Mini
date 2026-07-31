@@ -228,8 +228,12 @@ public final class User extends DomainBaseEntity {
         if (fullName != null) {
             this.fullName = normalizeFullName(fullName);
         }
-        this.phone = phone;
-        this.avatarUrl = avatarUrl;
+        if (phone != null) {
+            this.phone = phone;
+        }
+        if (avatarUrl != null) {
+            this.avatarUrl = avatarUrl;
+        }
         touch();
     }
 
