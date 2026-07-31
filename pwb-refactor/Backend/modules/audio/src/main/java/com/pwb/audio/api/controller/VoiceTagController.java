@@ -1,11 +1,11 @@
 package com.pwb.audio.api.controller;
 
-import com.pwb.audio.api.dto.request.CreateVoiceTagRequest;
+import com.pwb.audio.api.dto.request.CreateVoiceTagTtsRequest;
 import com.pwb.audio.api.dto.request.PresignedUrlRequest;
 import com.pwb.audio.api.dto.request.UpdateVoiceTagRequest;
+import com.pwb.audio.api.dto.response.AudioUrlResponse;
 import com.pwb.audio.api.dto.response.PresignedUrlResponse;
 import com.pwb.audio.api.dto.response.VoiceTagResponse;
-import com.pwb.audio.application.command.CreateVoiceTagCommand;
 import com.pwb.audio.application.command.DeleteVoiceTagCommand;
 import com.pwb.audio.application.command.UpdateVoiceTagCommand;
 import com.pwb.audio.application.facade.AudioFacade;
@@ -36,30 +36,34 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/audio/voice-tags")
+@RequestMapping("/api/v1/voice-tags")
 @RequiredArgsConstructor
 public class VoiceTagController {
 
-    private static final String MSG_VOICE_TAG_CREATED = "AUDIO_VOICE_TAG_CREATED";
     private static final String MSG_VOICE_TAG_UPDATED = "AUDIO_VOICE_TAG_UPDATED";
     private static final String MSG_VOICE_TAG_DEFAULT = "AUDIO_VOICE_TAG_DEFAULT";
+    private static final String MSG_TTS_VOICE_TAG_CREATED = "AUDIO_TTS_VOICE_TAG_CREATED";
 
     private final AudioFacade audioFacade;
     private final MessageResolver messageResolver;
 
-    @PostMapping
-    public ResponseEntity<ApiResponse<VoiceTagResponse>> createVoiceTag(
+    @PostMapping("/tts")
+    public ResponseEntity<ApiResponse<VoiceTagResponse>> createVoiceTagTts(
             @CurrentUser UUID userId,
-            @Valid @RequestBody CreateVoiceTagRequest request
+            @Valid @RequestBody CreateVoiceTagTtsRequest request
     ) {
         if (userId == null) {
             return unauthorized();
         }
-        CreateVoiceTagCommand command = toCreateCommand(userId, request);
-        VoiceTagView view = audioFacade.createVoiceTag(command);
+        VoiceTagView view = audioFacade.createVoiceTagTts(
+                userId,
+                request.name(),
+                request.text(),
+                request.languageCode()
+        );
         VoiceTagResponse body = VoiceTagResponse.from(view);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(messageResolver.get(MSG_VOICE_TAG_CREATED), body));
+                .body(ApiResponse.success(messageResolver.get(MSG_TTS_VOICE_TAG_CREATED), body));
     }
 
     @GetMapping("/{voiceTagId}")
@@ -135,17 +139,17 @@ public class VoiceTagController {
         return ResponseEntity.ok(ApiResponse.success(messageResolver.get(MSG_VOICE_TAG_DEFAULT), body));
     }
 
-    private static CreateVoiceTagCommand toCreateCommand(UUID userId, CreateVoiceTagRequest request) {
-        return new CreateVoiceTagCommand(
-                userId,
-                request.name(),
-                request.tagType(),
-                request.sourceText(),
-                request.languageCode(),
-                request.s3Key(),
-                request.durationSeconds(),
-                request.fileSizeBytes()
-        );
+    @GetMapping("/{voiceTagId}/audio")
+    public ResponseEntity<ApiResponse<AudioUrlResponse>> getAudioUrl(
+            @CurrentUser UUID userId,
+            @PathVariable UUID voiceTagId
+    ) {
+        if (userId == null) {
+            return unauthorized();
+        }
+        PresignedUrlView view = audioFacade.getVoiceTagAudioUrl(userId, voiceTagId, 3600);
+        AudioUrlResponse body = AudioUrlResponse.from(view);
+        return ResponseEntity.ok(ApiResponse.success(body));
     }
 
     private static UpdateVoiceTagCommand toUpdateCommand(UUID userId, UUID voiceTagId, UpdateVoiceTagRequest request) {

@@ -100,6 +100,7 @@ export function SiteHeaderClient() {
 
   const loggedInItems: NavItem[] = [
     { label: t("dashboard"), href: "/dashboard/songs" },
+    { label: t("profile"), href: "/dashboard/profile" },
   ];
 
   const dropdownItems = [
@@ -192,6 +193,7 @@ export function SiteHeaderClient() {
                 user={user}
                 labels={{
                   dashboard: t("dashboard"),
+                  profile: t("profile"),
                   logout: t("logout"),
                   account: t("account"),
                 }}
@@ -272,6 +274,7 @@ function GuestActions({ loginLabel, registerLabel }: { loginLabel: string; regis
 
 interface MobileMenuLabels {
   dashboard: string;
+  profile: string;
   logout: string;
   account: string;
 }
@@ -299,6 +302,9 @@ function MobileAuthenticated({
       <hr className="border-neutral-200 dark:border-neutral-800" />
       <Link href="/dashboard/songs" onClick={onNavigate} className={linkClass}>
         {labels.dashboard}
+      </Link>
+      <Link href="/dashboard/profile" onClick={onNavigate} className={linkClass}>
+        {labels.profile}
       </Link>
       <hr className="border-neutral-200 dark:border-neutral-800" />
       <Button onClick={onLogout} variant="default" size="sm" className="w-full justify-center">

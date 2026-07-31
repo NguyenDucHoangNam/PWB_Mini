@@ -9,9 +9,13 @@ import com.pwb.iam.application.command.RefreshTokenCommand;
 import com.pwb.iam.application.command.RegisterCommand;
 import com.pwb.iam.application.command.ResendOtpCommand;
 import com.pwb.iam.application.command.ResetPasswordCommand;
+import com.pwb.iam.application.command.UpdateAvatarCommand;
+import com.pwb.iam.application.command.UpdateProfileCommand;
 import com.pwb.iam.application.command.VerifyOtpCommand;
+import com.pwb.iam.application.facade.ProfileView;
 import com.pwb.iam.application.usecase.ChangePasswordUseCase;
 import com.pwb.iam.application.usecase.ForgotPasswordUseCase;
+import com.pwb.iam.application.usecase.GetProfileUseCase;
 import com.pwb.iam.application.usecase.GoogleLoginUseCase;
 import com.pwb.iam.application.usecase.LoginResult;
 import com.pwb.iam.application.usecase.LoginUseCase;
@@ -20,6 +24,8 @@ import com.pwb.iam.application.usecase.RefreshTokenUseCase;
 import com.pwb.iam.application.usecase.RegisterUseCase;
 import com.pwb.iam.application.usecase.ResendOtpUseCase;
 import com.pwb.iam.application.usecase.ResetPasswordUseCase;
+import com.pwb.iam.application.usecase.UpdateAvatarUseCase;
+import com.pwb.iam.application.usecase.UpdateProfileUseCase;
 import com.pwb.iam.application.usecase.VerifyOtpUseCase;
 import com.pwb.iam.domain.model.User;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +47,9 @@ public class IamFacadeImpl implements IamFacade {
     private final ResetPasswordUseCase resetPasswordUseCase;
     private final ChangePasswordUseCase changePasswordUseCase;
     private final GoogleLoginUseCase googleLoginUseCase;
+    private final GetProfileUseCase getProfileUseCase;
+    private final UpdateProfileUseCase updateProfileUseCase;
+    private final UpdateAvatarUseCase updateAvatarUseCase;
 
     @Override
     public UUID register(RegisterCommand command) {
@@ -93,6 +102,21 @@ public class IamFacadeImpl implements IamFacade {
     @Override
     public UUID changePassword(ChangePasswordCommand command) {
         return changePasswordUseCase.execute(command).userId();
+    }
+
+    @Override
+    public ProfileView getProfile(UUID userId) {
+        return getProfileUseCase.execute(userId);
+    }
+
+    @Override
+    public ProfileView updateProfile(UpdateProfileCommand command) {
+        return updateProfileUseCase.execute(command);
+    }
+
+    @Override
+    public String updateAvatar(UpdateAvatarCommand command) {
+        return updateAvatarUseCase.execute(command);
     }
 
     private AuthView toAuthView(LoginResult result) {

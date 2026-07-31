@@ -66,7 +66,7 @@ export default function DistributionsDetailPage() {
       await navigator.clipboard.writeText(link);
       toast.success(t("copiedBtn"));
     } catch {
-      toast.error("Copy failed");
+      toast.error(t("copyFailed"));
     }
   };
 
@@ -140,7 +140,7 @@ export default function DistributionsDetailPage() {
       {isLoading ? (
         <div className="flex items-center justify-center gap-3 p-12 text-sm text-neutral-500">
           <Spinner size="md" />
-          Loading...
+          {t("loading")}
         </div>
       ) : distributions.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-neutral-300 p-12 text-center dark:border-neutral-700">
@@ -158,7 +158,7 @@ export default function DistributionsDetailPage() {
                   <th className="px-4 py-3 font-medium">{t("colPlayCount")}</th>
                   <th className="px-4 py-3 font-medium">{t("colCreatedAt")}</th>
                   <th className="px-4 py-3 font-medium">{t("colStatus")}</th>
-                  <th className="px-4 py-3 text-right font-medium">Actions</th>
+                  <th className="px-4 py-3 text-right font-medium">{t("colActions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -221,7 +221,7 @@ export default function DistributionsDetailPage() {
       {totalPages > 1 && (
         <div className="flex justify-end gap-2">
           <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
-            Prev
+            {t("prev")}
           </Button>
           <Button
             variant="outline"
@@ -229,7 +229,7 @@ export default function DistributionsDetailPage() {
             disabled={page + 1 >= totalPages}
             onClick={() => setPage((p) => p + 1)}
           >
-            Next
+            {t("next")}
           </Button>
         </div>
       )}
@@ -249,7 +249,7 @@ export default function DistributionsDetailPage() {
           </DialogHeader>
           <DialogFooter className="-mx-4 -mb-4">
             <Button variant="ghost" disabled={revokingAll} onClick={() => setConfirmRevokeAll(false)}>
-              Cancel
+              {t("cancel")}
             </Button>
             <Button variant="destructive" disabled={revokingAll} onClick={handleRevokeAll}>
               {revokingAll ? <Spinner size="sm" /> : t("revokeAllConfirmBtn")}

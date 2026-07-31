@@ -10,7 +10,6 @@ import com.pwb.infra.storage.dto.UploadResult;
 import com.pwb.infra.storage.util.MediaTypeUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
@@ -49,7 +48,6 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "app.storage.provider", havingValue = "S3")
 public class S3StorageServiceImpl implements StorageService {
 
     private final S3Client s3Client;

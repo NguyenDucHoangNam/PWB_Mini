@@ -48,10 +48,10 @@ public class GoogleTtsAdapter implements TextToSpeechPort {
     @Override
     public TtsResult synthesize(TtsRequest request) {
         if (client == null) {
-            throw new AudioBusinessException(AudioErrorCode.TTS_ERROR, "Google TTS client is not configured");
+            throw new AudioBusinessException(AudioErrorCode.TTS_CLIENT_NOT_CONFIGURED);
         }
         if (request.text() == null || request.text().isBlank()) {
-            throw new AudioBusinessException(AudioErrorCode.TTS_ERROR, "Text must not be blank");
+            throw new AudioBusinessException(AudioErrorCode.TTS_TEXT_BLANK);
         }
 
         try {
@@ -97,7 +97,7 @@ public class GoogleTtsAdapter implements TextToSpeechPort {
     @Override
     public List<TtsVoice> listVoices(String languageCode) {
         if (client == null) {
-            throw new AudioBusinessException(AudioErrorCode.TTS_ERROR, "Google TTS client is not configured");
+            throw new AudioBusinessException(AudioErrorCode.TTS_CLIENT_NOT_CONFIGURED);
         }
 
         try {
@@ -142,30 +142,43 @@ public class GoogleTtsAdapter implements TextToSpeechPort {
     }
 
     private TextToSpeechClient initializeClient(GoogleTtsProperties props) {
+        if (props.getCredentialsPath() == null || props.getCredentialsPath().isBlank()) {
+            log.warn("Google TTS credentials-path is not configured. Google TTS client initialization skipped.");
+            return null;
+        }
+
         try {
             TextToSpeechSettings.Builder settingsBuilder = TextToSpeechSettings.newBuilder();
-            if (props.getCredentialsPath() != null && !props.getCredentialsPath().isBlank()) {
-                String credentials = props.getCredentialsPath();
-                settingsBuilder.setCredentialsProvider(() -> {
-                    try (var stream = new java.io.FileInputStream(credentials)) {
-                        return com.google.auth.oauth2.GoogleCredentials.fromStream(stream)
-                                .createScoped("https://www.googleapis.com/auth/cloud-platform");
-                    } catch (IOException ex) {
-                        AudioBusinessException ex2 = new AudioBusinessException(
-                                AudioErrorCode.TTS_ERROR,
-                                "Failed to load Google credentials: " + credentials
-                        );
-                        ex2.initCause(ex);
-                        throw ex2;
-                    }
-                });
-            }
+            String credentials = props.getCredentialsPath();
+            settingsBuilder.setCredentialsProvider(() -> {
+                try (var stream = getCredentialsInputStream(credentials)) {
+                    return com.google.auth.oauth2.GoogleCredentials.fromStream(stream)
+                            .createScoped("https://www.googleapis.com/auth/cloud-platform");
+                } catch (IOException ex) {
+                    AudioBusinessException ex2 = new AudioBusinessException(
+                            AudioErrorCode.TTS_ERROR,
+                            "Failed to load Google credentials: " + credentials
+                    );
+                    ex2.initCause(ex);
+                    throw ex2;
+                }
+            });
             return TextToSpeechClient.create(settingsBuilder.build());
-        } catch (AudioBusinessException ex) {
-            throw ex;
         } catch (Exception ex) {
-            log.error("Failed to initialize Google TTS client", ex);
-            throw new AudioBusinessException(AudioErrorCode.TTS_ERROR, ex);
+            log.warn("Failed to initialize Google TTS client: {}. Google TTS features will be disabled.", ex.getMessage());
+            return null;
         }
+    }
+
+    private java.io.InputStream getCredentialsInputStream(String path) throws IOException {
+        if (path.startsWith("classpath:")) {
+            String resourcePath = path.substring("classpath:".length());
+            return new org.springframework.core.io.ClassPathResource(resourcePath).getInputStream();
+        }
+        java.io.File file = new java.io.File(path);
+        if (file.exists()) {
+            return new java.io.FileInputStream(file);
+        }
+        return new org.springframework.core.io.ClassPathResource(path).getInputStream();
     }
 }

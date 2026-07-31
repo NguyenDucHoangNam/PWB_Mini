@@ -63,8 +63,7 @@ public class JaffreeAudioProcessorAdapter implements AudioProcessorPort {
                     request.volumePercentage(),
                     request.fadeInMs(),
                     request.fadeOutMs(),
-                    request.startOffsetSeconds()
-            );
+                    request.startOffsetSeconds());
 
             FFmpegResult result = FFmpeg.atPath(Paths.get(properties.getFfmpegPath()))
                     .addInput(UrlInput.fromPath(inputFile))
@@ -75,7 +74,7 @@ public class JaffreeAudioProcessorAdapter implements AudioProcessorPort {
                     .execute();
 
             if (!Files.exists(outputFile) || Files.size(outputFile) == 0) {
-                throw new AudioBusinessException(AudioErrorCode.PROCESSING_FAILED, "FFmpeg produced empty output");
+                throw new AudioBusinessException(AudioErrorCode.FFMPEG_EMPTY_OUTPUT);
             }
 
             long fileSize = Files.size(outputFile);
@@ -104,8 +103,7 @@ public class JaffreeAudioProcessorAdapter implements AudioProcessorPort {
         } catch (IOException ex) {
             AudioBusinessException ex2 = new AudioBusinessException(
                     AudioErrorCode.STORAGE_ERROR,
-                    "Failed to download object: " + s3Key
-            );
+                    "Failed to download object: " + s3Key);
             ex2.initCause(ex);
             throw ex2;
         }
@@ -121,14 +119,13 @@ public class JaffreeAudioProcessorAdapter implements AudioProcessorPort {
         double fadeInSeconds = Math.max(0.0, fadeIn / 1000.0);
         double fadeOutSeconds = Math.max(0.0, fadeOut / 1000.0);
 
-        String voiceChain =
-                "[1:a]volume=" + String.format("%.2f", volumeFactor) +
+        String voiceChain = "[1:a]volume=" + String.format("%.2f", volumeFactor) +
                 ",afade=t=in:st=0:d=" + String.format("%.2f", fadeInSeconds) +
                 ",afade=t=out:st=" + (double) start + ":d=" + String.format("%.2f", fadeOutSeconds) +
                 "[" + VOICE_LABEL + "]";
 
-        String mixChain =
-                ";[0:a][" + VOICE_LABEL + "]amix=inputs=2:duration=first:dropout_transition=0[" + OUTPUT_LABEL + "]";
+        String mixChain = ";[0:a][" + VOICE_LABEL + "]amix=inputs=2:duration=first:dropout_transition=0[" + OUTPUT_LABEL
+                + "]";
 
         return voiceChain + mixChain;
     }

@@ -9,7 +9,10 @@ import com.pwb.iam.application.command.RefreshTokenCommand;
 import com.pwb.iam.application.command.RegisterCommand;
 import com.pwb.iam.application.command.ResendOtpCommand;
 import com.pwb.iam.application.command.ResetPasswordCommand;
+import com.pwb.iam.application.command.UpdateAvatarCommand;
+import com.pwb.iam.application.command.UpdateProfileCommand;
 import com.pwb.iam.application.command.VerifyOtpCommand;
+import com.pwb.iam.application.facade.ProfileView;
 import com.pwb.iam.application.usecase.ForgotPasswordUseCase;
 
 import java.util.UUID;
@@ -35,4 +38,10 @@ public interface IamFacade {
     UUID resetPassword(ResetPasswordCommand command);
 
     UUID changePassword(ChangePasswordCommand command);
+
+    ProfileView getProfile(UUID userId);
+
+    ProfileView updateProfile(UpdateProfileCommand command);
+
+    String updateAvatar(UpdateAvatarCommand command);
 }

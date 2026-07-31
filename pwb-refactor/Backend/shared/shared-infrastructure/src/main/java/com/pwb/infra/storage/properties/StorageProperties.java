@@ -13,8 +13,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties("app.storage")
 public class StorageProperties {
 
-    private StorageProviderType provider;
-
     private long maxFileSizeBytes;
 
     private S3 s3;

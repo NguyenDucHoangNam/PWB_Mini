@@ -461,8 +461,10 @@
       "colPlayCount": "Plays",
       "colCreatedAt": "Created",
       "colStatus": "Status",
+      "colActions": "Actions",
       "copyBtn": "Copy",
       "copiedBtn": "Copied!",
+      "copyFailed": "Copy failed",
       "revokeBtn": "Revoke",
       "activeBadge": "Active",
       "revokedBadge": "Revoked",
@@ -470,7 +472,11 @@
       "shareAnotherBtn": "Share with another recipient",
       "emptyRecipients": "No share links yet for this demo.",
       "pageBack": "Back to distributions",
-      "newShareBtn": "New share"
+      "newShareBtn": "New share",
+      "loading": "Loading...",
+      "cancel": "Cancel",
+      "prev": "Previous",
+      "next": "Next"
     },
     "modals": {
       "uploadTitle": "Upload Demo",
@@ -589,6 +595,20 @@
         "methodTtsDesc": "Dùng AI để chuyển văn bản thành giọng nói",
         "methodUpload": "Upload file âm thanh",
         "methodUploadDesc": "Dùng đoạn âm thanh bạn đã thu sẵn"
+      },
+      "errorLoad": "Không thể tải danh sách Voice Tag. Vui lòng kiểm tra kết nối và thử lại.",
+      "retry": "Thử lại",
+      "emptyHint": "Tạo Voice Tag bằng AI (TTS) để chèn chữ ký âm thanh vào bài hát của bạn.",
+      "languageCodes": {
+        "en-US": "Tiếng Anh (Mỹ)",
+        "en-GB": "Tiếng Anh (Anh)",
+        "vi-VN": "Tiếng Việt",
+        "ja-JP": "Tiếng Nhật",
+        "ko-KR": "Tiếng Hàn",
+        "zh-CN": "Tiếng Trung (Giản thể)",
+        "es-ES": "Tiếng Tây Ban Nha",
+        "fr-FR": "Tiếng Pháp",
+        "de-DE": "Tiếng Đức"
       }
     },
     "songs": {
@@ -621,7 +641,10 @@
         "confirmTitle": "Xóa bài hát?",
         "confirmMessage": "Bài hát và tất cả phiên bản đã xử lý sẽ bị xóa vĩnh viễn.",
         "confirmButton": "Xóa"
-      }
+      },
+      "errorLoad": "Không thể tải danh sách bài hát. Vui lòng kiểm tra kết nối và thử lại.",
+      "retry": "Thử lại",
+      "emptyHint": "Tải lên bài hát đầu tiên của bạn để bắt đầu gắn Voice Tag và bảo vệ bản quyền âm nhạc."
     },
     "config": {
       "title": "Cấu hình Voice Tag",

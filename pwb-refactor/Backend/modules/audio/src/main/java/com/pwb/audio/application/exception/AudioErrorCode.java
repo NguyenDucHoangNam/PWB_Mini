@@ -19,7 +19,13 @@ public enum AudioErrorCode implements ErrorCode {
     PROCESSING_FAILED         (ErrorCategory.INTERNAL,          "AUDIO_013", "Audio processing failed."),
     UNAUTHORIZED_ACCESS       (ErrorCategory.FORBIDDEN,         "AUDIO_012", "You do not have permission to access this resource."),
     INVALID_AUDIO_FILE        (ErrorCategory.VALIDATION,        "AUDIO_014", "Invalid or unsupported audio file."),
-    AUDIO_PROBE_FAILED        (ErrorCategory.INTERNAL,          "AUDIO_015", "Failed to probe audio file metadata.");
+    AUDIO_PROBE_FAILED        (ErrorCategory.INTERNAL,          "AUDIO_015", "Failed to probe audio file metadata."),
+    TTS_CLIENT_NOT_CONFIGURED (ErrorCategory.BUSINESS,         "AUDIO_016", "Google TTS client is not configured."),
+    TTS_TEXT_BLANK            (ErrorCategory.VALIDATION,        "AUDIO_017", "Text must not be blank."),
+    FILE_EMPTY                (ErrorCategory.VALIDATION,        "AUDIO_018", "File must not be empty."),
+    UNSUPPORTED_FORMAT        (ErrorCategory.VALIDATION,        "AUDIO_019", "Unsupported audio format. Supported formats: mp3, wav, flac."),
+    INVALID_METADATA_JSON     (ErrorCategory.VALIDATION,        "AUDIO_020", "Invalid metadata JSON."),
+    FFMPEG_EMPTY_OUTPUT       (ErrorCategory.INTERNAL,          "AUDIO_021", "FFmpeg produced empty output.");
 
     AudioErrorCode(ErrorCategory category, String code, String defaultMessage) {
         this.category = category;

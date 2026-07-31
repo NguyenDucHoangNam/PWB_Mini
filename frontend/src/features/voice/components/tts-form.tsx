@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { asApiError } from "@/lib/api-client";
 import { useCreateTtsVoiceTag } from "../api/voice-tags";
 import { resolveVoiceErrorMessage } from "../lib/resolve-voice-error-message";
-import { ttsFormSchema, LANGUAGE_CODES, type TtsFormValues } from "../schemas/voice-tag-schema";
+import { ttsFormSchema, LANGUAGE_CODE_VALUES, type TtsFormValues } from "../schemas/voice-tag-schema";
 
 interface TtsFormProps {
   onCancel?: () => void;
@@ -20,6 +20,7 @@ interface TtsFormProps {
 
 export function TtsForm({ onCancel, onSuccess }: TtsFormProps) {
   const t = useTranslations("voice.voiceTags.form");
+  const tLanguageCodes = useTranslations("voice.voiceTags.languageCodes");
   const tActions = useTranslations("voice.actions");
   const tCommon = useTranslations("common");
   const tErrors = useTranslations("voice.errors");
@@ -114,9 +115,9 @@ export function TtsForm({ onCancel, onSuccess }: TtsFormProps) {
           {...register("languageCode")}
           className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
         >
-          {LANGUAGE_CODES.map((lang) => (
-            <option key={lang.value} value={lang.value}>
-              {lang.label}
+          {LANGUAGE_CODE_VALUES.map((lang) => (
+            <option key={lang} value={lang}>
+              {tLanguageCodes(lang)}
             </option>
           ))}
         </select>

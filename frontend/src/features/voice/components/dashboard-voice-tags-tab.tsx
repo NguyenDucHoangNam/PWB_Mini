@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { Mic, Plus, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
@@ -52,7 +53,7 @@ export function DashboardVoiceTagsTab() {
     router.push(query ? `${pathname}?${query}` : pathname);
   };
 
-  const { data, isLoading, isFetching, isError } = useListVoiceTags({
+  const { data, isLoading, isFetching, isError, refetch } = useListVoiceTags({
     page,
     size: DEFAULT_PAGE_SIZE,
     type: filter === "ALL" ? undefined : filter,
@@ -102,17 +103,33 @@ export function DashboardVoiceTagsTab() {
             {tList("loading")}
           </div>
         ) : isError ? (
-          <div
-            role="alert"
-            className="p-12 text-center text-sm text-red-600 dark:text-red-400"
-          >
-            {tList("loading")}
+          <div role="alert" className="flex flex-col items-center justify-center gap-3 p-12 text-center">
+            <AlertCircle className="h-8 w-8 text-red-500" />
+            <p className="text-sm font-medium text-red-600 dark:text-red-400">
+              {t("errorLoad")}
+            </p>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              {t("retry")}
+            </Button>
           </div>
         ) : items.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 p-12 text-center">
-            <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("empty")}</p>
+          <div className="flex flex-col items-center justify-center gap-4 p-12 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-900">
+              <Mic className="h-8 w-8 text-neutral-400" />
+            </div>
+            <div className="max-w-sm space-y-1">
+              <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
+                {t("empty")}
+              </h3>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                {t("emptyHint")}
+              </p>
+            </div>
             <Link href="/dashboard/voice-tags/new">
-              <Button className="mt-2">{tActions("create")}</Button>
+              <Button className="mt-2 flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                {tActions("create")}
+              </Button>
             </Link>
           </div>
         ) : (

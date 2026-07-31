@@ -34,26 +34,25 @@ public class VoiceTagUseCaseImpl implements VoiceTagUseCase {
 
     @Override
     @Transactional
-    public VoiceTagView createVoiceTag(CreateVoiceTagCommand command) {
-        log.info("Creating voice tag: userId={}, name={}, type={}",
-                command.userId(), command.name(), command.tagType());
+    public VoiceTagView createVoiceTagTts(UUID userId, String name, String text, String languageCode) {
+        log.info("Creating TTS voice tag: userId={}, name={}", userId, name);
 
-        if (voiceTagRepository.existsByUserIdAndName(command.userId(), command.name())) {
+        if (voiceTagRepository.existsByUserIdAndName(userId, name)) {
             throw new AudioBusinessException(AudioErrorCode.DUPLICATE_VOICE_TAG_NAME);
         }
 
-        TtsSynthesisOutcome outcome = synthesizeAndUploadTts(command);
+        TtsSynthesisOutcome outcome = synthesizeAndUploadTts(userId, name, text, languageCode);
         VoiceTag voiceTag = VoiceTag.createTtsTag(
-                command.userId(),
-                command.name(),
-                command.sourceText(),
-                command.languageCode(),
+                userId,
+                name,
+                text,
+                languageCode,
                 outcome.s3Key(),
                 outcome.durationSeconds()
         );
 
         VoiceTag saved = voiceTagRepository.save(voiceTag);
-        log.info("Voice tag created: voiceTagId={}", saved.getId());
+        log.info("TTS voice tag created: voiceTagId={}", saved.getId());
 
         return toVoiceTagView(saved);
     }
@@ -126,15 +125,25 @@ public class VoiceTagUseCaseImpl implements VoiceTagUseCase {
                 .map(this::toVoiceTagView);
     }
 
-    private TtsSynthesisOutcome synthesizeAndUploadTts(CreateVoiceTagCommand command) {
+    @Override
+    @Transactional(readOnly = true)
+    public PresignedUrlView getVoiceTagAudioUrl(UUID userId, UUID voiceTagId, long expirationSeconds) {
+        VoiceTag voiceTag = voiceTagRepository.findByIdAndUserId(voiceTagId, userId)
+                .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.VOICE_TAG_NOT_FOUND));
+
+        URL presignedUrl = storagePort.getPresignedUrl(voiceTag.getS3Key(), expirationSeconds);
+        return new PresignedUrlView(voiceTagId, presignedUrl, expirationSeconds);
+    }
+
+    private TtsSynthesisOutcome synthesizeAndUploadTts(UUID userId, String name, String text, String languageCode) {
         TtsRequest ttsRequest = new TtsRequest(
-                command.sourceText(),
-                command.languageCode(),
+                text,
+                languageCode,
                 null
         );
 
         TtsResult ttsResult = textToSpeechPort.synthesize(ttsRequest);
-        String s3Key = buildTtsKey(command.userId(), command.name());
+        String s3Key = buildTtsKey(userId, name);
 
         String uploadedKey;
         try {

@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.ComponentScan;
 
 @AutoConfiguration
-@AutoConfigurationPackage
+@AutoConfigurationPackage(basePackages = "com.pwb.audio.infrastructure.persistence")
 @EnableConfigurationProperties({
         AudioProcessorProperties.class,
         GoogleTtsProperties.class,

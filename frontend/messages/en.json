@@ -461,8 +461,10 @@
       "colPlayCount": "Plays",
       "colCreatedAt": "Created",
       "colStatus": "Status",
+      "colActions": "Actions",
       "copyBtn": "Copy",
       "copiedBtn": "Copied!",
+      "copyFailed": "Copy failed",
       "revokeBtn": "Revoke",
       "activeBadge": "Active",
       "revokedBadge": "Revoked",
@@ -470,7 +472,11 @@
       "shareAnotherBtn": "Share with another recipient",
       "emptyRecipients": "No share links yet for this demo.",
       "pageBack": "Back to distributions",
-      "newShareBtn": "New share"
+      "newShareBtn": "New share",
+      "loading": "Loading...",
+      "cancel": "Cancel",
+      "prev": "Previous",
+      "next": "Next"
     },
     "modals": {
       "uploadTitle": "Upload Demo",
@@ -589,6 +595,20 @@
         "methodTtsDesc": "Use AI to convert text into spoken audio",
         "methodUpload": "Upload audio file",
         "methodUploadDesc": "Use your own pre-recorded audio clip"
+      },
+      "errorLoad": "Unable to load Voice Tags. Please check your connection and try again.",
+      "retry": "Retry",
+      "emptyHint": "Create a Voice Tag with AI (TTS) to add audio branding to your songs.",
+      "languageCodes": {
+        "en-US": "English (US)",
+        "en-GB": "English (UK)",
+        "vi-VN": "Vietnamese",
+        "ja-JP": "Japanese",
+        "ko-KR": "Korean",
+        "zh-CN": "Chinese (Simplified)",
+        "es-ES": "Spanish",
+        "fr-FR": "French",
+        "de-DE": "German"
       }
     },
     "songs": {
@@ -621,7 +641,10 @@
         "confirmTitle": "Delete song?",
         "confirmMessage": "This will permanently remove the song and all processed versions.",
         "confirmButton": "Delete"
-      }
+      },
+      "errorLoad": "Unable to load song list. Please check your connection and try again.",
+      "retry": "Retry",
+      "emptyHint": "Upload your first song to start adding Voice Tags and protect your music copyright."
     },
     "config": {
       "title": "Voice Tag Configuration",

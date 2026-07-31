@@ -27,15 +27,19 @@ import com.pwb.iam.application.facade.AuthView;
 import com.pwb.iam.application.facade.IamFacade;
 import com.pwb.iam.application.usecase.ForgotPasswordUseCase;
 import com.pwb.iam.domain.model.OtpPurpose;
+import com.pwb.iam.infrastructure.config.RefreshTokenProperties;
 import com.pwb.shared.dto.ApiResponse;
+import com.pwb.web.http.CookieUtils;
 import com.pwb.web.message.MessageResolver;
 import com.pwb.web.security.CurrentClientIp;
 import com.pwb.web.security.CurrentUser;
 import com.pwb.web.security.CurrentUserAgent;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -59,6 +63,7 @@ public class AuthController {
 
     private final IamFacade iamFacade;
     private final MessageResolver messageResolver;
+    private final RefreshTokenProperties refreshTokenProperties;
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<AuthMessageResponse>> register(@Valid @RequestBody RegisterRequest request) {
@@ -71,9 +76,11 @@ public class AuthController {
     @PostMapping("/verify-otp")
     public ResponseEntity<ApiResponse<AuthResponse>> verifyOtp(
             @Valid @RequestBody VerifyOtpRequest request,
-            @CurrentClientIp String clientIp
+            @CurrentClientIp String clientIp,
+            HttpServletResponse response
     ) {
         AuthView view = iamFacade.verifyOtp(new VerifyOtpCommand(request.userId(), request.code(), clientIp));
+        setRefreshTokenCookieIfPresent(response, view);
         return ResponseEntity.ok(ApiResponse.success(toAuthResponse(view)));
     }
 
@@ -89,17 +96,28 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> login(
             @Valid @RequestBody LoginRequest request,
             @CurrentClientIp String clientIp,
-            @CurrentUserAgent String userAgent
+            @CurrentUserAgent String userAgent,
+            HttpServletResponse response
     ) {
         LoginCommand command = new LoginCommand(request.email(), request.password(), clientIp, userAgent);
         AuthView view = iamFacade.login(command);
+        setRefreshTokenCookieIfPresent(response, view);
         return ResponseEntity.ok(ApiResponse.success(toAuthResponse(view)));
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<ApiResponse<AuthResponse>> refresh(@Valid @RequestBody RefreshTokenRequest request, @CurrentClientIp String clientIp) {
-        RefreshTokenCommand command = new RefreshTokenCommand(request.refreshToken(), clientIp);
+    public ResponseEntity<ApiResponse<AuthResponse>> refresh(
+            @CookieValue(name = "pwb_refresh_token", required = false) String refreshTokenCookie,
+            HttpServletResponse response,
+            @CurrentClientIp String clientIp
+    ) {
+        if (refreshTokenCookie == null || refreshTokenCookie.isBlank()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("REFRESH_TOKEN_MISSING", messageResolver.get("AUTH_REFRESH_TOKEN_MISSING")));
+        }
+        RefreshTokenCommand command = new RefreshTokenCommand(refreshTokenCookie, clientIp);
         AuthView view = iamFacade.refresh(command);
+        setRefreshTokenCookieIfPresent(response, view);
         return ResponseEntity.ok(ApiResponse.success(toAuthResponse(view)));
     }
 
@@ -108,21 +126,27 @@ public class AuthController {
             @CurrentUser UUID userId,
             @CurrentClientIp String clientIp,
             @CurrentUserAgent String userAgent,
-            @Valid @RequestBody LogoutRequest request
+            @Valid @RequestBody LogoutRequest request,
+            @CookieValue(name = "pwb_refresh_token", required = false) String refreshTokenCookie,
+            HttpServletResponse response
     ) {
         if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("UNAUTHORIZED", messageResolver.get(MSG_UNAUTHORIZED)));
         }
+        String refreshTokenToRevoke = (refreshTokenCookie != null && !refreshTokenCookie.isBlank())
+                ? refreshTokenCookie
+                : request.refreshToken();
         LogoutCommand command = new LogoutCommand(
                 userId,
-                request.refreshToken(),
+                refreshTokenToRevoke,
                 request.accessJti(),
                 request.accessExpiresInSeconds(),
                 clientIp,
                 userAgent
         );
         UUID resultUserId = iamFacade.logout(command);
+        CookieUtils.clearRefreshTokenCookie(response, "/");
         LogoutResponse body = LogoutResponse.of(resultUserId, messageResolver.get(MSG_LOGOUT_SUCCESS));
         return ResponseEntity.ok(ApiResponse.success(body));
     }
@@ -132,10 +156,12 @@ public class AuthController {
             @Valid @RequestBody GoogleLoginRequest request,
             @CurrentClientIp String clientIp,
             @CurrentUserAgent String userAgent,
-            @RequestHeader(value = "Accept-Language", defaultValue = "vi") String acceptLanguage
+            @RequestHeader(value = "Accept-Language", defaultValue = "vi") String acceptLanguage,
+            HttpServletResponse response
     ) {
         GoogleLoginCommand command = new GoogleLoginCommand(request.idToken(), clientIp, userAgent, normalizeLocale(acceptLanguage));
         AuthView view = iamFacade.loginWithGoogle(command);
+        setRefreshTokenCookieIfPresent(response, view);
         return ResponseEntity.ok(ApiResponse.success(toAuthResponse(view)));
     }
 
@@ -211,6 +237,22 @@ public class AuthController {
                 view.refreshToken(),
                 view.expiresInSeconds(),
                 view.nextStep() == null ? null : view.nextStep().name()
+        );
+    }
+
+    private void setRefreshTokenCookieIfPresent(HttpServletResponse response, AuthView view) {
+        if (view.refreshToken() == null) {
+            return;
+        }
+        RefreshTokenProperties.CookieConfig cookieConfig = refreshTokenProperties.getCookie();
+        CookieUtils.addRefreshTokenCookie(
+                response,
+                view.refreshToken(),
+                cookieConfig.getPath(),
+                cookieConfig.isHttpOnly(),
+                cookieConfig.isSecure(),
+                cookieConfig.getSameSite(),
+                cookieConfig.getMaxAgeSeconds()
         );
     }
 }

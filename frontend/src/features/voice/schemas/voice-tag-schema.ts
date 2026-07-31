@@ -19,14 +19,16 @@ export const ttsFormSchema = z.object({
 
 export type TtsFormValues = z.infer<typeof ttsFormSchema>;
 
-export const LANGUAGE_CODES = [
-  { value: "en-US", label: "English (US)" },
-  { value: "en-GB", label: "English (UK)" },
-  { value: "vi-VN", label: "Tiếng Việt" },
-  { value: "ja-JP", label: "日本語" },
-  { value: "ko-KR", label: "한국어" },
-  { value: "zh-CN", label: "中文 (简体)" },
-  { value: "es-ES", label: "Español" },
-  { value: "fr-FR", label: "Français" },
-  { value: "de-DE", label: "Deutsch" },
+export const LANGUAGE_CODE_VALUES = [
+  "en-US",
+  "en-GB",
+  "vi-VN",
+  "ja-JP",
+  "ko-KR",
+  "zh-CN",
+  "es-ES",
+  "fr-FR",
+  "de-DE",
 ] as const;
+
+export type LanguageCode = (typeof LANGUAGE_CODE_VALUES)[number];

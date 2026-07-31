@@ -10,7 +10,7 @@ import java.util.UUID;
 
 public interface VoiceTagUseCase {
 
-    VoiceTagView createVoiceTag(CreateVoiceTagCommand command);
+    VoiceTagView createVoiceTagTts(UUID userId, String name, String text, String languageCode);
 
     VoiceTagView getVoiceTag(UUID userId, UUID voiceTagId);
 
@@ -21,4 +21,6 @@ public interface VoiceTagUseCase {
     VoiceTagView markDefault(UUID userId, UUID voiceTagId);
 
     Page<VoiceTagView> listVoiceTags(UUID userId, Pageable pageable);
+
+    PresignedUrlView getVoiceTagAudioUrl(UUID userId, UUID voiceTagId, long expirationSeconds);
 }

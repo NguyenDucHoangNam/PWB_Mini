@@ -44,6 +44,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
@@ -53,7 +54,7 @@ import java.io.IOException;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/audio/songs")
+@RequestMapping("/api/v1/songs")
 @RequiredArgsConstructor
 public class SongController {
 
@@ -95,7 +96,7 @@ public class SongController {
             return unauthorized();
         }
         if (file.isEmpty()) {
-            throw new AudioBusinessException(AudioErrorCode.INVALID_AUDIO_FILE, "File must not be empty");
+            throw new AudioBusinessException(AudioErrorCode.FILE_EMPTY);
         }
 
         UploadSongMetadata metadata = parseMetadata(metadataJson);
@@ -103,8 +104,7 @@ public class SongController {
         byte[] head = readHead(file, 4096);
         String contentType = MediaTypeUtils.detectFromBytes(head);
         if ("application/octet-stream".equals(contentType)) {
-            throw new AudioBusinessException(AudioErrorCode.INVALID_AUDIO_FILE,
-                    "Unsupported audio format. Supported formats: mp3, wav, flac");
+            throw new AudioBusinessException(AudioErrorCode.UNSUPPORTED_FORMAT);
         }
 
         String ext = extensionFromContentType(contentType);
@@ -163,7 +163,7 @@ public class SongController {
         return ResponseEntity.ok(ApiResponse.success(body));
     }
 
-    @PatchMapping("/{songId}")
+    @RequestMapping(value = "/{songId}", method = {RequestMethod.PUT, RequestMethod.PATCH})
     public ResponseEntity<ApiResponse<SongResponse>> updateSong(
             @CurrentUser UUID userId,
             @PathVariable UUID songId,
@@ -191,7 +191,7 @@ public class SongController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/{songId}/configure-voice-tag")
+    @PostMapping(value = {"/{songId}/voice-tag", "/{songId}/configure-voice-tag"})
     public ResponseEntity<ApiResponse<SongTagConfigResponse>> configureVoiceTag(
             @CurrentUser UUID userId,
             @PathVariable UUID songId,
@@ -205,6 +205,31 @@ public class SongController {
         SongTagConfigResponse body = SongTagConfigResponse.from(view);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(messageResolver.get(MSG_TAG_CONFIGURED), body));
+    }
+
+    @GetMapping("/{songId}/voice-tag")
+    public ResponseEntity<ApiResponse<SongTagConfigResponse>> getVoiceTagConfig(
+            @CurrentUser UUID userId,
+            @PathVariable UUID songId
+    ) {
+        if (userId == null) {
+            return unauthorized();
+        }
+        SongTagConfigView view = audioFacade.getVoiceTagConfig(userId, songId);
+        SongTagConfigResponse body = SongTagConfigResponse.from(view);
+        return ResponseEntity.ok(ApiResponse.success(body));
+    }
+
+    @DeleteMapping("/{songId}/voice-tag")
+    public ResponseEntity<ApiResponse<Void>> removeVoiceTagConfig(
+            @CurrentUser UUID userId,
+            @PathVariable UUID songId
+    ) {
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        audioFacade.removeVoiceTagConfig(userId, songId);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{songId}/trigger-processing")
@@ -221,7 +246,7 @@ public class SongController {
                 .body(ApiResponse.success(messageResolver.get(MSG_PROCESSING_TRIGGERED), body));
     }
 
-    @GetMapping("/{songId}/stream-url")
+    @GetMapping(value = {"/{songId}/stream-url", "/{songId}/audio"})
     public ResponseEntity<ApiResponse<PresignedUrlResponse>> getStreamUrl(
             @CurrentUser UUID userId,
             @PathVariable UUID songId,
@@ -277,7 +302,7 @@ public class SongController {
         try {
             return objectMapper.readValue(metadataJson, UploadSongMetadata.class);
         } catch (JsonProcessingException ex) {
-            throw new AudioBusinessException(AudioErrorCode.INVALID_AUDIO_FILE, "Invalid metadata JSON");
+            throw new AudioBusinessException(AudioErrorCode.INVALID_METADATA_JSON);
         }
     }
 

@@ -33,7 +33,9 @@ public enum IamErrorCode implements ErrorCode {
     AUTH_GOOGLE_TOKEN_INVALID         (ErrorCategory.UNAUTHORIZED,     "IAM_GOOGLE_001", "Google ID token is invalid or expired."),
     AUTH_GOOGLE_EMAIL_NOT_VERIFIED    (ErrorCategory.UNAUTHORIZED,     "IAM_GOOGLE_002", "Google email is not verified."),
     ACCESS_DENIED                     (ErrorCategory.FORBIDDEN,        "IAM_ACCESS_001", "Access denied due to insufficient permissions."),
-    SERVICE_UNAVAILABLE              (ErrorCategory.INTERNAL,         "IAM_034", "Service temporarily unavailable. Please try again later.");
+    SERVICE_UNAVAILABLE              (ErrorCategory.INTERNAL,         "IAM_034", "Service temporarily unavailable. Please try again later."),
+    PROFILE_INVALID_AVATAR_FORMAT    (ErrorCategory.VALIDATION,       "IAM_PROFILE_001", "Invalid avatar format. Allowed: JPEG, PNG, WebP."),
+    PROFILE_AVATAR_TOO_LARGE        (ErrorCategory.VALIDATION,       "IAM_PROFILE_002", "Avatar file size must not exceed 5MB.");
 
     IamErrorCode(ErrorCategory category, String code, String defaultMessage) {
         this.category = category;

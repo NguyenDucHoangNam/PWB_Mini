@@ -158,6 +158,27 @@ public class SongUseCaseImpl implements SongUseCase {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public SongTagConfigView getVoiceTagConfig(UUID userId, UUID songId) {
+        Song song = songRepository.findByIdAndUserId(songId, userId)
+                .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.SONG_NOT_FOUND));
+
+        SongTagConfig config = songTagConfigRepository.findBySongId(song.getId())
+                .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.SONG_TAG_CONFIG_NOT_FOUND));
+
+        return toSongTagConfigView(config);
+    }
+
+    @Override
+    @Transactional
+    public void removeVoiceTagConfig(UUID userId, UUID songId) {
+        Song song = songRepository.findByIdAndUserId(songId, userId)
+                .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.SONG_NOT_FOUND));
+
+        songTagConfigRepository.deleteBySongId(song.getId());
+    }
+
+    @Override
     @Transactional
     public SongView triggerProcessing(UUID userId, UUID songId) {
         Song song = songRepository.findByIdAndUserId(songId, userId)

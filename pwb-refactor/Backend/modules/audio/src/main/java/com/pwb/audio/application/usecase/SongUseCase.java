@@ -25,6 +25,10 @@ public interface SongUseCase {
 
     SongTagConfigView configureVoiceTag(UUID userId, ConfigureVoiceTagCommand command);
 
+    SongTagConfigView getVoiceTagConfig(UUID userId, UUID songId);
+
+    void removeVoiceTagConfig(UUID userId, UUID songId);
+
     SongView triggerProcessing(UUID userId, UUID songId);
 
     PresignedUrlView getStreamPresignedUrl(UUID userId, UUID songId, long expirationSeconds);

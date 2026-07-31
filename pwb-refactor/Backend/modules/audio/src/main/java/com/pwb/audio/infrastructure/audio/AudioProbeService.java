@@ -37,7 +37,8 @@ public class AudioProbeService {
                     .filter(Objects::nonNull)
                     .map(Float::intValue)
                     .findFirst()
-                    .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.AUDIO_PROBE_FAILED, "No audio stream found"));
+                    .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.AUDIO_PROBE_FAILED,
+                            "No audio stream found"));
         } catch (AudioBusinessException ex) {
             throw ex;
         } catch (Exception ex) {

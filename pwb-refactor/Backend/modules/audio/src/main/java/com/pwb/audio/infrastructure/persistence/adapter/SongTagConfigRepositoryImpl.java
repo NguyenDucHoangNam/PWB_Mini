@@ -35,4 +35,13 @@ public class SongTagConfigRepositoryImpl implements SongTagConfigRepository {
     public boolean existsBySongId(UUID songId) {
         return songTagConfigJpaRepository.existsBySongIdAndDeletedFalse(songId);
     }
+
+    @Override
+    public void deleteBySongId(UUID songId) {
+        songTagConfigJpaRepository.findBySongIdAndDeletedFalse(songId)
+                .ifPresent(entity -> {
+                    entity.setDeleted(true);
+                    songTagConfigJpaRepository.save(entity);
+                });
+    }
 }

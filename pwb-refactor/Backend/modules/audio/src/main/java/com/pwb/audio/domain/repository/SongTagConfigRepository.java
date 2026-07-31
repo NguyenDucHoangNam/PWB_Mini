@@ -12,4 +12,6 @@ public interface SongTagConfigRepository {
     Optional<SongTagConfig> findBySongId(UUID songId);
 
     boolean existsBySongId(UUID songId);
+
+    void deleteBySongId(UUID songId);
 }

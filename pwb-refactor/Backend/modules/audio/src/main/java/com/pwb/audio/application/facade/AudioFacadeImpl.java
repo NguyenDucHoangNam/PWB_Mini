@@ -57,6 +57,16 @@ public class AudioFacadeImpl implements AudioFacade {
     }
 
     @Override
+    public SongTagConfigView getVoiceTagConfig(UUID userId, UUID songId) {
+        return songUseCase.getVoiceTagConfig(userId, songId);
+    }
+
+    @Override
+    public void removeVoiceTagConfig(UUID userId, UUID songId) {
+        songUseCase.removeVoiceTagConfig(userId, songId);
+    }
+
+    @Override
     public SongView triggerProcessing(UUID userId, UUID songId) {
         return songUseCase.triggerProcessing(userId, songId);
     }
@@ -67,8 +77,8 @@ public class AudioFacadeImpl implements AudioFacade {
     }
 
     @Override
-    public VoiceTagView createVoiceTag(CreateVoiceTagCommand command) {
-        return voiceTagUseCase.createVoiceTag(command);
+    public VoiceTagView createVoiceTagTts(UUID userId, String name, String text, String languageCode) {
+        return voiceTagUseCase.createVoiceTagTts(userId, name, text, languageCode);
     }
 
     @Override
@@ -94,5 +104,10 @@ public class AudioFacadeImpl implements AudioFacade {
     @Override
     public Page<VoiceTagView> listVoiceTags(UUID userId, Pageable pageable) {
         return voiceTagUseCase.listVoiceTags(userId, pageable);
+    }
+
+    @Override
+    public PresignedUrlView getVoiceTagAudioUrl(UUID userId, UUID voiceTagId, long expirationSeconds) {
+        return voiceTagUseCase.getVoiceTagAudioUrl(userId, voiceTagId, expirationSeconds);
     }
 }

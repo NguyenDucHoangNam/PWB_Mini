@@ -26,11 +26,15 @@ public interface AudioFacade {
 
     SongTagConfigView configureVoiceTag(UUID userId, ConfigureVoiceTagCommand command);
 
+    SongTagConfigView getVoiceTagConfig(UUID userId, UUID songId);
+
+    void removeVoiceTagConfig(UUID userId, UUID songId);
+
     SongView triggerProcessing(UUID userId, UUID songId);
 
     PresignedUrlView getStreamPresignedUrl(UUID userId, UUID songId, long expirationSeconds);
 
-    VoiceTagView createVoiceTag(CreateVoiceTagCommand command);
+    VoiceTagView createVoiceTagTts(UUID userId, String name, String text, String languageCode);
 
     VoiceTagView getVoiceTag(UUID userId, UUID voiceTagId);
 
@@ -41,4 +45,6 @@ public interface AudioFacade {
     VoiceTagView markVoiceTagDefault(UUID userId, UUID voiceTagId);
 
     Page<VoiceTagView> listVoiceTags(UUID userId, Pageable pageable);
+
+    PresignedUrlView getVoiceTagAudioUrl(UUID userId, UUID voiceTagId, long expirationSeconds);
 }
