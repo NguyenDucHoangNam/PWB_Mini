@@ -225,12 +225,13 @@ public class AuthController {
     private AuthResponse toAuthResponse(AuthView view) {
         if (view.accessToken() == null || view.refreshToken() == null) {
             return AuthResponse.bearerOnly(
-                    view.userId(), view.email(), view.fullName(), view.status(), view.role());
+                    view.userId(), view.email(), view.fullName(), view.avatarUrl(), view.status(), view.role());
         }
         return AuthResponse.tokens(
                 view.userId(),
                 view.email(),
                 view.fullName(),
+                view.avatarUrl(),
                 view.status(),
                 view.role(),
                 view.accessToken(),

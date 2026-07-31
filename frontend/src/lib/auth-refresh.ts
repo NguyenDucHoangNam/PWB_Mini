@@ -5,6 +5,7 @@ import { decodeJwtExpiry } from "./jwt-decode";
 import type { ApiResponse } from "@/types/api";
 import type { AuthResponse } from "@/features/auth/types";
 import { broadcastAuthMessage, AUTH_CHANNEL } from "./broadcast-channel";
+import { mapAuthResponseToUser } from "@/features/auth/lib/map-auth-response";
 
 let isRefreshing = false;
 let failedQueue: Array<{
@@ -65,14 +66,11 @@ export const refreshAccessToken = async (): Promise<string> => {
     if (existingUser) {
       user = existingUser;
     } else {
-      user = {
-        userId: data.userId,
-        email: data.email,
-        fullName: data.fullName ?? "",
-        role: data.role,
-        status: data.status,
-        oauthProvider: "LOCAL",
-      };
+      user = mapAuthResponseToUser(data, { oauthProvider: "LOCAL" });
+    }
+
+    if (existingUser && data.avatarUrl !== undefined && existingUser.avatarUrl !== data.avatarUrl) {
+      useAuthStore.getState().setAvatarUrl(data.avatarUrl ?? null);
     }
 
     useAuthStore.getState().setAuth(data.accessToken, user, expiresAt ?? undefined);

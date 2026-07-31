@@ -45,6 +45,18 @@ describe("useAuthStore", () => {
     expect(s.user?.oauthProvider).toBe("GOOGLE");
   });
 
+  it("setAvatarUrl updates only the avatarUrl field on existing user", () => {
+    useAuthStore.getState().setAuth("token", sampleAuthUser);
+    useAuthStore.getState().setAvatarUrl("https://cdn.example.com/avatars/u-1.png");
+    expect(useAuthStore.getState().user?.avatarUrl).toBe("https://cdn.example.com/avatars/u-1.png");
+    expect(useAuthStore.getState().accessToken).toBe("token");
+  });
+
+  it("setAvatarUrl is a no-op when there is no authenticated user", () => {
+    useAuthStore.getState().setAvatarUrl("https://cdn.example.com/avatars/x.png");
+    expect(useAuthStore.getState().user).toBeNull();
+  });
+
   it("clearAuth resets everything", () => {
     useAuthStore.getState().setAuth("token", sampleAuthUser);
     useAuthStore.getState().clearAuth();

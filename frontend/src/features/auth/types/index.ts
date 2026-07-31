@@ -18,6 +18,7 @@ export interface AuthUser {
   userId: string;
   email: string;
   fullName: string;
+  avatarUrl?: string | null;
   role?: string;
   status: UserStatus;
   oauthProvider: OAuthProvider;
@@ -31,6 +32,7 @@ export interface AuthResponse {
   userId: string;
   email: string;
   fullName?: string;
+  avatarUrl?: string | null;
   status: UserStatus;
   role?: string;
   nextStep: AuthNextStep;
@@ -93,6 +95,7 @@ export interface RefreshAccessTokenResponse {
   userId: string;
   email: string;
   fullName?: string;
+  avatarUrl?: string | null;
   status: UserStatus;
   role?: string;
   nextStep: AuthNextStep;

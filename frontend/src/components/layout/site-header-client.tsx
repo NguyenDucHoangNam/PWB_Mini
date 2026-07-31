@@ -6,8 +6,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
 import { MobileDrawer } from "./mobile-drawer";
-import { UserDropdown } from "./user-dropdown";
+import { UserDropdown, LogOut } from "./user-dropdown";
 import { LocaleSwitcher } from "./locale-switcher";
+import { User as UserIcon, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useLogout } from "@/features/auth/api/account";
@@ -98,13 +99,23 @@ export function SiteHeaderClient() {
     { label: t("contact"), href: "/contact" },
   ];
 
-  const loggedInItems: NavItem[] = [
-    { label: t("dashboard"), href: "/dashboard/songs" },
-    { label: t("profile"), href: "/dashboard/profile" },
-  ];
-
-  const dropdownItems = [
-    { label: t("logout"), onSelect: handleLogout },
+  const dropdownItems: Array<import("@/hooks/use-dropdown-menu").DropdownItem> = [
+    {
+      label: t("profile"),
+      href: "/dashboard/profile",
+      icon: <UserIcon aria-hidden="true" />,
+    },
+    {
+      label: t("changePassword"),
+      href: "/dashboard/profile#security",
+      icon: <ShieldCheck aria-hidden="true" />,
+    },
+    {
+      label: t("logout"),
+      onSelect: handleLogout,
+      icon: <LogOut aria-hidden="true" />,
+      variant: "destructive",
+    },
   ];
 
   return (
@@ -127,28 +138,28 @@ export function SiteHeaderClient() {
           <div className="hidden items-center gap-4 sm:gap-6 xl:flex">
             {isMounted && isLoggedIn && (
               <nav className="flex items-center gap-6 mr-4">
-                <DesktopNav items={loggedInItems} pathname={pathname} />
+                <DesktopNav
+                  items={[{ label: t("dashboard"), href: "/dashboard/songs" }]}
+                  pathname={pathname}
+                />
               </nav>
             )}
             <ThemeToggle />
             <LocaleSwitcher />
-            {isMounted && (
-              isLoggedIn ? (
+            {isMounted &&
+              (isLoggedIn ? (
                 <UserDropdown
                   user={user}
                   labels={{
                     logout: t("logout"),
                     account: t("account"),
+                    profile: t("profile"),
                   }}
                   items={dropdownItems}
                 />
               ) : (
-                <GuestActions
-                  loginLabel={t("login")}
-                  registerLabel={t("register")}
-                />
-              )
-            )}
+                <GuestActions loginLabel={t("login")} registerLabel={t("register")} />
+              ))}
           </div>
 
           <div className="flex items-center gap-1 xl:hidden">
@@ -182,13 +193,11 @@ export function SiteHeaderClient() {
             onClick={() => setIsOpen(false)}
             className="px-3 py-1 border-2 border-black dark:border-white inline-block w-fit"
           >
-            <span className="text-lg font-bold tracking-tight text-black dark:text-white">
-              PWB
-            </span>
+            <span className="text-lg font-bold tracking-tight text-black dark:text-white">PWB</span>
           </Link>
           <hr className="border-neutral-200 dark:border-neutral-800" />
-          {isMounted && (
-            isLoggedIn ? (
+          {isMounted &&
+            (isLoggedIn ? (
               <MobileAuthenticated
                 user={user}
                 labels={{
@@ -212,8 +221,7 @@ export function SiteHeaderClient() {
                 items={publicItems}
                 onNavigate={() => setIsOpen(false)}
               />
-            )
-          )}
+            ))}
         </div>
       </MobileDrawer>
     </header>
@@ -255,7 +263,13 @@ function HeaderSignature() {
   );
 }
 
-function GuestActions({ loginLabel, registerLabel }: { loginLabel: string; registerLabel: string }) {
+function GuestActions({
+  loginLabel,
+  registerLabel,
+}: {
+  loginLabel: string;
+  registerLabel: string;
+}) {
   return (
     <>
       <Link href="/login">

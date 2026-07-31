@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
+import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import type { MutationConfig } from "@/lib/react-query";
 import type { ApiResponse } from "@/types/api";
 import type {
@@ -56,11 +57,17 @@ type UseUpdateProfileOptions = {
 
 export const useUpdateProfile = ({ mutationConfig }: UseUpdateProfileOptions = {}) => {
   const queryClient = useQueryClient();
+  const setAvatarUrl = useAuthStore((state) => state.setAvatarUrl);
   return useMutation({
     ...mutationConfig,
     mutationFn: updateProfile,
-    onSuccess: () => {
+    onSuccess: (response, variables, onMutateResult, context) => {
       queryClient.invalidateQueries({ queryKey: [PROFILE_KEY] });
+      const newAvatarUrl = response?.data?.avatarUrl;
+      if (newAvatarUrl) {
+        setAvatarUrl(newAvatarUrl);
+      }
+      mutationConfig?.onSuccess?.(response, variables, onMutateResult, context);
     },
   });
 };
@@ -71,11 +78,17 @@ type UseUploadAvatarOptions = {
 
 export const useUploadAvatar = ({ mutationConfig }: UseUploadAvatarOptions = {}) => {
   const queryClient = useQueryClient();
+  const setAvatarUrl = useAuthStore((state) => state.setAvatarUrl);
   return useMutation({
     ...mutationConfig,
     mutationFn: uploadAvatar,
-    onSuccess: () => {
+    onSuccess: (response, variables, onMutateResult, context) => {
       queryClient.invalidateQueries({ queryKey: [PROFILE_KEY] });
+      const newAvatarUrl = response?.data?.avatarUrl;
+      if (newAvatarUrl) {
+        setAvatarUrl(newAvatarUrl);
+      }
+      mutationConfig?.onSuccess?.(response, variables, onMutateResult, context);
     },
   });
 };

@@ -12,15 +12,44 @@ import { useCaptureReturnTo } from "@/hooks/use-return-to";
 import { broadcastAuthMessage } from "@/lib/broadcast-channel";
 import { decodeJwtExpiry } from "@/lib/jwt-decode";
 import { asApiError } from "@/lib/api-client";
+import { resolveErrorI18nKey } from "@/lib/error-code-to-i18n";
+import { sanitizeApiMessage } from "@/lib/form-errors";
+import type { ApiError } from "@/lib/api-client";
 import type { AuthUser } from "../types";
+import { mapAuthResponseToUser } from "../lib/map-auth-response";
 import { PasswordInput } from "./password-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
+type Translator = (key: string) => string;
+
+function translateWithFallbacks(t: Translator, key: string): string | null {
+  try {
+    const translated = t(key);
+    if (translated && translated !== key) return translated;
+  } catch {
+  }
+  return null;
+}
+
+function resolveErrorMessage(err: ApiError, tLogin: Translator, tErrors: Translator, tValidation: Translator): string {
+  const i18nKey = resolveErrorI18nKey(err);
+  if (i18nKey) {
+    const translated =
+      translateWithFallbacks(tErrors, i18nKey) ??
+      translateWithFallbacks(tValidation, i18nKey) ??
+      translateWithFallbacks(tLogin, i18nKey);
+    if (translated) return translated;
+  }
+  return sanitizeApiMessage(err, tLogin("errorToast"));
+}
+
 export function LoginForm() {
   const t = useTranslations("auth.login");
+  const tErrors = useTranslations("errors");
+  const tValidation = useTranslations("validation");
   const router = useRouter();
   const pathname = usePathname();
   const locale = pathname.split("/")[1] || "vi";
@@ -84,14 +113,7 @@ export function LoginForm() {
         onSuccess: (response) => {
           if (response.success && response.data) {
             const data = response.data;
-            const user: AuthUser = {
-              userId: data.userId,
-              email: data.email,
-              fullName: data.fullName ?? "",
-              role: data.role,
-              status: data.status,
-              oauthProvider: "LOCAL",
-            };
+            const user: AuthUser = mapAuthResponseToUser(data, { oauthProvider: "LOCAL" });
             toast.success(t("successToast"));
             handleAuthSuccess(data.accessToken, user);
             redirectAfterLogin(data.nextStep);
@@ -114,8 +136,8 @@ export function LoginForm() {
             );
             return;
           }
-          setError(err.message || t("errorToast"));
-          toast.error(t("errorToast"));
+          setError(resolveErrorMessage(err, t, tErrors, tValidation));
+          toast.error(resolveErrorMessage(err, t, tErrors, tValidation));
         }),
       },
     );
@@ -130,14 +152,7 @@ export function LoginForm() {
           onSuccess: (response) => {
             if (response.success && response.data) {
               const data = response.data;
-              const user: AuthUser = {
-                userId: data.userId,
-                email: data.email,
-                fullName: data.fullName ?? "",
-                role: data.role,
-                status: data.status,
-                oauthProvider: "GOOGLE",
-              };
+              const user: AuthUser = mapAuthResponseToUser(data, { oauthProvider: "GOOGLE" });
               toast.success(t("successToast"));
               handleAuthSuccess(data.accessToken, user);
               broadcastAuthMessage({ type: "TOKEN_UPDATED", token: data.accessToken, user });

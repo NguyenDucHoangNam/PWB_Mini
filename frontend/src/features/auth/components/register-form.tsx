@@ -16,6 +16,7 @@ import { decodeJwtExpiry } from "@/lib/jwt-decode";
 import { asApiError, type ApiError } from "@/lib/api-client";
 import { sanitizeApiMessage } from "@/lib/form-errors";
 import type { AuthUser } from "../types";
+import { mapAuthResponseToUser } from "../lib/map-auth-response";
 import {
   EMAIL_REGEX,
   calculatePasswordStrength,
@@ -109,14 +110,7 @@ export function RegisterForm() {
           onSuccess: (response) => {
             if (response.success && response.data) {
               const data = response.data;
-              const user: AuthUser = {
-                userId: data.userId,
-                email: data.email,
-                fullName: data.fullName ?? "",
-                role: data.role,
-                status: data.status,
-                oauthProvider: "GOOGLE",
-              };
+              const user: AuthUser = mapAuthResponseToUser(data, { oauthProvider: "GOOGLE" });
               toast.success(t("successToast"));
               setAuth(data.accessToken, user, decodeJwtExpiry(data.accessToken) ?? undefined);
               redirectAfterLogin(data.nextStep);

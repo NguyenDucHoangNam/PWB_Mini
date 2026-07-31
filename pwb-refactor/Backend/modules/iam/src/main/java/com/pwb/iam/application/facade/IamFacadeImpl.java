@@ -125,6 +125,7 @@ public class IamFacadeImpl implements IamFacade {
                 user.getUserId(),
                 user.getEmail() == null ? null : user.getEmail().value(),
                 user.getFullName(),
+                user.getAvatarUrl(),
                 user.getStatus() == null ? null : user.getStatus().name(),
                 user.getRole() == null ? null : user.getRole().name(),
                 result.accessToken().tokenValue(),

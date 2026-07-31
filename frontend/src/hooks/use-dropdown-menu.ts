@@ -1,11 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+
+export type DropdownItemVariant = "default" | "destructive";
 
 export interface DropdownItem {
   label: string;
   href?: string;
   onSelect?: () => void;
+  icon?: ReactNode;
+  variant?: DropdownItemVariant;
+  disabled?: boolean;
 }
 
 export function useDropdownMenu(items: DropdownItem[]) {
@@ -48,14 +53,26 @@ export function useDropdownMenu(items: DropdownItem[]) {
         triggerRef.current?.focus();
       } else if (event.key === "ArrowDown") {
         event.preventDefault();
-        setFocusedIndex((prev) => (prev + 1) % items.length);
+        const selectable = items
+          .map((item, idx) => ({ item, idx }))
+          .filter(({ item }) => !item.disabled);
+        if (selectable.length === 0) return;
+        const currentSelectableIdx = selectable.findIndex(({ idx }) => idx === focusedIndex);
+        const next = selectable[(currentSelectableIdx + 1) % selectable.length];
+        setFocusedIndex(next.idx);
       } else if (event.key === "ArrowUp") {
         event.preventDefault();
-        setFocusedIndex((prev) => (prev - 1 + items.length) % items.length);
+        const selectable = items
+          .map((item, idx) => ({ item, idx }))
+          .filter(({ item }) => !item.disabled);
+        if (selectable.length === 0) return;
+        const currentSelectableIdx = selectable.findIndex(({ idx }) => idx === focusedIndex);
+        const next = selectable[(currentSelectableIdx - 1 + selectable.length) % selectable.length];
+        setFocusedIndex(next.idx);
       } else if (event.key === "Enter") {
         event.preventDefault();
         const active = items[focusedIndex];
-        if (active) {
+        if (active && !active.disabled) {
           active.onSelect?.();
           setIsOpen(false);
         }

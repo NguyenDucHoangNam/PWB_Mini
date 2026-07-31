@@ -8,7 +8,6 @@ import com.pwb.shared.exception.ValidationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -38,7 +37,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException ex) {
-        String resolvedMessage = resolveMessage(ex.getErrorCode(), null);
+        Object[] args = extractArgs(ex.getDetails());
+        String resolvedMessage = resolveMessage(ex.getErrorCode(), args);
         return ResponseEntity.status(WebErrorMapper.toHttpStatus(ex.getCategory()))
                 .body(ApiResponse.error(ex.getErrorCode(), resolvedMessage));
     }
@@ -98,6 +98,13 @@ public class GlobalExceptionHandler {
         String resolvedMessage = resolveMessage(ec, null);
         return ResponseEntity.status(WebErrorMapper.toHttpStatus(ec.category()))
                 .body(ApiResponse.error(ec, resolvedMessage));
+    }
+
+    private Object[] extractArgs(Map<String, Object> details) {
+        if (details == null || details.isEmpty()) {
+            return null;
+        }
+        return details.values().toArray();
     }
 
     private String resolveMessage(ErrorCode ec, Object[] args) {

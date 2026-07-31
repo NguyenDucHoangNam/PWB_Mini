@@ -19,6 +19,7 @@ import {
 import { decodeJwtExpiry } from "@/lib/jwt-decode";
 import { pendingRegistration } from "../lib/pending-registration";
 import { useExpiryCountdown, useCooldown } from "../hooks/use-otp-countdown";
+import { mapAuthResponseToUser } from "../lib/map-auth-response";
 
 const OTP_LOCKED_CODE = "AUTH_OTP_LOCKED";
 const OTP_INVALID_CODE = "AUTH_OTP_INVALID";
@@ -103,14 +104,7 @@ export function OtpForm() {
           if (response.success && response.data) {
             const data = response.data;
             const expiresAt = decodeJwtExpiry(data.accessToken);
-            setAuth(data.accessToken, {
-              userId: data.userId,
-              email: data.email,
-              fullName: data.fullName ?? "",
-              role: data.role,
-              status: data.status,
-              oauthProvider: "LOCAL",
-            }, expiresAt ?? undefined);
+            setAuth(data.accessToken, mapAuthResponseToUser(data, { oauthProvider: "LOCAL" }), expiresAt ?? undefined);
             pendingRegistration.clear();
             toast.success(t("successToast"));
             router.push("/");

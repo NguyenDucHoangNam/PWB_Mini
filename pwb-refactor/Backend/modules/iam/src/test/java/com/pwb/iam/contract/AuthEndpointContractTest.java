@@ -68,7 +68,7 @@ class AuthEndpointContractTest {
     }
 
     private AuthView authView() {
-        return AuthView.withTokens(testUserId, "user@example.com", "Alice", "ACTIVE", "USER",
+        return AuthView.withTokens(testUserId, "user@example.com", "Alice", null, "ACTIVE", "USER",
                 "access.jwt", "refresh.jwt", 900L, AuthNextStep.NONE);
     }
 

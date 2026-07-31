@@ -10,6 +10,7 @@ public class AuthResponse {
     private UUID userId;
     private String email;
     private String fullName;
+    private String avatarUrl;
     private String status;
     private String role;
     private String tokenType = "Bearer";
@@ -21,19 +22,20 @@ public class AuthResponse {
     public AuthResponse() {
     }
 
-    public static AuthResponse bearerOnly(UUID userId, String email, String fullName, String status, String role) {
+    public static AuthResponse bearerOnly(UUID userId, String email, String fullName, String avatarUrl, String status, String role) {
         AuthResponse response = new AuthResponse();
         response.userId = userId;
         response.email = email;
         response.fullName = fullName;
+        response.avatarUrl = avatarUrl;
         response.status = status;
         response.role = role;
         return response;
     }
 
-    public static AuthResponse tokens(UUID userId, String email, String fullName, String status, String role,
+    public static AuthResponse tokens(UUID userId, String email, String fullName, String avatarUrl, String status, String role,
                                       String accessToken, String refreshToken, long expiresIn, String nextStep) {
-        AuthResponse response = bearerOnly(userId, email, fullName, status, role);
+        AuthResponse response = bearerOnly(userId, email, fullName, avatarUrl, status, role);
         response.accessToken = accessToken;
         response.refreshToken = refreshToken;
         response.expiresIn = expiresIn;
@@ -63,6 +65,14 @@ public class AuthResponse {
 
     public void setFullName(String fullName) {
         this.fullName = fullName;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
     }
 
     public String getStatus() {

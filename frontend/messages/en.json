@@ -254,9 +254,12 @@
     }
   },
   "profile": {
-    "title": "ACCOUNT INFORMATION",
-    "subtitle": "Manage your personal details and set your account password.",
-    "formTitle": "PERSONAL DETAILS",
+    "title": "Account Settings",
+    "subtitle": "Manage your personal details and account security.",
+    "tabs": {
+      "personal": "Personal info",
+      "security": "Security"
+    },
     "avatarTitle": "Avatar image",
     "avatarHelp": "Drag & drop or click to choose a picture (.jpg, .jpeg, .png) max 2MB",
     "email": "Email",
@@ -535,6 +538,49 @@
     }
   },
   "errors": {
+    "common": {
+      "operationFailed": "Operation failed",
+      "rateLimited": "Too many requests. Please try again later.",
+      "dataIntegrity": "Data conflicts with an existing constraint.",
+      "notFound": "Resource not found.",
+      "fileTooLarge": "Uploaded file exceeds the allowed limit.",
+      "serverError": "The system encountered an error. Please try again later."
+    },
+    "auth": {
+      "generic": "Login failed. Please try again.",
+      "emailAlreadyRegistered": "Email is already registered.",
+      "weakPassword": "Password is too weak.",
+      "userNotFound": "User not found.",
+      "invalidCredentials": "Invalid email or password.",
+      "accountLocked": "Account temporarily locked due to too many failed attempts. Please try again later.",
+      "accountInactive": "Account is inactive.",
+      "accountNotVerified": "Account has not been verified yet.",
+      "tokenInvalid": "Authentication token is invalid.",
+      "tokenExpired": "Authentication token has expired.",
+      "tokenMissing": "Please sign in to continue.",
+      "refreshTokenInvalid": "Refresh token is invalid.",
+      "refreshTokenExpired": "Refresh token has expired.",
+      "refreshTokenReused": "Refresh token has been revoked.",
+      "rateLimited": "Too many requests. Please slow down.",
+      "currentPasswordIncorrect": "Current password is incorrect.",
+      "passwordReused": "New password must be different from the current one.",
+      "passwordRecentlyUsed": "Password was recently used. Please choose a different password.",
+      "resetCooldown": "Please wait before requesting another password reset.",
+      "resetTokenInvalid": "Password reset token is invalid or has expired.",
+      "otpInvalid": "OTP code is invalid.",
+      "otpExpired": "OTP code has expired.",
+      "otpDailyLimit": "You have reached the daily OTP request limit. Please try again tomorrow.",
+      "oauthNoPassword": "OAuth account does not have a password.",
+      "serviceUnavailable": "Service temporarily unavailable. Please try again later.",
+      "accessDenied": "Access denied due to insufficient permissions.",
+      "googleTokenInvalid": "Google token is invalid or has expired.",
+      "googleEmailNotVerified": "Google email has not been verified.",
+      "defaultRoleMissing": "Default role configuration is missing. Please contact the administrator."
+    },
+    "profile": {
+      "avatarInvalidFormat": "Invalid avatar format. Only JPEG, PNG, WebP are allowed.",
+      "avatarTooLarge": "Avatar file size must not exceed 5MB."
+    },
     "401": {
       "title": "LOGIN SESSION EXPIRED",
       "desc": "Your active session has expired or has been revoked. Please log in again to continue.",
@@ -735,6 +781,7 @@
     }
   },
   "validation": {
+    "required": "Invalid request",
     "name": {
       "required": "Name is required",
       "maxlength": "Name must not exceed {max} characters"

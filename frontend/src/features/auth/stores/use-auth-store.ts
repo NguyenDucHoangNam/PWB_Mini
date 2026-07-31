@@ -8,6 +8,7 @@ interface AuthState {
   bootstrapping: boolean;
   setAuth: (token: string, user: AuthUser, expiresAt?: number) => void;
   setUser: (user: AuthUser) => void;
+  setAvatarUrl: (avatarUrl: string | null) => void;
   clearAuth: () => void;
   isAuthenticated: () => boolean;
   setBootstrapping: (value: boolean) => void;
@@ -42,6 +43,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setUser: (user) => {
     set({ user });
+  },
+
+  setAvatarUrl: (avatarUrl) => {
+    const currentUser = get().user;
+    if (!currentUser) return;
+    set({ user: { ...currentUser, avatarUrl } });
   },
 
   clearAuth: () => {
