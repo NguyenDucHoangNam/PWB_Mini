@@ -6,7 +6,6 @@ import com.pwb.storage.api.StorageErrorCode;
 import com.pwb.storage.api.StorageService;
 import com.pwb.voice.api.dto.request.CreateTtsVoiceTagRequest;
 import com.pwb.voice.api.dto.request.UpdateVoiceTagRequest;
-import com.pwb.voice.api.dto.request.UploadVoiceTagRequest;
 import com.pwb.voice.core.model.VoiceTag;
 import com.pwb.voice.infrastructure.config.VoiceProperties;
 import com.pwb.voice.infrastructure.persistence.entity.VoiceTagJpaEntity;
@@ -73,56 +72,6 @@ public class VoiceTagServiceImpl implements VoiceTagService {
 
         log.info("TTS voice tag created: userId={}, tagId={}, durationSeconds={}, fileSizeBytes={}",
                 userId, saved.getId(), estimatedDuration, audioBytes.length);
-
-        return voiceTagMapper.toDomain(saved);
-    }
-
-    @Override
-    public VoiceTag uploadTag(UUID userId, MultipartFile file, UploadVoiceTagRequest request) {
-        log.info("Uploading voice tag: userId={}, filename={}, sizeBytes={}",
-                userId, safeFileName(file), safeSize(file));
-
-        String extension = extractExtension(file);
-        audioFileValidator.validateExtension(extension);
-        audioFileValidator.validateSize(safeSize(file));
-
-        AudioMetadata metadata;
-        try (InputStream probeStream = file.getInputStream()) {
-            audioFileValidator.validateMagicBytes(probeStream, extension);
-        } catch (IOException ex) {
-            throw new BusinessException(VoiceErrorCode.AUDIO_PROCESSING_FAILED);
-        }
-
-        try (InputStream durationStream = file.getInputStream()) {
-            metadata = audioFileValidator.validateDuration(durationStream, extension);
-        } catch (IOException ex) {
-            throw new BusinessException(VoiceErrorCode.AUDIO_PROCESSING_FAILED);
-        }
-
-        assertNameAvailable(userId, request.getName(), null);
-
-        UUID tagId = UUID.randomUUID();
-        String s3Key = buildS3Key(userId, tagId, extension);
-
-        try (InputStream uploadStream = file.getInputStream()) {
-            storageService.upload(s3Key, uploadStream, file.getSize(), resolveContentType(extension));
-        } catch (IOException ex) {
-            throw new BusinessException(StorageErrorCode.STORAGE_UPLOAD_FAILED);
-        }
-
-        VoiceTag domain = VoiceTag.createUploadedTag(
-                userId,
-                request.getName(),
-                s3Key,
-                metadata.durationSeconds(),
-                file.getSize()
-        );
-
-        VoiceTagJpaEntity entity = voiceTagMapper.toEntity(domain);
-        VoiceTagJpaEntity saved = voiceTagJpaRepository.save(entity);
-
-        log.info("Voice tag uploaded: userId={}, tagId={}, durationSeconds={}, fileSizeBytes={}",
-                userId, saved.getId(), metadata.durationSeconds(), file.getSize());
 
         return voiceTagMapper.toDomain(saved);
     }

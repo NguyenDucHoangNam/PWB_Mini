@@ -76,7 +76,7 @@ public class ForgotPasswordUseCaseImpl implements ForgotPasswordUseCase {
         passwordResetTokenRepository.invalidateAllForUser(user.getUserId(), now);
         passwordResetTokenRepository.save(PasswordResetToken.create(user.getUserId(), tokenHash, expiresAt));
 
-        String resetLink = passwordResetTokenService.buildResetLink(rawToken);
+        String resetLink = passwordResetTokenService.buildResetLink(signedToken);
 
         Map<String, String> variables = Map.of(
                 "resetLink", resetLink,

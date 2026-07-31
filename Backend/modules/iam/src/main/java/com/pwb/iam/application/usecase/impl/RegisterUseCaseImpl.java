@@ -13,6 +13,7 @@ import com.pwb.iam.domain.model.Password;
 import com.pwb.iam.domain.model.Role;
 import com.pwb.iam.domain.model.RoleName;
 import com.pwb.iam.domain.model.User;
+import com.pwb.iam.domain.model.UserStatus;
 import com.pwb.iam.domain.repository.RoleRepository;
 import com.pwb.iam.domain.repository.UserRepository;
 import com.pwb.iam.domain.service.PasswordHasher;
@@ -22,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -43,8 +45,33 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
     public User execute(RegisterCommand command) {
         String email = command.email().trim().toLowerCase();
 
-        if (userRepository.existsByEmail(email)) {
-            throw new BusinessException(IamErrorCode.EMAIL_ALREADY_REGISTERED_AUTH);
+        Optional<User> existingUserOpt = userRepository.findByEmail(email);
+        if (existingUserOpt.isPresent()) {
+            User existingUser = existingUserOpt.get();
+            if (existingUser.getStatus() != UserStatus.PENDING_VERIFICATION) {
+                throw new BusinessException(IamErrorCode.EMAIL_ALREADY_REGISTERED_AUTH);
+            }
+            enforcePasswordPolicy(command.rawPassword());
+            String hashed = passwordHasher.hash(command.rawPassword());
+            existingUser.changePassword(Password.fromHash(hashed));
+            User saved = userRepository.save(existingUser);
+            OtpPolicyResult policy = otpService.requestOtp(saved.getEmail().value(), OtpPurpose.REGISTER);
+            if (!policy.allowed()) {
+                throw switch (policy.throttleType()) {
+                    case DAILY_LIMIT -> {
+                        log.warn("OTP daily limit reached right after register: userId={}", saved.getUserId());
+                        yield new BusinessException(IamErrorCode.AUTH_OTP_DAILY_LIMIT_EXCEEDED);
+                    }
+                    default -> {
+                        long seconds = policy.cooldownRemaining().toSeconds();
+                        log.warn("OTP throttled right after register: userId={} cooldown={}s",
+                                saved.getUserId(), seconds);
+                        yield new BusinessException(IamErrorCode.AUTH_RATE_LIMIT_EXCEEDED, seconds);
+                    }
+                };
+            }
+            log.info("Unverified user re-registered: userId={} email={}", saved.getUserId(), saved.getEmail().value());
+            return saved;
         }
 
         enforcePasswordPolicy(command.rawPassword());

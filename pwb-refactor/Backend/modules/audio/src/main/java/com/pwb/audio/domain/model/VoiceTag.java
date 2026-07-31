@@ -73,36 +73,6 @@ public final class VoiceTag extends DomainBaseEntity {
         );
     }
 
-    public static VoiceTag createUploadedTag(
-            UUID userId,
-            String name,
-            String s3Key,
-            Integer durationSeconds,
-            Long fileSizeBytes
-    ) {
-        if (userId == null) {
-            throw new IllegalArgumentException("userId must not be null");
-        }
-        if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("name must not be blank");
-        }
-        if (s3Key == null || s3Key.isBlank()) {
-            throw new IllegalArgumentException("s3Key must not be blank");
-        }
-        return new VoiceTag(
-                UUID.randomUUID(),
-                userId,
-                name,
-                VoiceTagType.UPLOADED,
-                null,
-                null,
-                s3Key,
-                durationSeconds,
-                fileSizeBytes,
-                false
-        );
-    }
-
     public static VoiceTag rehydrate(
             UUID id,
             UUID userId,

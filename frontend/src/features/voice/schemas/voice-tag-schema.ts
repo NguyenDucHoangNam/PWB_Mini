@@ -19,15 +19,6 @@ export const ttsFormSchema = z.object({
 
 export type TtsFormValues = z.infer<typeof ttsFormSchema>;
 
-export const uploadVoiceTagFormSchema = z.object({
-  name: z
-    .string()
-    .min(1, { message: "validation.name.required" })
-    .max(128, { message: "validation.name.maxlength" }),
-});
-
-export type UploadVoiceTagFormValues = z.infer<typeof uploadVoiceTagFormSchema>;
-
 export const LANGUAGE_CODES = [
   { value: "en-US", label: "English (US)" },
   { value: "en-GB", label: "English (UK)" },

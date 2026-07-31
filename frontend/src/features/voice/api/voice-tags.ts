@@ -7,7 +7,6 @@ import type {
   CreateTtsVoiceTagRequest,
   ListVoiceTagsParams,
   UpdateVoiceTagRequest,
-  UploadVoiceTagRequest,
   VoiceTag,
   VoiceTagType,
 } from "../types";
@@ -24,18 +23,6 @@ export const createTtsVoiceTag = ({
   data: CreateTtsVoiceTagRequest;
 }): Promise<ApiResponse<VoiceTag>> =>
   apiClient.post("/voice-tags/tts", data).then((res) => res.data);
-
-export const uploadVoiceTag = ({
-  formData,
-}: {
-  formData: FormData;
-}): Promise<ApiResponse<VoiceTag>> =>
-  apiClient
-    .post("/voice-tags/upload", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-      timeout: 60000,
-    })
-    .then((res) => res.data);
 
 export const listVoiceTags = ({
   page,
@@ -98,27 +85,6 @@ export const useCreateTtsVoiceTag = ({
       return onSuccess?.(response, variables, onMutateResult, context);
     },
     mutationFn: createTtsVoiceTag,
-  });
-};
-
-type UseUploadVoiceTagOptions = {
-  mutationConfig?: MutationConfig<typeof uploadVoiceTag>;
-};
-
-export const useUploadVoiceTag = ({
-  mutationConfig,
-}: UseUploadVoiceTagOptions = {}) => {
-  const queryClient = useQueryClient();
-  const { onSuccess, ...restMutationConfig } = mutationConfig ?? {};
-  return useMutation({
-    ...restMutationConfig,
-    onSuccess: (response, variables, onMutateResult, context) => {
-      if (response.success) {
-        queryClient.invalidateQueries({ queryKey: [VOICE_TAGS_KEY] });
-      }
-      return onSuccess?.(response, variables, onMutateResult, context);
-    },
-    mutationFn: uploadVoiceTag,
   });
 };
 

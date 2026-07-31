@@ -2,12 +2,10 @@ package com.pwb.voice.core.service;
 
 import com.pwb.kernel.exception.BusinessException;
 import com.pwb.voice.core.exception.VoiceErrorCode;
-
 import com.pwb.storage.api.StorageService;
 import com.pwb.voice.api.VoiceTagFacade;
 import com.pwb.voice.api.dto.request.CreateTtsVoiceTagRequest;
 import com.pwb.voice.api.dto.request.UpdateVoiceTagRequest;
-import com.pwb.voice.api.dto.request.UploadVoiceTagRequest;
 import com.pwb.voice.api.dto.response.VoiceTagResponse;
 import com.pwb.voice.api.enums.VoiceTagType;
 import com.pwb.voice.core.model.VoiceTag;
@@ -19,7 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URL;
 import java.time.Duration;
@@ -38,12 +35,6 @@ public class VoiceTagFacadeImpl implements VoiceTagFacade {
     @Override
     public VoiceTagResponse createTtsTag(UUID userId, CreateTtsVoiceTagRequest request) {
         VoiceTag domain = voiceTagService.createTtsTag(userId, request);
-        return toResponse(domain);
-    }
-
-    @Override
-    public VoiceTagResponse uploadTag(UUID userId, MultipartFile file, UploadVoiceTagRequest request) {
-        VoiceTag domain = voiceTagService.uploadTag(userId, file, request);
         return toResponse(domain);
     }
 
@@ -105,4 +96,3 @@ public class VoiceTagFacadeImpl implements VoiceTagFacade {
         return toResponse(voiceTagMapper.toDomain(entity));
     }
 }
-

@@ -43,7 +43,6 @@ public class VoiceTagController {
     private static final String MSG_VOICE_TAG_CREATED = "AUDIO_VOICE_TAG_CREATED";
     private static final String MSG_VOICE_TAG_UPDATED = "AUDIO_VOICE_TAG_UPDATED";
     private static final String MSG_VOICE_TAG_DEFAULT = "AUDIO_VOICE_TAG_DEFAULT";
-    private static final String MSG_PRESIGNED_URL = "AUDIO_PRESIGNED_URL_GENERATED";
 
     private final AudioFacade audioFacade;
     private final MessageResolver messageResolver;
@@ -134,19 +133,6 @@ public class VoiceTagController {
         VoiceTagView view = audioFacade.markVoiceTagDefault(userId, voiceTagId);
         VoiceTagResponse body = VoiceTagResponse.from(view);
         return ResponseEntity.ok(ApiResponse.success(messageResolver.get(MSG_VOICE_TAG_DEFAULT), body));
-    }
-
-    @GetMapping("/upload-url")
-    public ResponseEntity<ApiResponse<PresignedUrlResponse>> getUploadUrl(
-            @CurrentUser UUID userId,
-            @Valid @ModelAttribute PresignedUrlRequest request
-    ) {
-        if (userId == null) {
-            return unauthorized();
-        }
-        PresignedUrlView view = audioFacade.getVoiceTagUploadUrl(userId, request.filename(), request.expirationSeconds());
-        PresignedUrlResponse body = PresignedUrlResponse.from(view);
-        return ResponseEntity.ok(ApiResponse.success(messageResolver.get(MSG_PRESIGNED_URL), body));
     }
 
     private static CreateVoiceTagCommand toCreateCommand(UUID userId, CreateVoiceTagRequest request) {

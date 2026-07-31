@@ -95,9 +95,4 @@ public class AudioFacadeImpl implements AudioFacade {
     public Page<VoiceTagView> listVoiceTags(UUID userId, Pageable pageable) {
         return voiceTagUseCase.listVoiceTags(userId, pageable);
     }
-
-    @Override
-    public PresignedUrlView getVoiceTagUploadUrl(UUID userId, String filename, long expirationSeconds) {
-        return voiceTagUseCase.getPresignedUploadUrl(userId, filename, expirationSeconds);
-    }
 }

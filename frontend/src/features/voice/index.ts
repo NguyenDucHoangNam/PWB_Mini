@@ -4,14 +4,12 @@ export {
   voiceTagKey,
   voiceTagAudioKey,
   createTtsVoiceTag,
-  uploadVoiceTag,
   listVoiceTags,
   getVoiceTag,
   updateVoiceTag,
   deleteVoiceTag,
   getVoiceTagAudioUrl,
   useCreateTtsVoiceTag,
-  useUploadVoiceTag,
   useListVoiceTags,
   useVoiceTag,
   useUpdateVoiceTag,
@@ -68,7 +66,6 @@ export { SongDeleteDialog } from "./components/song-delete-dialog";
 export { AudioPlayer } from "./components/audio-player";
 export { ProcessingControls } from "./components/processing-controls";
 export { TtsForm } from "./components/tts-form";
-export { UploadVoiceTagForm } from "./components/upload-voice-tag-form";
 export { VoiceTagForm } from "./components/voice-tag-form";
 export { SongUploadForm } from "./components/song-upload-form";
 export { VoiceTagConfigForm } from "./components/voice-tag-config-form";

@@ -126,7 +126,7 @@ public class TokenManagerServiceAdapter implements TokenManagerService {
             byte[] newHashBytes = newHash.getBytes(StandardCharsets.UTF_8);
 
             connection.multi();
-            connection.hashCommands().hSet(newKeyBytes, userIdBytes, new byte[0]);
+            connection.stringCommands().set(newKeyBytes, userIdBytes);
             connection.keyCommands().expire(newKeyBytes, ttl.getSeconds());
             connection.setCommands().sAdd(setKeyBytes, newHashBytes);
             connection.keyCommands().expire(setKeyBytes, ttl.getSeconds());

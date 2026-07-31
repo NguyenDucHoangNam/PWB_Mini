@@ -42,26 +42,15 @@ public class VoiceTagUseCaseImpl implements VoiceTagUseCase {
             throw new AudioBusinessException(AudioErrorCode.DUPLICATE_VOICE_TAG_NAME);
         }
 
-        VoiceTag voiceTag;
-        if (command.tagType() == VoiceTagType.TTS) {
-            TtsSynthesisOutcome outcome = synthesizeAndUploadTts(command);
-            voiceTag = VoiceTag.createTtsTag(
-                    command.userId(),
-                    command.name(),
-                    command.sourceText(),
-                    command.languageCode(),
-                    outcome.s3Key(),
-                    outcome.durationSeconds()
-            );
-        } else {
-            voiceTag = VoiceTag.createUploadedTag(
-                    command.userId(),
-                    command.name(),
-                    command.s3Key(),
-                    command.durationSeconds(),
-                    command.fileSizeBytes()
-            );
-        }
+        TtsSynthesisOutcome outcome = synthesizeAndUploadTts(command);
+        VoiceTag voiceTag = VoiceTag.createTtsTag(
+                command.userId(),
+                command.name(),
+                command.sourceText(),
+                command.languageCode(),
+                outcome.s3Key(),
+                outcome.durationSeconds()
+        );
 
         VoiceTag saved = voiceTagRepository.save(voiceTag);
         log.info("Voice tag created: voiceTagId={}", saved.getId());
@@ -137,15 +126,6 @@ public class VoiceTagUseCaseImpl implements VoiceTagUseCase {
                 .map(this::toVoiceTagView);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public PresignedUrlView getPresignedUploadUrl(UUID userId, String filename, long expirationSeconds) {
-        String s3Key = buildUploadKey(userId, filename);
-        URL presignedUrl = storagePort.getPresignedUploadUrl(s3Key, expirationSeconds);
-
-        return new PresignedUrlView(null, presignedUrl, expirationSeconds);
-    }
-
     private TtsSynthesisOutcome synthesizeAndUploadTts(CreateVoiceTagCommand command) {
         TtsRequest ttsRequest = new TtsRequest(
                 command.sourceText(),
@@ -182,10 +162,6 @@ public class VoiceTagUseCaseImpl implements VoiceTagUseCase {
                 voiceTag.getCreatedAt(),
                 voiceTag.getUpdatedAt()
         );
-    }
-
-    private String buildUploadKey(UUID userId, String filename) {
-        return String.format("audio/voice-tags/%s/%s", userId, filename);
     }
 
     private String buildTtsKey(UUID userId, String name) {

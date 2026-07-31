@@ -20,7 +20,7 @@ public class RoleRepositoryImpl implements RoleRepository {
 
     @Override
     public Role save(Role role) {
-        RoleJpaEntity existing = roleJpaRepository.findByName(role.getName())
+        RoleJpaEntity existing = roleJpaRepository.findByNameAndDeletedFalse(role.getName().name())
                 .orElse(null);
         RoleJpaEntity entity = roleMapper.toEntity(role);
         if (existing != null) {

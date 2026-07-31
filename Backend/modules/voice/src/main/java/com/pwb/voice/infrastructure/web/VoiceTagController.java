@@ -7,7 +7,6 @@ import com.pwb.web.MessageResolver;
 import com.pwb.voice.api.VoiceTagFacade;
 import com.pwb.voice.api.dto.request.CreateTtsVoiceTagRequest;
 import com.pwb.voice.api.dto.request.UpdateVoiceTagRequest;
-import com.pwb.voice.api.dto.request.UploadVoiceTagRequest;
 import com.pwb.voice.api.dto.response.AudioUrlResponse;
 import com.pwb.voice.api.dto.response.VoiceTagResponse;
 import com.pwb.voice.api.enums.VoiceTagType;
@@ -57,16 +56,6 @@ public class VoiceTagController {
             @CurrentUser AuthenticatedUser user,
             @Valid @RequestBody CreateTtsVoiceTagRequest request) {
         VoiceTagResponse data = voiceTagFacade.createTtsTag(user.getId(), request);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.created(data, messageResolver.get(MSG_CREATED)));
-    }
-
-    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<VoiceTagResponse>> upload(
-            @CurrentUser AuthenticatedUser user,
-            @RequestPart("file") MultipartFile file,
-            @Valid @RequestPart("metadata") UploadVoiceTagRequest request) {
-        VoiceTagResponse data = voiceTagFacade.uploadTag(user.getId(), file, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created(data, messageResolver.get(MSG_CREATED)));
     }

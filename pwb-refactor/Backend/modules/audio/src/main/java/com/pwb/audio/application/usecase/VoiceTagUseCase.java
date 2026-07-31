@@ -21,6 +21,4 @@ public interface VoiceTagUseCase {
     VoiceTagView markDefault(UUID userId, UUID voiceTagId);
 
     Page<VoiceTagView> listVoiceTags(UUID userId, Pageable pageable);
-
-    PresignedUrlView getPresignedUploadUrl(UUID userId, String filename, long expirationSeconds);
 }

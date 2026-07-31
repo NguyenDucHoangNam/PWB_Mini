@@ -13,6 +13,7 @@ import com.pwb.iam.domain.model.Password;
 import com.pwb.iam.domain.model.Role;
 import com.pwb.iam.domain.model.RoleName;
 import com.pwb.iam.domain.model.User;
+import com.pwb.iam.domain.model.UserStatus;
 import com.pwb.iam.domain.repository.OtpCodeRepository;
 import com.pwb.iam.domain.repository.RoleRepository;
 import com.pwb.iam.domain.repository.UserRepository;
@@ -32,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -60,8 +62,20 @@ public class RegisterUseCaseImpl implements RegisterUseCase {
                     java.util.Map.of("cooldownSeconds", remaining));
         }
 
-        if (userRepository.existsByEmail(email)) {
-            throw new BusinessException(IamErrorCode.EMAIL_ALREADY_REGISTERED);
+        Optional<User> existingUserOpt = userRepository.findByEmail(email);
+        if (existingUserOpt.isPresent()) {
+            User existingUser = existingUserOpt.get();
+            if (existingUser.getStatus() != UserStatus.PENDING_VERIFICATION) {
+                throw new BusinessException(IamErrorCode.EMAIL_ALREADY_REGISTERED);
+            }
+            validatePasswordPolicyUseCase.validate(command.rawPassword());
+            String hashed = passwordHasher.hash(command.rawPassword());
+            existingUser.changePassword(Password.fromHash(hashed));
+            existingUser.changeFullName(command.fullName());
+            User saved = userRepository.save(existingUser);
+            issueOtp(saved, OtpPurpose.REGISTER);
+            log.info("Unverified user re-registered: userId={}", saved.getUserId());
+            return saved;
         }
 
         validatePasswordPolicyUseCase.validate(command.rawPassword());

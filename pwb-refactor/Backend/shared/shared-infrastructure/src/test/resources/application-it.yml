@@ -1,0 +1,10 @@
+spring:
+  autoconfigure:
+    exclude:
+      - com.pwb.infra.config.InfraAutoConfiguration
+  kafka:
+    consumer:
+      auto-offset-reset: earliest
+  mail:
+    host: localhost
+    port: 1025

@@ -1,0 +1,84 @@
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+      - com.pwb.infra.config.InfraAutoConfiguration
+      - org.springframework.boot.autoconfigure.mail.MailSenderAutoConfiguration
+  datasource:
+    url: jdbc:h2:mem:iam_testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;NON_KEYWORDS=USER
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: false
+    open-in-view: false
+  flyway:
+    enabled: false
+
+pwb:
+  iam:
+    jwt:
+      secret: "test-jwt-secret-with-at-least-32-characters-for-hs256-signing-1234567890"
+      issuer: "pwb-iam-test"
+      audience: "pwb-test-clients"
+      access-ttl-seconds: 900
+      clock-skew-seconds: 30
+    refresh-token:
+      ttl-seconds: 1209600
+      rotation-enabled: true
+      raw-token-bytes: 48
+    login-policy:
+      max-failures: 5
+      lock-minutes: 15
+      ip-max-failures: 20
+      ip-lock-minutes: 30
+    rate-limit:
+      login-per-minute: 10
+      refresh-per-minute: 30
+      fail-closed-for-critical-ops: false
+    password-policy:
+      min-length: 12
+      max-length: 128
+      require-uppercase: true
+      require-lowercase: true
+      require-digit: true
+      require-special: true
+      history-size: 5
+    password-reset:
+      token-secret: "test-password-reset-secret-with-at-least-32-characters-for-hmac"
+      token-ttl-minutes: 30
+      cooldown-seconds: 60
+      frontend-url: "http://localhost:3000"
+      reset-path: "/reset-password"
+    otp:
+      ttl-minutes: 5
+      max-attempts: 5
+      daily-limit: 10
+      resend-cooldown-seconds: 60
+    google:
+      client-id: "test-google-client-id.apps.googleusercontent.com"
+      clock-skew-seconds: 30
+    security:
+      public-endpoints:
+        - /api/v1/auth/register
+        - /api/v1/auth/verify-otp
+        - /api/v1/auth/resend-otp
+        - /api/v1/auth/login
+        - /api/v1/auth/refresh
+        - /api/v1/auth/forgot-password
+        - /api/v1/auth/reset-password
+        - /api/v1/auth/google-login
+    seeder:
+      enabled: false
+  outbox:
+    enabled: false
+    relay:
+      enabled: false
+    sink: none

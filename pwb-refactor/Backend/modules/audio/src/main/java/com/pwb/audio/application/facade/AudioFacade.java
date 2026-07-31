@@ -41,6 +41,4 @@ public interface AudioFacade {
     VoiceTagView markVoiceTagDefault(UUID userId, UUID voiceTagId);
 
     Page<VoiceTagView> listVoiceTags(UUID userId, Pageable pageable);
-
-    PresignedUrlView getVoiceTagUploadUrl(UUID userId, String filename, long expirationSeconds);
 }

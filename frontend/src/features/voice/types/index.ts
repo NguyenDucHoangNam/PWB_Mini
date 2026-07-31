@@ -72,10 +72,6 @@ export interface CreateTtsVoiceTagRequest {
   languageCode: string;
 }
 
-export interface UploadVoiceTagRequest {
-  name: string;
-}
-
 export interface UpdateVoiceTagRequest {
   name?: string;
   text?: string;

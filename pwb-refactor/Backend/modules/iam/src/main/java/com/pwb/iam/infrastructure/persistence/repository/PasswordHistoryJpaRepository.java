@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -17,13 +18,14 @@ public interface PasswordHistoryJpaRepository extends IamJpaRepository<PasswordH
 
     long countByUserIdAndDeletedFalse(UUID userId);
 
+    @Transactional
     @Modifying
     @Query(value = """
-            DELETE FROM iam_password_history 
+            DELETE FROM iam_password_history
             WHERE id IN (
-                SELECT id FROM iam_password_history 
-                WHERE user_id = :userId AND deleted = false 
-                ORDER BY created_at ASC 
+                SELECT id FROM iam_password_history
+                WHERE user_id = :userId AND deleted = false
+                ORDER BY created_at ASC
                 LIMIT :count
             )
             """, nativeQuery = true)

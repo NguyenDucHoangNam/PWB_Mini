@@ -61,7 +61,7 @@ public class UserJpaEntity extends IamJpaBaseEntity {
     @Column(name = "status", nullable = false, length = 32)
     private UserStatus status;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id")
     private RoleJpaEntity role;
 
