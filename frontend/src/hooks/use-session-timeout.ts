@@ -4,111 +4,164 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { refreshAccessToken, abortRefresh } from "@/lib/auth-refresh";
 
-const WARNING_THRESHOLD_MS = 60 * 1000; // warn when 60s remain before expiry
-const CHECK_INTERVAL_MS = 5 * 1000;
+const PROACTIVE_REFRESH_MS = 5 * 60 * 1000;
+const COUNTDOWN_INTERVAL_MS = 1000;
+const MAX_RETRY_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 2000;
 
 interface UseSessionTimeoutOptions {
-  /**
-   * Called when the user has chosen to extend the session (the "Continue"
-   * button in the warning dialog). The implementation should attempt a
-   * refresh and reset the warning state.
-   */
-  onExtend?: () => Promise<void> | void;
-  /**
-   * Called when the user has chosen to log out immediately. The
-   * implementation should clear auth state and redirect to /login.
-   */
-  onLogout?: () => void;
+  onRefreshSuccess?: () => void;
+  onSessionExpired?: () => void;
 }
 
 export interface SessionTimeoutState {
-  showWarning: boolean;
   remainingMs: number;
-  extend: () => Promise<void>;
-  logout: () => void;
+  isRefreshing: boolean;
+  shouldShowExpired: boolean;
+  refreshFailed: boolean;
 }
 
-/**
- * Detects when the JWT access token is about to expire and surfaces a
- * warning UI before the user is silently logged out.
- *
- * The warning threshold is driven by the real JWT `exp` claim
- * (decoded on token set) rather than a separate inactivity timer.
- *
- * Continue: refreshes the token via the silent refresh endpoint.
- * Logout: clears auth state via the supplied `onLogout` callback.
- */
+interface InternalState {
+  expiresAt: number | null;
+  hasAuth: boolean;
+  isRefreshing: boolean;
+  retryCount: number;
+  refreshKey: string | null;
+  retryTimeoutId: ReturnType<typeof setTimeout> | null;
+}
+
+const EMPTY_INTERNAL: InternalState = {
+  expiresAt: null,
+  hasAuth: false,
+  isRefreshing: false,
+  retryCount: 0,
+  refreshKey: null,
+  retryTimeoutId: null,
+};
+
 export function useSessionTimeout(options: UseSessionTimeoutOptions = {}): SessionTimeoutState {
-  const accessToken = useAuthStore((s) => s.accessToken);
-  const accessTokenExpiresAt = useAuthStore((s) => s.accessTokenExpiresAt);
-  const user = useAuthStore((s) => s.user);
-  const [showWarning, setShowWarning] = useState(false);
   const [remainingMs, setRemainingMs] = useState<number>(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const isRefreshingRef = useRef(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [shouldShowExpired, setShouldShowExpired] = useState(false);
+  const [refreshFailed, setRefreshFailed] = useState(false);
 
-  const evaluate = useCallback(() => {
-    if (!accessToken || !accessTokenExpiresAt || !user) {
-      // setState only when actually changing - prevents a re-render every
-      // 5 seconds for users who simply aren't logged in.
-      setShowWarning((prev) => (prev ? false : prev));
-      setRemainingMs((prev) => (prev === 0 ? prev : 0));
-      return;
+  const stateRef = useRef<InternalState>({ ...EMPTY_INTERNAL });
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+
+  const clearRetryTimeout = useCallback(() => {
+    if (stateRef.current.retryTimeoutId) {
+      clearTimeout(stateRef.current.retryTimeoutId);
+      stateRef.current.retryTimeoutId = null;
     }
-    const remaining = Math.max(0, accessTokenExpiresAt - Date.now());
-    const shouldShow = remaining > 0 && remaining <= WARNING_THRESHOLD_MS;
+  }, []);
 
-    // Conditional setters avoid triggering re-renders when nothing has
-    // changed (e.g. the user is on a long-lived stable session).
-    setRemainingMs((prev) => (prev === remaining ? prev : remaining));
-    setShowWarning((prev) => (prev === shouldShow ? prev : shouldShow));
-  }, [accessToken, accessTokenExpiresAt, user]);
+  const handleRefreshSuccess = useCallback(() => {
+    stateRef.current.retryCount = 0;
+    setRefreshFailed(false);
+    setShouldShowExpired(false);
+    optionsRef.current.onRefreshSuccess?.();
+  }, []);
 
-  useEffect(() => {
-    // evaluate() reads from the auth store and derives `remaining`/
-    // `shouldShow`. Calling it on mount seeds the timer; the setState
-    // calls inside are guarded by `prev === next` checks so they produce
-    // no re-render when nothing has actually changed.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    evaluate();
-    intervalRef.current = setInterval(evaluate, CHECK_INTERVAL_MS);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [evaluate]);
-
-  const extend = useCallback(async () => {
-    if (isRefreshingRef.current) return;
-    isRefreshingRef.current = true;
-    try {
-      if (options.onExtend) {
-        await options.onExtend();
-      } else {
-        await refreshAccessToken();
-      }
-      // The store update via refreshAccessToken() will trigger evaluate().
-      setShowWarning(false);
-    } catch {
-      // Refresh failed - the api-client interceptor will redirect to /login.
-      setShowWarning(false);
-    } finally {
-      isRefreshingRef.current = false;
-    }
-  }, [options]);
-
-  const logout = useCallback(() => {
-    if (options.onLogout) {
-      options.onLogout();
-      return;
-    }
+  const handleSessionExpired = useCallback(() => {
     abortRefresh();
     useAuthStore.getState().clearAuth();
-    if (typeof window !== "undefined") {
-      window.location.href = "/login";
-    }
-  }, [options]);
+    setShouldShowExpired(true);
+    optionsRef.current.onSessionExpired?.();
+  }, []);
 
-  return { showWarning, remainingMs, extend, logout };
+  const attemptRefresh = useCallback(async (): Promise<void> => {
+    if (stateRef.current.isRefreshing) return;
+    stateRef.current.isRefreshing = true;
+    setIsRefreshing(true);
+
+    try {
+      await refreshAccessToken();
+      handleRefreshSuccess();
+    } catch {
+      stateRef.current.retryCount += 1;
+      if (stateRef.current.retryCount < MAX_RETRY_ATTEMPTS) {
+        clearRetryTimeout();
+        stateRef.current.retryTimeoutId = setTimeout(() => {
+          void attemptRefresh();
+        }, RETRY_DELAY_MS);
+      } else {
+        setRefreshFailed(true);
+        handleSessionExpired();
+      }
+    } finally {
+      stateRef.current.isRefreshing = false;
+      setIsRefreshing(false);
+    }
+  }, [handleRefreshSuccess, handleSessionExpired, clearRetryTimeout]);
+
+  useEffect(() => {
+    const handleAuthChange = () => {
+      const authState = useAuthStore.getState();
+      const { accessToken, accessTokenExpiresAt, user } = authState;
+
+      const hasAuth = !!accessToken && !!accessTokenExpiresAt && !!user;
+      const prevHasAuth = stateRef.current.hasAuth;
+      stateRef.current.hasAuth = hasAuth;
+      stateRef.current.expiresAt = accessTokenExpiresAt ?? null;
+
+      if (!hasAuth) {
+        if (prevHasAuth) {
+          clearRetryTimeout();
+          stateRef.current.retryCount = 0;
+          stateRef.current.refreshKey = null;
+          setRemainingMs(0);
+          setIsRefreshing(false);
+          setShouldShowExpired(false);
+          setRefreshFailed(false);
+        }
+        return;
+      }
+
+      const remaining = (accessTokenExpiresAt ?? 0) - Date.now();
+      setRemainingMs(remaining > 0 ? remaining : 0);
+
+      const refreshKey = `${accessToken}-${accessTokenExpiresAt}`;
+      const keyChanged = stateRef.current.refreshKey !== refreshKey;
+      if (keyChanged) {
+        stateRef.current.refreshKey = refreshKey;
+        stateRef.current.retryCount = 0;
+      }
+
+      if (remaining > PROACTIVE_REFRESH_MS) {
+        return;
+      }
+
+      if (remaining <= PROACTIVE_REFRESH_MS && remaining > 0) {
+        if (keyChanged && !stateRef.current.isRefreshing) {
+          void attemptRefresh();
+        }
+      }
+    };
+
+    handleAuthChange();
+    const unsubscribe = useAuthStore.subscribe(handleAuthChange);
+    return () => {
+      unsubscribe();
+      clearRetryTimeout();
+    };
+  }, [attemptRefresh, clearRetryTimeout]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const expiresAt = stateRef.current.expiresAt;
+      if (!expiresAt || !stateRef.current.hasAuth) return;
+      const remaining = expiresAt - Date.now();
+      setRemainingMs((prev) => {
+        const next = remaining > 0 ? remaining : 0;
+        return prev === next ? prev : next;
+      });
+    }, COUNTDOWN_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return { remainingMs, isRefreshing, shouldShowExpired, refreshFailed };
 }
 
 export function formatRemainingTime(ms: number): string {

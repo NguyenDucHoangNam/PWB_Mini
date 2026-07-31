@@ -7,12 +7,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { useProfile, useUpdateProfile, useUploadAvatar } from "../api/profile";
+import { PasswordInput } from "@/features/auth/components/password-input";
+import { PasswordStrengthBar } from "@/features/auth/components/password-strength-bar";
+import { PasswordRules } from "@/features/auth/components/password-rules";
+import { useChangePassword } from "@/features/auth/api/change-password";
+import { usePasswordStrength } from "@/features/auth/hooks/use-password-strength";
+import { useRetryCountdown } from "@/features/auth/hooks/use-retry-countdown";
+import { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH } from "@/features/auth/hooks/password-validators";
+import { asApiError } from "@/lib/api-client";
 
 const ALLOWED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
 
 export function ProfilePage() {
   const t = useTranslations("profile");
+  const tChangePassword = useTranslations("profile.changePassword");
   const tCommon = useTranslations("common");
 
   const { data, isLoading, error, refetch } = useProfile();
@@ -41,6 +50,15 @@ export function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [isOauthOnly, setIsOauthOnly] = useState(false);
+  const retryCountdown = useRetryCountdown();
+  const strength = usePasswordStrength(newPassword);
+  const changePasswordMutation = useChangePassword();
 
   const profile = data?.data;
 
@@ -110,14 +128,75 @@ export function ProfilePage() {
     }
   };
 
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError(tChangePassword("fillAll"));
+      return;
+    }
+
+    if (newPassword.length < PASSWORD_MIN_LENGTH) {
+      setPasswordError(tChangePassword("minLen"));
+      return;
+    }
+
+    if (newPassword.length > PASSWORD_MAX_LENGTH) {
+      setPasswordError(tChangePassword("maxLen"));
+      return;
+    }
+
+    if (newPassword === currentPassword) {
+      setPasswordError(tChangePassword("reuseError"));
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError(tChangePassword("notMatch"));
+      return;
+    }
+
+    setPasswordError(null);
+
+    changePasswordMutation.mutate(
+      { data: { currentPassword, newPassword } },
+      {
+        onSuccess: (response) => {
+          if (response.success) {
+            toast.success(tChangePassword("success"));
+            setCurrentPassword("");
+            setNewPassword("");
+            setConfirmPassword("");
+          } else {
+            setPasswordError(response.message || tChangePassword("error"));
+          }
+        },
+        onError: asApiError((err) => {
+          const apiError = err.errors?.[0];
+          if (apiError?.code === "AUTH_OAUTH_USER_NO_PASSWORD") {
+            setIsOauthOnly(true);
+          } else if (apiError?.code === "AUTH_INVALID_CURRENT_PASSWORD") {
+            setPasswordError(tChangePassword("incorrectOld"));
+          } else if (apiError?.code === "AUTH_PASSWORD_REUSED") {
+            setPasswordError(tChangePassword("reuseError"));
+          } else if (err.status === 429) {
+            retryCountdown.startFromError(err.retryAfterSeconds);
+            const msg = err.retryAfterSeconds
+              ? tChangePassword("rateLimitErrorWithSeconds", { seconds: err.retryAfterSeconds })
+              : tChangePassword("error");
+            setPasswordError(msg);
+          } else {
+            setPasswordError(err.message || tChangePassword("error"));
+          }
+          toast.error(tChangePassword("error"));
+        }),
+      },
+    );
+  };
+
   const getRoleLabel = (role: string | null | undefined) => {
     if (!role) return "-";
-    const roleMap: Record<string, string> = {
-      ADMIN: "Admin",
-      PRO: "Pro",
-      USER: "User",
-    };
-    return roleMap[role] ?? role;
+    return t(`roleValue.${role}` as any) || role;
   };
 
   const getRoleBorderColor = (role: string | null | undefined) => {
@@ -258,6 +337,98 @@ export function ProfilePage() {
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="rounded-lg border border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-950">
+          <h2 className="mb-6 text-lg font-semibold text-black dark:text-white">
+            {tChangePassword("title")}
+          </h2>
+
+          {isOauthOnly ? (
+            <div className="flex flex-col gap-4 items-center text-center py-4">
+              <div className="flex size-12 items-center justify-center rounded-full bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-neutral-800 dark:text-neutral-200">
+                <svg className="size-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114-3.524 0-6.386-2.862-6.386-6.386 0-3.524 2.862-6.386 6.386-6.386 1.63 0 3.116.618 4.256 1.63l3.056-3.056C19.34 2.502 16.035 1 12.24 1 6.136 1 1.18 5.956 1.18 12.06c0 6.104 4.956 11.06 11.06 11.06 6.368 0 11.06-4.475 11.06-11.06 0-.745-.074-1.463-.207-2.149H12.24z" />
+                </svg>
+              </div>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                {tChangePassword("oauthOnly")}
+              </p>
+            </div>
+          ) : (
+            <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
+              {passwordError && (
+                <div className="rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-600 dark:bg-red-950/20 dark:text-red-400 border border-red-100/50 dark:border-red-950/30">
+                  {passwordError}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  {tChangePassword("oldPassword")}
+                </label>
+                <PasswordInput
+                  disabled={changePasswordMutation.isPending}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder={tChangePassword("oldPasswordPlaceholder")}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  {tChangePassword("newPassword")}
+                </label>
+                <PasswordInput
+                  disabled={changePasswordMutation.isPending}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder={tChangePassword("newPasswordPlaceholder")}
+                />
+                <PasswordStrengthBar strength={strength} />
+                <PasswordRules password={newPassword} />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  {tChangePassword("confirmPassword")}
+                </label>
+                <PasswordInput
+                  disabled={changePasswordMutation.isPending}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onBlur={() => {
+                    if (newPassword && confirmPassword && newPassword !== confirmPassword) {
+                      setPasswordError(tChangePassword("notMatch"));
+                    } else if (newPassword && confirmPassword && newPassword === confirmPassword) {
+                      setPasswordError(null);
+                    }
+                  }}
+                  placeholder={tChangePassword("confirmPasswordPlaceholder")}
+                />
+              </div>
+
+              <Button
+                type="submit"
+                disabled={changePasswordMutation.isPending || retryCountdown.isActive}
+                className="mt-2"
+              >
+                {changePasswordMutation.isPending ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin size-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    {tChangePassword("submitting")}
+                  </span>
+                ) : retryCountdown.isActive ? (
+                  tChangePassword("retryCountdownText", { seconds: retryCountdown.remaining })
+                ) : (
+                  tChangePassword("submit")
+                )}
+              </Button>
+            </form>
+          )}
         </div>
       </div>
     </div>

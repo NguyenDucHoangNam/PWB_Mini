@@ -58,7 +58,17 @@
       "sessionExpiringDesc": "Phiên đăng nhập của bạn sẽ hết hạn sau {time}. Bạn có muốn tiếp tục không?",
       "sessionExpiringHint": "Nhấn Tiếp tục để làm mới phiên hoặc Đăng xuất để kết thúc.",
       "extendSession": "Tiếp tục",
-      "logoutNow": "Đăng xuất ngay"
+      "logoutNow": "Đăng xuất ngay",
+      "refreshedTitle": "Đã làm mới phiên",
+      "refreshedDesc": "Phiên đăng nhập của bạn đã được tự động gia hạn.",
+      "sessionExpiredTitle": "Phiên hết hạn",
+      "sessionExpiredDesc": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để tiếp tục.",
+      "sessionExpiredHint": "Nhấn nút bên dưới để đăng nhập lại.",
+      "loginAgain": "Đăng nhập lại",
+      "refreshingTitle": "Đang làm mới phiên",
+      "refreshingDesc": "Phiên đăng nhập của bạn đang được tự động gia hạn.",
+      "refreshingInProgress": "Đang làm mới...",
+      "autoRefreshing": "Vui lòng đợi"
     },
     "login": {
       "title": "ĐĂNG NHẬP HỆ THỐNG",
@@ -221,6 +231,7 @@
       "strengthTitle": "Độ mạnh mật khẩu:",
       "fillAll": "Vui lòng điền đầy đủ các trường",
       "minLen": "Mật khẩu mới phải chứa ít nhất 8 ký tự",
+      "maxLen": "Mật khẩu mới phải chứa tối đa 128 ký tự",
       "notMatch": "Mật khẩu xác nhận không khớp",
       "successToast": "Đặt lại mật khẩu thành công! Tất cả phiên khác đã đăng xuất.",
       "errorToast": "Đặt lại mật khẩu thất bại",
@@ -250,6 +261,11 @@
     "avatarHelp": "Kéo thả hoặc nhấn chọn file ảnh (.jpg, .jpeg, .png) tối đa 2MB",
     "email": "Email",
     "role": "Vai trò",
+    "roleValue": {
+      "ADMIN": "Quản trị viên",
+      "PRO": "Pro",
+      "USER": "Người dùng"
+    },
     "fullName": "Họ và tên *",
     "fullNamePlaceholder": "Họ và tên của bạn",
     "phone": "Số điện thoại (Tùy chọn)",

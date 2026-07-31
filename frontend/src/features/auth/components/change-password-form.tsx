@@ -43,7 +43,7 @@ export function ChangePasswordForm() {
     }
 
     if (newPassword.length > PASSWORD_MAX_LENGTH) {
-      setError(t("maxLen") || "Password must be at most 128 characters");
+      setError(t("maxLen"));
       return;
     }
 

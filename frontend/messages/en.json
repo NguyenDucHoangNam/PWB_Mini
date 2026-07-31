@@ -58,7 +58,17 @@
       "sessionExpiringDesc": "Your login session will expire in {time}. Would you like to continue?",
       "sessionExpiringHint": "Press Continue to refresh your session, or Log out now to end it.",
       "extendSession": "Continue",
-      "logoutNow": "Log out now"
+      "logoutNow": "Log out now",
+      "refreshedTitle": "Session Refreshed",
+      "refreshedDesc": "Your session has been automatically renewed.",
+      "sessionExpiredTitle": "Session Expired",
+      "sessionExpiredDesc": "Your session has expired. Please log in again to continue.",
+      "sessionExpiredHint": "Click the button below to log in again.",
+      "loginAgain": "Log In Again",
+      "refreshingTitle": "Refreshing Session",
+      "refreshingDesc": "Your session is being refreshed automatically.",
+      "refreshingInProgress": "Refreshing...",
+      "autoRefreshing": "Please wait"
     },
     "login": {
       "title": "LOG IN TO SYSTEM",
@@ -221,6 +231,7 @@
       "strengthTitle": "Password strength:",
       "fillAll": "Please fill in all fields",
       "minLen": "New password must be at least 8 characters long",
+      "maxLen": "New password must be at most 128 characters",
       "notMatch": "Confirmed password does not match",
       "successToast": "Password reset successfully! All other sessions logged out.",
       "errorToast": "Password reset failed",
@@ -250,6 +261,11 @@
     "avatarHelp": "Drag & drop or click to choose a picture (.jpg, .jpeg, .png) max 2MB",
     "email": "Email",
     "role": "Role",
+    "roleValue": {
+      "ADMIN": "Admin",
+      "PRO": "Pro",
+      "USER": "User"
+    },
     "fullName": "Full Name *",
     "fullNamePlaceholder": "Your full name",
     "phone": "Phone number (Optional)",

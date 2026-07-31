@@ -21,7 +21,7 @@ public class MessageSourceConfig {
         source.setDefaultEncoding(StandardCharsets.UTF_8.name());
         source.setFallbackToSystemLocale(false);
         source.setUseCodeAsDefaultMessage(false);
-        source.setDefaultLocale(Locale.ENGLISH);
+        source.setDefaultLocale(Locale.forLanguageTag("vi"));
         return source;
     }
 
@@ -31,8 +31,8 @@ public class MessageSourceConfig {
             @Override
             public Object postProcessAfterInitialization(Object bean, String beanName) {
                 if (bean instanceof AcceptHeaderLocaleResolver resolver) {
-                    resolver.setDefaultLocale(Locale.ENGLISH);
-                    resolver.setSupportedLocales(List.of(Locale.ENGLISH, Locale.forLanguageTag("vi")));
+                    resolver.setDefaultLocale(Locale.forLanguageTag("vi"));
+                    resolver.setSupportedLocales(List.of(Locale.forLanguageTag("vi"), Locale.ENGLISH));
                 }
                 return bean;
             }
