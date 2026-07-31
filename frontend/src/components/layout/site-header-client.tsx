@@ -11,6 +11,7 @@ import { LocaleSwitcher } from "./locale-switcher";
 import { User as UserIcon, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
+import { useProGuard } from "@/features/auth/hooks/use-pro-guard";
 import { useLogout } from "@/features/auth/api/account";
 import { abortRefresh } from "@/lib/auth-refresh";
 import { useAuthChannelSync, broadcastAuthMessage } from "@/lib/use-auth-channel";
@@ -42,6 +43,7 @@ export function SiteHeaderClient() {
   const user = useAuthStore((state) => state.user);
   const accessToken = useAuthStore((state) => state.accessToken);
   const isLoggedIn = !!accessToken;
+  const { isPro } = useProGuard();
 
   const { mutate: logoutMutate } = useLogout();
   const queryClient = useQueryClient();
@@ -136,7 +138,7 @@ export function SiteHeaderClient() {
 
         <div className="flex shrink-0 items-center gap-3 sm:gap-6">
           <div className="hidden items-center gap-4 sm:gap-6 xl:flex">
-            {isMounted && isLoggedIn && (
+            {isMounted && isLoggedIn && isPro && (
               <nav className="flex items-center gap-6 mr-4">
                 <DesktopNav
                   items={[{ label: t("dashboard"), href: "/dashboard/songs" }]}
@@ -200,6 +202,7 @@ export function SiteHeaderClient() {
             (isLoggedIn ? (
               <MobileAuthenticated
                 user={user}
+                isPro={isPro}
                 labels={{
                   dashboard: t("dashboard"),
                   profile: t("profile"),
@@ -295,11 +298,13 @@ interface MobileMenuLabels {
 
 function MobileAuthenticated({
   user,
+  isPro,
   labels,
   onLogout,
   onNavigate,
 }: {
   user: ReturnType<typeof useAuthStore.getState>["user"];
+  isPro: boolean;
   labels: MobileMenuLabels;
   onLogout: () => void;
   onNavigate: () => void;
@@ -314,9 +319,11 @@ function MobileAuthenticated({
         </p>
       </div>
       <hr className="border-neutral-200 dark:border-neutral-800" />
-      <Link href="/dashboard/songs" onClick={onNavigate} className={linkClass}>
-        {labels.dashboard}
-      </Link>
+      {isPro && (
+        <Link href="/dashboard/songs" onClick={onNavigate} className={linkClass}>
+          {labels.dashboard}
+        </Link>
+      )}
       <Link href="/dashboard/profile" onClick={onNavigate} className={linkClass}>
         {labels.profile}
       </Link>
