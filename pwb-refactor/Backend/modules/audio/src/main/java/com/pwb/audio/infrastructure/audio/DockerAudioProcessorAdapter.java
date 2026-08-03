@@ -84,8 +84,8 @@ public class DockerAudioProcessorAdapter implements AudioProcessorPort {
             command.add(containerVoicePath);
             command.add("-filter_complex");
             command.add(filterComplex);
-            command.add("-t");
-            command.add(String.valueOf(intervalSeconds));
+            command.add("-map");
+            command.add("[out]");
             command.add(containerOutputPath);
 
             executeProcess(command);

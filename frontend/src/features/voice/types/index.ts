@@ -78,15 +78,15 @@ export interface UpdateVoiceTagRequest {
 
 export interface UploadSongRequest {
   title: string;
-  artist?: string;
-  album?: string;
+  originalS3Key: string;
+  fileSizeBytes: number;
+  durationSeconds: number;
+  format: string;
   voiceTagConfig?: ConfigureVoiceTagRequest;
 }
 
 export interface UpdateSongRequest {
-  title?: string;
-  artist?: string;
-  album?: string;
+  title: string;
 }
 
 export interface ConfigureVoiceTagRequest {

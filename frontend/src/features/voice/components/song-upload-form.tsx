@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { asApiError } from "@/lib/api-client";
 import { resolveVoiceErrorMessage } from "../lib/resolve-voice-error-message";
-import { useUploadSong } from "../api/songs";
+import { getPresignedUploadUrl, uploadSong } from "../api/songs";
 import { useListVoiceTags } from "../api/voice-tags";
 import { useFileValidation } from "../hooks/use-file-validation";
 import { uploadSongFormSchema, type UploadSongFormValues, type UploadSongFormInput } from "../schemas/song-schema";
@@ -31,6 +31,7 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [clientError, setClientError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const router = useRouter();
 
   const { validateAudioFile } = useFileValidation();
@@ -46,8 +47,6 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
     resolver: zodResolver(uploadSongFormSchema),
     defaultValues: {
       title: "",
-      artist: "",
-      album: "",
       attachVoiceTag: false,
       voiceTagId: "",
       intervalSeconds: 10,
@@ -59,23 +58,6 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
   });
 
   const attachVoiceTag = useWatch({ control, name: "attachVoiceTag" });
-
-  const { mutate: upload, isPending } = useUploadSong({
-    mutationConfig: {
-      onSuccess: (response) => {
-        if (response.success) {
-          toast.success(t("uploadSuccess"));
-          onSuccess?.();
-          router.push("/dashboard/songs");
-        } else {
-          toast.error(response.message || tCommon("error"));
-        }
-      },
-      onError: asApiError((err) => {
-        toast.error(resolveVoiceErrorMessage(err, tErrors, tCommon));
-      }),
-    },
-  });
 
   const handleFileChange = (selected: File | null) => {
     setClientError(null);
@@ -93,7 +75,7 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
     setFile(selected);
   };
 
-  const onSubmit = handleSubmit((values) => {
+  const onSubmit = handleSubmit(async (values) => {
     if (!file) {
       setClientError(tErrors("fileRequired"));
       return;
@@ -103,32 +85,71 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
       return;
     }
     setClientError(null);
+    setIsUploading(true);
 
-    const metadataPayload: Record<string, unknown> = {
-      title: values.title,
-      artist: values.artist || undefined,
-      album: values.album || undefined,
-    };
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "mp3";
+      const presignedRes = await getPresignedUploadUrl({ format: ext });
 
-    if (values.attachVoiceTag && values.voiceTagId) {
-      metadataPayload.voiceTagConfig = {
-        voiceTagId: values.voiceTagId,
-        intervalSeconds: Number(values.intervalSeconds) || 10,
-        volumePercentage: Number(values.volumePercentage) || 80,
-        fadeInDurationMs: Number(values.fadeInDurationMs) || 0,
-        fadeOutDurationMs: Number(values.fadeOutDurationMs) || 0,
-        startOffsetSeconds: Number(values.startOffsetSeconds) || 0,
+      if (!presignedRes.success || !presignedRes.data) {
+        throw new Error(presignedRes.message || tCommon("error"));
+      }
+
+      const { originalS3Key, uploadUrl } = presignedRes.data;
+
+      const putRes = await fetch(uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: {
+          "Content-Type": file.type || "audio/mpeg",
+        },
+      });
+
+      if (!putRes.ok) {
+        throw new Error(tCommon("error"));
+      }
+
+      const uploadPayload: Parameters<typeof uploadSong>[0] = {
+        title: values.title,
+        originalS3Key,
+        fileSizeBytes: file.size,
+        durationSeconds: 180,
+        format: ext,
       };
+
+      if (values.attachVoiceTag && values.voiceTagId) {
+        uploadPayload.voiceTagConfig = {
+          voiceTagId: values.voiceTagId,
+          intervalSeconds: Number(values.intervalSeconds) || 10,
+          volumePercentage: Number(values.volumePercentage) || 80,
+          fadeInDurationMs: Number(values.fadeInDurationMs) || 0,
+          fadeOutDurationMs: Number(values.fadeOutDurationMs) || 0,
+          startOffsetSeconds: Number(values.startOffsetSeconds) || 0,
+          enabled: true,
+        };
+      }
+
+      const response = await uploadSong(uploadPayload);
+
+      if (response.success) {
+        toast.success(t("uploadSuccess"));
+        onSuccess?.();
+        router.push("/dashboard/songs");
+      } else {
+        toast.error(response.message || tCommon("error"));
+      }
+    } catch (err) {
+      const apiErr = asApiError((error) => {
+        toast.error(resolveVoiceErrorMessage(error, tErrors, tCommon));
+      });
+      if (typeof err === "object" && err !== null && "status" in err) {
+        apiErr(err as never);
+      } else {
+        toast.error((err as Error).message || tCommon("error"));
+      }
+    } finally {
+      setIsUploading(false);
     }
-
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append(
-      "metadata",
-      new Blob([JSON.stringify(metadataPayload)], { type: "application/json" }),
-    );
-
-    upload({ formData });
   });
 
   return (
@@ -156,26 +177,6 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
         {errors.title && (
           <p className="text-xs text-red-600 dark:text-red-400">
             {tValidation(errors.title.message as never)}
-          </p>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="song-artist">{t("artistLabel")}</Label>
-        <Input id="song-artist" {...register("artist")} maxLength={256} />
-        {errors.artist && (
-          <p className="text-xs text-red-600 dark:text-red-400">
-            {tValidation(errors.artist.message as never)}
-          </p>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="song-album">{t("albumLabel")}</Label>
-        <Input id="song-album" {...register("album")} maxLength={256} />
-        {errors.album && (
-          <p className="text-xs text-red-600 dark:text-red-400">
-            {tValidation(errors.album.message as never)}
           </p>
         )}
       </div>
@@ -235,6 +236,42 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                       {...register("volumePercentage")}
                     />
                   </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="fade-in-ms">{t("fadeInDurationMs")}</Label>
+                    <Input
+                      id="fade-in-ms"
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      {...register("fadeInDurationMs")}
+                    />
+                    <p className="text-xs text-neutral-400 dark:text-neutral-500">{t("fadeInHint")}</p>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="fade-out-ms">{t("fadeOutDurationMs")}</Label>
+                    <Input
+                      id="fade-out-ms"
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      {...register("fadeOutDurationMs")}
+                    />
+                    <p className="text-xs text-neutral-400 dark:text-neutral-500">{t("fadeOutHint")}</p>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="start-offset">{t("startOffsetSeconds")}</Label>
+                    <Input
+                      id="start-offset"
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      {...register("startOffsetSeconds")}
+                    />
+                    <p className="text-xs text-neutral-400 dark:text-neutral-500">{t("startOffsetHint")}</p>
+                  </div>
                 </div>
               </>
             )}
@@ -242,7 +279,7 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
         )}
       </div>
 
-      {isPending && (
+      {isUploading && (
         <div className="flex items-center gap-2 text-sm text-neutral-500">
           <Spinner size="sm" />
           <span>{t("uploadingProgress")}</span>
@@ -260,11 +297,11 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
 
       <div className="flex justify-end gap-2">
         {onCancel && (
-          <Button type="button" variant="ghost" onClick={onCancel} disabled={isPending}>
+          <Button type="button" variant="ghost" onClick={onCancel} disabled={isUploading}>
             {tActions("cancel")}
           </Button>
         )}
-        <Button type="submit" disabled={isPending || !file}>
+        <Button type="submit" disabled={isUploading || !file}>
           {t("submitButton")}
         </Button>
       </div>

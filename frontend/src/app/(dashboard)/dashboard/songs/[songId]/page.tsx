@@ -7,15 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useProGuard } from "@/features/auth/hooks/use-pro-guard";
 import { ProUpgradePrompt } from "@/features/voice/components/pro-upgrade-prompt";
-import { ProcessingStatusBadge } from "@/features/voice/components/processing-status-badge";
-import { ProcessingControls } from "@/features/voice/components/processing-controls";
-import { VoiceTagConfigForm } from "@/features/voice/components/voice-tag-config-form";
 import { SongDeleteDialog } from "@/features/voice/components/song-delete-dialog";
 import { AudioPlayer } from "@/features/voice/components/audio-player";
-import {
-  useSong,
-  useVoiceTagConfig,
-} from "@/features/voice/api/songs";
+import { useSong } from "@/features/voice/api/songs";
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -30,12 +24,10 @@ export default function SongDetailPage() {
   const songId = (params?.songId as string) ?? "";
   const { isPro } = useProGuard();
   const tActions = useTranslations("voice.actions");
-  const tPlayer = useTranslations("voice.player");
   const tVoiceErrors = useTranslations("voice.errors");
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const { data: songRes, isLoading } = useSong({ songId });
-  const { data: configRes } = useVoiceTagConfig({ songId });
 
   if (!isPro) {
     return <ProUpgradePrompt />;
@@ -61,21 +53,15 @@ export default function SongDetailPage() {
   }
 
   const song = songRes.data;
-  const config = configRes?.success && configRes.data ? configRes.data : null;
 
   return (
     <div className="flex flex-col gap-6 font-sans">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
-              {song.title}
-            </h1>
-            <ProcessingStatusBadge status={song.status} />
-          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
+            {song.title}
+          </h1>
           <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
-            {song.artist && <span>{song.artist}</span>}
-            {song.album && <span>- {song.album}</span>}
             <span>{song.format.toUpperCase()}</span>
             <span>{formatBytes(song.fileSizeBytes)}</span>
             {song.durationSeconds !== null && (
@@ -85,9 +71,6 @@ export default function SongDetailPage() {
               </span>
             )}
           </div>
-          {song.lastError && (
-            <p className="text-xs text-red-600 dark:text-red-400">{song.lastError}</p>
-          )}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => router.push("/dashboard/songs")}>
@@ -99,28 +82,9 @@ export default function SongDetailPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-black">
-          <h2 className="mb-3 text-sm font-semibold text-black dark:text-white">
-            {tPlayer("originalLabel")}
-          </h2>
-          <AudioPlayer songId={song.id} variant="original" status={song.status} />
-        </div>
-        <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-black">
-          <h2 className="mb-3 text-sm font-semibold text-black dark:text-white">
-            {tPlayer("processedLabel")}
-          </h2>
-          <AudioPlayer songId={song.id} variant="processed" status={song.status} />
-        </div>
+      <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-black">
+        <AudioPlayer songId={song.id} />
       </div>
-
-      <ProcessingControls
-        songId={song.id}
-        status={song.status}
-        hasConfig={config !== null}
-      />
-
-      <VoiceTagConfigForm songId={song.id} config={config} />
 
       <SongDeleteDialog
         song={song}

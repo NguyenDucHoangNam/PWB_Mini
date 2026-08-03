@@ -27,11 +27,6 @@ public class AudioFacadeImpl implements AudioFacade {
     }
 
     @Override
-    public SongView uploadSongMultipart(UploadSongMultipartCommand command) {
-        return songUseCase.uploadSongMultipart(command);
-    }
-
-    @Override
     public SongView getSong(UUID userId, UUID songId) {
         return songUseCase.getSong(userId, songId);
     }
@@ -49,21 +44,6 @@ public class AudioFacadeImpl implements AudioFacade {
     @Override
     public void deleteSong(DeleteSongCommand command) {
         songUseCase.deleteSong(command);
-    }
-
-    @Override
-    public SongTagConfigView configureVoiceTag(UUID userId, ConfigureVoiceTagCommand command) {
-        return songUseCase.configureVoiceTag(userId, command);
-    }
-
-    @Override
-    public SongTagConfigView getVoiceTagConfig(UUID userId, UUID songId) {
-        return songUseCase.getVoiceTagConfig(userId, songId);
-    }
-
-    @Override
-    public void removeVoiceTagConfig(UUID userId, UUID songId) {
-        songUseCase.removeVoiceTagConfig(userId, songId);
     }
 
     @Override

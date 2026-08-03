@@ -7,8 +7,6 @@ import jakarta.validation.constraints.Size;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record UploadSongMetadata(
         @NotBlank @Size(max = 200) String title,
-        @Size(max = 200) String artist,
-        @Size(max = 200) String album,
         @Size(max = 255) String originalFilename
 ) {
 }

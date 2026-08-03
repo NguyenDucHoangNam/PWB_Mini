@@ -691,7 +691,13 @@
         "selectVoiceTagPlaceholder": "Chọn một voice tag...",
         "noVoiceTags": "Chưa có Voice Tag nào. Bạn có thể tạo ở mục Voice Tag.",
         "intervalSeconds": "Khoảng cách lặp (giây)",
-        "volumePercentage": "Âm lượng Voice Tag (%)"
+        "volumePercentage": "Âm lượng Voice Tag (%)",
+        "fadeInDurationMs": "Fade in (ms)",
+        "fadeInHint": "Voice tag tăng âm lượng dần",
+        "fadeOutDurationMs": "Fade out (ms)",
+        "fadeOutHint": "Voice tag giảm âm lượng dần",
+        "startOffsetSeconds": "Bỏ qua đầu (giây)",
+        "startOffsetHint": "Bỏ qua N giây đầu trước khi chèn lần đầu"
       },
       "delete": {
         "confirmTitle": "Xóa bài hát?",

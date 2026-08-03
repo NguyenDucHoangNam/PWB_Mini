@@ -1,29 +1,22 @@
 package com.pwb.audio.api.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.audio.api.dto.request.ConfigureVoiceTagRequest;
+import com.pwb.audio.api.dto.request.PresignedUploadUrlRequest;
 import com.pwb.audio.api.dto.request.UpdateSongRequest;
-import com.pwb.audio.api.dto.request.UploadSongMetadata;
 import com.pwb.audio.api.dto.request.UploadSongRequest;
+import com.pwb.audio.api.dto.response.PresignedUploadUrlResponse;
 import com.pwb.audio.api.dto.response.PresignedUrlResponse;
 import com.pwb.audio.api.dto.response.SongResponse;
-import com.pwb.audio.api.dto.response.SongTagConfigResponse;
 import com.pwb.audio.application.command.ConfigureVoiceTagCommand;
 import com.pwb.audio.application.command.DeleteSongCommand;
 import com.pwb.audio.application.command.UpdateSongCommand;
 import com.pwb.audio.application.command.UploadSongCommand;
-import com.pwb.audio.application.command.UploadSongMultipartCommand;
 import com.pwb.audio.application.exception.AudioBusinessException;
 import com.pwb.audio.application.exception.AudioErrorCode;
 import com.pwb.audio.application.facade.AudioFacade;
 import com.pwb.audio.application.view.PresignedUrlView;
-import com.pwb.audio.application.view.SongTagConfigView;
 import com.pwb.audio.application.view.SongView;
-import com.pwb.audio.domain.model.vo.AudioFormat;
-import com.pwb.audio.infrastructure.audio.AudioProbeService;
 import com.pwb.audio.infrastructure.service.StoragePort;
-import com.pwb.infra.storage.util.MediaTypeUtils;
 import com.pwb.shared.dto.ApiResponse;
 import com.pwb.shared.dto.PageResponse;
 import com.pwb.web.message.MessageResolver;
@@ -46,11 +39,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.util.UUID;
 
 @RestController
@@ -62,14 +52,13 @@ public class SongController {
     private static final String MSG_SONG_UPDATED = "AUDIO_SONG_UPDATED";
     private static final String MSG_SONG_RETRIEVED = "AUDIO_SONG_RETRIEVED";
     private static final String MSG_PROCESSING_TRIGGERED = "AUDIO_PROCESSING_TRIGGERED";
-    private static final String MSG_TAG_CONFIGURED = "AUDIO_TAG_CONFIGURED";
+
     private static final String MSG_PRESIGNED_URL = "AUDIO_PRESIGNED_URL_GENERATED";
 
     private final AudioFacade audioFacade;
     private final MessageResolver messageResolver;
     private final StoragePort storagePort;
-    private final AudioProbeService audioProbeService;
-    private final ObjectMapper objectMapper;
+
 
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse<SongResponse>> uploadSong(
@@ -86,49 +75,19 @@ public class SongController {
                 .body(ApiResponse.success(messageResolver.get(MSG_SONG_UPLOADED), body));
     }
 
-    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<SongResponse>> uploadSongMultipart(
+    @PostMapping("/presigned-upload-url")
+    public ResponseEntity<ApiResponse<PresignedUploadUrlResponse>> getPresignedUploadUrl(
             @CurrentUser UUID userId,
-            @RequestPart("file") MultipartFile file,
-            @RequestPart("metadata") String metadataJson
-    ) throws IOException {
+            @Valid @RequestBody PresignedUploadUrlRequest request
+    ) {
         if (userId == null) {
             return unauthorized();
         }
-        if (file.isEmpty()) {
-            throw new AudioBusinessException(AudioErrorCode.FILE_EMPTY);
-        }
-
-        UploadSongMetadata metadata = parseMetadata(metadataJson);
-
-        byte[] head = readHead(file, 4096);
-        String contentType = MediaTypeUtils.detectFromBytes(head);
-        if ("application/octet-stream".equals(contentType)) {
-            throw new AudioBusinessException(AudioErrorCode.UNSUPPORTED_FORMAT);
-        }
-
-        String ext = extensionFromContentType(contentType);
-        Integer durationSeconds = audioProbeService.probeDurationFromBytes(file.getBytes(), ext);
-
-        byte[] fullBytes = file.getBytes();
-        String originalS3Key = "audio/originals/" + userId + "/" + UUID.randomUUID() + "." + ext;
-        storagePort.uploadBytes(originalS3Key, fullBytes, contentType);
-
-        UploadSongMultipartCommand command = new UploadSongMultipartCommand(
-                userId,
-                metadata.title(),
-                metadata.artist(),
-                metadata.album(),
-                originalS3Key,
-                (long) fullBytes.length,
-                durationSeconds,
-                AudioFormat.of(ext)
-        );
-
-        SongView view = audioFacade.uploadSongMultipart(command);
-        SongResponse body = SongResponse.from(view);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(messageResolver.get(MSG_SONG_UPLOADED), body));
+        String ext = request.format().toLowerCase();
+        String s3Key = "audio/originals/" + userId + "/" + UUID.randomUUID() + "." + ext;
+        java.net.URL url = storagePort.getPresignedUploadUrl(s3Key, 3600);
+        PresignedUploadUrlResponse body = new PresignedUploadUrlResponse(s3Key, url, 3600);
+        return ResponseEntity.ok(ApiResponse.success(messageResolver.get(MSG_PRESIGNED_URL), body));
     }
 
     @GetMapping("/{songId}")
@@ -191,46 +150,7 @@ public class SongController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping(value = {"/{songId}/voice-tag", "/{songId}/configure-voice-tag"})
-    public ResponseEntity<ApiResponse<SongTagConfigResponse>> configureVoiceTag(
-            @CurrentUser UUID userId,
-            @PathVariable UUID songId,
-            @Valid @RequestBody ConfigureVoiceTagRequest request
-    ) {
-        if (userId == null) {
-            return unauthorized();
-        }
-        ConfigureVoiceTagCommand command = toConfigCommand(userId, songId, request);
-        SongTagConfigView view = audioFacade.configureVoiceTag(userId, command);
-        SongTagConfigResponse body = SongTagConfigResponse.from(view);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(messageResolver.get(MSG_TAG_CONFIGURED), body));
-    }
 
-    @GetMapping("/{songId}/voice-tag")
-    public ResponseEntity<ApiResponse<SongTagConfigResponse>> getVoiceTagConfig(
-            @CurrentUser UUID userId,
-            @PathVariable UUID songId
-    ) {
-        if (userId == null) {
-            return unauthorized();
-        }
-        SongTagConfigView view = audioFacade.getVoiceTagConfig(userId, songId);
-        SongTagConfigResponse body = SongTagConfigResponse.from(view);
-        return ResponseEntity.ok(ApiResponse.success(body));
-    }
-
-    @DeleteMapping("/{songId}/voice-tag")
-    public ResponseEntity<ApiResponse<Void>> removeVoiceTagConfig(
-            @CurrentUser UUID userId,
-            @PathVariable UUID songId
-    ) {
-        if (userId == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        audioFacade.removeVoiceTagConfig(userId, songId);
-        return ResponseEntity.noContent().build();
-    }
 
     @PostMapping("/{songId}/trigger-processing")
     public ResponseEntity<ApiResponse<SongResponse>> triggerProcessing(
@@ -261,33 +181,33 @@ public class SongController {
     }
 
     private static UploadSongCommand toUploadCommand(UUID userId, UploadSongRequest request) {
+        ConfigureVoiceTagCommand vtConfig = null;
+        if (request.voiceTagConfig() != null) {
+            ConfigureVoiceTagRequest vt = request.voiceTagConfig();
+            vtConfig = new ConfigureVoiceTagCommand(
+                    null,
+                    vt.voiceTagId(),
+                    vt.intervalSeconds(),
+                    vt.volumePercentage(),
+                    vt.fadeInDurationMs(),
+                    vt.fadeOutDurationMs(),
+                    vt.startOffsetSeconds(),
+                    vt.enabled()
+            );
+        }
         return new UploadSongCommand(
                 userId,
                 request.title(),
-                request.artist(),
-                request.album(),
                 request.originalS3Key(),
                 request.fileSizeBytes(),
                 request.durationSeconds(),
-                request.format()
+                request.format(),
+                vtConfig
         );
     }
 
     private static UpdateSongCommand toUpdateCommand(UUID userId, UUID songId, UpdateSongRequest request) {
-        return new UpdateSongCommand(userId, songId, request.title(), request.artist(), request.album());
-    }
-
-    private static ConfigureVoiceTagCommand toConfigCommand(UUID userId, UUID songId, ConfigureVoiceTagRequest request) {
-        return new ConfigureVoiceTagCommand(
-                songId,
-                request.voiceTagId(),
-                request.intervalSeconds(),
-                request.volumePercentage(),
-                request.fadeInDurationMs(),
-                request.fadeOutDurationMs(),
-                request.startOffsetSeconds(),
-                request.enabled()
-        );
+        return new UpdateSongCommand(userId, songId, request.title());
     }
 
     private static DeleteSongCommand toDeleteCommand(UUID userId, UUID songId) {
@@ -296,30 +216,5 @@ public class SongController {
 
     private static <T> ResponseEntity<ApiResponse<T>> unauthorized() {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-
-    private UploadSongMetadata parseMetadata(String metadataJson) {
-        try {
-            return objectMapper.readValue(metadataJson, UploadSongMetadata.class);
-        } catch (JsonProcessingException ex) {
-            throw new AudioBusinessException(AudioErrorCode.INVALID_METADATA_JSON);
-        }
-    }
-
-    private byte[] readHead(MultipartFile file, int size) throws IOException {
-        byte[] full = file.getBytes();
-        int len = Math.min(full.length, size);
-        byte[] head = new byte[len];
-        System.arraycopy(full, 0, head, 0, len);
-        return head;
-    }
-
-    private String extensionFromContentType(String contentType) {
-        return switch (contentType) {
-            case "audio/mpeg" -> "mp3";
-            case "audio/wav" -> "wav";
-            case "audio/flac" -> "flac";
-            default -> "bin";
-        };
     }
 }

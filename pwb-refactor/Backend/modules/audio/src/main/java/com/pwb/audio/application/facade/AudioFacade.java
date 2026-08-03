@@ -14,8 +14,6 @@ public interface AudioFacade {
 
     SongView uploadSong(UploadSongCommand command);
 
-    SongView uploadSongMultipart(UploadSongMultipartCommand command);
-
     SongView getSong(UUID userId, UUID songId);
 
     Page<SongView> listSongs(UUID userId, Pageable pageable);
@@ -23,12 +21,6 @@ public interface AudioFacade {
     SongView updateSong(UpdateSongCommand command);
 
     void deleteSong(DeleteSongCommand command);
-
-    SongTagConfigView configureVoiceTag(UUID userId, ConfigureVoiceTagCommand command);
-
-    SongTagConfigView getVoiceTagConfig(UUID userId, UUID songId);
-
-    void removeVoiceTagConfig(UUID userId, UUID songId);
 
     SongView triggerProcessing(UUID userId, UUID songId);
 

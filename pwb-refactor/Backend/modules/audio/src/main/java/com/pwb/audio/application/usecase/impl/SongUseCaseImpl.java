@@ -53,8 +53,8 @@ public class SongUseCaseImpl implements SongUseCase {
         Song song = Song.create(
                 command.userId(),
                 command.title(),
-                command.artist(),
-                command.album(),
+                null,
+                null,
                 command.originalS3Key(),
                 command.fileSizeBytes(),
                 command.durationSeconds(),
@@ -64,28 +64,29 @@ public class SongUseCaseImpl implements SongUseCase {
         Song saved = songRepository.save(song);
         log.info("Song uploaded: songId={}", saved.getId());
 
-        return toSongView(saved);
-    }
+        if (command.voiceTagConfig() != null) {
+            ConfigureVoiceTagCommand vtConfig = command.voiceTagConfig();
+            VoiceTag voiceTag = voiceTagRepository.findByIdAndUserId(vtConfig.voiceTagId(), command.userId())
+                    .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.VOICE_TAG_NOT_FOUND));
 
-    @Override
-    @Transactional
-    public SongView uploadSongMultipart(UploadSongMultipartCommand command) {
-        log.info("Uploading song (multipart): userId={}, title={}, format={}",
-                command.userId(), command.title(), command.format().value());
+            SongTagConfig config = SongTagConfig.create(
+                    saved.getId(),
+                    voiceTag.getId(),
+                    vtConfig.intervalSeconds(),
+                    vtConfig.volumePercentage(),
+                    vtConfig.fadeInDurationMs(),
+                    vtConfig.fadeOutDurationMs(),
+                    vtConfig.startOffsetSeconds(),
+                    vtConfig.enabled()
+            );
+            songTagConfigRepository.save(config);
+            log.info("Voice tag configured inline: songId={}, voiceTagId={}", saved.getId(), voiceTag.getId());
 
-        Song song = Song.create(
-                command.userId(),
-                command.title(),
-                command.artist(),
-                command.album(),
-                command.originalS3Key(),
-                command.fileSizeBytes(),
-                command.durationSeconds(),
-                command.format()
-        );
-
-        Song saved = songRepository.save(song);
-        log.info("Song uploaded (multipart): songId={}", saved.getId());
+            saved.triggerProcessing();
+            saved = songRepository.save(saved);
+            publishSongProcessingRequested(saved.getId(), command.userId());
+            log.info("Auto-triggered processing after upload: songId={}", saved.getId());
+        }
 
         return toSongView(saved);
     }
@@ -112,7 +113,7 @@ public class SongUseCaseImpl implements SongUseCase {
         Song song = songRepository.findByIdAndUserId(command.songId(), command.userId())
                 .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.SONG_NOT_FOUND));
 
-        song.updateMetadata(command.title(), command.artist(), command.album());
+        song.updateMetadata(command.title());
         Song saved = songRepository.save(song);
 
         log.info("Song updated: songId={}", saved.getId());
@@ -131,52 +132,7 @@ public class SongUseCaseImpl implements SongUseCase {
         log.info("Song deleted: songId={}", song.getId());
     }
 
-    @Override
-    @Transactional
-    public SongTagConfigView configureVoiceTag(UUID userId, ConfigureVoiceTagCommand command) {
-        Song song = songRepository.findByIdAndUserId(command.songId(), userId)
-                .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.SONG_NOT_FOUND));
 
-        VoiceTag voiceTag = voiceTagRepository.findByIdAndUserId(command.voiceTagId(), userId)
-                .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.VOICE_TAG_NOT_FOUND));
-
-        SongTagConfig config = SongTagConfig.create(
-                song.getId(),
-                voiceTag.getId(),
-                command.intervalSeconds(),
-                command.volumePercentage(),
-                command.fadeInDurationMs(),
-                command.fadeOutDurationMs(),
-                command.startOffsetSeconds(),
-                command.enabled()
-        );
-
-        SongTagConfig saved = songTagConfigRepository.save(config);
-        log.info("Voice tag configured: songId={}, configId={}", song.getId(), saved.getId());
-
-        return toSongTagConfigView(saved);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public SongTagConfigView getVoiceTagConfig(UUID userId, UUID songId) {
-        Song song = songRepository.findByIdAndUserId(songId, userId)
-                .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.SONG_NOT_FOUND));
-
-        SongTagConfig config = songTagConfigRepository.findBySongId(song.getId())
-                .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.SONG_TAG_CONFIG_NOT_FOUND));
-
-        return toSongTagConfigView(config);
-    }
-
-    @Override
-    @Transactional
-    public void removeVoiceTagConfig(UUID userId, UUID songId) {
-        Song song = songRepository.findByIdAndUserId(songId, userId)
-                .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.SONG_NOT_FOUND));
-
-        songTagConfigRepository.deleteBySongId(song.getId());
-    }
 
     @Override
     @Transactional

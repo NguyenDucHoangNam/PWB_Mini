@@ -29,6 +29,7 @@ transcript*.jsonl
 # ==========================================
 .idea/
 .vscode/
+.vs/
 *.suo
 .DS_Store
 Thumbs.db

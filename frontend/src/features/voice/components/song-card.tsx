@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ProcessingStatusBadge } from "./processing-status-badge";
+import { SongEditDialog } from "./song-edit-dialog";
 import type { Song } from "../types";
 
 interface SongCardProps {
@@ -21,36 +22,59 @@ function formatBytes(bytes: number) {
 
 export function SongCard({ song, onDelete }: SongCardProps) {
   const tActions = useTranslations("voice.actions");
+  const [editOpen, setEditOpen] = useState(false);
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-black">
-      <div className="flex items-start justify-between gap-2">
+    <Link
+      href={`/dashboard/songs/${song.id}`}
+      className="group relative flex flex-col justify-between gap-3.5 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm transition-all duration-200 hover:border-neutral-300 hover:shadow-md dark:border-neutral-800 dark:bg-black dark:hover:border-neutral-700"
+    >
+      <div className="flex items-center justify-between gap-3">
         <div className="flex flex-col gap-1 min-w-0">
-          <h3 className="truncate text-base font-semibold text-black dark:text-white">
+          <h3 className="truncate text-base font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
             {song.title}
           </h3>
           <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
-            <ProcessingStatusBadge status={song.status} />
             <span>{song.format.toUpperCase()}</span>
             <span>{formatBytes(song.fileSizeBytes)}</span>
           </div>
-          {song.artist && (
-            <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">
-              {song.artist}
-            </p>
-          )}
         </div>
-        <div className="flex shrink-0 gap-2">
-          <Link href={`/dashboard/songs/${song.id}`}>
-            <Button variant="outline" size="sm">
-              {tActions("edit")}
-            </Button>
-          </Link>
-          <Button variant="destructive" size="sm" onClick={() => onDelete(song)}>
-            {tActions("delete")}
+        <div className="flex shrink-0 items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 text-neutral-500 hover:bg-neutral-100 hover:text-black dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setEditOpen(true);
+            }}
+            title={tActions("edit")}
+          >
+            <Pencil className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 text-neutral-500 hover:bg-red-50 hover:text-red-600 dark:text-neutral-400 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDelete(song);
+            }}
+            title={tActions("delete")}
+          >
+            <Trash2 className="size-4" />
           </Button>
         </div>
       </div>
-    </div>
+
+      <SongEditDialog
+        songId={song.id}
+        currentTitle={song.title}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
+    </Link>
   );
 }

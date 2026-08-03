@@ -49,6 +49,7 @@ export class ApiError<T = unknown> extends Error {
   success: boolean;
   data: T | null;
   errors?: Array<{ code: string; message: string; field?: string | null }>;
+  fieldErrors?: Record<string, string[]>;
   timestamp?: string;
   traceId?: string | null;
   code?: string;
@@ -60,6 +61,7 @@ export class ApiError<T = unknown> extends Error {
     success?: boolean;
     data?: T | null;
     errors?: Array<{ code: string; message: string; field?: string | null }> | null;
+    error?: Record<string, string[]> | null;
     timestamp?: string;
     traceId?: string | null;
     message?: string;
@@ -73,6 +75,7 @@ export class ApiError<T = unknown> extends Error {
     this.success = params.success ?? false;
     this.data = params.data ?? null;
     if (params.errors) this.errors = params.errors;
+    if (params.error && typeof params.error === "object") this.fieldErrors = params.error;
     if (params.timestamp) this.timestamp = params.timestamp;
     if (params.traceId) this.traceId = params.traceId;
     this.code = params.code ?? params.errors?.[0]?.code;

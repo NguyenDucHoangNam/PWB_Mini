@@ -5,19 +5,8 @@ import type { ApiResponse } from "@/types/api";
 import type { AudioUrl } from "../types";
 
 export const SONG_STREAM_KEY = "voice-song-stream" as const;
-export const songStreamKey = (songId: string, variant: StreamVariant) =>
+export const songStreamKey = (songId: string, variant: string) =>
   ["voice-song-stream", songId, variant] as const;
-
-export type StreamVariant = "original" | "processed";
-
-export const getStreamUrl = ({
-  songId,
-}: {
-  songId: string;
-}): Promise<ApiResponse<AudioUrl>> =>
-  apiClient
-    .get(`/songs/${songId}/stream`)
-    .then((res) => res.data);
 
 export const getOriginalUrl = ({
   songId,
@@ -25,33 +14,8 @@ export const getOriginalUrl = ({
   songId: string;
 }): Promise<ApiResponse<AudioUrl>> =>
   apiClient
-    .get(`/songs/${songId}/original`)
+    .get(`/songs/${songId}/audio`)
     .then((res) => res.data);
-
-type UseStreamUrlOptions = {
-  queryConfig?: QueryConfig<typeof getStreamUrl>;
-};
-
-export const useStreamUrl = ({
-  songId,
-  enabled = true,
-  queryConfig,
-}: {
-  songId: string;
-  enabled?: boolean;
-  queryConfig?: QueryConfig<typeof getStreamUrl>;
-}) =>
-  useQuery({
-    queryKey: songStreamKey(songId, "processed"),
-    queryFn: () => getStreamUrl({ songId }),
-    enabled: enabled && Boolean(songId),
-    retry: false,
-    ...queryConfig,
-  });
-
-type UseOriginalUrlOptions = {
-  queryConfig?: QueryConfig<typeof getOriginalUrl>;
-};
 
 export const useOriginalUrl = ({
   songId,

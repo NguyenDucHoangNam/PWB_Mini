@@ -7,7 +7,6 @@ import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
 
 public record ConfigureVoiceTagRequest(
-        @NotNull UUID songId,
         @NotNull UUID voiceTagId,
         @NotNull @Min(5) @Max(3600) Integer intervalSeconds,
         @NotNull @Min(0) @Max(100) Integer volumePercentage,
@@ -17,3 +16,4 @@ public record ConfigureVoiceTagRequest(
         boolean enabled
 ) {
 }
+

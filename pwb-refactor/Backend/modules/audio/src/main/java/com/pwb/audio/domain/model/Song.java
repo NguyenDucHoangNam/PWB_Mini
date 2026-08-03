@@ -176,12 +176,10 @@ public final class Song extends DomainBaseEntity {
         return lastError;
     }
 
-    public void updateMetadata(String title, String artist, String album) {
+    public void updateMetadata(String title) {
         if (title != null && !title.isBlank()) {
             this.title = title;
         }
-        this.artist = artist;
-        this.album = album;
         touch();
     }
 

@@ -691,7 +691,13 @@
         "selectVoiceTagPlaceholder": "Select a voice tag...",
         "noVoiceTags": "No Voice Tags available. You can create one under Voice Tags tab.",
         "intervalSeconds": "Repeat Interval (seconds)",
-        "volumePercentage": "Voice Tag Volume (%)"
+        "volumePercentage": "Voice Tag Volume (%)",
+        "fadeInDurationMs": "Fade in (ms)",
+        "fadeInHint": "Gradually increase voice tag volume",
+        "fadeOutDurationMs": "Fade out (ms)",
+        "fadeOutHint": "Gradually decrease voice tag volume",
+        "startOffsetSeconds": "Start offset (seconds)",
+        "startOffsetHint": "Skip this many seconds before first insertion"
       },
       "delete": {
         "confirmTitle": "Delete song?",
