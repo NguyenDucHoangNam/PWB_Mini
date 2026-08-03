@@ -10,7 +10,7 @@ public final class VoiceTag extends DomainBaseEntity {
     private final UUID id;
     private final UUID userId;
     private String name;
-    private VoiceTagType tagType;
+    private final VoiceTagType tagType;
     private String sourceText;
     private String languageCode;
     private String s3Key;
@@ -48,7 +48,8 @@ public final class VoiceTag extends DomainBaseEntity {
             String sourceText,
             String languageCode,
             String s3Key,
-            Integer durationSeconds
+            Integer durationSeconds,
+            Long fileSizeBytes
     ) {
         if (userId == null) {
             throw new IllegalArgumentException("userId must not be null");
@@ -59,8 +60,12 @@ public final class VoiceTag extends DomainBaseEntity {
         if (sourceText == null || sourceText.isBlank()) {
             throw new IllegalArgumentException("sourceText must not be blank for TTS tag");
         }
+        if (s3Key == null || s3Key.isBlank()) {
+            throw new IllegalArgumentException("s3Key must not be blank");
+        }
+        // id stays null until the row is persisted; that is what marks this instance as new.
         return new VoiceTag(
-                UUID.randomUUID(),
+                null,
                 userId,
                 name,
                 VoiceTagType.TTS,
@@ -68,7 +73,7 @@ public final class VoiceTag extends DomainBaseEntity {
                 languageCode,
                 s3Key,
                 durationSeconds,
-                null,
+                fileSizeBytes,
                 false
         );
     }
@@ -139,32 +144,15 @@ public final class VoiceTag extends DomainBaseEntity {
         return isDefault;
     }
 
+    public boolean isNew() {
+        return id == null;
+    }
+
     public void updateMetadata(String name) {
-        if (name != null && !name.isBlank()) {
-            this.name = name;
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("name must not be blank");
         }
+        this.name = name;
         touch();
-    }
-
-    public void updateTtsParams(String sourceText, String languageCode) {
-        if (this.tagType != VoiceTagType.TTS) {
-            throw new IllegalStateException("Can only update TTS params for TTS type tags");
-        }
-        this.sourceText = sourceText;
-        this.languageCode = languageCode;
-        touch();
-    }
-
-    public void markDeleted() {
-        this.isDefault = false;
-        touch();
-    }
-
-    public boolean isTts() {
-        return this.tagType == VoiceTagType.TTS;
-    }
-
-    public boolean isUploaded() {
-        return this.tagType == VoiceTagType.UPLOADED;
     }
 }

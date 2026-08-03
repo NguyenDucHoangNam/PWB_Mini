@@ -1,35 +1,33 @@
 package com.pwb.audio.infrastructure.tts;
 
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.texttospeech.v1.AudioConfig;
 import com.google.cloud.texttospeech.v1.AudioEncoding;
-import com.google.cloud.texttospeech.v1.ListVoicesRequest;
-import com.google.cloud.texttospeech.v1.ListVoicesResponse;
-import com.google.cloud.texttospeech.v1.SsmlVoiceGender;
 import com.google.cloud.texttospeech.v1.SynthesisInput;
 import com.google.cloud.texttospeech.v1.SynthesizeSpeechRequest;
 import com.google.cloud.texttospeech.v1.SynthesizeSpeechResponse;
 import com.google.cloud.texttospeech.v1.TextToSpeechClient;
 import com.google.cloud.texttospeech.v1.TextToSpeechSettings;
-import com.google.cloud.texttospeech.v1.Voice;
 import com.google.cloud.texttospeech.v1.VoiceSelectionParams;
-import com.google.protobuf.ByteString;
 import com.pwb.audio.application.exception.AudioBusinessException;
 import com.pwb.audio.application.exception.AudioErrorCode;
-import com.pwb.audio.domain.model.TtsVoice;
+import com.pwb.audio.domain.service.TextToSpeechPort;
 import com.pwb.audio.domain.service.TtsRequest;
 import com.pwb.audio.domain.service.TtsResult;
-import com.pwb.audio.domain.service.TextToSpeechPort;
+import com.pwb.audio.infrastructure.audio.AudioProbeService;
 import com.pwb.audio.infrastructure.tts.properties.GoogleTtsProperties;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.List;
-import java.util.Objects;
+import java.io.InputStream;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -37,11 +35,15 @@ import java.util.stream.Collectors;
 @ConditionalOnProperty(name = "pwb.audio.tts.google.enabled", havingValue = "true", matchIfMissing = true)
 public class GoogleTtsAdapter implements TextToSpeechPort {
 
+    private static final String CLASSPATH_PREFIX = "classpath:";
+
     private final GoogleTtsProperties properties;
+    private final ObjectProvider<AudioProbeService> audioProbe;
     private final TextToSpeechClient client;
 
-    public GoogleTtsAdapter(GoogleTtsProperties properties) {
+    public GoogleTtsAdapter(GoogleTtsProperties properties, ObjectProvider<AudioProbeService> audioProbe) {
         this.properties = properties;
+        this.audioProbe = audioProbe;
         this.client = initializeClient(properties);
     }
 
@@ -54,48 +56,19 @@ public class GoogleTtsAdapter implements TextToSpeechPort {
             throw new AudioBusinessException(AudioErrorCode.TTS_TEXT_BLANK);
         }
 
+        String encoding = properties.getAudioEncoding().toLowerCase();
         try {
-            SynthesisInput input = SynthesisInput.newBuilder()
-                    .setText(request.text())
-                    .build();
+            SynthesizeSpeechResponse response = client.synthesizeSpeech(SynthesizeSpeechRequest.newBuilder()
+                    .setInput(SynthesisInput.newBuilder().setText(request.text()).build())
+                    .setVoice(resolveVoice(request))
+                    .setAudioConfig(resolveAudioConfig())
+                    .build());
 
-            String targetLang = Optional.ofNullable(request.languageCode())
-                    .filter(l -> !l.isBlank())
-                    .orElse(properties.getDefaultLanguageCode());
-
-            VoiceSelectionParams.Builder voiceParamsBuilder = VoiceSelectionParams.newBuilder()
-                    .setLanguageCode(targetLang);
-
-            if (request.voiceName() != null && !request.voiceName().isBlank()) {
-                voiceParamsBuilder.setName(request.voiceName());
-            } else if (targetLang.equalsIgnoreCase(properties.getDefaultLanguageCode())
-                    && properties.getDefaultVoiceName() != null
-                    && !properties.getDefaultVoiceName().isBlank()) {
-                voiceParamsBuilder.setName(properties.getDefaultVoiceName());
-            }
-
-            VoiceSelectionParams voiceParams = voiceParamsBuilder.build();
-
-            AudioConfig audioConfig = AudioConfig.newBuilder()
-                    .setAudioEncoding(parseEncoding(properties.getAudioEncoding()))
-                    .setSpeakingRate(properties.getSpeakingRate().floatValue())
-                    .setPitch(properties.getPitch().floatValue())
-                    .build();
-
-            SynthesizeSpeechRequest grpcRequest = SynthesizeSpeechRequest.newBuilder()
-                    .setInput(input)
-                    .setVoice(voiceParams)
-                    .setAudioConfig(audioConfig)
-                    .build();
-
-            SynthesizeSpeechResponse response = client.synthesizeSpeech(grpcRequest);
-            ByteString audioContent = response.getAudioContent();
-            byte[] audioBytes = audioContent.toByteArray();
-
+            byte[] audioBytes = response.getAudioContent().toByteArray();
             log.info("TTS synthesized: bytes={}, language={}, voice={}",
                     audioBytes.length, request.languageCode(), request.voiceName());
 
-            return new TtsResult(audioBytes, null, properties.getAudioEncoding().toLowerCase());
+            return new TtsResult(audioBytes, probeDuration(audioBytes, encoding), encoding);
         } catch (AudioBusinessException ex) {
             throw ex;
         } catch (Exception ex) {
@@ -104,39 +77,44 @@ public class GoogleTtsAdapter implements TextToSpeechPort {
         }
     }
 
-    @Override
-    public List<TtsVoice> listVoices(String languageCode) {
-        if (client == null) {
-            throw new AudioBusinessException(AudioErrorCode.TTS_CLIENT_NOT_CONFIGURED);
+    private VoiceSelectionParams resolveVoice(TtsRequest request) {
+        String targetLang = Optional.ofNullable(request.languageCode())
+                .filter(lang -> !lang.isBlank())
+                .orElse(properties.getDefaultLanguageCode());
+
+        VoiceSelectionParams.Builder builder = VoiceSelectionParams.newBuilder()
+                .setLanguageCode(targetLang);
+
+        if (request.voiceName() != null && !request.voiceName().isBlank()) {
+            builder.setName(request.voiceName());
+        } else if (targetLang.equalsIgnoreCase(properties.getDefaultLanguageCode())
+                && properties.getDefaultVoiceName() != null
+                && !properties.getDefaultVoiceName().isBlank()) {
+            builder.setName(properties.getDefaultVoiceName());
         }
 
-        try {
-            ListVoicesRequest.Builder builder = ListVoicesRequest.newBuilder();
-            if (languageCode != null && !languageCode.isBlank()) {
-                builder.setLanguageCode(languageCode);
-            }
-
-            ListVoicesResponse response = client.listVoices(builder.build());
-            return response.getVoicesList().stream()
-                    .map(this::toTtsVoice)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
-        } catch (Exception ex) {
-            log.error("Google TTS listVoices failed: languageCode={}", languageCode, ex);
-            throw new AudioBusinessException(AudioErrorCode.TTS_ERROR, ex);
-        }
+        return builder.build();
     }
 
-    private TtsVoice toTtsVoice(Voice voice) {
-        if (voice == null) {
+    private AudioConfig resolveAudioConfig() {
+        return AudioConfig.newBuilder()
+                .setAudioEncoding(parseEncoding(properties.getAudioEncoding()))
+                .setSpeakingRate(properties.getSpeakingRate())
+                .setPitch(properties.getPitch())
+                .build();
+    }
+
+    private Integer probeDuration(byte[] audioBytes, String encoding) {
+        AudioProbeService probe = audioProbe.getIfAvailable();
+        if (probe == null) {
             return null;
         }
-        SsmlVoiceGender gender = voice.getSsmlGender();
-        return new TtsVoice(
-                voice.getName(),
-                voice.getLanguageCodesCount() > 0 ? voice.getLanguageCodes(0) : null,
-                gender == null ? null : gender.name()
-        );
+        try {
+            return probe.probeDurationFromBytes(audioBytes, "." + encoding);
+        } catch (Exception ex) {
+            log.warn("Could not determine TTS audio duration: {}", ex.getMessage());
+            return null;
+        }
     }
 
     private AudioEncoding parseEncoding(String encoding) {
@@ -153,42 +131,36 @@ public class GoogleTtsAdapter implements TextToSpeechPort {
 
     private TextToSpeechClient initializeClient(GoogleTtsProperties props) {
         if (props.getCredentialsPath() == null || props.getCredentialsPath().isBlank()) {
-            log.warn("Google TTS credentials-path is not configured. Google TTS client initialization skipped.");
+            log.warn("Google TTS credentials-path is not configured; TTS features are disabled.");
             return null;
         }
 
         try {
-            TextToSpeechSettings.Builder settingsBuilder = TextToSpeechSettings.newBuilder();
-            String credentials = props.getCredentialsPath();
-            settingsBuilder.setCredentialsProvider(() -> {
-                try (var stream = getCredentialsInputStream(credentials)) {
-                    return com.google.auth.oauth2.GoogleCredentials.fromStream(stream)
-                            .createScoped("https://www.googleapis.com/auth/cloud-platform");
-                } catch (IOException ex) {
-                    AudioBusinessException ex2 = new AudioBusinessException(
-                            AudioErrorCode.TTS_ERROR,
-                            "Failed to load Google credentials: " + credentials
-                    );
-                    ex2.initCause(ex);
-                    throw ex2;
-                }
-            });
-            return TextToSpeechClient.create(settingsBuilder.build());
+            String credentialsPath = props.getCredentialsPath();
+            TextToSpeechSettings settings = TextToSpeechSettings.newBuilder()
+                    .setCredentialsProvider(() -> loadCredentials(credentialsPath))
+                    .build();
+            return TextToSpeechClient.create(settings);
         } catch (Exception ex) {
-            log.warn("Failed to initialize Google TTS client: {}. Google TTS features will be disabled.", ex.getMessage());
+            log.error("Failed to initialize Google TTS client; TTS features are disabled.", ex);
             return null;
         }
     }
 
-    private java.io.InputStream getCredentialsInputStream(String path) throws IOException {
-        if (path.startsWith("classpath:")) {
-            String resourcePath = path.substring("classpath:".length());
-            return new org.springframework.core.io.ClassPathResource(resourcePath).getInputStream();
+    private GoogleCredentials loadCredentials(String path) {
+        try (InputStream stream = openCredentials(path)) {
+            return GoogleCredentials.fromStream(stream)
+                    .createScoped("https://www.googleapis.com/auth/cloud-platform");
+        } catch (IOException ex) {
+            throw new AudioBusinessException(AudioErrorCode.TTS_ERROR, ex);
         }
-        java.io.File file = new java.io.File(path);
-        if (file.exists()) {
-            return new java.io.FileInputStream(file);
+    }
+
+    private InputStream openCredentials(String path) throws IOException {
+        if (path.startsWith(CLASSPATH_PREFIX)) {
+            return new ClassPathResource(path.substring(CLASSPATH_PREFIX.length())).getInputStream();
         }
-        return new org.springframework.core.io.ClassPathResource(path).getInputStream();
+        File file = new File(path);
+        return file.exists() ? new FileInputStream(file) : new ClassPathResource(path).getInputStream();
     }
 }

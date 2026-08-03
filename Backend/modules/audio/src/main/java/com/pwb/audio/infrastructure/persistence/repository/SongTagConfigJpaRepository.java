@@ -12,5 +12,7 @@ public interface SongTagConfigJpaRepository extends AudioJpaRepository<SongTagCo
 
     Optional<SongTagConfigJpaEntity> findBySongId(UUID songId);
 
+    boolean existsByVoiceTagId(UUID voiceTagId);
+
     void deleteBySongId(UUID songId);
 }

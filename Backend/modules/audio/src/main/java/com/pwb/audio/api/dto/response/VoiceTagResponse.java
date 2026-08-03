@@ -6,6 +6,10 @@ import com.pwb.audio.domain.enums.VoiceTagType;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * The storage key is deliberately absent: clients reach the audio through {@code /audio-url}, so exposing
+ * the bucket layout would leak internals for no benefit.
+ */
 public record VoiceTagResponse(
         UUID id,
         UUID userId,
@@ -13,7 +17,6 @@ public record VoiceTagResponse(
         VoiceTagType tagType,
         String sourceText,
         String languageCode,
-        String s3Key,
         Integer durationSeconds,
         Long fileSizeBytes,
         boolean isDefault,
@@ -29,7 +32,6 @@ public record VoiceTagResponse(
                 view.tagType(),
                 view.sourceText(),
                 view.languageCode(),
-                view.s3Key(),
                 view.durationSeconds(),
                 view.fileSizeBytes(),
                 view.isDefault(),

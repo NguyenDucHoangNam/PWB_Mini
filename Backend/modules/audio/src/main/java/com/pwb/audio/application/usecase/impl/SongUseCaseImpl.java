@@ -8,6 +8,7 @@ import com.pwb.audio.application.command.DeleteSongCommand;
 import com.pwb.audio.application.command.UpdateSongCommand;
 import com.pwb.audio.application.exception.AudioBusinessException;
 import com.pwb.audio.application.exception.AudioErrorCode;
+import com.pwb.audio.application.support.StorageCleaner;
 import com.pwb.audio.application.usecase.SongUseCase;
 import com.pwb.audio.application.view.AudioUrlView;
 import com.pwb.audio.application.view.SongView;
@@ -31,14 +32,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
-import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -54,6 +51,7 @@ public class SongUseCaseImpl implements SongUseCase {
     private final VoiceTagRepository voiceTagRepository;
     private final SongTagConfigRepository songTagConfigRepository;
     private final StoragePort storagePort;
+    private final StorageCleaner storageCleaner;
     private final OutboxEnqueueHelper outboxEnqueueHelper;
     private final ObjectMapper objectMapper;
 
@@ -140,7 +138,7 @@ public class SongUseCaseImpl implements SongUseCase {
 
         songTagConfigRepository.deleteBySongId(song.getId());
         songRepository.deleteById(song.getId());
-        deleteStoredObjectsAfterCommit(song);
+        storageCleaner.deleteAfterCommit(song.getOriginalS3Key(), song.getProcessedS3Key());
 
         log.info("Song deleted: songId={}", song.getId());
     }
@@ -228,42 +226,6 @@ public class SongUseCaseImpl implements SongUseCase {
                 vtConfig.startOffsetSeconds(),
                 vtConfig.enabled()
         );
-    }
-
-    /**
-     * Object storage takes no part in the transaction: dropping the files before the commit would leave a
-     * surviving song pointing at nothing if the transaction later rolled back.
-     */
-    private void deleteStoredObjectsAfterCommit(Song song) {
-        List<String> keys = Stream.of(song.getOriginalS3Key(), song.getProcessedS3Key())
-                .filter(key -> key != null && !key.isBlank())
-                .toList();
-        if (keys.isEmpty()) {
-            return;
-        }
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            keys.forEach(this::deleteQuietly);
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                keys.forEach(SongUseCaseImpl.this::deleteQuietly);
-            }
-        });
-    }
-
-    /**
-     * The row is already gone by this point, so a storage failure must not surface as a failed delete —
-     * it is logged loudly enough for an operator to reclaim the orphan.
-     */
-    private void deleteQuietly(String s3Key) {
-        try {
-            storagePort.delete(s3Key);
-            log.debug("Deleted audio object: s3Key={}", s3Key);
-        } catch (Exception ex) {
-            log.error("Orphaned audio object, manual cleanup required: s3Key={}", s3Key, ex);
-        }
     }
 
     private void publishSongProcessingRequested(UUID songId, UUID userId) {

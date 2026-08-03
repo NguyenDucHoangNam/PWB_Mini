@@ -1,6 +1,5 @@
 package com.pwb.audio.domain.repository;
 
-import com.pwb.audio.domain.enums.VoiceTagType;
 import com.pwb.audio.domain.model.VoiceTag;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,9 +19,8 @@ public interface VoiceTagRepository {
 
     boolean existsByUserIdAndNameAndIdNot(UUID userId, String name, UUID id);
 
-    boolean existsByIdAndUserId(UUID id, UUID userId);
-
-    boolean existsByVoiceTagIdInConfig(UUID voiceTagId);
-
     Page<VoiceTag> findAllByUserId(UUID userId, Pageable pageable);
+
+    /** Hard delete: voice tags carry no soft-delete state, removal is permanent. */
+    void deleteById(UUID id);
 }

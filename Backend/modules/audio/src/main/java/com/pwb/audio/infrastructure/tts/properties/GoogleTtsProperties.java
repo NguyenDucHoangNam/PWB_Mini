@@ -15,7 +15,7 @@ public class GoogleTtsProperties {
 
     private String audioEncoding = "MP3";
 
-    private Integer speakingRate = 1;
+    private Float speakingRate = 1.0f;
 
-    private Double pitch = 0.0;
+    private Float pitch = 0.0f;
 }

@@ -21,8 +21,8 @@ import java.util.UUID;
 @Table(
         name = "audio_voice_tags",
         indexes = {
-                @Index(name = "ix_audio_voice_tags_user_id", columnList = "user_id"),
-                @Index(name = "ix_audio_voice_tags_tag_type", columnList = "tag_type")
+                @Index(name = "ix_audio_voice_tags_tag_type", columnList = "tag_type"),
+                @Index(name = "ix_audio_voice_tags_user_created_at", columnList = "user_id, created_at DESC")
         },
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_audio_voice_tags_user_name", columnNames = {"user_id", "name"})

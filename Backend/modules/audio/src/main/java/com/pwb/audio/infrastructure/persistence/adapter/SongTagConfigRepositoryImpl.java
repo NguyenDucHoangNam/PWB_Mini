@@ -36,6 +36,11 @@ public class SongTagConfigRepositoryImpl implements SongTagConfigRepository {
     }
 
     @Override
+    public boolean existsByVoiceTagId(UUID voiceTagId) {
+        return songTagConfigJpaRepository.existsByVoiceTagId(voiceTagId);
+    }
+
+    @Override
     public void deleteBySongId(UUID songId) {
         songTagConfigJpaRepository.deleteBySongId(songId);
     }

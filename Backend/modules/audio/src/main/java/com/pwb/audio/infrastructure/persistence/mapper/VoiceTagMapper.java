@@ -7,38 +7,28 @@ import org.springframework.stereotype.Component;
 @Component
 public class VoiceTagMapper {
 
+    /** Builds a brand-new row; the id is left to the JPA generator. */
     public VoiceTagJpaEntity toEntity(VoiceTag domain) {
-        return toEntity(domain, null);
-    }
-
-    public VoiceTagJpaEntity toEntity(VoiceTag domain, VoiceTagJpaEntity existing) {
         if (domain == null) {
             return null;
         }
-
-        if (existing != null) {
-            existing.setName(domain.getName());
-            existing.setTagType(domain.getTagType());
-            existing.setSourceText(domain.getSourceText());
-            existing.setLanguageCode(domain.getLanguageCode());
-            existing.setS3Key(domain.getS3Key());
-            existing.setDurationSeconds(domain.getDurationSeconds());
-            existing.setFileSizeBytes(domain.getFileSizeBytes());
-            existing.setDefault(domain.isDefault());
-            return existing;
-        }
-
-        return VoiceTagJpaEntity.builder()
+        VoiceTagJpaEntity entity = VoiceTagJpaEntity.builder()
                 .userId(domain.getUserId())
-                .name(domain.getName())
                 .tagType(domain.getTagType())
-                .sourceText(domain.getSourceText())
-                .languageCode(domain.getLanguageCode())
-                .s3Key(domain.getS3Key())
-                .durationSeconds(domain.getDurationSeconds())
-                .fileSizeBytes(domain.getFileSizeBytes())
-                .isDefault(domain.isDefault())
                 .build();
+        applyTo(domain, entity);
+        return entity;
+    }
+
+    /** Copies the mutable state of the aggregate onto a managed row. */
+    public void applyTo(VoiceTag domain, VoiceTagJpaEntity target) {
+        target.setName(domain.getName());
+        target.setSourceText(domain.getSourceText());
+        target.setLanguageCode(domain.getLanguageCode());
+        target.setS3Key(domain.getS3Key());
+        target.setDurationSeconds(domain.getDurationSeconds());
+        target.setFileSizeBytes(domain.getFileSizeBytes());
+        target.setDefault(domain.isDefault());
     }
 
     public VoiceTag toDomain(VoiceTagJpaEntity entity) {

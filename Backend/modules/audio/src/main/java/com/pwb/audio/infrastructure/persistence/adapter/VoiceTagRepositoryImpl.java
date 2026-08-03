@@ -22,53 +22,53 @@ public class VoiceTagRepositoryImpl implements VoiceTagRepository {
 
     @Override
     public VoiceTag save(VoiceTag voiceTag) {
-        VoiceTagJpaEntity target;
-        if (voiceTag.getId() != null) {
-            target = voiceTagJpaRepository.findByIdAndDeletedFalse(voiceTag.getId())
-                    .orElse(null);
-            target = voiceTagMapper.toEntity(voiceTag, target);
-        } else {
-            target = voiceTagMapper.toEntity(voiceTag, null);
+        if (voiceTag.isNew()) {
+            return voiceTagMapper.toDomain(voiceTagJpaRepository.save(voiceTagMapper.toEntity(voiceTag)));
         }
-        VoiceTagJpaEntity saved = voiceTagJpaRepository.save(target);
-        return voiceTagMapper.toDomain(saved);
+        VoiceTagJpaEntity target = loadForUpdate(voiceTag.getId());
+        voiceTagMapper.applyTo(voiceTag, target);
+        return voiceTagMapper.toDomain(voiceTagJpaRepository.save(target));
     }
 
     @Override
     public Optional<VoiceTag> findById(UUID id) {
-        return voiceTagJpaRepository.findByIdAndDeletedFalse(id)
+        return voiceTagJpaRepository.findById(id)
                 .map(voiceTagMapper::toDomain);
     }
 
     @Override
     public Optional<VoiceTag> findByIdAndUserId(UUID id, UUID userId) {
-        return voiceTagJpaRepository.findByIdAndUserIdAndDeletedFalse(id, userId)
+        return voiceTagJpaRepository.findByIdAndUserId(id, userId)
                 .map(voiceTagMapper::toDomain);
     }
 
     @Override
     public boolean existsByUserIdAndName(UUID userId, String name) {
-        return voiceTagJpaRepository.existsByUserIdAndNameAndDeletedFalse(userId, name);
+        return voiceTagJpaRepository.existsByUserIdAndName(userId, name);
     }
 
     @Override
     public boolean existsByUserIdAndNameAndIdNot(UUID userId, String name, UUID id) {
-        return voiceTagJpaRepository.existsByUserIdAndNameAndIdNotAndDeletedFalse(userId, name, id);
-    }
-
-    @Override
-    public boolean existsByIdAndUserId(UUID id, UUID userId) {
-        return voiceTagJpaRepository.existsByIdAndUserIdAndDeletedFalse(id, userId);
-    }
-
-    @Override
-    public boolean existsByVoiceTagIdInConfig(UUID voiceTagId) {
-        return voiceTagJpaRepository.existsByVoiceTagIdInConfig(voiceTagId);
+        return voiceTagJpaRepository.existsByUserIdAndNameAndIdNot(userId, name, id);
     }
 
     @Override
     public Page<VoiceTag> findAllByUserId(UUID userId, Pageable pageable) {
-        return voiceTagJpaRepository.findAllByUserIdAndDeletedFalse(userId, pageable)
+        return voiceTagJpaRepository.findAllByUserId(userId, pageable)
                 .map(voiceTagMapper::toDomain);
+    }
+
+    @Override
+    public void deleteById(UUID id) {
+        voiceTagJpaRepository.deleteById(id);
+    }
+
+    /**
+     * An update must never silently turn into an insert: if the row is gone, the caller is working from a
+     * stale aggregate and deserves to hear about it rather than get a duplicate.
+     */
+    private VoiceTagJpaEntity loadForUpdate(UUID id) {
+        return voiceTagJpaRepository.findById(id)
+                .orElseThrow(() -> new IllegalStateException("Voice tag no longer exists: " + id));
     }
 }

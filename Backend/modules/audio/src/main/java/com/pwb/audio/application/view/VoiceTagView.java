@@ -12,7 +12,6 @@ public record VoiceTagView(
         VoiceTagType tagType,
         String sourceText,
         String languageCode,
-        String s3Key,
         Integer durationSeconds,
         Long fileSizeBytes,
         boolean isDefault,

@@ -11,5 +11,8 @@ public interface SongTagConfigRepository {
 
     Optional<SongTagConfig> findBySongId(UUID songId);
 
+    /** Guards voice tag deletion: a tag still wired into a song must not disappear underneath it. */
+    boolean existsByVoiceTagId(UUID voiceTagId);
+
     void deleteBySongId(UUID songId);
 }
