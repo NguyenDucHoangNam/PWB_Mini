@@ -3,15 +3,16 @@ package com.pwb.audio.application.usecase.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.audio.application.command.ConfigureVoiceTagCommand;
+import com.pwb.audio.application.command.CreateSongCommand;
 import com.pwb.audio.application.command.DeleteSongCommand;
 import com.pwb.audio.application.command.UpdateSongCommand;
-import com.pwb.audio.application.command.UploadSongCommand;
 import com.pwb.audio.application.exception.AudioBusinessException;
 import com.pwb.audio.application.exception.AudioErrorCode;
 import com.pwb.audio.application.usecase.SongUseCase;
-import com.pwb.audio.application.view.PresignedUploadUrlView;
-import com.pwb.audio.application.view.PresignedUrlView;
+import com.pwb.audio.application.view.AudioUrlView;
 import com.pwb.audio.application.view.SongView;
+import com.pwb.audio.application.view.UploadUrlView;
+import com.pwb.audio.domain.enums.AudioVariant;
 import com.pwb.audio.domain.model.Song;
 import com.pwb.audio.domain.model.SongTagConfig;
 import com.pwb.audio.domain.model.VoiceTag;
@@ -19,8 +20,9 @@ import com.pwb.audio.domain.model.vo.AudioFormat;
 import com.pwb.audio.domain.repository.SongRepository;
 import com.pwb.audio.domain.repository.SongTagConfigRepository;
 import com.pwb.audio.domain.repository.VoiceTagRepository;
+import com.pwb.audio.domain.service.PresignedUrl;
+import com.pwb.audio.domain.service.StoragePort;
 import com.pwb.audio.infrastructure.processor.event.SongProcessingRequested;
-import com.pwb.audio.infrastructure.service.StoragePort;
 import com.pwb.infra.kafka.properties.KafkaTopicProperties;
 import com.pwb.infra.outbox.api.OutboxEnqueueHelper;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import java.net.URL;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -44,9 +46,9 @@ import java.util.stream.Stream;
 public class SongUseCaseImpl implements SongUseCase {
 
     private static final String ORIGINAL_KEY_ROOT = "audio/originals/";
-    private static final long UPLOAD_URL_EXPIRATION_SECONDS = 3600L;
-    private static final long MIN_STREAM_EXPIRATION_SECONDS = 60L;
-    private static final long MAX_STREAM_EXPIRATION_SECONDS = 86_400L;
+    private static final Duration UPLOAD_URL_EXPIRATION = Duration.ofHours(1);
+    private static final Duration MIN_AUDIO_URL_EXPIRATION = Duration.ofMinutes(1);
+    private static final Duration MAX_AUDIO_URL_EXPIRATION = Duration.ofDays(1);
 
     private final SongRepository songRepository;
     private final VoiceTagRepository voiceTagRepository;
@@ -56,19 +58,19 @@ public class SongUseCaseImpl implements SongUseCase {
     private final ObjectMapper objectMapper;
 
     @Override
-    public PresignedUploadUrlView createUploadUrl(UUID userId, String format) {
+    public UploadUrlView createUploadUrl(UUID userId, String format) {
         AudioFormat audioFormat = parseFormat(format);
-        String s3Key = buildOriginalKey(userId, audioFormat);
-        URL uploadUrl = storagePort.getPresignedUploadUrl(s3Key, UPLOAD_URL_EXPIRATION_SECONDS);
+        String storageKey = buildOriginalKey(userId, audioFormat);
+        PresignedUrl presigned = storagePort.presignUpload(storageKey, UPLOAD_URL_EXPIRATION);
 
-        log.debug("Issued upload URL: userId={}, s3Key={}", userId, s3Key);
-        return new PresignedUploadUrlView(s3Key, uploadUrl, UPLOAD_URL_EXPIRATION_SECONDS);
+        log.debug("Issued upload URL: userId={}, storageKey={}", userId, storageKey);
+        return new UploadUrlView(storageKey, presigned.url(), presigned.expiresAt());
     }
 
     @Override
     @Transactional
-    public SongView uploadSong(UploadSongCommand command) {
-        log.info("Uploading song: userId={}, title={}", command.userId(), command.title());
+    public SongView createSong(CreateSongCommand command) {
+        log.info("Creating song: userId={}, title={}", command.userId(), command.title());
 
         AudioFormat format = parseFormat(command.format());
         assertKeyBelongsToUser(command.userId(), command.originalS3Key());
@@ -84,7 +86,7 @@ public class SongUseCaseImpl implements SongUseCase {
                 format
         );
 
-        // Resolve the voice tag and flip the status before the insert so the whole upload costs one write.
+        // Resolve the voice tag and flip the status before the insert so creation costs a single write.
         VoiceTag voiceTag = null;
         if (command.voiceTagConfig() != null) {
             voiceTag = voiceTagRepository.findByIdAndUserId(command.voiceTagConfig().voiceTagId(), command.userId())
@@ -97,10 +99,10 @@ public class SongUseCaseImpl implements SongUseCase {
         if (voiceTag != null) {
             songTagConfigRepository.save(toTagConfig(saved.getId(), voiceTag.getId(), command.voiceTagConfig()));
             publishSongProcessingRequested(saved.getId(), command.userId());
-            log.info("Song uploaded with inline voice tag, processing queued: songId={}, voiceTagId={}",
+            log.info("Song created with inline voice tag, processing queued: songId={}, voiceTagId={}",
                     saved.getId(), voiceTag.getId());
         } else {
-            log.info("Song uploaded: songId={}", saved.getId());
+            log.info("Song created: songId={}", saved.getId());
         }
 
         return toSongView(saved);
@@ -163,17 +165,18 @@ public class SongUseCaseImpl implements SongUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public PresignedUrlView getStreamPresignedUrl(UUID userId, UUID songId, long expirationSeconds) {
-        assertExpirationInRange(expirationSeconds);
+    public AudioUrlView getAudioUrl(UUID userId, UUID songId, AudioVariant variant, Duration expiration) {
+        assertExpirationInRange(expiration);
         Song song = requireOwnedSong(userId, songId);
 
-        String s3Key = song.isProcessed() ? song.getProcessedS3Key() : song.getOriginalS3Key();
-        if (s3Key == null || s3Key.isBlank()) {
+        AudioVariant served = song.resolveVariant(variant);
+        String storageKey = song.storageKeyFor(served);
+        if (storageKey == null || storageKey.isBlank()) {
             throw new AudioBusinessException(AudioErrorCode.SONG_NOT_UPLOADED);
         }
 
-        URL presignedUrl = storagePort.getPresignedUrl(s3Key, expirationSeconds);
-        return new PresignedUrlView(songId, presignedUrl, expirationSeconds);
+        PresignedUrl presigned = storagePort.presignDownload(storageKey, expiration);
+        return new AudioUrlView(presigned.url(), presigned.expiresAt(), served);
     }
 
     private Song requireOwnedSong(UUID userId, UUID songId) {
@@ -205,10 +208,12 @@ public class SongUseCaseImpl implements SongUseCase {
         }
     }
 
-    private void assertExpirationInRange(long expirationSeconds) {
-        if (expirationSeconds < MIN_STREAM_EXPIRATION_SECONDS || expirationSeconds > MAX_STREAM_EXPIRATION_SECONDS) {
-            throw new IllegalArgumentException("expirationSeconds must be between "
-                    + MIN_STREAM_EXPIRATION_SECONDS + " and " + MAX_STREAM_EXPIRATION_SECONDS);
+    private void assertExpirationInRange(Duration expiration) {
+        if (expiration == null
+                || expiration.compareTo(MIN_AUDIO_URL_EXPIRATION) < 0
+                || expiration.compareTo(MAX_AUDIO_URL_EXPIRATION) > 0) {
+            throw new IllegalArgumentException("URL expiration must be between "
+                    + MIN_AUDIO_URL_EXPIRATION + " and " + MAX_AUDIO_URL_EXPIRATION);
         }
     }
 

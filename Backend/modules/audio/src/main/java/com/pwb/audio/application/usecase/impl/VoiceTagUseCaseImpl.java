@@ -4,7 +4,7 @@ import com.pwb.audio.application.command.*;
 import com.pwb.audio.application.exception.AudioBusinessException;
 import com.pwb.audio.application.exception.AudioErrorCode;
 import com.pwb.audio.application.usecase.VoiceTagUseCase;
-import com.pwb.audio.application.view.PresignedUrlView;
+import com.pwb.audio.application.view.AudioUrlView;
 import com.pwb.audio.application.view.VoiceTagView;
 import com.pwb.audio.domain.enums.VoiceTagType;
 import com.pwb.audio.domain.model.VoiceTag;
@@ -12,7 +12,8 @@ import com.pwb.audio.domain.repository.VoiceTagRepository;
 import com.pwb.audio.domain.service.TtsRequest;
 import com.pwb.audio.domain.service.TtsResult;
 import com.pwb.audio.domain.service.TextToSpeechPort;
-import com.pwb.audio.infrastructure.service.StoragePort;
+import com.pwb.audio.domain.service.PresignedUrl;
+import com.pwb.audio.domain.service.StoragePort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -20,7 +21,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.net.URL;
+import java.time.Duration;
 import java.util.UUID;
 
 @Slf4j
@@ -102,12 +103,12 @@ public class VoiceTagUseCaseImpl implements VoiceTagUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public PresignedUrlView getVoiceTagAudioUrl(UUID userId, UUID voiceTagId, long expirationSeconds) {
+    public AudioUrlView getVoiceTagAudioUrl(UUID userId, UUID voiceTagId, Duration expiration) {
         VoiceTag voiceTag = voiceTagRepository.findByIdAndUserId(voiceTagId, userId)
                 .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.VOICE_TAG_NOT_FOUND));
 
-        URL presignedUrl = storagePort.getPresignedUrl(voiceTag.getS3Key(), expirationSeconds);
-        return new PresignedUrlView(voiceTagId, presignedUrl, expirationSeconds);
+        PresignedUrl presigned = storagePort.presignDownload(voiceTag.getS3Key(), expiration);
+        return AudioUrlView.single(presigned.url(), presigned.expiresAt());
     }
 
     private TtsSynthesisOutcome synthesizeAndUploadTts(UUID userId, String name, String text, String languageCode) {

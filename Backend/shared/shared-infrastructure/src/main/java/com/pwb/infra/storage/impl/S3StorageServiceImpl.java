@@ -40,9 +40,7 @@ import software.amazon.awssdk.transfer.s3.model.UploadRequest;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 
 @Slf4j
@@ -52,6 +50,7 @@ public class S3StorageServiceImpl implements StorageService {
 
     private final S3Client s3Client;
     private final S3TransferManager transferManager;
+    private final S3Presigner presigner;
     private final StorageProperties properties;
 
     @Override
@@ -205,11 +204,7 @@ public class S3StorageServiceImpl implements StorageService {
         MediaTypeUtils.validateKey(key);
         String bucket = bucket();
 
-        try (S3Presigner presigner = S3Presigner.builder()
-                .region(s3Client.serviceClientConfiguration().region())
-                .credentialsProvider(s3Client.serviceClientConfiguration().credentialsProvider())
-                .build()) {
-
+        try {
             GetObjectPresignRequest request = GetObjectPresignRequest.builder()
                     .signatureDuration(expiration)
                     .getObjectRequest(GetObjectRequest.builder()
@@ -219,8 +214,7 @@ public class S3StorageServiceImpl implements StorageService {
                     .build();
 
             PresignedGetObjectRequest presigned = presigner.presignGetObject(request);
-            URL url = presigned.url();
-            return new PresignedUrlResult(url, Instant.now().plus(expiration));
+            return new PresignedUrlResult(presigned.url(), presigned.expiration());
         } catch (SdkException e) {
             throw new StorageException(StorageErrorCode.STORAGE_PRESIGN_FAILED, e);
         }
@@ -231,11 +225,7 @@ public class S3StorageServiceImpl implements StorageService {
         MediaTypeUtils.validateKey(key);
         String bucket = bucket();
 
-        try (S3Presigner presigner = S3Presigner.builder()
-                .region(s3Client.serviceClientConfiguration().region())
-                .credentialsProvider(s3Client.serviceClientConfiguration().credentialsProvider())
-                .build()) {
-
+        try {
             PutObjectPresignRequest request = PutObjectPresignRequest.builder()
                     .signatureDuration(expiration)
                     .putObjectRequest(PutObjectRequest.builder()
@@ -246,8 +236,7 @@ public class S3StorageServiceImpl implements StorageService {
                     .build();
 
             PresignedPutObjectRequest presigned = presigner.presignPutObject(request);
-            URL url = presigned.url();
-            return new PresignedUrlResult(url, Instant.now().plus(expiration));
+            return new PresignedUrlResult(presigned.url(), presigned.expiration());
         } catch (SdkException e) {
             throw new StorageException(StorageErrorCode.STORAGE_PRESIGN_FAILED, e);
         }

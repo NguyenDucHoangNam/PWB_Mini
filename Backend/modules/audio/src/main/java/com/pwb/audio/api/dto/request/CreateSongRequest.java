@@ -1,7 +1,7 @@
 package com.pwb.audio.api.dto.request;
 
 import com.pwb.audio.application.command.ConfigureVoiceTagCommand;
-import com.pwb.audio.application.command.UploadSongCommand;
+import com.pwb.audio.application.command.CreateSongCommand;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -10,7 +10,7 @@ import jakarta.validation.constraints.Size;
 
 import java.util.UUID;
 
-public record UploadSongRequest(
+public record CreateSongRequest(
         @NotBlank @Size(max = 200) String title,
         @NotBlank @Size(max = 512) String originalS3Key,
         @NotNull @Positive Long fileSizeBytes,
@@ -19,8 +19,8 @@ public record UploadSongRequest(
         @Valid ConfigureVoiceTagRequest voiceTagConfig
 ) {
 
-    public UploadSongCommand toCommand(UUID userId) {
-        return new UploadSongCommand(
+    public CreateSongCommand toCommand(UUID userId) {
+        return new CreateSongCommand(
                 userId,
                 title,
                 originalS3Key,

@@ -6,7 +6,7 @@ import com.pwb.audio.domain.model.AudioProcessingRequest;
 import com.pwb.audio.domain.model.AudioProcessingResult;
 import com.pwb.audio.domain.service.AudioProcessorPort;
 import com.pwb.audio.infrastructure.audio.properties.AudioProcessorProperties;
-import com.pwb.audio.infrastructure.service.StoragePort;
+import com.pwb.audio.domain.service.StoragePort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;

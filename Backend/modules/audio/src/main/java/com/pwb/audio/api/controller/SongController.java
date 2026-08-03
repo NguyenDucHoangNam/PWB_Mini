@@ -1,17 +1,18 @@
 package com.pwb.audio.api.controller;
 
-import com.pwb.audio.api.dto.request.PresignedUploadUrlRequest;
+import com.pwb.audio.api.dto.request.CreateSongRequest;
 import com.pwb.audio.api.dto.request.UpdateSongRequest;
-import com.pwb.audio.api.dto.request.UploadSongRequest;
-import com.pwb.audio.api.dto.response.PresignedUploadUrlResponse;
-import com.pwb.audio.api.dto.response.PresignedUrlResponse;
+import com.pwb.audio.api.dto.request.UploadUrlRequest;
+import com.pwb.audio.api.dto.response.AudioUrlResponse;
 import com.pwb.audio.api.dto.response.SongResponse;
+import com.pwb.audio.api.dto.response.UploadUrlResponse;
 import com.pwb.audio.application.command.DeleteSongCommand;
 import com.pwb.audio.application.command.UpdateSongCommand;
 import com.pwb.audio.application.usecase.SongUseCase;
-import com.pwb.audio.application.view.PresignedUploadUrlView;
-import com.pwb.audio.application.view.PresignedUrlView;
+import com.pwb.audio.application.view.AudioUrlView;
 import com.pwb.audio.application.view.SongView;
+import com.pwb.audio.application.view.UploadUrlView;
+import com.pwb.audio.domain.enums.AudioVariant;
 import com.pwb.shared.dto.ApiResponse;
 import com.pwb.shared.dto.PageResponse;
 import com.pwb.web.dto.PageResponses;
@@ -38,6 +39,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Duration;
 import java.util.UUID;
 
 /**
@@ -49,38 +51,41 @@ import java.util.UUID;
 @Validated
 public class SongController {
 
-    private static final String MSG_SONG_UPLOADED = "AUDIO_SONG_UPLOADED";
+    private static final String MSG_SONG_CREATED = "AUDIO_SONG_CREATED";
     private static final String MSG_SONG_UPDATED = "AUDIO_SONG_UPDATED";
     private static final String MSG_SONG_RETRIEVED = "AUDIO_SONG_RETRIEVED";
     private static final String MSG_PROCESSING_TRIGGERED = "AUDIO_PROCESSING_TRIGGERED";
     private static final String MSG_PRESIGNED_URL = "AUDIO_PRESIGNED_URL_GENERATED";
 
-    private static final String DEFAULT_STREAM_EXPIRATION_SECONDS = "3600";
-    private static final long MIN_STREAM_EXPIRATION_SECONDS = 60L;
-    private static final long MAX_STREAM_EXPIRATION_SECONDS = 86_400L;
+    private static final String DEFAULT_EXPIRES_IN_SECONDS = "3600";
+    private static final long MIN_EXPIRES_IN_SECONDS = 60L;
+    private static final long MAX_EXPIRES_IN_SECONDS = 86_400L;
 
     private final SongUseCase songUseCase;
     private final MessageResolver messageResolver;
 
-    @PostMapping("/presigned-upload-url")
-    public ResponseEntity<ApiResponse<PresignedUploadUrlResponse>> getPresignedUploadUrl(
+    @PostMapping("/upload-url")
+    public ResponseEntity<ApiResponse<UploadUrlResponse>> createUploadUrl(
             @CurrentUser UUID userId,
-            @Valid @RequestBody PresignedUploadUrlRequest request
+            @Valid @RequestBody UploadUrlRequest request
     ) {
-        PresignedUploadUrlView view = songUseCase.createUploadUrl(userId, request.format());
-        PresignedUploadUrlResponse body = PresignedUploadUrlResponse.from(view);
+        UploadUrlView view = songUseCase.createUploadUrl(userId, request.format());
+        UploadUrlResponse body = UploadUrlResponse.from(view);
         return ResponseEntity.ok(ApiResponse.success(messageResolver.get(MSG_PRESIGNED_URL), body));
     }
 
-    @PostMapping("/upload")
-    public ResponseEntity<ApiResponse<SongResponse>> uploadSong(
+    /**
+     * Registers a song whose audio the client has already put into storage using an upload URL.
+     */
+    @PostMapping
+    public ResponseEntity<ApiResponse<SongResponse>> createSong(
             @CurrentUser UUID userId,
-            @Valid @RequestBody UploadSongRequest request
+            @Valid @RequestBody CreateSongRequest request
     ) {
-        SongView view = songUseCase.uploadSong(request.toCommand(userId));
+        SongView view = songUseCase.createSong(request.toCommand(userId));
         SongResponse body = SongResponse.from(view);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(messageResolver.get(MSG_SONG_UPLOADED), body));
+                .body(ApiResponse.success(messageResolver.get(MSG_SONG_CREATED), body));
     }
 
     @GetMapping("/{songId}")
@@ -134,16 +139,21 @@ public class SongController {
                 .body(ApiResponse.success(messageResolver.get(MSG_PROCESSING_TRIGGERED), body));
     }
 
-    @GetMapping(value = {"/{songId}/stream-url", "/{songId}/audio"})
-    public ResponseEntity<ApiResponse<PresignedUrlResponse>> getStreamUrl(
+    /**
+     * @param variant which rendition to serve; asking for {@code PROCESSED} before processing has finished
+     *                falls back to {@code ORIGINAL}, and the response reports what was actually served.
+     */
+    @GetMapping("/{songId}/audio-url")
+    public ResponseEntity<ApiResponse<AudioUrlResponse>> getAudioUrl(
             @CurrentUser UUID userId,
             @PathVariable UUID songId,
-            @RequestParam(defaultValue = DEFAULT_STREAM_EXPIRATION_SECONDS)
-            @Min(MIN_STREAM_EXPIRATION_SECONDS)
-            @Max(MAX_STREAM_EXPIRATION_SECONDS) long expirationSeconds
+            @RequestParam(defaultValue = "PROCESSED") AudioVariant variant,
+            @RequestParam(defaultValue = DEFAULT_EXPIRES_IN_SECONDS)
+            @Min(MIN_EXPIRES_IN_SECONDS)
+            @Max(MAX_EXPIRES_IN_SECONDS) long expiresIn
     ) {
-        PresignedUrlView view = songUseCase.getStreamPresignedUrl(userId, songId, expirationSeconds);
-        PresignedUrlResponse body = PresignedUrlResponse.from(view);
+        AudioUrlView view = songUseCase.getAudioUrl(userId, songId, variant, Duration.ofSeconds(expiresIn));
+        AudioUrlResponse body = AudioUrlResponse.from(view);
         return ResponseEntity.ok(ApiResponse.success(messageResolver.get(MSG_PRESIGNED_URL), body));
     }
 }

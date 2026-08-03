@@ -1,5 +1,6 @@
 package com.pwb.audio.domain.model;
 
+import com.pwb.audio.domain.enums.AudioVariant;
 import com.pwb.audio.domain.enums.SongStatus;
 import com.pwb.audio.domain.model.vo.AudioFormat;
 import com.pwb.shared.domain.DomainBaseEntity;
@@ -210,6 +211,20 @@ public final class Song extends DomainBaseEntity {
 
     public boolean isProcessed() {
         return this.status == SongStatus.PROCESSED && this.processedS3Key != null;
+    }
+
+    /**
+     * Which rendition can actually be served: asking for the processed audio before processing has
+     * finished yields the original rather than nothing, so playback keeps working while a song is queued.
+     */
+    public AudioVariant resolveVariant(AudioVariant requested) {
+        return (requested == AudioVariant.PROCESSED && !isProcessed())
+                ? AudioVariant.ORIGINAL
+                : requested;
+    }
+
+    public String storageKeyFor(AudioVariant variant) {
+        return variant == AudioVariant.PROCESSED ? processedS3Key : originalS3Key;
     }
 
     public boolean canTriggerProcessing() {

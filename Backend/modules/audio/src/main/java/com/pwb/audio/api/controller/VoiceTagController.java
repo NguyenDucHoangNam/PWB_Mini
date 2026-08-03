@@ -7,7 +7,7 @@ import com.pwb.audio.api.dto.response.VoiceTagResponse;
 import com.pwb.audio.application.command.DeleteVoiceTagCommand;
 import com.pwb.audio.application.command.UpdateVoiceTagCommand;
 import com.pwb.audio.application.usecase.VoiceTagUseCase;
-import com.pwb.audio.application.view.PresignedUrlView;
+import com.pwb.audio.application.view.AudioUrlView;
 import com.pwb.audio.application.view.VoiceTagView;
 import com.pwb.shared.dto.ApiResponse;
 import com.pwb.shared.dto.PageResponse;
@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Duration;
 import java.util.UUID;
 
 /**
@@ -44,7 +45,7 @@ public class VoiceTagController {
     private static final String MSG_VOICE_TAG_UPDATED = "AUDIO_VOICE_TAG_UPDATED";
     private static final String MSG_TTS_VOICE_TAG_CREATED = "AUDIO_TTS_VOICE_TAG_CREATED";
 
-    private static final long AUDIO_URL_EXPIRATION_SECONDS = 3600L;
+    private static final Duration AUDIO_URL_EXPIRATION = Duration.ofHours(1);
 
     private final VoiceTagUseCase voiceTagUseCase;
     private final MessageResolver messageResolver;
@@ -97,12 +98,12 @@ public class VoiceTagController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/{voiceTagId}/audio")
+    @GetMapping("/{voiceTagId}/audio-url")
     public ResponseEntity<ApiResponse<AudioUrlResponse>> getAudioUrl(
             @CurrentUser UUID userId,
             @PathVariable UUID voiceTagId
     ) {
-        PresignedUrlView view = voiceTagUseCase.getVoiceTagAudioUrl(userId, voiceTagId, AUDIO_URL_EXPIRATION_SECONDS);
+        AudioUrlView view = voiceTagUseCase.getVoiceTagAudioUrl(userId, voiceTagId, AUDIO_URL_EXPIRATION);
         AudioUrlResponse body = AudioUrlResponse.from(view);
         return ResponseEntity.ok(ApiResponse.success(body));
     }

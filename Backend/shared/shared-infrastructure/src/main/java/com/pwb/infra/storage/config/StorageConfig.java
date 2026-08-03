@@ -14,6 +14,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
 
 import java.net.URI;
@@ -49,6 +50,25 @@ public class StorageConfig {
         StorageProperties.S3 s3 = properties.getS3();
 
         var builder = S3AsyncClient.builder()
+                .region(Region.of(s3.getRegion()))
+                .credentialsProvider(credentialsProvider(s3))
+                .serviceConfiguration(S3Configuration.builder()
+                        .pathStyleAccessEnabled(s3.isPathStyleAccess())
+                        .build());
+
+        if (s3.getEndpoint() != null && !s3.getEndpoint().isBlank()) {
+            builder.endpointOverride(URI.create(s3.getEndpoint()));
+        }
+
+        return builder.build();
+    }
+
+    @Bean(destroyMethod = "close")
+    public S3Presigner s3Presigner(StorageProperties properties) {
+        StorageProperties.S3 s3 = properties.getS3();
+        log.info("Initializing S3 presigner: region={}, endpoint={}", s3.getRegion(), s3.getEndpoint());
+
+        var builder = S3Presigner.builder()
                 .region(Region.of(s3.getRegion()))
                 .credentialsProvider(credentialsProvider(s3))
                 .serviceConfiguration(S3Configuration.builder()

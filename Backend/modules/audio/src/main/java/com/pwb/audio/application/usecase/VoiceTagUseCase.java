@@ -1,11 +1,13 @@
 package com.pwb.audio.application.usecase;
 
-import com.pwb.audio.application.command.*;
-import com.pwb.audio.application.view.PresignedUrlView;
+import com.pwb.audio.application.command.DeleteVoiceTagCommand;
+import com.pwb.audio.application.command.UpdateVoiceTagCommand;
+import com.pwb.audio.application.view.AudioUrlView;
 import com.pwb.audio.application.view.VoiceTagView;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.Duration;
 import java.util.UUID;
 
 public interface VoiceTagUseCase {
@@ -18,5 +20,5 @@ public interface VoiceTagUseCase {
 
     Page<VoiceTagView> listVoiceTags(UUID userId, Pageable pageable);
 
-    PresignedUrlView getVoiceTagAudioUrl(UUID userId, UUID voiceTagId, long expirationSeconds);
+    AudioUrlView getVoiceTagAudioUrl(UUID userId, UUID voiceTagId, Duration expiration);
 }
