@@ -40,8 +40,7 @@ public record CreateSongRequest(
                 voiceTagConfig.voiceTagId(),
                 voiceTagConfig.intervalSeconds(),
                 voiceTagConfig.volumePercentage(),
-                voiceTagConfig.fadeInDurationMs(),
-                voiceTagConfig.fadeOutDurationMs(),
+                voiceTagConfig.duckingPercentage(),
                 voiceTagConfig.startOffsetSeconds(),
                 voiceTagConfig.enabled()
         );

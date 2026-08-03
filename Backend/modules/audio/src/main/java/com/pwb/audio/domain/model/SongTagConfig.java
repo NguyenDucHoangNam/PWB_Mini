@@ -4,15 +4,22 @@ import com.pwb.shared.domain.DomainBaseEntity;
 
 import java.util.UUID;
 
+/**
+ * How a voice tag is stamped onto a song: every {@code intervalSeconds}, starting at
+ * {@code startOffsetSeconds}, with the song itself dipped to {@code duckingPercentage} while the tag plays.
+ */
 public final class SongTagConfig extends DomainBaseEntity {
+
+    private static final int DEFAULT_INTERVAL_SECONDS = 60;
+    private static final int DEFAULT_VOLUME_PERCENTAGE = 100;
+    private static final int NO_DUCKING = 100;
 
     private final UUID id;
     private final UUID songId;
     private final UUID voiceTagId;
     private Integer intervalSeconds;
     private Integer volumePercentage;
-    private Integer fadeInDurationMs;
-    private Integer fadeOutDurationMs;
+    private Integer duckingPercentage;
     private Integer startOffsetSeconds;
     private boolean enabled;
 
@@ -22,8 +29,7 @@ public final class SongTagConfig extends DomainBaseEntity {
             UUID voiceTagId,
             Integer intervalSeconds,
             Integer volumePercentage,
-            Integer fadeInDurationMs,
-            Integer fadeOutDurationMs,
+            Integer duckingPercentage,
             Integer startOffsetSeconds,
             boolean enabled
     ) {
@@ -32,8 +38,7 @@ public final class SongTagConfig extends DomainBaseEntity {
         this.voiceTagId = voiceTagId;
         this.intervalSeconds = intervalSeconds;
         this.volumePercentage = volumePercentage;
-        this.fadeInDurationMs = fadeInDurationMs;
-        this.fadeOutDurationMs = fadeOutDurationMs;
+        this.duckingPercentage = duckingPercentage;
         this.startOffsetSeconds = startOffsetSeconds;
         this.enabled = enabled;
     }
@@ -43,8 +48,7 @@ public final class SongTagConfig extends DomainBaseEntity {
             UUID voiceTagId,
             Integer intervalSeconds,
             Integer volumePercentage,
-            Integer fadeInDurationMs,
-            Integer fadeOutDurationMs,
+            Integer duckingPercentage,
             Integer startOffsetSeconds,
             boolean enabled
     ) {
@@ -54,21 +58,15 @@ public final class SongTagConfig extends DomainBaseEntity {
         if (voiceTagId == null) {
             throw new IllegalArgumentException("voiceTagId must not be null");
         }
-        int interval = (intervalSeconds != null) ? intervalSeconds : 60;
-        int volume = (volumePercentage != null) ? clampVolume(volumePercentage) : 100;
-        int fadeIn = (fadeInDurationMs != null) ? fadeInDurationMs : 0;
-        int fadeOut = (fadeOutDurationMs != null) ? fadeOutDurationMs : 0;
-        int offset = (startOffsetSeconds != null) ? startOffsetSeconds : 0;
-
+        // id stays null until the row is persisted; that is what marks this instance as new.
         return new SongTagConfig(
-                UUID.randomUUID(),
+                null,
                 songId,
                 voiceTagId,
-                interval,
-                volume,
-                fadeIn,
-                fadeOut,
-                offset,
+                (intervalSeconds != null) ? intervalSeconds : DEFAULT_INTERVAL_SECONDS,
+                (volumePercentage != null) ? clampPercentage(volumePercentage) : DEFAULT_VOLUME_PERCENTAGE,
+                (duckingPercentage != null) ? clampPercentage(duckingPercentage) : NO_DUCKING,
+                (startOffsetSeconds != null) ? Math.max(0, startOffsetSeconds) : 0,
                 enabled
         );
     }
@@ -79,8 +77,7 @@ public final class SongTagConfig extends DomainBaseEntity {
             UUID voiceTagId,
             Integer intervalSeconds,
             Integer volumePercentage,
-            Integer fadeInDurationMs,
-            Integer fadeOutDurationMs,
+            Integer duckingPercentage,
             Integer startOffsetSeconds,
             boolean enabled
     ) {
@@ -90,8 +87,7 @@ public final class SongTagConfig extends DomainBaseEntity {
                 voiceTagId,
                 intervalSeconds,
                 volumePercentage,
-                fadeInDurationMs,
-                fadeOutDurationMs,
+                duckingPercentage,
                 startOffsetSeconds,
                 enabled
         );
@@ -117,12 +113,9 @@ public final class SongTagConfig extends DomainBaseEntity {
         return volumePercentage;
     }
 
-    public Integer getFadeInDurationMs() {
-        return fadeInDurationMs;
-    }
-
-    public Integer getFadeOutDurationMs() {
-        return fadeOutDurationMs;
+    /** Volume the song keeps while a tag plays, as a percentage. 100 means no ducking at all. */
+    public Integer getDuckingPercentage() {
+        return duckingPercentage;
     }
 
     public Integer getStartOffsetSeconds() {
@@ -133,11 +126,14 @@ public final class SongTagConfig extends DomainBaseEntity {
         return enabled;
     }
 
+    public boolean isNew() {
+        return id == null;
+    }
+
     public void updateParams(
             Integer intervalSeconds,
             Integer volumePercentage,
-            Integer fadeInDurationMs,
-            Integer fadeOutDurationMs,
+            Integer duckingPercentage,
             Integer startOffsetSeconds,
             Boolean enabled
     ) {
@@ -145,13 +141,10 @@ public final class SongTagConfig extends DomainBaseEntity {
             this.intervalSeconds = intervalSeconds;
         }
         if (volumePercentage != null) {
-            this.volumePercentage = clampVolume(volumePercentage);
+            this.volumePercentage = clampPercentage(volumePercentage);
         }
-        if (fadeInDurationMs != null && fadeInDurationMs >= 0) {
-            this.fadeInDurationMs = fadeInDurationMs;
-        }
-        if (fadeOutDurationMs != null && fadeOutDurationMs >= 0) {
-            this.fadeOutDurationMs = fadeOutDurationMs;
+        if (duckingPercentage != null) {
+            this.duckingPercentage = clampPercentage(duckingPercentage);
         }
         if (startOffsetSeconds != null && startOffsetSeconds >= 0) {
             this.startOffsetSeconds = startOffsetSeconds;
@@ -162,17 +155,7 @@ public final class SongTagConfig extends DomainBaseEntity {
         touch();
     }
 
-    public void enable() {
-        this.enabled = true;
-        touch();
-    }
-
-    public void disable() {
-        this.enabled = false;
-        touch();
-    }
-
-    private static int clampVolume(int volume) {
-        return Math.max(0, Math.min(100, volume));
+    private static int clampPercentage(int value) {
+        return Math.max(0, Math.min(100, value));
     }
 }

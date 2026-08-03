@@ -43,11 +43,8 @@ public class SongTagConfigJpaEntity extends AudioJpaBaseEntity {
     @Column(name = "volume_percentage")
     private Integer volumePercentage;
 
-    @Column(name = "fade_in_duration_ms")
-    private Integer fadeInDurationMs;
-
-    @Column(name = "fade_out_duration_ms")
-    private Integer fadeOutDurationMs;
+    @Column(name = "ducking_percentage", nullable = false)
+    private Integer duckingPercentage;
 
     @Column(name = "start_offset_seconds")
     private Integer startOffsetSeconds;

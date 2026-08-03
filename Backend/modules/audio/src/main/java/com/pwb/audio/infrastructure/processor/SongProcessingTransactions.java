@@ -42,6 +42,11 @@ public class SongProcessingTransactions {
 
         SongTagConfig config = songTagConfigRepository.findBySongId(songId)
                 .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.SONG_TAG_CONFIG_NOT_FOUND));
+        if (!config.isEnabled()) {
+            log.info("Voice tag configuration is disabled, skipping: songId={}", songId);
+            return Optional.empty();
+        }
+
         VoiceTag voiceTag = voiceTagRepository.findById(config.getVoiceTagId())
                 .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.VOICE_TAG_NOT_FOUND));
 
@@ -50,10 +55,9 @@ public class SongProcessingTransactions {
                 song.getOriginalS3Key(),
                 voiceTag.getS3Key(),
                 config.getIntervalSeconds(),
-                config.getVolumePercentage(),
-                config.getFadeInDurationMs(),
-                config.getFadeOutDurationMs(),
                 config.getStartOffsetSeconds(),
+                config.getVolumePercentage(),
+                config.getDuckingPercentage(),
                 buildOutputKey(song.getUserId(), song.getId())
         ));
     }

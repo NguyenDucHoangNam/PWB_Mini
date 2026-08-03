@@ -221,8 +221,7 @@ public class SongUseCaseImpl implements SongUseCase {
                 voiceTagId,
                 vtConfig.intervalSeconds(),
                 vtConfig.volumePercentage(),
-                vtConfig.fadeInDurationMs(),
-                vtConfig.fadeOutDurationMs(),
+                vtConfig.duckingPercentage(),
                 vtConfig.startOffsetSeconds(),
                 vtConfig.enabled()
         );

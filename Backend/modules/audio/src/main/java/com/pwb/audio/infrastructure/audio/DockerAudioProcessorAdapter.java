@@ -5,26 +5,32 @@ import com.pwb.audio.application.exception.AudioErrorCode;
 import com.pwb.audio.domain.model.AudioProcessingRequest;
 import com.pwb.audio.domain.model.AudioProcessingResult;
 import com.pwb.audio.domain.service.AudioProcessorPort;
-import com.pwb.audio.infrastructure.audio.properties.AudioProcessorProperties;
 import com.pwb.audio.domain.service.StoragePort;
+import com.pwb.audio.infrastructure.audio.properties.AudioProcessorProperties;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Runs FFmpeg inside an already-running container. This assumes the host's {@code working-dir} is
+ * bind-mounted at {@link #CONTAINER_DIR} in that container — without the mount, FFmpeg writes its output
+ * where the host cannot see it and the job fails with a misleading "empty output".
+ */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 @ConditionalOnProperty(name = "pwb.audio.processor.mode", havingValue = "docker")
 public class DockerAudioProcessorAdapter implements AudioProcessorPort {
 
@@ -32,70 +38,45 @@ public class DockerAudioProcessorAdapter implements AudioProcessorPort {
 
     private final AudioProcessorProperties properties;
     private final StoragePort storagePort;
-
-    public DockerAudioProcessorAdapter(AudioProcessorProperties properties, StoragePort storagePort) {
-        this.properties = properties;
-        this.storagePort = storagePort;
-    }
+    private final AudioWorkspace workspace;
 
     @Override
     public AudioProcessingResult embedWatermark(AudioProcessingRequest request) {
-        Path localWorkingDir = Paths.get(properties.getWorkingDir()).toAbsolutePath().normalize();
-        Path inputFile = null;
-        Path voiceTagFile = null;
-        Path outputFile = null;
-
+        Path jobDir = workspace.createJobDirectory(request.songId());
         try {
-            Files.createDirectories(localWorkingDir);
+            Path inputFile = download(request.inputKey(), jobDir.resolve("input"));
+            Path voiceTagFile = download(request.voiceTagKey(), jobDir.resolve("voice-tag"));
+            Path outputFile = jobDir.resolve("output.mp3");
 
-            String inputFileName = request.songId() + "-input-" + System.nanoTime() + ".tmp";
-            String voiceFileName = request.songId() + "-voice-" + System.nanoTime() + ".tmp";
-            String outputFileName = request.songId() + "-output.mp3";
+            String containerInput = toContainerPath(inputFile);
+            String containerVoiceTag = toContainerPath(voiceTagFile);
+            String containerOutput = toContainerPath(outputFile);
 
-            inputFile = localWorkingDir.resolve(inputFileName);
-            voiceTagFile = localWorkingDir.resolve(voiceFileName);
-            outputFile = localWorkingDir.resolve(outputFileName);
+            double songDuration = requireDuration(containerInput, "song");
+            double voiceTagDuration = requireDuration(containerVoiceTag, "voice tag");
+            assertIntervalFitsTag(request, voiceTagDuration);
 
-            downloadToFile(request.inputKey(), inputFile);
-            downloadToFile(request.voiceTagKey(), voiceTagFile);
+            String filterComplex = WatermarkFilterBuilder.build(request, songDuration, voiceTagDuration);
+            log.debug("FFmpeg filter for songId={}: {}", request.songId(), filterComplex);
 
-            String containerInputPath = CONTAINER_DIR + "/" + inputFileName;
-            String containerVoicePath = CONTAINER_DIR + "/" + voiceFileName;
-            String containerOutputPath = CONTAINER_DIR + "/" + outputFileName;
-
-            String filterComplex = buildFilterComplex(
-                    request.volumePercentage(),
-                    request.fadeInMs(),
-                    request.fadeOutMs(),
-                    request.startOffsetSeconds());
-
-            int intervalSeconds = Optional.ofNullable(request.intervalSeconds())
-                    .orElse(properties.getDefaultIntervalSeconds());
-
-            List<String> command = new ArrayList<>();
-            command.add("docker");
-            command.add("exec");
-            command.add(properties.getDockerContainerName());
-            command.add("ffmpeg");
-            command.add("-y");
-            command.add("-i");
-            command.add(containerInputPath);
-            command.add("-i");
-            command.add(containerVoicePath);
-            command.add("-filter_complex");
-            command.add(filterComplex);
-            command.add("-map");
-            command.add("[out]");
-            command.add(containerOutputPath);
-
-            executeProcess(command);
+            execute(List.of(
+                    "docker", "exec", properties.getDockerContainerName(),
+                    "ffmpeg", "-y",
+                    "-i", containerInput,
+                    "-i", containerVoiceTag,
+                    "-filter_complex", filterComplex,
+                    "-map", WatermarkFilterBuilder.OUTPUT_LABEL,
+                    containerOutput
+            ));
 
             if (!Files.exists(outputFile) || Files.size(outputFile) == 0) {
+                log.error("FFmpeg produced no output visible on the host. Is {} bind-mounted at {} in container {}?",
+                        jobDir.getParent(), CONTAINER_DIR, properties.getDockerContainerName());
                 throw new AudioBusinessException(AudioErrorCode.FFMPEG_EMPTY_OUTPUT);
             }
 
             long fileSize = Files.size(outputFile);
-            Integer duration = probeDuration(containerOutputPath);
+            Integer duration = probeDuration(containerOutput);
             storagePort.uploadFromPath(request.outputKey(), outputFile, fileSize);
 
             log.info("Watermark embedded via Docker FFmpeg: songId={}, outputKey={}, size={}, duration={}",
@@ -105,129 +86,103 @@ public class DockerAudioProcessorAdapter implements AudioProcessorPort {
         } catch (AudioBusinessException ex) {
             throw ex;
         } catch (IOException | RuntimeException ex) {
-            log.error("Docker Watermark processing failed: songId={}", request.songId(), ex);
+            log.error("Docker watermark processing failed: songId={}", request.songId(), ex);
             throw new AudioBusinessException(AudioErrorCode.PROCESSING_FAILED, ex);
         } finally {
-            cleanup(inputFile, voiceTagFile, outputFile);
+            workspace.release(jobDir);
         }
     }
 
-    private void downloadToFile(String s3Key, Path targetPath) {
-        try (var in = storagePort.download(s3Key)) {
-            Files.copy(in, targetPath, StandardCopyOption.REPLACE_EXISTING);
+    private Path download(String storageKey, Path target) {
+        try (InputStream in = storagePort.download(storageKey)) {
+            Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+            return target;
         } catch (IOException ex) {
-            AudioBusinessException ex2 = new AudioBusinessException(
-                    AudioErrorCode.STORAGE_ERROR,
-                    "Failed to download object: " + s3Key);
-            ex2.initCause(ex);
-            throw ex2;
+            throw new AudioBusinessException(AudioErrorCode.STORAGE_ERROR, ex);
         }
     }
 
-    private String buildFilterComplex(Integer volume, Integer fadeInMs, Integer fadeOutMs, Integer startOffset) {
-        int vol = Optional.ofNullable(volume).orElse(properties.getDefaultVolumePercentage());
-        int fadeIn = Optional.ofNullable(fadeInMs).orElse(1000);
-        int fadeOut = Optional.ofNullable(fadeOutMs).orElse(1000);
-        int start = Optional.ofNullable(startOffset).orElse(0);
-
-        double volumeFactor = Math.max(0.0, Math.min(vol, 100)) / 100.0;
-        double fadeInSeconds = Math.max(0.0, fadeIn / 1000.0);
-        double fadeOutSeconds = Math.max(0.0, fadeOut / 1000.0);
-
-        String voiceChain = "[1:a]volume=" + String.format("%.2f", volumeFactor) +
-                ",afade=t=in:st=0:d=" + String.format("%.2f", fadeInSeconds) +
-                ",afade=t=out:st=" + (double) start + ":d=" + String.format("%.2f", fadeOutSeconds) +
-                "[tag]";
-
-        String mixChain = ";[0:a][tag]amix=inputs=2:duration=first:dropout_transition=0[out]";
-
-        return voiceChain + mixChain;
+    /** Maps a host path under {@code working-dir} onto its counterpart inside the container. */
+    private String toContainerPath(Path hostPath) {
+        Path root = Paths.get(properties.getWorkingDir()).toAbsolutePath().normalize();
+        Path relative = root.relativize(hostPath.toAbsolutePath().normalize());
+        return CONTAINER_DIR + "/" + relative.toString().replace('\\', '/');
     }
 
-    private Integer probeDuration(String containerFilePath) {
+    private double requireDuration(String containerPath, String what) {
+        Integer duration = probeDuration(containerPath);
+        if (duration == null || duration <= 0) {
+            log.error("Could not read {} duration from {}", what, containerPath);
+            throw new AudioBusinessException(AudioErrorCode.AUDIO_PROBE_FAILED);
+        }
+        return duration;
+    }
+
+    private void assertIntervalFitsTag(AudioProcessingRequest request, double voiceTagDuration) {
+        if (request.intervalSeconds() <= voiceTagDuration) {
+            log.warn("Interval {}s is shorter than the {}s voice tag: songId={}",
+                    request.intervalSeconds(), voiceTagDuration, request.songId());
+            throw new AudioBusinessException(AudioErrorCode.INVALID_TAG_INTERVAL);
+        }
+    }
+
+    private Integer probeDuration(String containerPath) {
         try {
-            List<String> command = List.of(
+            String output = executeWithOutput(List.of(
                     "docker", "exec", properties.getDockerContainerName(),
                     "ffprobe", "-v", "error",
                     "-select_streams", "a:0",
                     "-show_entries", "stream=duration",
                     "-of", "default=noprint_wrappers=1:nokey=1",
-                    containerFilePath
-            );
-            String output = executeProcessWithOutput(command).trim();
-            if (output.isBlank()) return null;
-            return (int) Math.round(Double.parseDouble(output));
+                    containerPath
+            )).trim();
+            return output.isBlank() ? null : (int) Math.round(Double.parseDouble(output));
         } catch (Exception ex) {
-            log.warn("Docker FFprobe duration extraction failed", ex);
+            log.warn("Docker FFprobe duration extraction failed for {}: {}", containerPath, ex.getMessage());
             return null;
         }
     }
 
-    private void executeProcess(List<String> command) {
+    private void execute(List<String> command) {
         try {
-            ProcessBuilder pb = new ProcessBuilder(command);
-            pb.redirectErrorStream(true);
-            Process process = pb.start();
+            ProcessBuilder builder = new ProcessBuilder(command);
+            builder.redirectErrorStream(true);
+            Process process = builder.start();
 
-            StringBuilder logOutput = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    logOutput.append(line).append("\n");
-                }
-            }
+            String output = readAll(process);
 
-            boolean finished = process.waitFor(5, TimeUnit.MINUTES);
-            if (!finished) {
+            if (!process.waitFor(properties.getTimeoutMinutes(), TimeUnit.MINUTES)) {
                 process.destroyForcibly();
-                throw new AudioBusinessException(AudioErrorCode.PROCESSING_FAILED, "Docker FFmpeg process timed out");
+                throw new AudioBusinessException(AudioErrorCode.PROCESSING_FAILED, "Docker FFmpeg timed out");
             }
-
             if (process.exitValue() != 0) {
-                log.error("Docker process execution failed. Output:\n{}", logOutput);
-                throw new AudioBusinessException(AudioErrorCode.PROCESSING_FAILED, "Docker FFmpeg returned non-zero exit code: " + process.exitValue());
+                log.error("Docker FFmpeg exited with {}. Output:\n{}", process.exitValue(), output);
+                throw new AudioBusinessException(AudioErrorCode.PROCESSING_FAILED,
+                        "Docker FFmpeg returned exit code " + process.exitValue());
             }
-        } catch (IOException | InterruptedException ex) {
-            if (ex instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
+        } catch (IOException ex) {
+            throw new AudioBusinessException(AudioErrorCode.PROCESSING_FAILED, ex);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
             throw new AudioBusinessException(AudioErrorCode.PROCESSING_FAILED, ex);
         }
     }
 
-    private String executeProcessWithOutput(List<String> command) {
-        try {
-            ProcessBuilder pb = new ProcessBuilder(command);
-            Process process = pb.start();
-
-            StringBuilder output = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    output.append(line).append("\n");
-                }
-            }
-
-            process.waitFor(30, TimeUnit.SECONDS);
-            return output.toString();
-        } catch (Exception ex) {
-            log.warn("Failed to execute process with output: {}", command, ex);
-            return "";
-        }
+    private String executeWithOutput(List<String> command) throws IOException, InterruptedException {
+        Process process = new ProcessBuilder(command).start();
+        String output = readAll(process);
+        process.waitFor(30, TimeUnit.SECONDS);
+        return output;
     }
 
-    private void cleanup(Path... files) {
-        if (!Boolean.TRUE.equals(properties.getCleanupOnSuccess())) {
-            return;
-        }
-        for (Path file : files) {
-            if (file != null) {
-                try {
-                    Files.deleteIfExists(file);
-                } catch (IOException ex) {
-                    log.debug("Temp file cleanup failed: {}", file, ex);
-                }
+    private String readAll(Process process) throws IOException {
+        StringBuilder output = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append('\n');
             }
         }
+        return output.toString();
     }
 }

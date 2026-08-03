@@ -24,7 +24,10 @@ public class SongTagConfigRepositoryImpl implements SongTagConfigRepository {
     @Override
     public SongTagConfig save(SongTagConfig config) {
         SongTagConfigJpaEntity target = songTagConfigJpaRepository.findBySongId(config.getSongId())
-                .map(existing -> songTagConfigMapper.toEntity(config, existing))
+                .map(existing -> {
+                    songTagConfigMapper.applyTo(config, existing);
+                    return existing;
+                })
                 .orElseGet(() -> songTagConfigMapper.toEntity(config));
         return songTagConfigMapper.toDomain(songTagConfigJpaRepository.save(target));
     }

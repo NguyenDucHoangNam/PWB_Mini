@@ -19,5 +19,9 @@ public class AudioProcessorProperties {
 
     private String workingDir = "./tmp/pwb-audio";
 
-    private Boolean cleanupOnSuccess = true;
+    private Boolean cleanupTempFiles = true;
+
+    private Integer orphanRetentionHours = 6;
+
+    private Integer timeoutMinutes = 15;
 }

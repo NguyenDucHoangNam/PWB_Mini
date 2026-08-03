@@ -8,34 +8,23 @@ import org.springframework.stereotype.Component;
 public class SongTagConfigMapper {
 
     public SongTagConfigJpaEntity toEntity(SongTagConfig domain) {
-        return toEntity(domain, null);
-    }
-
-    public SongTagConfigJpaEntity toEntity(SongTagConfig domain, SongTagConfigJpaEntity existing) {
         if (domain == null) {
             return null;
         }
-
-        if (existing != null) {
-            existing.setIntervalSeconds(domain.getIntervalSeconds());
-            existing.setVolumePercentage(domain.getVolumePercentage());
-            existing.setFadeInDurationMs(domain.getFadeInDurationMs());
-            existing.setFadeOutDurationMs(domain.getFadeOutDurationMs());
-            existing.setStartOffsetSeconds(domain.getStartOffsetSeconds());
-            existing.setEnabled(domain.isEnabled());
-            return existing;
-        }
-
-        return SongTagConfigJpaEntity.builder()
+        SongTagConfigJpaEntity entity = SongTagConfigJpaEntity.builder()
                 .songId(domain.getSongId())
                 .voiceTagId(domain.getVoiceTagId())
-                .intervalSeconds(domain.getIntervalSeconds())
-                .volumePercentage(domain.getVolumePercentage())
-                .fadeInDurationMs(domain.getFadeInDurationMs())
-                .fadeOutDurationMs(domain.getFadeOutDurationMs())
-                .startOffsetSeconds(domain.getStartOffsetSeconds())
-                .enabled(domain.isEnabled())
                 .build();
+        applyTo(domain, entity);
+        return entity;
+    }
+
+    public void applyTo(SongTagConfig domain, SongTagConfigJpaEntity target) {
+        target.setIntervalSeconds(domain.getIntervalSeconds());
+        target.setVolumePercentage(domain.getVolumePercentage());
+        target.setDuckingPercentage(domain.getDuckingPercentage());
+        target.setStartOffsetSeconds(domain.getStartOffsetSeconds());
+        target.setEnabled(domain.isEnabled());
     }
 
     public SongTagConfig toDomain(SongTagConfigJpaEntity entity) {
@@ -48,8 +37,7 @@ public class SongTagConfigMapper {
                 entity.getVoiceTagId(),
                 entity.getIntervalSeconds(),
                 entity.getVolumePercentage(),
-                entity.getFadeInDurationMs(),
-                entity.getFadeOutDurationMs(),
+                entity.getDuckingPercentage(),
                 entity.getStartOffsetSeconds(),
                 entity.isEnabled()
         );

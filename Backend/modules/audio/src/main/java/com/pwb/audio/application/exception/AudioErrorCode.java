@@ -25,7 +25,9 @@ public enum AudioErrorCode implements ErrorCode {
     FILE_EMPTY                (ErrorCategory.VALIDATION,        "AUDIO_018", "File must not be empty."),
     UNSUPPORTED_FORMAT        (ErrorCategory.VALIDATION,        "AUDIO_019", "Unsupported audio format. Supported formats: mp3, wav, flac."),
     INVALID_METADATA_JSON     (ErrorCategory.VALIDATION,        "AUDIO_020", "Invalid metadata JSON."),
-    FFMPEG_EMPTY_OUTPUT       (ErrorCategory.INTERNAL,          "AUDIO_021", "FFmpeg produced empty output.");
+    FFMPEG_EMPTY_OUTPUT       (ErrorCategory.INTERNAL,          "AUDIO_021", "FFmpeg produced empty output."),
+    INVALID_TAG_INTERVAL      (ErrorCategory.VALIDATION,        "AUDIO_022", "Interval must be longer than the voice tag itself."),
+    INSUFFICIENT_DISK_SPACE   (ErrorCategory.INTERNAL,          "AUDIO_023", "Not enough disk space to process this song.");
 
     AudioErrorCode(ErrorCategory category, String code, String defaultMessage) {
         this.category = category;

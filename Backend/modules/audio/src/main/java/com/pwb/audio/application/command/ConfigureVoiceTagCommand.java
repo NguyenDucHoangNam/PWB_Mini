@@ -7,8 +7,7 @@ public record ConfigureVoiceTagCommand(
         UUID voiceTagId,
         Integer intervalSeconds,
         Integer volumePercentage,
-        Integer fadeInDurationMs,
-        Integer fadeOutDurationMs,
+        Integer duckingPercentage,
         Integer startOffsetSeconds,
         boolean enabled
 ) {
