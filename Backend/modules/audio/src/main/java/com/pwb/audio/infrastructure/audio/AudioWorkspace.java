@@ -38,6 +38,8 @@ public class AudioWorkspace {
             return;
         }
 
+        log.info("Audio working directory: {} (ffmpeg={})", root, properties.getFfmpegPath());
+
         Instant cutoff = Instant.now().minus(Duration.ofHours(properties.getOrphanRetentionHours()));
         try (Stream<Path> entries = Files.list(root)) {
             int removed = 0;

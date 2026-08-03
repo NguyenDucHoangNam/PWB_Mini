@@ -7,10 +7,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "pwb.audio.processor")
 public class AudioProcessorProperties {
 
-    private String mode = "local";
-
-    private String dockerContainerName = "pwb-ffmpeg";
-
     private String ffmpegPath = "ffmpeg";
 
     private Integer defaultIntervalSeconds = 60;

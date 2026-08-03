@@ -16,8 +16,6 @@ import com.pwb.audio.domain.service.StoragePort;
 import com.pwb.audio.infrastructure.audio.properties.AudioProcessorProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -31,8 +29,6 @@ import java.util.Objects;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@ConditionalOnClass(name = "com.github.kokorin.jaffree.ffmpeg.FFmpeg")
-@ConditionalOnProperty(name = "pwb.audio.processor.mode", havingValue = "local", matchIfMissing = true)
 public class JaffreeAudioProcessorAdapter implements AudioProcessorPort {
 
     private final AudioProcessorProperties properties;

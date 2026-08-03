@@ -115,15 +115,6 @@ services:
     networks:
       - pwb-network
 
-  ffmpeg:
-    image: jrottenberg/ffmpeg:6.1-alpine
-    container_name: pwb-ffmpeg
-    entrypoint: ["tail", "-f", "/dev/null"]
-    volumes:
-      - ./tmp/pwb-audio:/tmp/pwb-audio
-    networks:
-      - pwb-network
-
 volumes:
   postgres_data:
     driver: local

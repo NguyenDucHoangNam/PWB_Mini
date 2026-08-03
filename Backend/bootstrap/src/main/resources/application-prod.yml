@@ -59,6 +59,16 @@ app:
     from-name: ${MAIL_FROM_NAME:PWB}
 
 pwb:
+  audio:
+    processor:
+      # ffmpeg and ffprobe ship in the application image; see Backend/Dockerfile.
+      ffmpeg-path: ${PWB_AUDIO_FFMPEG_PATH:ffmpeg}
+      # Scratch space for a single job: the source, the voice tag and the rendered output. Sized for the
+      # largest song accepted, not for the number of songs queued — jobs run one at a time.
+      working-dir: ${PWB_AUDIO_PROCESSOR_WORKING_DIR:/var/tmp/pwb-audio}
+      cleanup-temp-files: true
+      orphan-retention-hours: ${PWB_AUDIO_ORPHAN_RETENTION_HOURS:6}
+      timeout-minutes: ${PWB_AUDIO_TIMEOUT_MINUTES:15}
   outbox:
     enabled: true
     relay:
