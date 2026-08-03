@@ -6,11 +6,13 @@ import com.pwb.audio.application.command.ConfigureVoiceTagCommand;
 import com.pwb.audio.application.command.CreateSongCommand;
 import com.pwb.audio.application.command.DeleteSongCommand;
 import com.pwb.audio.application.command.UpdateSongCommand;
+import com.pwb.audio.application.command.VoiceTagSettings;
 import com.pwb.audio.application.exception.AudioBusinessException;
 import com.pwb.audio.application.exception.AudioErrorCode;
 import com.pwb.audio.application.support.StorageCleaner;
 import com.pwb.audio.application.usecase.SongUseCase;
 import com.pwb.audio.application.view.AudioUrlView;
+import com.pwb.audio.application.view.SongTagConfigView;
 import com.pwb.audio.application.view.SongView;
 import com.pwb.audio.application.view.UploadUrlView;
 import com.pwb.audio.domain.enums.AudioVariant;
@@ -23,6 +25,8 @@ import com.pwb.audio.domain.repository.SongTagConfigRepository;
 import com.pwb.audio.domain.repository.VoiceTagRepository;
 import com.pwb.audio.domain.service.PresignedUrl;
 import com.pwb.audio.domain.service.StoragePort;
+import com.pwb.audio.domain.service.StoredObject;
+import com.pwb.audio.infrastructure.audio.properties.AudioUploadProperties;
 import com.pwb.audio.infrastructure.processor.event.SongProcessingRequested;
 import com.pwb.infra.kafka.properties.KafkaTopicProperties;
 import com.pwb.infra.outbox.api.OutboxEnqueueHelper;
@@ -52,6 +56,7 @@ public class SongUseCaseImpl implements SongUseCase {
     private final SongTagConfigRepository songTagConfigRepository;
     private final StoragePort storagePort;
     private final StorageCleaner storageCleaner;
+    private final AudioUploadProperties uploadProperties;
     private final OutboxEnqueueHelper outboxEnqueueHelper;
     private final ObjectMapper objectMapper;
 
@@ -72,6 +77,7 @@ public class SongUseCaseImpl implements SongUseCase {
 
         AudioFormat format = parseFormat(command.format());
         assertKeyBelongsToUser(command.userId(), command.originalS3Key());
+        StoredObject uploaded = requireUploadedFile(command.originalS3Key());
 
         Song song = Song.create(
                 command.userId(),
@@ -79,7 +85,7 @@ public class SongUseCaseImpl implements SongUseCase {
                 null,
                 null,
                 command.originalS3Key(),
-                command.fileSizeBytes(),
+                uploaded.sizeBytes(),
                 command.durationSeconds(),
                 format
         );
@@ -143,10 +149,32 @@ public class SongUseCaseImpl implements SongUseCase {
         log.info("Song deleted: songId={}", song.getId());
     }
 
+    /**
+     * Replaces the whole configuration for a song — there is at most one per song, and every field is
+     * supplied, so this is a put rather than a patch. The song's audio is left alone: the caller decides
+     * when to re-run processing with the new settings.
+     */
+    @Override
+    @Transactional
+    public SongTagConfigView configureVoiceTag(ConfigureVoiceTagCommand command) {
+        Song song = requireOwnedSong(command.userId(), command.songId());
+        VoiceTagSettings settings = command.settings();
+
+        VoiceTag voiceTag = voiceTagRepository.findByIdAndUserId(settings.voiceTagId(), command.userId())
+                .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.VOICE_TAG_NOT_FOUND));
+
+        SongTagConfig saved = songTagConfigRepository.save(
+                toTagConfig(song.getId(), voiceTag.getId(), settings));
+
+        log.info("Voice tag configured: songId={}, voiceTagId={}", song.getId(), voiceTag.getId());
+        return toSongTagConfigView(saved);
+    }
+
     @Override
     @Transactional
     public SongView triggerProcessing(UUID userId, UUID songId) {
         Song song = requireOwnedSong(userId, songId);
+        String supersededKey = song.getProcessedS3Key();
 
         try {
             song.triggerProcessing();
@@ -155,6 +183,8 @@ public class SongUseCaseImpl implements SongUseCase {
         }
 
         Song saved = songRepository.save(song);
+        // Re-running replaces the previous render; without this its object would linger unreferenced.
+        storageCleaner.deleteAfterCommit(supersededKey);
         publishSongProcessingRequested(saved.getId(), userId);
 
         log.info("Processing triggered: songId={}", saved.getId());
@@ -195,6 +225,26 @@ public class SongUseCaseImpl implements SongUseCase {
     }
 
     /**
+     * Closes the other half of the trust gap: owning the key says nothing about what was put there. Storage
+     * is the only authority on whether a file exists and how big it really is, so both come from there
+     * rather than from the request.
+     */
+    private StoredObject requireUploadedFile(String storageKey) {
+        StoredObject uploaded = storagePort.findMetadata(storageKey)
+                .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.UPLOAD_NOT_FOUND));
+
+        if (uploaded.sizeBytes() > uploadProperties.getMaxFileSizeBytes()) {
+            log.warn("Rejected oversized upload: storageKey={}, size={}, limit={}",
+                    storageKey, uploaded.sizeBytes(), uploadProperties.getMaxFileSizeBytes());
+            throw new AudioBusinessException(AudioErrorCode.FILE_TOO_LARGE);
+        }
+        if (uploaded.sizeBytes() == 0) {
+            throw new AudioBusinessException(AudioErrorCode.FILE_EMPTY);
+        }
+        return uploaded;
+    }
+
+    /**
      * The client hands back the key it uploaded to, so it could just as easily hand back somebody else's.
      * Only keys under the caller's own prefix — with no traversal segments — are accepted.
      */
@@ -215,15 +265,30 @@ public class SongUseCaseImpl implements SongUseCase {
         }
     }
 
-    private SongTagConfig toTagConfig(UUID songId, UUID voiceTagId, ConfigureVoiceTagCommand vtConfig) {
+    private SongTagConfig toTagConfig(UUID songId, UUID voiceTagId, VoiceTagSettings settings) {
         return SongTagConfig.create(
                 songId,
                 voiceTagId,
-                vtConfig.intervalSeconds(),
-                vtConfig.volumePercentage(),
-                vtConfig.duckingPercentage(),
-                vtConfig.startOffsetSeconds(),
-                vtConfig.enabled()
+                settings.intervalSeconds(),
+                settings.volumePercentage(),
+                settings.duckingPercentage(),
+                settings.startOffsetSeconds(),
+                settings.enabled()
+        );
+    }
+
+    private SongTagConfigView toSongTagConfigView(SongTagConfig config) {
+        return new SongTagConfigView(
+                config.getId(),
+                config.getSongId(),
+                config.getVoiceTagId(),
+                config.getIntervalSeconds(),
+                config.getVolumePercentage(),
+                config.getDuckingPercentage(),
+                config.getStartOffsetSeconds(),
+                config.isEnabled(),
+                config.getCreatedAt(),
+                config.getUpdatedAt()
         );
     }
 

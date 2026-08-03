@@ -227,8 +227,12 @@ public final class Song extends DomainBaseEntity {
         return variant == AudioVariant.PROCESSED ? processedS3Key : originalS3Key;
     }
 
+    /**
+     * Anything but a run already in flight can be (re)processed — an already-rendered song is re-rendered
+     * from its original, which is how a change to the voice tag configuration takes effect.
+     */
     public boolean canTriggerProcessing() {
-        return this.status == SongStatus.UPLOADED || this.status == SongStatus.FAILED;
+        return this.status != SongStatus.PROCESSING;
     }
 
     public void triggerProcessing() {

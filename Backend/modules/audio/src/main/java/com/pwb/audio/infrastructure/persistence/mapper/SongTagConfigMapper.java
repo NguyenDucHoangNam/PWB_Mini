@@ -20,6 +20,7 @@ public class SongTagConfigMapper {
     }
 
     public void applyTo(SongTagConfig domain, SongTagConfigJpaEntity target) {
+        target.setVoiceTagId(domain.getVoiceTagId());
         target.setIntervalSeconds(domain.getIntervalSeconds());
         target.setVolumePercentage(domain.getVolumePercentage());
         target.setDuckingPercentage(domain.getDuckingPercentage());

@@ -1,9 +1,11 @@
 package com.pwb.audio.application.usecase;
 
+import com.pwb.audio.application.command.ConfigureVoiceTagCommand;
 import com.pwb.audio.application.command.CreateSongCommand;
 import com.pwb.audio.application.command.DeleteSongCommand;
 import com.pwb.audio.application.command.UpdateSongCommand;
 import com.pwb.audio.application.view.AudioUrlView;
+import com.pwb.audio.application.view.SongTagConfigView;
 import com.pwb.audio.application.view.SongView;
 import com.pwb.audio.application.view.UploadUrlView;
 import com.pwb.audio.domain.enums.AudioVariant;
@@ -26,6 +28,8 @@ public interface SongUseCase {
     SongView updateSong(UpdateSongCommand command);
 
     void deleteSong(DeleteSongCommand command);
+
+    SongTagConfigView configureVoiceTag(ConfigureVoiceTagCommand command);
 
     SongView triggerProcessing(UUID userId, UUID songId);
 

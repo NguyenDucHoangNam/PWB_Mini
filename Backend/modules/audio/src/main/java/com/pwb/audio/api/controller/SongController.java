@@ -1,15 +1,19 @@
 package com.pwb.audio.api.controller;
 
+import com.pwb.audio.api.dto.request.ConfigureVoiceTagRequest;
 import com.pwb.audio.api.dto.request.CreateSongRequest;
 import com.pwb.audio.api.dto.request.UpdateSongRequest;
 import com.pwb.audio.api.dto.request.UploadUrlRequest;
 import com.pwb.audio.api.dto.response.AudioUrlResponse;
 import com.pwb.audio.api.dto.response.SongResponse;
+import com.pwb.audio.api.dto.response.SongTagConfigResponse;
 import com.pwb.audio.api.dto.response.UploadUrlResponse;
+import com.pwb.audio.application.command.ConfigureVoiceTagCommand;
 import com.pwb.audio.application.command.DeleteSongCommand;
 import com.pwb.audio.application.command.UpdateSongCommand;
 import com.pwb.audio.application.usecase.SongUseCase;
 import com.pwb.audio.application.view.AudioUrlView;
+import com.pwb.audio.application.view.SongTagConfigView;
 import com.pwb.audio.application.view.SongView;
 import com.pwb.audio.application.view.UploadUrlView;
 import com.pwb.audio.domain.enums.AudioVariant;
@@ -34,6 +38,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -56,6 +61,7 @@ public class SongController {
     private static final String MSG_SONG_RETRIEVED = "AUDIO_SONG_RETRIEVED";
     private static final String MSG_PROCESSING_TRIGGERED = "AUDIO_PROCESSING_TRIGGERED";
     private static final String MSG_PRESIGNED_URL = "AUDIO_PRESIGNED_URL_GENERATED";
+    private static final String MSG_TAG_CONFIGURED = "AUDIO_TAG_CONFIGURED";
 
     private static final String DEFAULT_EXPIRES_IN_SECONDS = "3600";
     private static final long MIN_EXPIRES_IN_SECONDS = 60L;
@@ -126,6 +132,22 @@ public class SongController {
     ) {
         songUseCase.deleteSong(new DeleteSongCommand(userId, songId));
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Replaces the song's voice tag configuration. Does not re-render the audio — call
+     * {@code trigger-processing} once the settings are right.
+     */
+    @PutMapping("/{songId}/voice-tag-config")
+    public ResponseEntity<ApiResponse<SongTagConfigResponse>> configureVoiceTag(
+            @CurrentUser UUID userId,
+            @PathVariable UUID songId,
+            @Valid @RequestBody ConfigureVoiceTagRequest request
+    ) {
+        SongTagConfigView view = songUseCase.configureVoiceTag(
+                new ConfigureVoiceTagCommand(userId, songId, request.toSettings()));
+        SongTagConfigResponse body = SongTagConfigResponse.from(view);
+        return ResponseEntity.ok(ApiResponse.success(messageResolver.get(MSG_TAG_CONFIGURED), body));
     }
 
     @PostMapping("/{songId}/trigger-processing")

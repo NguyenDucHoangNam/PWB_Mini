@@ -69,6 +69,10 @@ pwb:
       cleanup-temp-files: true
       orphan-retention-hours: ${PWB_AUDIO_ORPHAN_RETENTION_HOURS:6}
       timeout-minutes: ${PWB_AUDIO_TIMEOUT_MINUTES:15}
+    upload:
+      # Verified against object storage, not trusted from the client. Keep working-dir sized to roughly
+      # 2.5x this value, since one job holds the source, the voice tag and the render at the same time.
+      max-file-size-bytes: ${PWB_AUDIO_MAX_FILE_SIZE_BYTES:209715200}
   outbox:
     enabled: true
     relay:

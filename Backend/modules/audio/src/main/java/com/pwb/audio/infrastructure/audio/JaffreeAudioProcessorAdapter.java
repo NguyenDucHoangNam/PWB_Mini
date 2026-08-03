@@ -13,6 +13,7 @@ import com.pwb.audio.domain.model.AudioProcessingRequest;
 import com.pwb.audio.domain.model.AudioProcessingResult;
 import com.pwb.audio.domain.service.AudioProcessorPort;
 import com.pwb.audio.domain.service.StoragePort;
+import com.pwb.audio.domain.service.StoredObject;
 import com.pwb.audio.infrastructure.audio.properties.AudioProcessorProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +38,8 @@ public class JaffreeAudioProcessorAdapter implements AudioProcessorPort {
 
     @Override
     public AudioProcessingResult embedWatermark(AudioProcessingRequest request) {
+        workspace.assertSpaceAvailable(estimateScratchBytes(request));
+
         Path jobDir = workspace.createJobDirectory(request.songId());
         try {
             Path inputFile = download(request.inputKey(), jobDir.resolve("input"));
@@ -81,10 +84,13 @@ public class JaffreeAudioProcessorAdapter implements AudioProcessorPort {
         }
     }
 
-    /**
-     * Writes straight into the job directory, so a copy that dies midway leaves its remains where the
-     * {@code finally} above will still sweep them.
-     */
+    private long estimateScratchBytes(AudioProcessingRequest request) {
+        long sourceBytes = storagePort.findMetadata(request.inputKey())
+                .map(StoredObject::sizeBytes)
+                .orElse(0L);
+        return (long) (sourceBytes * 2.5);
+    }
+
     private Path download(String storageKey, Path target) {
         try (InputStream in = storagePort.download(storageKey)) {
             Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
@@ -94,10 +100,6 @@ public class JaffreeAudioProcessorAdapter implements AudioProcessorPort {
         }
     }
 
-    /**
-     * Both durations drive the filtergraph — how many insertions fit and how long each duck lasts — so an
-     * unreadable file has to stop the job rather than silently produce a wrong mix.
-     */
     private double requireDuration(Path file, String what) {
         Integer duration = probeDuration(file);
         if (duration == null || duration <= 0) {

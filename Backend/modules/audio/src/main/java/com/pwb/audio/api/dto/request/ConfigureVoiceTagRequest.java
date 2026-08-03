@@ -1,5 +1,6 @@
 package com.pwb.audio.api.dto.request;
 
+import com.pwb.audio.application.command.VoiceTagSettings;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -20,4 +21,15 @@ public record ConfigureVoiceTagRequest(
         @NotNull @Min(0) Integer startOffsetSeconds,
         boolean enabled
 ) {
+
+    public VoiceTagSettings toSettings() {
+        return new VoiceTagSettings(
+                voiceTagId,
+                intervalSeconds,
+                volumePercentage,
+                duckingPercentage,
+                startOffsetSeconds,
+                enabled
+        );
+    }
 }

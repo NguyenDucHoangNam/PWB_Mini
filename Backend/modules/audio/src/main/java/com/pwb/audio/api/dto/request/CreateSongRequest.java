@@ -1,7 +1,7 @@
 package com.pwb.audio.api.dto.request;
 
-import com.pwb.audio.application.command.ConfigureVoiceTagCommand;
 import com.pwb.audio.application.command.CreateSongCommand;
+import com.pwb.audio.application.command.VoiceTagSettings;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -10,10 +10,13 @@ import jakarta.validation.constraints.Size;
 
 import java.util.UUID;
 
+/**
+ * Registers a song whose audio is already in object storage. The file size is not accepted here — the
+ * server reads it back from storage, so a client cannot understate what it uploaded.
+ */
 public record CreateSongRequest(
         @NotBlank @Size(max = 200) String title,
         @NotBlank @Size(max = 512) String originalS3Key,
-        @NotNull @Positive Long fileSizeBytes,
         @NotNull @Positive Integer durationSeconds,
         @NotBlank @Size(max = 16) String format,
         @Valid ConfigureVoiceTagRequest voiceTagConfig
@@ -24,25 +27,9 @@ public record CreateSongRequest(
                 userId,
                 title,
                 originalS3Key,
-                fileSizeBytes,
                 durationSeconds,
                 format,
-                toVoiceTagCommand()
-        );
-    }
-
-    private ConfigureVoiceTagCommand toVoiceTagCommand() {
-        if (voiceTagConfig == null) {
-            return null;
-        }
-        return new ConfigureVoiceTagCommand(
-                null,
-                voiceTagConfig.voiceTagId(),
-                voiceTagConfig.intervalSeconds(),
-                voiceTagConfig.volumePercentage(),
-                voiceTagConfig.duckingPercentage(),
-                voiceTagConfig.startOffsetSeconds(),
-                voiceTagConfig.enabled()
+                voiceTagConfig == null ? null : voiceTagConfig.toSettings()
         );
     }
 }

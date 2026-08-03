@@ -27,7 +27,8 @@ public enum AudioErrorCode implements ErrorCode {
     INVALID_METADATA_JSON     (ErrorCategory.VALIDATION,        "AUDIO_020", "Invalid metadata JSON."),
     FFMPEG_EMPTY_OUTPUT       (ErrorCategory.INTERNAL,          "AUDIO_021", "FFmpeg produced empty output."),
     INVALID_TAG_INTERVAL      (ErrorCategory.VALIDATION,        "AUDIO_022", "Interval must be longer than the voice tag itself."),
-    INSUFFICIENT_DISK_SPACE   (ErrorCategory.INTERNAL,          "AUDIO_023", "Not enough disk space to process this song.");
+    INSUFFICIENT_DISK_SPACE   (ErrorCategory.INTERNAL,          "AUDIO_023", "Not enough disk space to process this song."),
+    UPLOAD_NOT_FOUND          (ErrorCategory.VALIDATION,        "AUDIO_024", "No uploaded file was found for the given storage key.");
 
     AudioErrorCode(ErrorCategory category, String code, String defaultMessage) {
         this.category = category;

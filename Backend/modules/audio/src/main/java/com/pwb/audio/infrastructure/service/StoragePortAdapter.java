@@ -4,8 +4,12 @@ import com.pwb.audio.application.exception.AudioBusinessException;
 import com.pwb.audio.application.exception.AudioErrorCode;
 import com.pwb.audio.domain.service.PresignedUrl;
 import com.pwb.audio.domain.service.StoragePort;
+import com.pwb.audio.domain.service.StoredObject;
 import com.pwb.infra.storage.StorageService;
+import com.pwb.infra.storage.dto.ObjectMetadata;
 import com.pwb.infra.storage.dto.PresignedUrlResult;
+import com.pwb.infra.storage.exception.StorageErrorCode;
+import com.pwb.infra.storage.exception.StorageException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +18,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +34,23 @@ public class StoragePortAdapter implements StoragePort {
     @Override
     public PresignedUrl presignUpload(String storageKey, Duration expiration) {
         return toPresignedUrl(storageService.generatePresignedUploadUrl(storageKey, null, expiration));
+    }
+
+    @Override
+    public Optional<StoredObject> findMetadata(String storageKey) {
+        try {
+            ObjectMetadata metadata = storageService.getMetadata(storageKey);
+            return Optional.of(new StoredObject(
+                    metadata.getKey(),
+                    metadata.getSizeBytes(),
+                    metadata.getContentType()
+            ));
+        } catch (StorageException ex) {
+            if (ex.getErrorCode() == StorageErrorCode.STORAGE_OBJECT_NOT_FOUND) {
+                return Optional.empty();
+            }
+            throw new AudioBusinessException(AudioErrorCode.STORAGE_ERROR, ex);
+        }
     }
 
     @Override

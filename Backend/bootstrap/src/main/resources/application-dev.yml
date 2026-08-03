@@ -72,6 +72,9 @@ pwb:
       ffmpeg-path: ${PWB_AUDIO_FFMPEG_PATH:ffmpeg}
       working-dir: ${PWB_AUDIO_PROCESSOR_WORKING_DIR:./tmp/pwb-audio}
       cleanup-temp-files: ${PWB_AUDIO_CLEANUP_TEMP_FILES:true}
+    upload:
+      # Verified against object storage, not trusted from the client. 200 MB.
+      max-file-size-bytes: ${PWB_AUDIO_MAX_FILE_SIZE_BYTES:209715200}
     tts:
       google:
         credentials-path: ${GCP_TTS_CREDENTIALS_PATH:classpath:tts/producerworkbench-1059f8c52ba4.json}

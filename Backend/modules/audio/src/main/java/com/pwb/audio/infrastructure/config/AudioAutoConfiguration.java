@@ -1,6 +1,7 @@
 package com.pwb.audio.infrastructure.config;
 
 import com.pwb.audio.infrastructure.audio.properties.AudioProcessorProperties;
+import com.pwb.audio.infrastructure.audio.properties.AudioUploadProperties;
 import com.pwb.audio.infrastructure.processor.properties.SongProcessorProperties;
 import com.pwb.audio.infrastructure.tts.properties.GoogleTtsProperties;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -12,6 +13,7 @@ import org.springframework.context.annotation.ComponentScan;
 @AutoConfigurationPackage(basePackages = "com.pwb.audio.infrastructure.persistence")
 @EnableConfigurationProperties({
         AudioProcessorProperties.class,
+        AudioUploadProperties.class,
         GoogleTtsProperties.class,
         SongProcessorProperties.class
 })
