@@ -12,7 +12,6 @@ import { useCaptureReturnTo } from "@/hooks/use-return-to";
 import { broadcastAuthMessage } from "@/lib/broadcast-channel";
 import { decodeJwtExpiry } from "@/lib/jwt-decode";
 import { asApiError } from "@/lib/api-client";
-import { resolveErrorI18nKey } from "@/lib/error-code-to-i18n";
 import { sanitizeApiMessage } from "@/lib/form-errors";
 import type { ApiError } from "@/lib/api-client";
 import type { AuthUser } from "../types";
@@ -23,33 +22,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
-type Translator = (key: string) => string;
-
-function translateWithFallbacks(t: Translator, key: string): string | null {
-  try {
-    const translated = t(key);
-    if (translated && translated !== key) return translated;
-  } catch {
-  }
-  return null;
-}
-
-function resolveErrorMessage(err: ApiError, tLogin: Translator, tErrors: Translator, tValidation: Translator): string {
-  const i18nKey = resolveErrorI18nKey(err);
-  if (i18nKey) {
-    const translated =
-      translateWithFallbacks(tErrors, i18nKey) ??
-      translateWithFallbacks(tValidation, i18nKey) ??
-      translateWithFallbacks(tLogin, i18nKey);
-    if (translated) return translated;
-  }
-  return sanitizeApiMessage(err, tLogin("errorToast"));
-}
-
 export function LoginForm() {
   const t = useTranslations("auth.login");
-  const tErrors = useTranslations("errors");
-  const tValidation = useTranslations("validation");
+
   const router = useRouter();
   const pathname = usePathname();
   const locale = pathname.split("/")[1] || "vi";
@@ -142,8 +117,9 @@ export function LoginForm() {
             );
             return;
           }
-          setError(resolveErrorMessage(err, t, tErrors, tValidation));
-          toast.error(resolveErrorMessage(err, t, tErrors, tValidation));
+          const errorMsg = sanitizeApiMessage(err, t("errorToast"));
+          setError(errorMsg);
+          toast.error(errorMsg);
         }),
       },
     );

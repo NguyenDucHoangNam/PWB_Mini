@@ -104,7 +104,10 @@ public class GlobalExceptionHandler {
         if (details == null || details.isEmpty()) {
             return null;
         }
-        return details.values().toArray();
+        return details.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(Map.Entry::getValue)
+                .toArray();
     }
 
     private String resolveMessage(ErrorCode ec, Object[] args) {

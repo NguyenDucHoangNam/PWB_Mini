@@ -547,39 +547,7 @@
       "serverError": "Hệ thống đang gặp sự cố. Vui lòng thử lại sau."
     },
     "auth": {
-      "generic": "Đăng nhập thất bại. Vui lòng thử lại.",
-      "emailAlreadyRegistered": "Địa chỉ email đã được đăng ký.",
-      "weakPassword": "Mật khẩu quá yếu.",
-      "userNotFound": "Không tìm thấy người dùng.",
-      "invalidCredentials": "Email hoặc mật khẩu không chính xác.",
-      "accountLocked": "Tài khoản bị tạm khóa do quá nhiều lần đăng nhập thất bại. Vui lòng thử lại sau.",
-      "accountInactive": "Tài khoản đang không hoạt động.",
-      "accountNotVerified": "Tài khoản chưa được xác thực.",
-      "tokenInvalid": "Token xác thực không hợp lệ.",
-      "tokenExpired": "Token xác thực đã hết hạn.",
-      "tokenMissing": "Vui lòng đăng nhập để tiếp tục.",
-      "refreshTokenInvalid": "Refresh token không hợp lệ.",
-      "refreshTokenExpired": "Refresh token đã hết hạn.",
-      "refreshTokenReused": "Refresh token đã bị thu hồi.",
-      "rateLimited": "Quá nhiều yêu cầu. Vui lòng chậm lại.",
-      "currentPasswordIncorrect": "Mật khẩu hiện tại không chính xác.",
-      "passwordReused": "Mật khẩu mới phải khác mật khẩu hiện tại.",
-      "passwordRecentlyUsed": "Mật khẩu đã được sử dụng gần đây. Vui lòng chọn mật khẩu khác.",
-      "resetCooldown": "Vui lòng đợi trước khi yêu cầu đặt lại mật khẩu khác.",
-      "resetTokenInvalid": "Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.",
-      "otpInvalid": "Mã OTP không hợp lệ.",
-      "otpExpired": "Mã OTP đã hết hạn.",
-      "otpDailyLimit": "Bạn đã đạt đến giới hạn yêu cầu mã xác thực hàng ngày. Vui lòng thử lại vào ngày mai.",
-      "oauthNoPassword": "Tài khoản OAuth không có mật khẩu.",
-      "serviceUnavailable": "Dịch vụ tạm thời không khả dụng. Vui lòng thử lại sau.",
-      "accessDenied": "Truy cập bị từ chối do không đủ quyền.",
-      "googleTokenInvalid": "Token Google không hợp lệ hoặc đã hết hạn.",
-      "googleEmailNotVerified": "Email Google chưa được xác thực.",
-      "defaultRoleMissing": "Cấu hình vai trò mặc định bị thiếu. Vui lòng liên hệ quản trị viên."
-    },
-    "profile": {
-      "avatarInvalidFormat": "Định dạng ảnh đại diện không hợp lệ. Chỉ chấp nhận: JPEG, PNG, WebP.",
-      "avatarTooLarge": "Dung lượng ảnh đại diện không được vượt quá 5MB."
+      "generic": "Đăng nhập thất bại. Vui lòng thử lại."
     },
     "401": {
       "title": "PHIÊN ĐĂNG NHẬP ĐÃ HẾT HẠN",

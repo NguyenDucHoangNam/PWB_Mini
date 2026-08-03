@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 
 const DEFAULT_LOCALE = "vi";
 
@@ -34,17 +35,19 @@ export function LocaleSwitcher() {
     getLocaleSnapshot,
     getServerLocaleSnapshot,
   );
+  const router = useRouter();
 
   const switchLocale = useCallback(
     (newLocale: string) => {
       if (newLocale === currentLocale) return;
       if (typeof document === "undefined") return;
 
-      document.cookie = `locale=${newLocale}; path=/; max-age=31536000; SameSite=Lax`;
+      const secure = window.location.protocol === "https:" ? "; Secure" : "";
+      document.cookie = `locale=${newLocale}; path=/; max-age=31536000; SameSite=Lax${secure}`;
       window.dispatchEvent(new Event("app-locale-change"));
-      window.location.reload();
+      router.refresh();
     },
-    [currentLocale],
+    [currentLocale, router],
   );
 
   return (

@@ -547,39 +547,7 @@
       "serverError": "The system encountered an error. Please try again later."
     },
     "auth": {
-      "generic": "Login failed. Please try again.",
-      "emailAlreadyRegistered": "Email is already registered.",
-      "weakPassword": "Password is too weak.",
-      "userNotFound": "User not found.",
-      "invalidCredentials": "Invalid email or password.",
-      "accountLocked": "Account temporarily locked due to too many failed attempts. Please try again later.",
-      "accountInactive": "Account is inactive.",
-      "accountNotVerified": "Account has not been verified yet.",
-      "tokenInvalid": "Authentication token is invalid.",
-      "tokenExpired": "Authentication token has expired.",
-      "tokenMissing": "Please sign in to continue.",
-      "refreshTokenInvalid": "Refresh token is invalid.",
-      "refreshTokenExpired": "Refresh token has expired.",
-      "refreshTokenReused": "Refresh token has been revoked.",
-      "rateLimited": "Too many requests. Please slow down.",
-      "currentPasswordIncorrect": "Current password is incorrect.",
-      "passwordReused": "New password must be different from the current one.",
-      "passwordRecentlyUsed": "Password was recently used. Please choose a different password.",
-      "resetCooldown": "Please wait before requesting another password reset.",
-      "resetTokenInvalid": "Password reset token is invalid or has expired.",
-      "otpInvalid": "OTP code is invalid.",
-      "otpExpired": "OTP code has expired.",
-      "otpDailyLimit": "You have reached the daily OTP request limit. Please try again tomorrow.",
-      "oauthNoPassword": "OAuth account does not have a password.",
-      "serviceUnavailable": "Service temporarily unavailable. Please try again later.",
-      "accessDenied": "Access denied due to insufficient permissions.",
-      "googleTokenInvalid": "Google token is invalid or has expired.",
-      "googleEmailNotVerified": "Google email has not been verified.",
-      "defaultRoleMissing": "Default role configuration is missing. Please contact the administrator."
-    },
-    "profile": {
-      "avatarInvalidFormat": "Invalid avatar format. Only JPEG, PNG, WebP are allowed.",
-      "avatarTooLarge": "Avatar file size must not exceed 5MB."
+      "generic": "Login failed. Please try again."
     },
     "401": {
       "title": "LOGIN SESSION EXPIRED",

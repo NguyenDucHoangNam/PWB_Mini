@@ -44,7 +44,12 @@ public final class ErrorResponseWriter {
     }
 
     public static void write(HttpServletResponse response, BusinessException ex, MessageSource messageSource) throws IOException {
-        Object[] args = ex.getDetails() == null ? null : ex.getDetails().values().toArray();
+        Object[] args = ex.getDetails() == null || ex.getDetails().isEmpty()
+                ? null
+                : ex.getDetails().entrySet().stream()
+                        .sorted(java.util.Map.Entry.comparingByKey())
+                        .map(java.util.Map.Entry::getValue)
+                        .toArray();
         String resolvedMessage = resolveMessage(ex.getErrorCode(), args, messageSource);
         write(response, ex.getErrorCode(), resolvedMessage);
     }
