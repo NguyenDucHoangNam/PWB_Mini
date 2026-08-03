@@ -2,16 +2,24 @@ package com.pwb.web.exception;
 
 import com.pwb.shared.dto.ApiResponse;
 import com.pwb.shared.exception.BusinessException;
+import com.pwb.shared.exception.ErrorCategory;
 import com.pwb.shared.exception.ErrorCode;
 import com.pwb.shared.exception.SysErrorCode;
 import com.pwb.shared.exception.ValidationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -37,67 +45,117 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException ex) {
+        logBusiness(ex);
         Object[] args = extractArgs(ex.getDetails());
-        String resolvedMessage = resolveMessage(ex.getErrorCode(), args);
-        return ResponseEntity.status(WebErrorMapper.toHttpStatus(ex.getCategory()))
-                .body(ApiResponse.error(ex.getErrorCode(), resolvedMessage));
+        return respond(ex.getErrorCode(), args);
     }
 
     @ExceptionHandler(ValidationException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidation(ValidationException ex) {
-        String resolvedMessage = resolveMessageByKey(VALIDATION_FAILED_KEY);
-        return ResponseEntity.badRequest()
-                .body(ApiResponse.error(VALIDATION_FAILED_KEY, resolvedMessage, ex.getFieldErrors()));
+        return respondWithFieldErrors(ex.getFieldErrors());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleMethodArgumentNotValid(MethodArgumentNotValidException ex) {
         Map<String, List<String>> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
                 .collect(Collectors.groupingBy(
-                        err -> err.getField(),
-                        Collectors.mapping(err -> resolveFieldError(err), Collectors.toList())
+                        FieldError::getField,
+                        Collectors.mapping(err -> resolveKey(err.getDefaultMessage()), Collectors.toList())
                 ));
-        String resolvedMessage = resolveMessageByKey(VALIDATION_FAILED_KEY);
-        return ResponseEntity.badRequest()
-                .body(ApiResponse.error(VALIDATION_FAILED_KEY, resolvedMessage, fieldErrors));
+        return respondWithFieldErrors(fieldErrors);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleConstraintViolation(ConstraintViolationException ex) {
         Map<String, List<String>> fieldErrors = ex.getConstraintViolations().stream()
                 .collect(Collectors.groupingBy(
-                        v -> extractFieldName(v),
-                        Collectors.mapping(this::resolveViolationMessage, Collectors.toList())
+                        this::extractFieldName,
+                        Collectors.mapping(v -> resolveKey(v.getMessage()), Collectors.toList())
                 ));
-        String resolvedMessage = resolveMessageByKey(VALIDATION_FAILED_KEY);
-        return ResponseEntity.badRequest()
-                .body(ApiResponse.error(VALIDATION_FAILED_KEY, resolvedMessage, fieldErrors));
+        return respondWithFieldErrors(fieldErrors);
+    }
+
+    /**
+     * Domain invariants are guarded with {@link IllegalArgumentException}; surfacing them as 500 would
+     * both mislead the client and pollute error monitoring, so they map to 400 instead.
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex) {
+        log.debug("Rejected request: {}", ex.getMessage());
+        return respond(SysErrorCode.INVALID_REQUEST, null);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        log.debug("Parameter type mismatch: name={}, value={}", ex.getName(), ex.getValue());
+        return respond(SysErrorCode.INVALID_PARAMETER, null);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingParameter(MissingServletRequestParameterException ex) {
+        log.debug("Missing request parameter: {}", ex.getParameterName());
+        return respond(SysErrorCode.INVALID_PARAMETER, null);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnreadableBody(HttpMessageNotReadableException ex) {
+        log.debug("Unreadable request body: {}", ex.getMessage());
+        return respond(SysErrorCode.MALFORMED_REQUEST_BODY, null);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        log.debug("Unsupported method: {}", ex.getMethod());
+        return respond(SysErrorCode.METHOD_NOT_ALLOWED, null);
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ApiResponse<Void>> handleOptimisticLocking(OptimisticLockingFailureException ex) {
+        log.warn("Concurrent update rejected: {}", ex.getMessage());
+        return respond(SysErrorCode.CONCURRENT_UPDATE, null);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException ex) {
+        log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
+        return respond(SysErrorCode.DATA_INTEGRITY_VIOLATION, null);
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiResponse<Void>> handleMaxUpload(MaxUploadSizeExceededException ex) {
-        var ec = SysErrorCode.FILE_TOO_LARGE;
-        String resolvedMessage = resolveMessage(ec, null);
-        return ResponseEntity.status(WebErrorMapper.toHttpStatus(ec.category()))
-                .body(ApiResponse.error(ec, resolvedMessage));
+        return respond(SysErrorCode.FILE_TOO_LARGE, null);
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleNoResource(NoResourceFoundException ex) {
         log.warn("Resource not found: {} {}", ex.getHttpMethod(), ex.getResourcePath());
-        var ec = SysErrorCode.RESOURCE_NOT_FOUND;
-        String resolvedMessage = resolveMessage(ec, null);
-        return ResponseEntity.status(WebErrorMapper.toHttpStatus(ec.category()))
-                .body(ApiResponse.error(ec, resolvedMessage));
+        return respond(SysErrorCode.RESOURCE_NOT_FOUND, null);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneric(Exception ex) {
         log.error("Unhandled exception: ", ex);
-        var ec = SysErrorCode.INTERNAL_SERVER_ERROR;
-        String resolvedMessage = resolveMessage(ec, null);
-        return ResponseEntity.status(WebErrorMapper.toHttpStatus(ec.category()))
-                .body(ApiResponse.error(ec, resolvedMessage));
+        return respond(SysErrorCode.INTERNAL_SERVER_ERROR, null);
+    }
+
+    private ResponseEntity<ApiResponse<Void>> respond(ErrorCode errorCode, Object[] args) {
+        String resolvedMessage = resolve(errorCode.code(), args, errorCode.defaultMessage());
+        return ResponseEntity.status(WebErrorMapper.toHttpStatus(errorCode.category()))
+                .body(ApiResponse.error(errorCode, resolvedMessage));
+    }
+
+    private ResponseEntity<ApiResponse<Void>> respondWithFieldErrors(Map<String, List<String>> fieldErrors) {
+        String resolvedMessage = resolveKey(VALIDATION_FAILED_KEY);
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error(VALIDATION_FAILED_KEY, resolvedMessage, fieldErrors));
+    }
+
+    private void logBusiness(BusinessException ex) {
+        if (ex.getCategory() == ErrorCategory.INTERNAL) {
+            log.error("Business failure: code={}", ex.getCode(), ex);
+        } else {
+            log.debug("Business rejection: code={}, message={}", ex.getCode(), ex.getMessage());
+        }
     }
 
     private Object[] extractArgs(Map<String, Object> details) {
@@ -110,44 +168,22 @@ public class GlobalExceptionHandler {
                 .toArray();
     }
 
-    private String resolveMessage(ErrorCode ec, Object[] args) {
+    private String resolveKey(String key) {
+        return resolve(key, null, key);
+    }
+
+    private String resolve(String key, Object[] args, String fallback) {
         Locale locale = LocaleContextHolder.getLocale();
         try {
-            return messageSource.getMessage(ec.code(), args, ec.defaultMessage(), locale);
+            return messageSource.getMessage(key, args, fallback, locale);
         } catch (Exception ex) {
-            return ec.defaultMessage();
+            log.debug("Message resolution failed for key={}", key, ex);
+            return fallback;
         }
     }
 
-    private String resolveMessageByKey(String key) {
-        Locale locale = LocaleContextHolder.getLocale();
-        try {
-            return messageSource.getMessage(key, null, key, locale);
-        } catch (Exception ex) {
-            return key;
-        }
-    }
-
-    private String resolveFieldError(org.springframework.validation.FieldError err) {
-        Locale locale = LocaleContextHolder.getLocale();
-        try {
-            return messageSource.getMessage(err.getDefaultMessage(), null, err.getDefaultMessage(), locale);
-        } catch (Exception ex) {
-            return err.getDefaultMessage();
-        }
-    }
-
-    private String resolveViolationMessage(ConstraintViolation<?> v) {
-        Locale locale = LocaleContextHolder.getLocale();
-        try {
-            return messageSource.getMessage(v.getMessage(), null, v.getMessage(), locale);
-        } catch (Exception ex) {
-            return v.getMessage();
-        }
-    }
-
-    private String extractFieldName(ConstraintViolation<?> v) {
-        String path = v.getPropertyPath().toString();
+    private String extractFieldName(ConstraintViolation<?> violation) {
+        String path = violation.getPropertyPath().toString();
         int lastDot = path.lastIndexOf('.');
         return lastDot >= 0 ? path.substring(lastDot + 1) : path;
     }

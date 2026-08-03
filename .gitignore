@@ -59,3 +59,6 @@ frontend/yarn-error.log*
 frontend/pnpm-debug.log*
 frontend/.turbo/
 frontend/coverage/
+
+# GCP service-account keys - never commit; supply via GCP_TTS_CREDENTIALS_PATH
+Backend/modules/audio/src/main/resources/tts/*.json

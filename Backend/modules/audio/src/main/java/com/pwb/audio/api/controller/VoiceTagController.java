@@ -1,18 +1,17 @@
 package com.pwb.audio.api.controller;
 
 import com.pwb.audio.api.dto.request.CreateVoiceTagTtsRequest;
-import com.pwb.audio.api.dto.request.PresignedUrlRequest;
 import com.pwb.audio.api.dto.request.UpdateVoiceTagRequest;
 import com.pwb.audio.api.dto.response.AudioUrlResponse;
-import com.pwb.audio.api.dto.response.PresignedUrlResponse;
 import com.pwb.audio.api.dto.response.VoiceTagResponse;
 import com.pwb.audio.application.command.DeleteVoiceTagCommand;
 import com.pwb.audio.application.command.UpdateVoiceTagCommand;
-import com.pwb.audio.application.facade.AudioFacade;
+import com.pwb.audio.application.usecase.VoiceTagUseCase;
 import com.pwb.audio.application.view.PresignedUrlView;
 import com.pwb.audio.application.view.VoiceTagView;
 import com.pwb.shared.dto.ApiResponse;
 import com.pwb.shared.dto.PageResponse;
+import com.pwb.web.dto.PageResponses;
 import com.pwb.web.message.MessageResolver;
 import com.pwb.web.security.CurrentUser;
 import jakarta.validation.Valid;
@@ -25,7 +24,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -35,6 +33,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
+/**
+ * Every route below is authenticated by the security filter chain, so {@code userId} is always present.
+ */
 @RestController
 @RequestMapping("/api/v1/voice-tags")
 @RequiredArgsConstructor
@@ -43,7 +44,9 @@ public class VoiceTagController {
     private static final String MSG_VOICE_TAG_UPDATED = "AUDIO_VOICE_TAG_UPDATED";
     private static final String MSG_TTS_VOICE_TAG_CREATED = "AUDIO_TTS_VOICE_TAG_CREATED";
 
-    private final AudioFacade audioFacade;
+    private static final long AUDIO_URL_EXPIRATION_SECONDS = 3600L;
+
+    private final VoiceTagUseCase voiceTagUseCase;
     private final MessageResolver messageResolver;
 
     @PostMapping("/tts")
@@ -51,10 +54,7 @@ public class VoiceTagController {
             @CurrentUser UUID userId,
             @Valid @RequestBody CreateVoiceTagTtsRequest request
     ) {
-        if (userId == null) {
-            return unauthorized();
-        }
-        VoiceTagView view = audioFacade.createVoiceTagTts(
+        VoiceTagView view = voiceTagUseCase.createVoiceTagTts(
                 userId,
                 request.name(),
                 request.text(),
@@ -70,17 +70,8 @@ public class VoiceTagController {
             @CurrentUser UUID userId,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        if (userId == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        Page<VoiceTagView> page = audioFacade.listVoiceTags(userId, pageable);
-        Page<VoiceTagResponse> mapped = page.map(VoiceTagResponse::from);
-        PageResponse<VoiceTagResponse> body = PageResponse.of(
-                mapped.getContent(),
-                mapped.getNumber(),
-                mapped.getSize(),
-                mapped.getTotalElements()
-        );
+        Page<VoiceTagView> page = voiceTagUseCase.listVoiceTags(userId, pageable);
+        PageResponse<VoiceTagResponse> body = PageResponses.from(page, VoiceTagResponse::from);
         return ResponseEntity.ok(ApiResponse.success(body));
     }
 
@@ -90,25 +81,19 @@ public class VoiceTagController {
             @PathVariable UUID voiceTagId,
             @Valid @RequestBody UpdateVoiceTagRequest request
     ) {
-        if (userId == null) {
-            return unauthorized();
-        }
-        UpdateVoiceTagCommand command = toUpdateCommand(userId, voiceTagId, request);
-        VoiceTagView view = audioFacade.updateVoiceTag(command);
+        VoiceTagView view = voiceTagUseCase.updateVoiceTag(
+                new UpdateVoiceTagCommand(userId, voiceTagId, request.name())
+        );
         VoiceTagResponse body = VoiceTagResponse.from(view);
         return ResponseEntity.ok(ApiResponse.success(messageResolver.get(MSG_VOICE_TAG_UPDATED), body));
     }
 
     @DeleteMapping("/{voiceTagId}")
-    public ResponseEntity<ApiResponse<Void>> deleteVoiceTag(
+    public ResponseEntity<Void> deleteVoiceTag(
             @CurrentUser UUID userId,
             @PathVariable UUID voiceTagId
     ) {
-        if (userId == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        DeleteVoiceTagCommand command = toDeleteCommand(userId, voiceTagId);
-        audioFacade.deleteVoiceTag(command);
+        voiceTagUseCase.deleteVoiceTag(new DeleteVoiceTagCommand(userId, voiceTagId));
         return ResponseEntity.noContent().build();
     }
 
@@ -117,27 +102,8 @@ public class VoiceTagController {
             @CurrentUser UUID userId,
             @PathVariable UUID voiceTagId
     ) {
-        if (userId == null) {
-            return unauthorized();
-        }
-        PresignedUrlView view = audioFacade.getVoiceTagAudioUrl(userId, voiceTagId, 3600);
+        PresignedUrlView view = voiceTagUseCase.getVoiceTagAudioUrl(userId, voiceTagId, AUDIO_URL_EXPIRATION_SECONDS);
         AudioUrlResponse body = AudioUrlResponse.from(view);
         return ResponseEntity.ok(ApiResponse.success(body));
-    }
-
-    private static UpdateVoiceTagCommand toUpdateCommand(UUID userId, UUID voiceTagId, UpdateVoiceTagRequest request) {
-        return new UpdateVoiceTagCommand(
-                userId,
-                voiceTagId,
-                request.name()
-        );
-    }
-
-    private static DeleteVoiceTagCommand toDeleteCommand(UUID userId, UUID voiceTagId) {
-        return new DeleteVoiceTagCommand(userId, voiceTagId);
-    }
-
-    private static <T> ResponseEntity<ApiResponse<T>> unauthorized() {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
 }

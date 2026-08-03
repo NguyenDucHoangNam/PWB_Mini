@@ -1,15 +1,19 @@
 package com.pwb.audio.domain.model.vo;
 
+import java.util.Set;
+
 public record AudioFormat(String value) {
 
-    private static final String MP3 = "mp3";
-    private static final String WAV = "wav";
-    private static final String FLAC = "flac";
+    private static final Set<String> SUPPORTED = Set.of("mp3", "wav", "flac");
 
     public AudioFormat {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("Audio format must not be blank");
+        }
         String normalized = value.trim().toLowerCase();
-        if (!isSupported(normalized)) {
-            throw new IllegalArgumentException("Unsupported audio format: " + value + ". Supported formats: mp3, wav, flac");
+        if (!SUPPORTED.contains(normalized)) {
+            throw new IllegalArgumentException(
+                    "Unsupported audio format: " + value + ". Supported formats: " + String.join(", ", SUPPORTED));
         }
         value = normalized;
     }
@@ -19,19 +23,6 @@ public record AudioFormat(String value) {
     }
 
     public static boolean isSupported(String value) {
-        String normalized = value.trim().toLowerCase();
-        return MP3.equals(normalized) || WAV.equals(normalized) || FLAC.equals(normalized);
-    }
-
-    public boolean isMp3() {
-        return MP3.equals(value);
-    }
-
-    public boolean isWav() {
-        return WAV.equals(value);
-    }
-
-    public boolean isFlac() {
-        return FLAC.equals(value);
+        return value != null && SUPPORTED.contains(value.trim().toLowerCase());
     }
 }

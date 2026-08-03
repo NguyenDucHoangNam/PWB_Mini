@@ -17,6 +17,7 @@ public final class WebErrorMapper {
             case UNAUTHORIZED       -> HttpStatus.UNAUTHORIZED;
             case FORBIDDEN          -> HttpStatus.FORBIDDEN;
             case NOT_FOUND          -> HttpStatus.NOT_FOUND;
+            case METHOD_NOT_ALLOWED -> HttpStatus.METHOD_NOT_ALLOWED;
             case CONFLICT           -> HttpStatus.CONFLICT;
             case TOO_MANY_REQUESTS  -> HttpStatus.TOO_MANY_REQUESTS;
             case BUSINESS           -> HttpStatus.UNPROCESSABLE_ENTITY;

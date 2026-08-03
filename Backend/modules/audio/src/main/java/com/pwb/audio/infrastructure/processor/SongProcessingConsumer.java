@@ -29,8 +29,8 @@ public class SongProcessingConsumer {
             log.debug("Received song processing request: songId={}", event.songId());
             songProcessorWorker.process(event.songId());
         } catch (Exception ex) {
-            log.warn("Song processing consumer failed: key={}, reason={}", record.key(), ex.getMessage());
-            throw new RuntimeException("Song processing failed", ex);
+            log.error("Song processing consumer failed: key={}", record.key(), ex);
+            throw new IllegalStateException("Song processing failed for key " + record.key(), ex);
         }
     }
 }

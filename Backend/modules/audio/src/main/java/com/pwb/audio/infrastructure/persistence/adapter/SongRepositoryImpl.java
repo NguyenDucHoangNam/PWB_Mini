@@ -22,38 +22,43 @@ public class SongRepositoryImpl implements SongRepository {
 
     @Override
     public Song save(Song song) {
-        SongJpaEntity target;
-        if (song.getId() != null) {
-            target = songJpaRepository.findByIdAndDeletedFalse(song.getId())
-                    .orElse(null);
-            target = songMapper.toEntity(song, target);
-        } else {
-            target = songMapper.toEntity(song, null);
+        if (song.isNew()) {
+            return songMapper.toDomain(songJpaRepository.save(songMapper.toEntity(song)));
         }
-        SongJpaEntity saved = songJpaRepository.save(target);
-        return songMapper.toDomain(saved);
+        SongJpaEntity target = loadForUpdate(song.getId());
+        songMapper.applyTo(song, target);
+        return songMapper.toDomain(songJpaRepository.save(target));
     }
 
     @Override
     public Optional<Song> findById(UUID id) {
-        return songJpaRepository.findByIdAndDeletedFalse(id)
+        return songJpaRepository.findById(id)
                 .map(songMapper::toDomain);
     }
 
     @Override
     public Optional<Song> findByIdAndUserId(UUID id, UUID userId) {
-        return songJpaRepository.findByIdAndUserIdAndDeletedFalse(id, userId)
+        return songJpaRepository.findByIdAndUserId(id, userId)
                 .map(songMapper::toDomain);
-    }
-
-    @Override
-    public boolean existsByIdAndUserId(UUID id, UUID userId) {
-        return songJpaRepository.existsByIdAndUserIdAndDeletedFalse(id, userId);
     }
 
     @Override
     public Page<Song> findAllByUserId(UUID userId, Pageable pageable) {
-        return songJpaRepository.findAllByUserIdAndDeletedFalse(userId, pageable)
+        return songJpaRepository.findAllByUserId(userId, pageable)
                 .map(songMapper::toDomain);
+    }
+
+    @Override
+    public void deleteById(UUID id) {
+        songJpaRepository.deleteById(id);
+    }
+
+    /**
+     * An update must never silently turn into an insert: if the row is gone, the caller is working from a
+     * stale aggregate and deserves to hear about it rather than get a duplicate.
+     */
+    private SongJpaEntity loadForUpdate(UUID id) {
+        return songJpaRepository.findById(id)
+                .orElseThrow(() -> new IllegalStateException("Song no longer exists: " + id));
     }
 }

@@ -7,44 +7,31 @@ import org.springframework.stereotype.Component;
 @Component
 public class SongMapper {
 
+    /** Builds a brand-new row; the id is left to the JPA generator. */
     public SongJpaEntity toEntity(Song domain) {
-        return toEntity(domain, null);
-    }
-
-    public SongJpaEntity toEntity(Song domain, SongJpaEntity existing) {
         if (domain == null) {
             return null;
         }
-
-        if (existing != null) {
-            existing.setTitle(domain.getTitle());
-            existing.setArtist(domain.getArtist());
-            existing.setAlbum(domain.getAlbum());
-            existing.setOriginalS3Key(domain.getOriginalS3Key());
-            existing.setProcessedS3Key(domain.getProcessedS3Key());
-            existing.setFileSizeBytes(domain.getFileSizeBytes());
-            existing.setDurationSeconds(domain.getDurationSeconds());
-            existing.setFormat(domain.getFormat() != null ? domain.getFormat().value() : null);
-            existing.setStatus(domain.getStatus());
-            existing.setThumbnailUrl(domain.getThumbnailUrl());
-            existing.setLastError(domain.getLastError());
-            return existing;
-        }
-
-        return SongJpaEntity.builder()
+        SongJpaEntity entity = SongJpaEntity.builder()
                 .userId(domain.getUserId())
-                .title(domain.getTitle())
-                .artist(domain.getArtist())
-                .album(domain.getAlbum())
-                .originalS3Key(domain.getOriginalS3Key())
-                .processedS3Key(domain.getProcessedS3Key())
-                .fileSizeBytes(domain.getFileSizeBytes())
-                .durationSeconds(domain.getDurationSeconds())
-                .format(domain.getFormat() != null ? domain.getFormat().value() : null)
-                .status(domain.getStatus())
-                .thumbnailUrl(domain.getThumbnailUrl())
-                .lastError(domain.getLastError())
                 .build();
+        applyTo(domain, entity);
+        return entity;
+    }
+
+    /** Copies the mutable state of the aggregate onto a managed row. */
+    public void applyTo(Song domain, SongJpaEntity target) {
+        target.setTitle(domain.getTitle());
+        target.setArtist(domain.getArtist());
+        target.setAlbum(domain.getAlbum());
+        target.setOriginalS3Key(domain.getOriginalS3Key());
+        target.setProcessedS3Key(domain.getProcessedS3Key());
+        target.setFileSizeBytes(domain.getFileSizeBytes());
+        target.setDurationSeconds(domain.getDurationSeconds());
+        target.setFormat(domain.getFormat() != null ? domain.getFormat().value() : null);
+        target.setStatus(domain.getStatus());
+        target.setThumbnailUrl(domain.getThumbnailUrl());
+        target.setLastError(domain.getLastError());
     }
 
     public Song toDomain(SongJpaEntity entity) {

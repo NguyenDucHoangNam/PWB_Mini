@@ -1,15 +1,16 @@
 package com.pwb.audio.infrastructure.persistence.repository;
 
 import com.pwb.audio.infrastructure.persistence.entity.SongTagConfigJpaEntity;
-import org.springframework.data.jpa.repository.EntityGraph;
 
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * A tag config lives and dies with its song, so it is hard-deleted and never filtered on {@code deleted}.
+ */
 public interface SongTagConfigJpaRepository extends AudioJpaRepository<SongTagConfigJpaEntity> {
 
-    @EntityGraph(attributePaths = {})
-    Optional<SongTagConfigJpaEntity> findBySongIdAndDeletedFalse(UUID songId);
+    Optional<SongTagConfigJpaEntity> findBySongId(UUID songId);
 
-    boolean existsBySongIdAndDeletedFalse(UUID songId);
+    void deleteBySongId(UUID songId);
 }

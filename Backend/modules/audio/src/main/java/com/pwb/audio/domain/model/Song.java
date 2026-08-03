@@ -8,6 +8,8 @@ import java.util.UUID;
 
 public final class Song extends DomainBaseEntity {
 
+    private static final int LAST_ERROR_MAX_LENGTH = 1024;
+
     private final UUID id;
     private final UUID userId;
     private String title;
@@ -74,8 +76,9 @@ public final class Song extends DomainBaseEntity {
         if (format == null) {
             throw new IllegalArgumentException("format must not be null");
         }
+        // id stays null until the row is persisted; that is what marks this instance as new.
         return new Song(
-                UUID.randomUUID(),
+                null,
                 userId,
                 title,
                 artist,
@@ -176,50 +179,37 @@ public final class Song extends DomainBaseEntity {
         return lastError;
     }
 
-    public void updateMetadata(String title) {
-        if (title != null && !title.isBlank()) {
-            this.title = title;
-        }
-        touch();
+    public boolean isNew() {
+        return id == null;
     }
 
-    public void markProcessing() {
-        if (this.status == SongStatus.PROCESSING) {
-            throw new IllegalStateException("Song is already processing");
+    public void updateMetadata(String title) {
+        if (title == null || title.isBlank()) {
+            throw new IllegalArgumentException("title must not be blank");
         }
-        this.processedS3Key = null;
-        this.status = SongStatus.PROCESSING;
-        this.lastError = null;
+        this.title = title;
         touch();
     }
 
     public void markProcessed(String processedS3Key, Integer durationSeconds) {
         if (this.status != SongStatus.PROCESSING) {
-            throw new IllegalStateException("Song must be in PROCESSING status to mark as processed");
+            throw new ProcessingStateException("Cannot mark as processed from current status: " + status);
         }
         this.processedS3Key = processedS3Key;
         this.durationSeconds = durationSeconds;
         this.status = SongStatus.PROCESSED;
+        this.lastError = null;
         touch();
     }
 
     public void markFailed(String error) {
         this.status = SongStatus.FAILED;
-        this.lastError = error;
-        touch();
-    }
-
-    public void clearProcessedKey() {
-        this.processedS3Key = null;
+        this.lastError = truncateError(error);
         touch();
     }
 
     public boolean isProcessed() {
         return this.status == SongStatus.PROCESSED && this.processedS3Key != null;
-    }
-
-    public boolean isFailed() {
-        return this.status == SongStatus.FAILED;
     }
 
     public boolean canTriggerProcessing() {
@@ -236,10 +226,11 @@ public final class Song extends DomainBaseEntity {
         touch();
     }
 
-    public void markDeleted() {
-        this.status = SongStatus.DELETED;
-        this.processedS3Key = null;
-        touch();
+    private static String truncateError(String error) {
+        if (error == null || error.length() <= LAST_ERROR_MAX_LENGTH) {
+            return error;
+        }
+        return error.substring(0, LAST_ERROR_MAX_LENGTH);
     }
 
     public static class ProcessingStateException extends RuntimeException {

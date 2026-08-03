@@ -20,9 +20,9 @@ import java.util.UUID;
 @Table(
         name = "audio_songs",
         indexes = {
-                @Index(name = "ix_audio_songs_user_id", columnList = "user_id"),
                 @Index(name = "ix_audio_songs_status", columnList = "status"),
-                @Index(name = "ix_audio_songs_user_status", columnList = "user_id, status")
+                @Index(name = "ix_audio_songs_user_status", columnList = "user_id, status"),
+                @Index(name = "ix_audio_songs_user_created_at", columnList = "user_id, created_at DESC")
         }
 )
 @Getter
