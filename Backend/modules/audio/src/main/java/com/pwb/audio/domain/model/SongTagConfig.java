@@ -4,10 +4,6 @@ import com.pwb.shared.domain.DomainBaseEntity;
 
 import java.util.UUID;
 
-/**
- * How a voice tag is stamped onto a song: every {@code intervalSeconds}, starting at
- * {@code startOffsetSeconds}, with the song itself dipped to {@code duckingPercentage} while the tag plays.
- */
 public final class SongTagConfig extends DomainBaseEntity {
 
     private static final int DEFAULT_INTERVAL_SECONDS = 60;
@@ -58,7 +54,6 @@ public final class SongTagConfig extends DomainBaseEntity {
         if (voiceTagId == null) {
             throw new IllegalArgumentException("voiceTagId must not be null");
         }
-        // id stays null until the row is persisted; that is what marks this instance as new.
         return new SongTagConfig(
                 null,
                 songId,
@@ -113,7 +108,6 @@ public final class SongTagConfig extends DomainBaseEntity {
         return volumePercentage;
     }
 
-    /** Volume the song keeps while a tag plays, as a percentage. 100 means no ducking at all. */
     public Integer getDuckingPercentage() {
         return duckingPercentage;
     }
@@ -124,35 +118,6 @@ public final class SongTagConfig extends DomainBaseEntity {
 
     public boolean isEnabled() {
         return enabled;
-    }
-
-    public boolean isNew() {
-        return id == null;
-    }
-
-    public void updateParams(
-            Integer intervalSeconds,
-            Integer volumePercentage,
-            Integer duckingPercentage,
-            Integer startOffsetSeconds,
-            Boolean enabled
-    ) {
-        if (intervalSeconds != null && intervalSeconds > 0) {
-            this.intervalSeconds = intervalSeconds;
-        }
-        if (volumePercentage != null) {
-            this.volumePercentage = clampPercentage(volumePercentage);
-        }
-        if (duckingPercentage != null) {
-            this.duckingPercentage = clampPercentage(duckingPercentage);
-        }
-        if (startOffsetSeconds != null && startOffsetSeconds >= 0) {
-            this.startOffsetSeconds = startOffsetSeconds;
-        }
-        if (enabled != null) {
-            this.enabled = enabled;
-        }
-        touch();
     }
 
     private static int clampPercentage(int value) {

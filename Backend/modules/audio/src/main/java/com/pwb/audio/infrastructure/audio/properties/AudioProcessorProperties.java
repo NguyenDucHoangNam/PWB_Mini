@@ -9,10 +9,6 @@ public class AudioProcessorProperties {
 
     private String ffmpegPath = "ffmpeg";
 
-    private Integer defaultIntervalSeconds = 60;
-
-    private Integer defaultVolumePercentage = 30;
-
     private String workingDir = "./tmp/pwb-audio";
 
     private Boolean cleanupTempFiles = true;
