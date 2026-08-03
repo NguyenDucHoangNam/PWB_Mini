@@ -9,5 +9,8 @@ public record RefreshTokenCommand(
         if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
             throw new IllegalArgumentException("rawRefreshToken must not be blank");
         }
+        if (clientIp == null || clientIp.isBlank()) {
+            clientIp = "unknown";
+        }
     }
 }

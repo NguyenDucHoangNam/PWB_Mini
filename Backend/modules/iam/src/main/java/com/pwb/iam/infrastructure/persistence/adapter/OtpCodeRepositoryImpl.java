@@ -11,7 +11,6 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -47,16 +46,12 @@ public class OtpCodeRepositoryImpl implements OtpCodeRepository {
 
     @Override
     @Transactional
-    public void deleteAllByUserAndPurpose(UUID userId, OtpPurpose purpose) {
-        List<OtpCodeJpaEntity> existing = otpCodeJpaRepository
-                .findAllByUserIdAndPurposeAndDeletedFalse(userId, purpose);
-        for (OtpCodeJpaEntity entity : existing) {
-            otpCodeJpaRepository.delete(entity);
-        }
+    public void invalidateAllByUserAndPurpose(UUID userId, OtpPurpose purpose) {
+        otpCodeJpaRepository.invalidatePending(userId, purpose);
     }
 
     @Override
-    public int countIssuedToday(UUID userId, OtpPurpose purpose, Instant since) {
+    public int countIssuedSince(UUID userId, OtpPurpose purpose, Instant since) {
         return (int) otpCodeJpaRepository.countIssuedSince(userId, purpose, since);
     }
 

@@ -4,11 +4,11 @@
 <th:block th:fragment="content">
 
     <p style="margin:0 0 16px 0;font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#737373;font-weight:700;">
-        Welcome
+        <span th:text="${eyebrow}">Welcome</span>
     </p>
 
-    <p style="margin:0 0 20px 0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:18px;font-weight:700;color:#0a0a0a;line-height:1.4;">
-        Hi <span th:text="${displayName}">Name</span>,
+    <p style="margin:0 0 20px 0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:18px;font-weight:700;color:#0a0a0a;line-height:1.4;"
+       th:text="${greeting}">Hi Name,
     </p>
 
     <p style="margin:0;"
@@ -19,10 +19,10 @@
         <tr>
             <td style="background:#0a0a0a;border-radius:12px;padding:16px 18px;">
                 <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.25em;text-transform:uppercase;color:#ffffff;font-weight:700;">
-                    Signed in with Google
+                    <span th:text="${cardTitle}">Signed in with Google</span>
                 </p>
                 <p style="margin:6px 0 0 0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.5;color:#d4d4d4;">
-                    Your account is ready. Start exploring Producer Workbench now.
+                    <span th:text="${cardBody}">Your account is ready. Start exploring Producer Workbench now.</span>
                 </p>
             </td>
         </tr>

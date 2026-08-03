@@ -1,6 +1,8 @@
 package com.pwb.iam.infrastructure.config;
 
+import com.pwb.iam.domain.model.AvatarPolicy;
 import com.pwb.iam.domain.model.LoginPolicy;
+import com.pwb.iam.domain.model.OtpPolicy;
 import com.pwb.iam.domain.model.PasswordResetPolicy;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,9 +26,32 @@ public class IamPolicyConfig {
         return new LoginPolicy(
                 rateLimit.getLoginPerMinute(),
                 rateLimit.getRefreshPerMinute(),
-                rateLimit.getLoginPerMinute(),
+                rateLimit.getGoogleLoginPerMinute(),
+                rateLimit.getResetPasswordPerMinute(),
+                rateLimit.getVerifyOtpPerMinute(),
+                rateLimit.getChangePasswordPerMinute(),
                 loginPolicy.getMaxFailures(),
                 loginPolicy.getLockMinutes()
+        );
+    }
+
+    @Bean
+    public AvatarPolicy avatarPolicy(AvatarProperties properties) {
+        return new AvatarPolicy(
+                properties.getMaxSizeBytes(),
+                properties.allowedContentTypeSet(),
+                properties.getUrlTtl()
+        );
+    }
+
+    @Bean
+    public OtpPolicy otpPolicy(OtpProperties properties) {
+        return new OtpPolicy(
+                properties.getTtlMinutes(),
+                properties.getResendCooldownSeconds(),
+                properties.getMaxAttempts(),
+                properties.getCodeLength(),
+                properties.getDailyLimit()
         );
     }
 }

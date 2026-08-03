@@ -9,4 +9,11 @@ public record ResendOtpRequest(
         @NotNull UUID userId,
         OtpPurpose purpose
 ) {
+
+    /** Defaults to registration, the only purpose older clients ever issue. */
+    public ResendOtpRequest {
+        if (purpose == null) {
+            purpose = OtpPurpose.REGISTER;
+        }
+    }
 }

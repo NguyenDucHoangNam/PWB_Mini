@@ -36,7 +36,7 @@ class PasswordTest {
     @Test
     @DisplayName("should report isHashed false when hash is empty string")
     void should_report_hashed_false_for_empty() {
-        Password empty = Password.empty();
+        Password empty = Password.fromHash("x");
         Password dummy = Password.fromHash("dummy");
 
         assertThat(empty.isHashed()).isFalse();

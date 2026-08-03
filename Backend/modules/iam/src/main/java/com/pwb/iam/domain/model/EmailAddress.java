@@ -9,7 +9,10 @@ public record EmailAddress(String value) {
     );
 
     public EmailAddress(String value) {
-        String normalized = value.trim().toLowerCase();
+        if (value == null) {
+            throw new IllegalArgumentException("email is not valid: null");
+        }
+        String normalized = normalize(value);
         if (normalized.contains("..")
                 || normalized.startsWith(".")
                 || normalized.endsWith(".")
@@ -21,6 +24,15 @@ public record EmailAddress(String value) {
 
     public static EmailAddress of(String raw) {
         return new EmailAddress(raw);
+    }
+
+    /**
+     * Canonical form used for lookups and rate-limit keys: trimmed and lower-cased.
+     * Callers that only need a comparison key should use this instead of re-implementing
+     * {@code trim().toLowerCase()}, so normalization stays defined in one place.
+     */
+    public static String normalize(String raw) {
+        return raw == null ? null : raw.trim().toLowerCase();
     }
 
     @Override

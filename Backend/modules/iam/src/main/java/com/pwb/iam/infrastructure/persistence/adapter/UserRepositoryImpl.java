@@ -22,18 +22,18 @@ public class UserRepositoryImpl implements UserRepository {
     private final UserJpaRepository userJpaRepository;
     private final UserMapper userMapper;
 
+    /**
+     * Loads the managed entity first so an update mutates the existing row rather than detaching
+     * and re-attaching it. Inside an active persistence context that lookup is served from the
+     * first-level cache — the entity was almost always already read by the use case — so it costs
+     * a query only when saving an entity this transaction has not touched.
+     */
     @Override
     public User save(User user) {
-        UserJpaEntity target;
-        if (user.getUserId() != null) {
-            target = userJpaRepository.findByIdAndDeletedFalse(user.getUserId())
-                    .orElse(null);
-            target = userMapper.toEntity(user, target);
-        } else {
-            target = userMapper.toEntity(user, null);
-        }
-        UserJpaEntity saved = userJpaRepository.save(target);
-        return userMapper.toDomain(saved);
+        UserJpaEntity target = userJpaRepository.findByIdAndDeletedFalse(user.getUserId())
+                .map(existing -> userMapper.toEntity(user, existing))
+                .orElseGet(() -> userMapper.toEntity(user, null));
+        return userMapper.toDomain(userJpaRepository.save(target));
     }
 
     @Override
@@ -47,12 +47,6 @@ public class UserRepositoryImpl implements UserRepository {
             return Optional.empty();
         }
         return userJpaRepository.findByEmailAndDeletedFalse(email.toLowerCase())
-                .map(userMapper::toDomain);
-    }
-
-    @Override
-    public Optional<User> findByIdAndStatus(UUID id, UserStatus status) {
-        return userJpaRepository.findByIdAndStatusAndDeletedFalse(id, status)
                 .map(userMapper::toDomain);
     }
 

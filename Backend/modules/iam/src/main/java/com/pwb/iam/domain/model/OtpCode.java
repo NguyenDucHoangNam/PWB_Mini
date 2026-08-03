@@ -107,29 +107,29 @@ public final class OtpCode extends DomainBaseEntity {
         touch();
     }
 
-    public void registerFailedAttempt() {
+    public void registerFailedAttempt(int maxAttempts) {
         this.attempts += 1;
-        if (this.attempts >= MAX_ATTEMPTS) {
-            this.attempts = MAX_ATTEMPTS;
+        if (this.attempts >= maxAttempts) {
+            this.attempts = maxAttempts;
             this.status = OtpStatus.LOCKED;
         }
         touch();
     }
 
-    public boolean hasReachedMaxAttempts() {
-        return this.attempts >= MAX_ATTEMPTS;
+    public boolean isLocked(int maxAttempts) {
+        return status == OtpStatus.LOCKED || attempts >= maxAttempts;
     }
 
-    public boolean isLocked() {
-        return status == OtpStatus.LOCKED || attempts >= MAX_ATTEMPTS;
-    }
-
-    public boolean isPending() {
-        return status == OtpStatus.PENDING;
-    }
-
-    public void verify(String rawCode, OtpGenerator generator) {
-        if (isLocked()) {
+    /**
+     * Verifies the submitted code, mutating {@code attempts}/{@code status} on failure.
+     * <p>
+     * On failure this throws, which rolls back the surrounding transaction — the caller is
+     * therefore responsible for persisting the attempt through a separate transaction
+     * (see {@code OtpAttemptRecorder}); relying on this object's state alone would silently
+     * lose the counter and disable brute-force protection.
+     */
+    public void verify(String rawCode, OtpGenerator generator, int maxAttempts) {
+        if (isLocked(maxAttempts)) {
             throw new OtpVerificationException(IamErrorCode.AUTH_OTP_INVALID,
                     Map.of("maxAttemptsReached", true));
         }
@@ -137,8 +137,8 @@ public final class OtpCode extends DomainBaseEntity {
             throw new OtpVerificationException(IamErrorCode.AUTH_OTP_EXPIRED);
         }
         if (!generator.matches(rawCode, codeHash)) {
-            registerFailedAttempt();
-            if (isLocked()) {
+            registerFailedAttempt(maxAttempts);
+            if (isLocked(maxAttempts)) {
                 throw new OtpVerificationException(IamErrorCode.AUTH_OTP_INVALID,
                         Map.of("maxAttemptsReached", true));
             }

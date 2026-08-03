@@ -12,12 +12,10 @@ import com.pwb.iam.application.command.ResetPasswordCommand;
 import com.pwb.iam.application.command.UpdateAvatarCommand;
 import com.pwb.iam.application.command.UpdateProfileCommand;
 import com.pwb.iam.application.command.VerifyOtpCommand;
-import com.pwb.iam.application.facade.ProfileView;
 import com.pwb.iam.application.usecase.ChangePasswordUseCase;
 import com.pwb.iam.application.usecase.ForgotPasswordUseCase;
 import com.pwb.iam.application.usecase.GetProfileUseCase;
 import com.pwb.iam.application.usecase.GoogleLoginUseCase;
-import com.pwb.iam.application.usecase.LoginResult;
 import com.pwb.iam.application.usecase.LoginUseCase;
 import com.pwb.iam.application.usecase.LogoutUseCase;
 import com.pwb.iam.application.usecase.RefreshTokenUseCase;
@@ -27,7 +25,6 @@ import com.pwb.iam.application.usecase.ResetPasswordUseCase;
 import com.pwb.iam.application.usecase.UpdateAvatarUseCase;
 import com.pwb.iam.application.usecase.UpdateProfileUseCase;
 import com.pwb.iam.application.usecase.VerifyOtpUseCase;
-import com.pwb.iam.domain.model.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -53,14 +50,12 @@ public class IamFacadeImpl implements IamFacade {
 
     @Override
     public UUID register(RegisterCommand command) {
-        User saved = registerUseCase.execute(command);
-        return saved.getUserId();
+        return registerUseCase.execute(command).getUserId();
     }
 
     @Override
     public AuthView verifyOtp(VerifyOtpCommand command) {
-        LoginResult result = verifyOtpUseCase.execute(command);
-        return toAuthView(result);
+        return AuthView.from(verifyOtpUseCase.execute(command));
     }
 
     @Override
@@ -70,12 +65,12 @@ public class IamFacadeImpl implements IamFacade {
 
     @Override
     public AuthView login(LoginCommand command) {
-        return toAuthView(loginUseCase.execute(command));
+        return AuthView.from(loginUseCase.execute(command));
     }
 
     @Override
     public AuthView refresh(RefreshTokenCommand command) {
-        return toAuthView(refreshTokenUseCase.execute(command));
+        return AuthView.from(refreshTokenUseCase.execute(command));
     }
 
     @Override
@@ -86,7 +81,7 @@ public class IamFacadeImpl implements IamFacade {
 
     @Override
     public AuthView loginWithGoogle(GoogleLoginCommand command) {
-        return toAuthView(googleLoginUseCase.execute(command));
+        return AuthView.from(googleLoginUseCase.execute(command));
     }
 
     @Override
@@ -117,21 +112,5 @@ public class IamFacadeImpl implements IamFacade {
     @Override
     public String updateAvatar(UpdateAvatarCommand command) {
         return updateAvatarUseCase.execute(command);
-    }
-
-    private AuthView toAuthView(LoginResult result) {
-        User user = result.user();
-        return AuthView.withTokens(
-                user.getUserId(),
-                user.getEmail() == null ? null : user.getEmail().value(),
-                user.getFullName(),
-                user.getAvatarUrl(),
-                user.getStatus() == null ? null : user.getStatus().name(),
-                user.getRole() == null ? null : user.getRole().name(),
-                result.accessToken().tokenValue(),
-                result.refreshToken().rawToken(),
-                result.accessToken().expiresInSeconds(),
-                result.nextStep()
-        );
     }
 }

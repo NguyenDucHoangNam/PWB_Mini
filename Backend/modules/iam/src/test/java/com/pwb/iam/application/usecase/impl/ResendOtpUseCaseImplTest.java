@@ -68,11 +68,11 @@ class ResendOtpUseCaseImplTest {
     void should_resend_otp() {
         User user = TestUserBuilder.withUserId(userId);
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(otpCodeRepository.countIssuedToday(eq(userId), eq(OtpPurpose.REGISTER), any())).thenReturn(0);
+        when(otpCodeRepository.countIssuedSince(eq(userId), eq(OtpPurpose.REGISTER), any())).thenReturn(0);
 
         useCase.execute(new ResendOtpCommand(userId, OtpPurpose.REGISTER));
 
-        verify(otpCodeRepository).deleteAllByUserAndPurpose(userId, OtpPurpose.REGISTER);
+        verify(otpCodeRepository).invalidateAllByUserAndPurpose(userId, OtpPurpose.REGISTER);
         verify(otpCodeRepository).save(any(OtpCode.class));
         verify(emailDeliveryPort).enqueue(any());
         verify(authEventPublisher).publishOtpIssued(any());
@@ -99,7 +99,7 @@ class ResendOtpUseCaseImplTest {
     void should_throw_when_daily_limit_reached() {
         User user = TestUserBuilder.withUserId(userId);
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(otpCodeRepository.countIssuedToday(eq(userId), eq(OtpPurpose.REGISTER), any())).thenReturn(10);
+        when(otpCodeRepository.countIssuedSince(eq(userId), eq(OtpPurpose.REGISTER), any())).thenReturn(10);
 
         assertThatThrownBy(() -> useCase.execute(new ResendOtpCommand(userId, OtpPurpose.REGISTER)))
                 .isInstanceOf(BusinessException.class)
@@ -125,7 +125,7 @@ class ResendOtpUseCaseImplTest {
     void should_resend_otp_for_password_reset() {
         User user = TestUserBuilder.withUserId(userId);
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(otpCodeRepository.countIssuedToday(eq(userId), eq(OtpPurpose.PASSWORD_RESET), any())).thenReturn(0);
+        when(otpCodeRepository.countIssuedSince(eq(userId), eq(OtpPurpose.PASSWORD_RESET), any())).thenReturn(0);
 
         useCase.execute(new ResendOtpCommand(userId, OtpPurpose.PASSWORD_RESET));
 

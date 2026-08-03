@@ -5,7 +5,6 @@ import com.pwb.iam.domain.event.AuthEventPublisher;
 import com.pwb.iam.domain.event.AuthSuccessEvent;
 import com.pwb.iam.domain.exception.IamErrorCode;
 import com.pwb.iam.domain.exception.OtpVerificationException;
-import com.pwb.iam.domain.model.AuthNextStep;
 import com.pwb.iam.domain.model.OtpCode;
 import com.pwb.iam.domain.model.OtpPurpose;
 import com.pwb.iam.domain.model.User;
@@ -85,7 +84,6 @@ class VerifyOtpUseCaseImplTest {
         assertThat(result.user().getStatus()).isEqualTo(com.pwb.iam.domain.model.UserStatus.ACTIVE);
         assertThat(result.accessToken().tokenValue()).isEqualTo("access-token-stub");
         assertThat(result.refreshToken().rawToken()).isEqualTo("refresh-token-stub");
-        assertThat(result.nextStep()).isEqualTo(AuthNextStep.NONE);
 
         verify(authEventPublisher).publishAuthSuccess(any(AuthSuccessEvent.class));
     }

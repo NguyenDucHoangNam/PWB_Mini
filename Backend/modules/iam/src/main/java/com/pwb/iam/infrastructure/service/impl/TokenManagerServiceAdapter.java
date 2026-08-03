@@ -1,9 +1,14 @@
 package com.pwb.iam.infrastructure.service.impl;
 
+import com.pwb.iam.domain.exception.IamErrorCode;
+import com.pwb.iam.domain.exception.RefreshTokenExpiredException;
+import com.pwb.iam.domain.exception.RefreshTokenInvalidException;
 import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.service.TokenManagerService;
 import com.pwb.iam.infrastructure.config.JwtProperties;
 import com.pwb.iam.infrastructure.config.RefreshTokenProperties;
+import com.pwb.iam.infrastructure.crypto.Hashes;
+import com.pwb.shared.exception.BusinessException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
@@ -12,6 +17,7 @@ import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.SignatureException;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisCallback;
@@ -20,13 +26,13 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
-import java.util.HexFormat;
+import java.util.Date;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -38,6 +44,7 @@ public class TokenManagerServiceAdapter implements TokenManagerService {
     private static final String ACCESS_BLACKLIST_PREFIX = "iam:jwt:blacklist:";
     private static final String REFRESH_TOKEN_KEY_PREFIX = "iam:refresh:token:";
     private static final String REFRESH_USER_SET_PREFIX = "iam:refresh:user:";
+    private static final String REFRESH_ROTATED_KEY_PREFIX = "iam:refresh:rotated:";
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final StringRedisTemplate redis;
@@ -94,19 +101,32 @@ public class TokenManagerServiceAdapter implements TokenManagerService {
     @Override
     public RefreshTokenInfo rotateRefreshToken(String rawToken) {
         if (rawToken == null || rawToken.isBlank()) {
-            throw new IllegalArgumentException("rawToken must not be blank");
+            throw new RefreshTokenInvalidException();
         }
         String hash = sha256(rawToken);
         String key = tokenKey(hash);
         String userIdStr = redis.opsForValue().get(key);
         if (userIdStr == null) {
-            throw new IllegalArgumentException("refresh token expired or invalid");
+            // The token is unknown. If it is one we retired during an earlier rotation, it was
+            // captured and replayed: the legitimate holder already has a newer token, so the
+            // safe response is to drop every session for that account rather than just refuse.
+            String reusedOwner = redis.opsForValue().get(rotatedKey(hash));
+            if (reusedOwner != null) {
+                log.warn("Refresh token reuse detected, revoking all sessions: userId={}", reusedOwner);
+                try {
+                    revokeAllRefreshTokensForUser(UUID.fromString(reusedOwner));
+                } catch (IllegalArgumentException ignored) {
+                    log.debug("Malformed owner id recorded for rotated token");
+                }
+                throw new BusinessException(IamErrorCode.REFRESH_TOKEN_REUSED);
+            }
+            throw new RefreshTokenExpiredException();
         }
         UUID userId;
         try {
             userId = UUID.fromString(userIdStr);
         } catch (IllegalArgumentException ex) {
-            throw new IllegalArgumentException("invalid refresh token");
+            throw new RefreshTokenInvalidException("Malformed subject in refresh token entry");
         }
         Long ttlSeconds = redis.getExpire(key);
         if (ttlSeconds == null || ttlSeconds <= 0) {
@@ -125,13 +145,19 @@ public class TokenManagerServiceAdapter implements TokenManagerService {
             byte[] setKeyBytes = setKey.getBytes(StandardCharsets.UTF_8);
             byte[] newHashBytes = newHash.getBytes(StandardCharsets.UTF_8);
 
+            byte[] rotatedKeyBytes = rotatedKey(hash).getBytes(StandardCharsets.UTF_8);
+
             connection.multi();
             connection.stringCommands().set(newKeyBytes, userIdBytes);
             connection.keyCommands().expire(newKeyBytes, ttl.getSeconds());
             connection.setCommands().sAdd(setKeyBytes, newHashBytes);
             connection.keyCommands().expire(setKeyBytes, ttl.getSeconds());
             connection.keyCommands().del(key.getBytes(StandardCharsets.UTF_8));
-            connection.setCommands().sRem(userSetKey(userId).getBytes(StandardCharsets.UTF_8), hash.getBytes(StandardCharsets.UTF_8));
+            connection.setCommands().sRem(setKeyBytes, hash.getBytes(StandardCharsets.UTF_8));
+            // Remember the retired token for the remainder of its lifetime so a later replay is
+            // recognised as theft instead of looking like an ordinary expiry.
+            connection.stringCommands().set(rotatedKeyBytes, userIdBytes);
+            connection.keyCommands().expire(rotatedKeyBytes, ttl.getSeconds());
             connection.exec();
             return null;
         });
@@ -176,14 +202,21 @@ public class TokenManagerServiceAdapter implements TokenManagerService {
         }
         String userSetKey = userSetKey(userId);
         Set<String> hashes = redis.opsForSet().members(userSetKey);
-        if (hashes != null && !hashes.isEmpty()) {
+
+        List<String> keysToDrop = new ArrayList<>();
+        if (hashes != null) {
             for (String hash : hashes) {
-                redis.delete(tokenKey(hash));
+                keysToDrop.add(tokenKey(hash));
+                keysToDrop.add(rotatedKey(hash));
             }
         }
-        Boolean deleted = redis.delete(userSetKey);
-        log.info("Revoked all refresh tokens for userId={} count={} setRemoved={}",
-                userId, hashes == null ? 0 : hashes.size(), deleted);
+        keysToDrop.add(userSetKey);
+        // One round trip instead of one per token: this runs on the password-change path, where
+        // an account with many active sessions would otherwise pay N sequential Redis calls.
+        redis.delete(keysToDrop);
+
+        log.info("Revoked all refresh tokens for userId={} count={}",
+                userId, hashes == null ? 0 : hashes.size());
     }
 
     @Override
@@ -193,14 +226,6 @@ public class TokenManagerServiceAdapter implements TokenManagerService {
         }
         Boolean exists = redis.hasKey(ACCESS_BLACKLIST_PREFIX + jti);
         return Boolean.TRUE.equals(exists);
-    }
-
-    @Override
-    public boolean isRefreshTokenRevoked(String rawToken) {
-        if (rawToken == null || rawToken.isBlank()) {
-            return true;
-        }
-        return redis.opsForValue().get(tokenKey(sha256(rawToken))) == null;
     }
 
     public ParseResult parseAccessTokenWithResult(String token) {
@@ -235,16 +260,21 @@ public class TokenManagerServiceAdapter implements TokenManagerService {
         }
     }
 
+    @PostConstruct
+    void initSigningKey() {
+        this.signingKey = Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
+    }
+
     private SecretKey signingKey() {
-        if (signingKey == null) {
-            byte[] keyBytes = jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8);
-            signingKey = Keys.hmacShaKeyFor(keyBytes);
-        }
         return signingKey;
     }
 
     private String tokenKey(String hash) {
         return REFRESH_TOKEN_KEY_PREFIX + hash;
+    }
+
+    private String rotatedKey(String hash) {
+        return REFRESH_ROTATED_KEY_PREFIX + hash;
     }
 
     private String userSetKey(UUID userId) {
@@ -258,18 +288,6 @@ public class TokenManagerServiceAdapter implements TokenManagerService {
     }
 
     private String sha256(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hashBytes);
-        } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException("SHA-256 not available", ex);
-        }
-    }
-
-    private static class Date {
-        static java.util.Date from(Instant instant) {
-            return java.util.Date.from(instant);
-        }
+        return Hashes.sha256Hex(input);
     }
 }

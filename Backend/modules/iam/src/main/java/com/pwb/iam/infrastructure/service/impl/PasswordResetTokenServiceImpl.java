@@ -2,6 +2,7 @@ package com.pwb.iam.infrastructure.service.impl;
 
 import com.pwb.iam.domain.model.PasswordResetPolicy;
 import com.pwb.iam.domain.service.PasswordResetTokenService;
+import com.pwb.iam.infrastructure.crypto.Hashes;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -10,10 +11,8 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
-import java.util.HexFormat;
 
 @Slf4j
 @Component
@@ -62,11 +61,15 @@ public class PasswordResetTokenServiceImpl implements PasswordResetTokenService 
 
     @Override
     public String hashForStorage(String rawToken) {
-        return sha256(rawToken);
+        return Hashes.sha256Hex(rawToken);
     }
 
+    /**
+     * @param signedToken the full {@code raw.signature} token — the link must carry the signature,
+     *                    otherwise {@link #verifySignature} rejects it when the user follows it
+     */
     @Override
-    public String buildResetLink(String rawToken) {
+    public String buildResetLink(String signedToken) {
         String base = policy.frontendUrl();
         String path = policy.resetPath();
         if (base.endsWith("/")) {
@@ -75,7 +78,7 @@ public class PasswordResetTokenServiceImpl implements PasswordResetTokenService 
         if (!path.startsWith("/")) {
             path = "/" + path;
         }
-        return base + path + "?token=" + rawToken;
+        return base + path + "?token=" + signedToken;
     }
 
     private String computeHmac(String data) {
@@ -93,13 +96,4 @@ public class PasswordResetTokenServiceImpl implements PasswordResetTokenService 
         }
     }
 
-    private String sha256(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash);
-        } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException("SHA-256 not available", ex);
-        }
-    }
 }

@@ -27,14 +27,10 @@ public class LoggingAuthEventPublisher implements AuthEventPublisher {
 
     @Override
     public void publishAuthSuccess(AuthSuccessEvent event) {
-        publishAuthSuccess(event.userId(), event.email(), event.clientIp(), event.userAgent());
-    }
-
-    @Override
-    public void publishAuthSuccess(UUID userId, String email, String clientIp, String userAgent) {
-        log.info("Auth success: userId={} ip={}", userId, clientIp);
+        log.info("Auth success: userId={} ip={}", event.userId(), event.clientIp());
         applicationEventPublisher.publishEvent(new AuditPersistRequested(
-                AuditLogEntry.of(AuditEventType.LOGIN_SUCCESS, userId, email, clientIp, userAgent, true, null, Map.of())));
+                AuditLogEntry.of(AuditEventType.LOGIN_SUCCESS, event.userId(), event.email(),
+                        event.clientIp(), event.userAgent(), true, null, Map.of())));
     }
 
     @Override
@@ -44,11 +40,6 @@ public class LoggingAuthEventPublisher implements AuthEventPublisher {
         Map<String, Object> metadata = Map.of(KEY_LOCKOUT_REASON, reason);
         applicationEventPublisher.publishEvent(new AuditPersistRequested(
                 AuditLogEntry.of(AuditEventType.LOGIN_FAILED, null, maskedEmail, clientIp, userAgent, false, reason, metadata)));
-    }
-
-    @Override
-    public void publishLogout(UUID userId, String email, String clientIp, String userAgent) {
-        publishLogout(userId, clientIp, userAgent);
     }
 
     @Override

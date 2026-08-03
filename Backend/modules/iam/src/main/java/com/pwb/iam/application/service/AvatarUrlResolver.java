@@ -1,0 +1,47 @@
+package com.pwb.iam.application.service;
+
+import com.pwb.iam.application.facade.ProfileView;
+import com.pwb.iam.domain.model.AvatarPolicy;
+import com.pwb.infra.storage.StorageService;
+import com.pwb.infra.storage.exception.StorageException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class AvatarUrlResolver {
+
+    private final StorageService storageService;
+    private final AvatarPolicy avatarPolicy;
+
+    public ProfileView resolve(ProfileView view) {
+        String resolved = resolve(view.avatarUrl());
+        if (resolved == null ? view.avatarUrl() == null : resolved.equals(view.avatarUrl())) {
+            return view;
+        }
+        return new ProfileView(
+                view.userId(), view.email(), view.fullName(), resolved, view.status(), view.role());
+    }
+
+    public String resolve(String storedReference) {
+        if (storedReference == null || storedReference.isBlank() || isAbsoluteUrl(storedReference)) {
+            return storedReference;
+        }
+        try {
+            return storageService
+                    .generatePresignedUrl(storedReference, avatarPolicy.urlTtl())
+                    .getUrl()
+                    .toString();
+        } catch (StorageException ex) {
+            log.warn("Could not presign avatar, returning no avatar: key={} reason={}",
+                    storedReference, ex.getMessage());
+            return null;
+        }
+    }
+
+    private static boolean isAbsoluteUrl(String value) {
+        return value.startsWith("http://") || value.startsWith("https://");
+    }
+}

@@ -14,14 +14,13 @@
                              font-size:34px;font-weight:700;letter-spacing:10px;color:#0a0a0a;
                              background:#fafafa;border:2px solid #0a0a0a;border-radius:12px;
                              padding:18px 36px;min-width:240px;text-align:center;"
-                      th:text="${otp}">000000</span>
+                      th:text="${code}">000000</span>
             </td>
         </tr>
     </table>
 
-    <p style="margin:8px 0 0 0;font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#0a0a0a;font-weight:700;">
-        Valid for <span th:text="${ttlMinutes}">15</span> minutes
-    </p>
+    <p style="margin:8px 0 0 0;font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#0a0a0a;font-weight:700;"
+       th:text="${ttlNotice}">Valid for 10 minutes</p>
 
 </th:block>
 </body>

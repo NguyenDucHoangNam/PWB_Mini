@@ -6,7 +6,6 @@ import com.pwb.iam.api.dto.request.ForgotPasswordRequest;
 import com.pwb.iam.api.dto.request.GoogleLoginRequest;
 import com.pwb.iam.api.dto.request.LoginRequest;
 import com.pwb.iam.api.dto.request.LogoutRequest;
-import com.pwb.iam.api.dto.request.RefreshTokenRequest;
 import com.pwb.iam.api.dto.request.RegisterRequest;
 import com.pwb.iam.api.dto.request.ResendOtpRequest;
 import com.pwb.iam.api.dto.request.ResetPasswordRequest;
@@ -16,7 +15,6 @@ import com.pwb.iam.application.facade.AuthView;
 import com.pwb.iam.application.facade.IamFacade;
 import com.pwb.iam.application.usecase.ForgotPasswordUseCase;
 import com.pwb.iam.domain.exception.IamErrorCode;
-import com.pwb.iam.domain.model.AuthNextStep;
 import com.pwb.iam.testsupport.IamMessageSourceTestConfig;
 import com.pwb.shared.exception.BusinessException;
 import com.pwb.shared.exception.ValidationException;
@@ -90,7 +88,7 @@ class AuthControllerTest {
 
     private AuthView authView() {
         return AuthView.withTokens(testUserId, "user@example.com", "Alice", null, "ACTIVE", "USER",
-                "access.jwt", "refresh.jwt", 900L, AuthNextStep.NONE);
+                "access.jwt", "refresh.jwt", 900L);
     }
 
     private void authenticateAsUser(UUID userId) {

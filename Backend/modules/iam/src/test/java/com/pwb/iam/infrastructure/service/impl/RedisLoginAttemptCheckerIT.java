@@ -173,7 +173,7 @@ class RedisLoginAttemptCheckerIT extends AbstractRedisIT {
         }
         assertThat(checker.isLocked(null, "192.168.1.103").locked()).isTrue();
 
-        checker.resetIpLock("user@example.com", "192.168.1.103");
+        checker.resetIpLock("192.168.1.103");
 
         assertThat(checker.isLocked(null, "192.168.1.103").locked()).isFalse();
     }
@@ -181,9 +181,9 @@ class RedisLoginAttemptCheckerIT extends AbstractRedisIT {
     @Test
     @DisplayName("resetIpLock_with_null_ip_does_not_throw")
     void resetIpLock_with_null_ip_does_not_throw() {
-        checker.resetIpLock("user@example.com", null);
-        checker.resetIpLock("user@example.com", "");
-        checker.resetIpLock("user@example.com", "   ");
+        checker.resetIpLock(null);
+        checker.resetIpLock("");
+        checker.resetIpLock("   ");
     }
 
     @Test

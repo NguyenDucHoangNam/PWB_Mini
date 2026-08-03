@@ -22,8 +22,6 @@ public interface TokenManagerService {
 
     boolean isAccessTokenBlacklisted(String jti);
 
-    boolean isRefreshTokenRevoked(String rawToken);
-
     ParseResult parseAccessTokenWithResult(String token);
 
     record AccessTokenInfo(String tokenValue, String jti, java.time.Instant expiresAt, long expiresInSeconds) {

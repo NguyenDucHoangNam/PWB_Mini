@@ -11,6 +11,8 @@ import java.util.Locale;
 @Configuration
 public class MessageSourceConfig {
 
+    private static final Locale DEFAULT_LOCALE = Locale.forLanguageTag("vi");
+
     private static final String SHARED_WEB_BUNDLE = "classpath:messages/messages";
     private static final String IAM_BUNDLE = "classpath:iam/messages";
     private static final String AUDIO_BUNDLE = "classpath:audio/messages";
@@ -28,7 +30,7 @@ public class MessageSourceConfig {
         source.setDefaultEncoding(StandardCharsets.UTF_8.name());
         source.setFallbackToSystemLocale(false);
         source.setUseCodeAsDefaultMessage(false);
-        source.setDefaultLocale(Locale.forLanguageTag("vi"));
+        source.setDefaultLocale(DEFAULT_LOCALE);
         return source;
     }
 }

@@ -15,8 +15,6 @@ public interface UserRepository {
 
     Optional<User> findByEmail(String email);
 
-    Optional<User> findByIdAndStatus(UUID id, UserStatus status);
-
     Optional<User> findByOAuthProviderAndOAuthId(OAuthProvider provider, String oauthId);
 
     boolean existsByEmail(String email);

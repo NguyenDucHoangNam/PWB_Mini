@@ -2,7 +2,7 @@ package com.pwb.iam.application.command;
 
 import java.util.UUID;
 
-public record ChangePasswordCommand(UUID userId, String currentPassword, String newPassword, String userAgent, String clientIp) {
+public record ChangePasswordCommand(UUID userId, String currentPassword, String newPassword, String userAgent, String clientIp, String locale) {
 
     public ChangePasswordCommand {
         if (userId == null) {
@@ -17,5 +17,13 @@ public record ChangePasswordCommand(UUID userId, String currentPassword, String 
         if (clientIp == null || clientIp.isBlank()) {
             clientIp = "unknown";
         }
+        if (locale == null || locale.isBlank()) {
+            locale = "vi";
+        }
+    }
+
+    public ChangePasswordCommand(UUID userId, String currentPassword, String newPassword,
+                                 String userAgent, String clientIp) {
+        this(userId, currentPassword, newPassword, userAgent, clientIp, "vi");
     }
 }

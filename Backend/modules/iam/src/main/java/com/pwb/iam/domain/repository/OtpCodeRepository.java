@@ -13,9 +13,15 @@ public interface OtpCodeRepository {
 
     Optional<OtpCode> findActiveByUserAndPurpose(UUID userId, OtpPurpose purpose);
 
-    void deleteAllByUserAndPurpose(UUID userId, OtpPurpose purpose);
+    /**
+     * Retires every still-pending code for the pair, so only the newest one can be redeemed.
+     * <p>
+     * Deliberately an update rather than a delete: {@link #countIssuedSince} derives the daily
+     * quota from these rows, and removing them would reset the quota on every resend.
+     */
+    void invalidateAllByUserAndPurpose(UUID userId, OtpPurpose purpose);
 
-    int countIssuedToday(UUID userId, OtpPurpose purpose, Instant since);
+    int countIssuedSince(UUID userId, OtpPurpose purpose, Instant since);
 
     Optional<OtpCode> findById(UUID id);
 

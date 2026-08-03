@@ -73,7 +73,7 @@ class UserTest {
 
             assertThatThrownBy(() -> User.createLocal(
                     EmailAddress.of("user@example.com"),
-                    Password.empty(),
+                    Password.fromHash("x"),
                     "Alice",
                     RoleName.USER
             )).isInstanceOf(IllegalArgumentException.class);
@@ -290,7 +290,7 @@ class UserTest {
                     RoleName.USER
             );
 
-            assertThatThrownBy(() -> user.changePassword(Password.empty()))
+            assertThatThrownBy(() -> user.changePassword(Password.fromHash("x")))
                     .isInstanceOf(IllegalArgumentException.class);
         }
 

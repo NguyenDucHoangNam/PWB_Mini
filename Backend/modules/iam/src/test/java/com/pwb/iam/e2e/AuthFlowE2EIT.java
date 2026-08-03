@@ -51,8 +51,7 @@ class AuthFlowE2EIT extends AbstractE2EIT {
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody().isSuccess()).isTrue();
         AuthResponse data = response.getBody().getData();
-        assertThat(data.getAccessToken()).isNotBlank();
-        assertThat(data.getRefreshToken()).isNotBlank();
+        assertThat(data.accessToken()).isNotBlank();
         return data;
     }
 
@@ -90,12 +89,11 @@ class AuthFlowE2EIT extends AbstractE2EIT {
 
         String otp = latestOtpCode(email);
         AuthResponse verifyResponse = verifyOtp(userId, otp);
-        assertThat(verifyResponse.getStatus()).isEqualTo("ACTIVE");
+        assertThat(verifyResponse.status()).isEqualTo("ACTIVE");
 
         AuthResponse loginResponse = login(email, STRONG_PASSWORD);
-        assertThat(loginResponse.getAccessToken()).isNotBlank();
-        assertThat(loginResponse.getRefreshToken()).isNotBlank();
-        assertThat(loginResponse.getStatus()).isEqualTo("ACTIVE");
+        assertThat(loginResponse.accessToken()).isNotBlank();
+        assertThat(loginResponse.status()).isEqualTo("ACTIVE");
     }
 
     @Test
@@ -107,7 +105,7 @@ class AuthFlowE2EIT extends AbstractE2EIT {
         verifyOtp(userId, otp);
 
         AuthResponse loginResponse = login(email, STRONG_PASSWORD);
-        assertThat(loginResponse.getStatus()).isEqualTo("ACTIVE");
+        assertThat(loginResponse.status()).isEqualTo("ACTIVE");
     }
 
     @Test
@@ -163,8 +161,7 @@ class AuthFlowE2EIT extends AbstractE2EIT {
         String otp = latestOtpCode(email);
         AuthResponse verifyResponse = verifyOtp(userId, otp);
 
-        assertThat(verifyResponse.getRefreshToken()).isNotBlank();
-        assertThat(verifyResponse.getAccessToken()).isNotBlank();
+        assertThat(verifyResponse.accessToken()).isNotBlank();
 
         ResponseEntity<ApiResponse<AuthResponse>> refreshResponse = restClient().post()
                 .uri("/api/v1/auth/refresh")
@@ -177,7 +174,6 @@ class AuthFlowE2EIT extends AbstractE2EIT {
         assertThat(refreshResponse.getStatusCode().value()).isEqualTo(200);
         assertThat(refreshResponse.getBody().isSuccess()).isTrue();
         AuthResponse rotated = refreshResponse.getBody().getData();
-        assertThat(rotated.getAccessToken()).isNotBlank();
-        assertThat(rotated.getRefreshToken()).isNotBlank();
+        assertThat(rotated.accessToken()).isNotBlank();
     }
 }

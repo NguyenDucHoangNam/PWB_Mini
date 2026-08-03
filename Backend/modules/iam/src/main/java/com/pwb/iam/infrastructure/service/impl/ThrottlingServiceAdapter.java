@@ -1,8 +1,11 @@
 package com.pwb.iam.infrastructure.service.impl;
 
+import com.pwb.iam.domain.exception.IamErrorCode;
+import com.pwb.iam.domain.model.OtpPolicy;
 import com.pwb.iam.domain.model.PasswordResetPolicy;
 import com.pwb.iam.domain.service.ThrottlingService;
 import com.pwb.iam.infrastructure.config.RateLimitProperties;
+import com.pwb.shared.exception.BusinessException;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
@@ -24,7 +27,6 @@ public class ThrottlingServiceAdapter implements ThrottlingService {
     private static final String REGISTER_COOLDOWN_PREFIX = "iam:cooldown:register:";
     private static final String RESEND_COOLDOWN_PREFIX = "iam:cooldown:resend:";
     private static final String PASSWORD_RESET_COOLDOWN_PREFIX = "iam:password-reset:cooldown:";
-    private static final Duration DEFAULT_COOLDOWN = Duration.ofSeconds(60);
 
     private static final String RATE_LIMIT_LUA_SCRIPT = """
             local key = KEYS[1]
@@ -44,6 +46,7 @@ public class ThrottlingServiceAdapter implements ThrottlingService {
 
     private final StringRedisTemplate redis;
     private final PasswordResetPolicy passwordResetPolicy;
+    private final OtpPolicy otpPolicy;
     private final RateLimitProperties rateLimitProperties;
     private final MeterRegistry meterRegistry;
 
@@ -89,8 +92,7 @@ public class ThrottlingServiceAdapter implements ThrottlingService {
             if (rateLimitProperties.isFailClosedForCriticalOps()) {
                 recordMetric(scope, "deny", "fail-closed");
                 log.error("Redis unavailable, fail-closed for critical operation: key={} reason={}", key, ex.getMessage());
-                throw new com.pwb.shared.exception.BusinessException(
-                        com.pwb.iam.domain.exception.IamErrorCode.SERVICE_UNAVAILABLE);
+                throw new BusinessException(IamErrorCode.SERVICE_UNAVAILABLE);
             }
             recordMetric(scope, "allow", "fail-open");
             log.warn("Redis unavailable, fail-open: key={} reason={}", key, ex.getMessage());
@@ -103,18 +105,12 @@ public class ThrottlingServiceAdapter implements ThrottlingService {
         if (email == null || email.isBlank()) {
             return 0L;
         }
-        String key = resolveCooldownKey(email, purpose);
-        Duration cooldown = resolveCooldownDuration(purpose);
-        return checkAndSetCooldown(key, cooldown);
-    }
-
-    public long enforceCooldownForPasswordReset(String email) {
-        if (email == null || email.isBlank()) {
-            return 0L;
-        }
-        String key = resolveCooldownKey(email, CooldownPurpose.PASSWORD_RESET);
-        Duration cooldown = resolveCooldownDuration(CooldownPurpose.PASSWORD_RESET);
-        return checkAndSetCooldownStrict(key, cooldown);
+        return checkAndSetCooldown(
+                resolveCooldownKey(email, purpose),
+                resolveCooldownDuration(purpose),
+                // Password reset mails to an arbitrary address; letting the cooldown lapse during
+                // a Redis outage would turn the endpoint into an unmetered mail relay.
+                purpose == CooldownPurpose.PASSWORD_RESET || rateLimitProperties.isFailClosedForCriticalOps());
     }
 
     private String resolveCooldownKey(String email, CooldownPurpose purpose) {
@@ -127,13 +123,13 @@ public class ThrottlingServiceAdapter implements ThrottlingService {
     }
 
     private Duration resolveCooldownDuration(CooldownPurpose purpose) {
-        if (purpose == CooldownPurpose.PASSWORD_RESET) {
-            return Duration.ofSeconds(passwordResetPolicy.cooldownSeconds());
-        }
-        return DEFAULT_COOLDOWN;
+        return switch (purpose) {
+            case PASSWORD_RESET -> Duration.ofSeconds(passwordResetPolicy.cooldownSeconds());
+            case RESEND_OTP, REGISTER -> otpPolicy.resendCooldown();
+        };
     }
 
-    private long checkAndSetCooldown(String key, Duration cooldown) {
+    private long checkAndSetCooldown(String key, Duration cooldown, boolean failClosed) {
         try {
             Boolean set = redis.opsForValue().setIfAbsent(key, "1", cooldown);
             if (Boolean.FALSE.equals(set)) {
@@ -144,25 +140,12 @@ public class ThrottlingServiceAdapter implements ThrottlingService {
             }
             return 0L;
         } catch (Exception ex) {
-            log.warn("Redis unavailable for cooldown check: key={} reason={}", key, ex.getMessage());
-            return 0L;
-        }
-    }
-
-    private long checkAndSetCooldownStrict(String key, Duration cooldown) {
-        try {
-            Boolean set = redis.opsForValue().setIfAbsent(key, "1", cooldown);
-            if (Boolean.FALSE.equals(set)) {
-                Long ttl = redis.getExpire(key);
-                long remaining = ttl != null && ttl > 0 ? ttl : cooldown.toSeconds();
-                log.debug("Cooldown active: key={} remaining={}s", key, remaining);
-                return remaining;
+            if (failClosed) {
+                log.error("Redis unavailable, fail-closed for cooldown: key={} reason={}", key, ex.getMessage());
+                throw new BusinessException(IamErrorCode.SERVICE_UNAVAILABLE);
             }
+            log.warn("Redis unavailable, fail-open for cooldown: key={} reason={}", key, ex.getMessage());
             return 0L;
-        } catch (Exception ex) {
-            log.error("Redis unavailable, fail-closed for password reset: key={} reason={}", key, ex.getMessage());
-            throw new com.pwb.shared.exception.BusinessException(
-                    com.pwb.iam.domain.exception.IamErrorCode.SERVICE_UNAVAILABLE);
         }
     }
 

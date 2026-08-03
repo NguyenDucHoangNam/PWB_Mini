@@ -6,6 +6,12 @@ public record GoogleLoginCommand(String idToken, String clientIp, String userAge
         if (idToken == null || idToken.isBlank()) {
             throw new IllegalArgumentException("idToken must not be blank");
         }
+        if (clientIp == null || clientIp.isBlank()) {
+            clientIp = "unknown";
+        }
+        if (locale == null || locale.isBlank()) {
+            locale = "vi";
+        }
     }
 
     public GoogleLoginCommand(String idToken, String clientIp, String userAgent) {

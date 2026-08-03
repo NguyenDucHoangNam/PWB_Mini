@@ -14,5 +14,8 @@ public record LoginCommand(
         if (rawPassword == null || rawPassword.isBlank()) {
             throw new IllegalArgumentException("rawPassword must not be blank");
         }
+        if (clientIp == null || clientIp.isBlank()) {
+            clientIp = "unknown";
+        }
     }
 }

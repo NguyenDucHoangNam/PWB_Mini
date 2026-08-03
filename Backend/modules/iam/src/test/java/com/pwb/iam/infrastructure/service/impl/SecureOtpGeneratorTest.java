@@ -12,7 +12,7 @@ class SecureOtpGeneratorTest {
     @Test
     @DisplayName("generate should produce 6-digit numeric string")
     void should_generate_six_digit_code() {
-        String code = generator.generate();
+        String code = generator.generate(6);
 
         assertThat(code).hasSize(6);
         assertThat(code).matches("\\d{6}");

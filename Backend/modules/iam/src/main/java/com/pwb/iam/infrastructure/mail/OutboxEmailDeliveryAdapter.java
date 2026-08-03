@@ -17,7 +17,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class OutboxEmailDeliveryAdapter implements EmailDeliveryPort {
 
-    private final ThymeleafEmailRenderer thtmeleafEmailRenderer;
+    private final ThymeleafEmailRenderer thymeleafEmailRenderer;
     private final ApplicationEventPublisher applicationEventPublisher;
 
     @Value("${pwb.mail.from:noreply@pwb.local}")
@@ -28,9 +28,9 @@ public class OutboxEmailDeliveryAdapter implements EmailDeliveryPort {
         String locale = command.locale() == null || command.locale().isBlank() ? "vi" : command.locale();
         Map<String, String> variables = command.variables() == null ? Map.of() : command.variables();
 
-        String subject = thtmeleafEmailRenderer.resolveSubject(command.template(), locale);
-        String htmlBody = thtmeleafEmailRenderer.renderHtml(command.template(), variables, locale);
-        String textBody = thtmeleafEmailRenderer.renderText(command.template(), variables, locale);
+        String subject = thymeleafEmailRenderer.resolveSubject(command.template(), locale);
+        String htmlBody = thymeleafEmailRenderer.renderHtml(command.template(), variables, locale);
+        String textBody = thymeleafEmailRenderer.renderText(command.template(), variables, locale);
 
         EmailPayload payload = new EmailPayload(
                 command.template().name(),

@@ -6,7 +6,8 @@ import java.util.UUID;
 
 public record ResendOtpCommand(
         UUID userId,
-        OtpPurpose purpose
+        OtpPurpose purpose,
+        String locale
 ) {
 
     public ResendOtpCommand {
@@ -14,7 +15,14 @@ public record ResendOtpCommand(
             throw new IllegalArgumentException("userId must not be null");
         }
         if (purpose == null) {
-            throw new IllegalArgumentException("purpose must not be null");
+            purpose = OtpPurpose.REGISTER;
         }
+        if (locale == null || locale.isBlank()) {
+            locale = "vi";
+        }
+    }
+
+    public ResendOtpCommand(UUID userId, OtpPurpose purpose) {
+        this(userId, purpose, "vi");
     }
 }

@@ -1,13 +1,15 @@
 package com.pwb.iam.application.usecase.impl;
 
 import com.pwb.iam.application.command.GoogleLoginCommand;
+import com.pwb.iam.application.service.AccountNotifier;
+import com.pwb.iam.application.service.RateLimitGuard;
 import com.pwb.iam.application.usecase.GoogleLoginUseCase;
 import com.pwb.iam.application.usecase.LoginResult;
 import com.pwb.iam.domain.event.AuthEventPublisher;
 import com.pwb.iam.domain.exception.IamErrorCode;
-import com.pwb.iam.domain.model.AuthNextStep;
 import com.pwb.iam.domain.model.EmailAddress;
 import com.pwb.iam.domain.model.GoogleUserInfo;
+import com.pwb.iam.domain.model.LoginPolicy;
 import com.pwb.iam.domain.model.OAuthProvider;
 import com.pwb.iam.domain.model.Role;
 import com.pwb.iam.domain.model.RoleName;
@@ -18,7 +20,6 @@ import com.pwb.iam.domain.repository.UserRepository;
 import com.pwb.iam.domain.service.EmailDeliveryPort;
 import com.pwb.iam.domain.service.EmailEnqueueCommand;
 import com.pwb.iam.domain.service.GoogleTokenVerifierPort;
-import com.pwb.iam.domain.service.ThrottlingService;
 import com.pwb.iam.domain.service.TokenManagerService;
 import com.pwb.infra.mail.api.EmailTemplate;
 import com.pwb.shared.exception.BusinessException;
@@ -27,7 +28,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
 import java.util.Map;
 
 @Slf4j
@@ -35,19 +35,22 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class GoogleLoginUseCaseImpl implements GoogleLoginUseCase {
 
+    private static final String FALLBACK_DISPLAY_NAME = "bạn";
+
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final GoogleTokenVerifierPort googleTokenVerifier;
     private final TokenManagerService tokenManagerService;
     private final AuthEventPublisher authEventPublisher;
-    private final ThrottlingService throttlingService;
-    private final com.pwb.iam.domain.model.LoginPolicy loginPolicy;
+    private final RateLimitGuard rateLimitGuard;
+    private final LoginPolicy loginPolicy;
     private final EmailDeliveryPort emailDeliveryPort;
+    private final AccountNotifier accountNotifier;
 
     @Override
     @Transactional
     public LoginResult execute(GoogleLoginCommand command) {
-        String clientIp = command.clientIp() == null ? "unknown" : command.clientIp();
+        String clientIp = command.clientIp();
         String userAgent = command.userAgent();
 
         GoogleUserInfo payload;
@@ -58,120 +61,115 @@ public class GoogleLoginUseCaseImpl implements GoogleLoginUseCase {
             throw ex;
         }
 
-        enforceRateLimit("google-login:ip:" + clientIp, loginPolicy.googleLoginPerMinute());
-        enforceRateLimit(
-                "google-login:email:" + payload.email(),
-                loginPolicy.googleLoginPerMinute());
+        rateLimitGuard.checkIpAndSubject(
+                "google-login", clientIp, payload.email(), loginPolicy.googleLoginPerMinute());
 
         User user = userRepository.findByOAuthProviderAndOAuthId(OAuthProvider.GOOGLE, payload.sub())
-                .orElse(null);
+                .map(existing -> refreshFromGoogle(existing, payload))
+                .orElseGet(() -> linkOrCreate(payload, command.locale()));
 
-        if (user == null) {
-            user = handleNewGoogleUser(payload, command.locale());
-        } else {
-            user = handleExistingGoogleUser(user, payload);
-        }
-
-        if (user.getStatus() == UserStatus.BANNED || user.getStatus() == UserStatus.DELETED) {
+        if (user.isBlocked()) {
             throw new BusinessException(IamErrorCode.ACCOUNT_INACTIVE);
         }
 
         TokenManagerService.AccessTokenInfo access = tokenManagerService.issueAccessToken(user);
         TokenManagerService.RefreshTokenInfo refresh = tokenManagerService.issueRefreshToken(user.getUserId());
 
-        authEventPublisher.publishGoogleLoginSuccess(user.getUserId(), user.getEmail().value(), clientIp, userAgent);
+        authEventPublisher.publishGoogleLoginSuccess(
+                user.getUserId(), user.getEmail().value(), clientIp, userAgent);
 
-        AuthNextStep nextStep = user.isOnboardingIncomplete() ? AuthNextStep.COMPLETE_PROFILE : AuthNextStep.NONE;
-        log.info("Google login success: userId={} nextStep={}", user.getUserId(), nextStep);
-
-        return new LoginResult(user, access, refresh, nextStep);
+        log.info("Google login success: userId={}", user.getUserId());
+        return new LoginResult(user, access, refresh);
     }
 
-    private void enforceRateLimit(String key, int limit) {
-        ThrottlingService.ThrottleDecision decision = throttlingService.consume(key, limit, Duration.ofMinutes(1));
-        if (!decision.allowed()) {
-            throw new BusinessException(IamErrorCode.RATE_LIMITED,
-                    java.util.Map.of("retryAfterSeconds", decision.retryAfterSeconds()));
-        }
-    }
-
-    private User handleNewGoogleUser(GoogleUserInfo payload, String locale) {
+    /**
+     * No Google link yet: either the address already exists locally (link the two) or this is a
+     * brand new account.
+     */
+    private User linkOrCreate(GoogleUserInfo payload, String locale) {
         User byEmail = userRepository.findByEmail(payload.email()).orElse(null);
-
-        if (byEmail != null) {
-            if (byEmail.getStatus() == UserStatus.BANNED || byEmail.getStatus() == UserStatus.DELETED) {
-                throw new BusinessException(IamErrorCode.ACCOUNT_INACTIVE);
-            }
-            byEmail.linkOAuth(OAuthProvider.GOOGLE, payload.sub());
-            if (payload.picture() != null && !payload.picture().isBlank()
-                    && (byEmail.getAvatarUrl() == null || byEmail.getAvatarUrl().isBlank())) {
-                byEmail.changeAvatarUrl(payload.picture());
-            }
-            if (payload.name() != null && !payload.name().isBlank()
-                    && (byEmail.getFullName() == null || byEmail.getFullName().isBlank())) {
-                byEmail.changeFullName(payload.name());
-            }
-            if (byEmail.getStatus() == UserStatus.PENDING_VERIFICATION) {
-                byEmail.markActive();
-            }
-            User saved = userRepository.save(byEmail);
-            authEventPublisher.publishUserLinkedGoogle(
-                    saved.getUserId(), saved.getEmail().value(), saved.getFullName());
-            log.info("Linked Google account to existing user: userId={}", saved.getUserId());
-            return saved;
+        if (byEmail == null) {
+            return createFromGoogle(payload, locale);
         }
+
+        if (byEmail.isBlocked()) {
+            throw new BusinessException(IamErrorCode.ACCOUNT_INACTIVE);
+        }
+        byEmail.linkOAuth(OAuthProvider.GOOGLE, payload.sub());
+        applyGoogleDefaults(byEmail, payload);
+        if (byEmail.getStatus() == UserStatus.PENDING_VERIFICATION) {
+            // Google already vouched for the address, so the pending OTP is moot.
+            byEmail.markActive();
+        }
+
+        User saved = userRepository.save(byEmail);
+        authEventPublisher.publishUserLinkedGoogle(
+                saved.getUserId(), saved.getEmail().value(), saved.getFullName());
+        // Linking gives a second way into an existing account, so the holder is told about it.
+        accountNotifier.googleAccountLinked(saved, locale);
+        log.info("Linked Google account to existing user: userId={}", saved.getUserId());
+        return saved;
+    }
+
+    private User createFromGoogle(GoogleUserInfo payload, String locale) {
+        RoleName roleName = roleRepository.findByName(RoleName.USER)
+                .map(Role::getName)
+                .orElseThrow(() -> new BusinessException(IamErrorCode.ROLE_NOT_FOUND));
 
         User fresh = User.createGoogle(
                 EmailAddress.of(payload.email()),
                 payload.sub(),
                 payload.name(),
                 payload.picture());
-
-        RoleName roleName = roleRepository.findByName(RoleName.USER)
-                .map(Role::getName)
-                .orElseThrow(() -> new BusinessException(IamErrorCode.ROLE_NOT_FOUND));
         fresh.assignRole(roleName);
         fresh.markActive();
 
         User saved = userRepository.save(fresh);
         authEventPublisher.publishUserRegisteredGoogle(
                 saved.getUserId(), saved.getEmail().value(), saved.getFullName());
-        enqueueWelcomeGoogle(saved, locale);
+        enqueueWelcomeEmail(saved, locale);
         log.info("Registered new Google user: userId={}", saved.getUserId());
         return saved;
     }
 
-    private void enqueueWelcomeGoogle(User user, String locale) {
-        Map<String, String> variables = Map.of(
-                "displayName", user.getFullName() == null || user.getFullName().isBlank()
-                        ? "bạn"
-                        : user.getFullName()
-        );
+    private User refreshFromGoogle(User user, GoogleUserInfo payload) {
+        boolean changed = false;
+        if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
+            user.markActive();
+            changed = true;
+        }
+        changed |= applyGoogleDefaults(user, payload);
+        return changed ? userRepository.save(user) : user;
+    }
+
+    /**
+     * Google values only fill gaps — a name or avatar the user set here is never overwritten.
+     */
+    private boolean applyGoogleDefaults(User user, GoogleUserInfo payload) {
+        boolean changed = false;
+        if (isPresent(payload.picture()) && !isPresent(user.getAvatarUrl())) {
+            user.changeAvatarUrl(payload.picture());
+            changed = true;
+        }
+        if (isPresent(payload.name()) && !isPresent(user.getFullName())) {
+            user.changeFullName(payload.name());
+            changed = true;
+        }
+        return changed;
+    }
+
+    private void enqueueWelcomeEmail(User user, String locale) {
+        String displayName = isPresent(user.getFullName()) ? user.getFullName() : FALLBACK_DISPLAY_NAME;
         emailDeliveryPort.enqueue(new EmailEnqueueCommand(
                 user.getUserId(),
                 user.getEmail().value(),
                 EmailTemplate.WELCOME_GOOGLE,
-                variables,
+                Map.of("displayName", displayName),
                 locale
         ));
     }
 
-    private User handleExistingGoogleUser(User user, GoogleUserInfo payload) {
-        boolean dirty = false;
-        if (user.getStatus() == UserStatus.PENDING_VERIFICATION) {
-            user.markActive();
-            dirty = true;
-        }
-        if (payload.picture() != null && !payload.picture().isBlank()
-                && (user.getAvatarUrl() == null || user.getAvatarUrl().isBlank())) {
-            user.changeAvatarUrl(payload.picture());
-            dirty = true;
-        }
-        if (dirty) {
-            User saved = userRepository.save(user);
-            log.info("Updated existing Google user on login: userId={}", saved.getUserId());
-            return saved;
-        }
-        return user;
+    private static boolean isPresent(String value) {
+        return value != null && !value.isBlank();
     }
 }

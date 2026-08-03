@@ -12,11 +12,11 @@ public record Password(String hash) {
         return new Password(hash);
     }
 
-    public static Password empty() {
-        return new Password("");
-    }
-
+    /**
+     * Always true for a constructed instance — the compact constructor rejects blank hashes.
+     * Kept so callers can express "is this a usable password" as {@code p != null && p.isHashed()}.
+     */
     public boolean isHashed() {
-        return hash != null && !hash.isBlank();
+        return true;
     }
 }

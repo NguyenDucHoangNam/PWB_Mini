@@ -35,7 +35,7 @@ class OtpCodeMapperTest {
     @DisplayName("toEntity with existing entity should update mutable fields")
     void should_update_existing_entity() {
         OtpCode otp = OtpCode.create(UUID.randomUUID(), OtpPurpose.REGISTER, "hash", Instant.now().plusSeconds(300));
-        otp.registerFailedAttempt();
+        otp.registerFailedAttempt(OtpCode.MAX_ATTEMPTS);
         otp.markVerified(Instant.now());
 
         OtpCodeJpaEntity existing = OtpCodeJpaEntity.builder()

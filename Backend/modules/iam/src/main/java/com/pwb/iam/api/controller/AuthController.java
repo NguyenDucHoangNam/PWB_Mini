@@ -5,7 +5,6 @@ import com.pwb.iam.api.dto.request.ForgotPasswordRequest;
 import com.pwb.iam.api.dto.request.GoogleLoginRequest;
 import com.pwb.iam.api.dto.request.LoginRequest;
 import com.pwb.iam.api.dto.request.LogoutRequest;
-import com.pwb.iam.api.dto.request.RefreshTokenRequest;
 import com.pwb.iam.api.dto.request.RegisterRequest;
 import com.pwb.iam.api.dto.request.ResendOtpRequest;
 import com.pwb.iam.api.dto.request.ResetPasswordRequest;
@@ -13,6 +12,7 @@ import com.pwb.iam.api.dto.request.VerifyOtpRequest;
 import com.pwb.iam.api.dto.response.AuthMessageResponse;
 import com.pwb.iam.api.dto.response.AuthResponse;
 import com.pwb.iam.api.dto.response.LogoutResponse;
+import com.pwb.iam.api.support.RequestLocale;
 import com.pwb.iam.application.command.ChangePasswordCommand;
 import com.pwb.iam.application.command.ForgotPasswordCommand;
 import com.pwb.iam.application.command.GoogleLoginCommand;
@@ -25,8 +25,7 @@ import com.pwb.iam.application.command.ResetPasswordCommand;
 import com.pwb.iam.application.command.VerifyOtpCommand;
 import com.pwb.iam.application.facade.AuthView;
 import com.pwb.iam.application.facade.IamFacade;
-import com.pwb.iam.application.usecase.ForgotPasswordUseCase;
-import com.pwb.iam.domain.model.OtpPurpose;
+import com.pwb.iam.domain.exception.RefreshTokenInvalidException;
 import com.pwb.iam.infrastructure.config.RefreshTokenProperties;
 import com.pwb.shared.dto.ApiResponse;
 import com.pwb.web.http.CookieUtils;
@@ -48,6 +47,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
+/**
+ * Endpoints under {@code /api/v1/auth}.
+ * <p>
+ * The authenticated routes here ({@code /logout}, {@code /change-password}) are not listed in
+ * {@code pwb.iam.security.public-endpoints}, so Spring Security rejects anonymous callers before
+ * the handler runs. {@code @CurrentUser} is therefore never null and no in-method null check is
+ * needed — one that existed would be unreachable.
+ */
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
@@ -59,18 +66,21 @@ public class AuthController {
     private static final String MSG_FORGOT_PASSWORD = "AUTH_FORGOT_PASSWORD_EMAIL_SENT";
     private static final String MSG_RESET_PASSWORD = "AUTH_PASSWORD_RESET_SUCCESSFUL";
     private static final String MSG_CHANGE_PASSWORD = "AUTH_PASSWORD_UPDATED";
-    private static final String MSG_UNAUTHORIZED = "AUTH_ACCESS_DENIED";
 
     private final IamFacade iamFacade;
     private final MessageResolver messageResolver;
     private final RefreshTokenProperties refreshTokenProperties;
 
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<AuthMessageResponse>> register(@Valid @RequestBody RegisterRequest request) {
-        UUID userId = iamFacade.register(toCommand(request));
+    public ResponseEntity<ApiResponse<AuthMessageResponse>> register(
+            @Valid @RequestBody RegisterRequest request,
+            @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage
+    ) {
+        RegisterCommand command = new RegisterCommand(
+                request.email(), request.password(), request.fullName(), RequestLocale.from(acceptLanguage));
+        UUID userId = iamFacade.register(command);
         AuthMessageResponse body = AuthMessageResponse.of(userId, messageResolver.get(MSG_REGISTER));
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(body));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(body));
     }
 
     @PostMapping("/verify-otp")
@@ -79,15 +89,18 @@ public class AuthController {
             @CurrentClientIp String clientIp,
             HttpServletResponse response
     ) {
-        AuthView view = iamFacade.verifyOtp(new VerifyOtpCommand(request.userId(), request.code(), clientIp));
-        setRefreshTokenCookieIfPresent(response, view);
-        return ResponseEntity.ok(ApiResponse.success(toAuthResponse(view)));
+        AuthView view = iamFacade.verifyOtp(
+                new VerifyOtpCommand(request.userId(), request.code(), request.purpose(), clientIp));
+        return respondWithTokens(view, response);
     }
 
     @PostMapping("/resend-otp")
-    public ResponseEntity<ApiResponse<AuthMessageResponse>> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
-        ResendOtpCommand command = new ResendOtpCommand(request.userId(), OtpPurpose.REGISTER);
-        iamFacade.resendOtp(command);
+    public ResponseEntity<ApiResponse<AuthMessageResponse>> resendOtp(
+            @Valid @RequestBody ResendOtpRequest request,
+            @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage
+    ) {
+        iamFacade.resendOtp(new ResendOtpCommand(
+                request.userId(), request.purpose(), RequestLocale.from(acceptLanguage)));
         AuthMessageResponse body = AuthMessageResponse.of(request.userId(), messageResolver.get(MSG_OTP_RESENT));
         return ResponseEntity.ok(ApiResponse.success(body));
     }
@@ -99,26 +112,24 @@ public class AuthController {
             @CurrentUserAgent String userAgent,
             HttpServletResponse response
     ) {
-        LoginCommand command = new LoginCommand(request.email(), request.password(), clientIp, userAgent);
-        AuthView view = iamFacade.login(command);
-        setRefreshTokenCookieIfPresent(response, view);
-        return ResponseEntity.ok(ApiResponse.success(toAuthResponse(view)));
+        AuthView view = iamFacade.login(
+                new LoginCommand(request.email(), request.password(), clientIp, userAgent));
+        return respondWithTokens(view, response);
     }
 
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<AuthResponse>> refresh(
-            @CookieValue(name = "pwb_refresh_token", required = false) String refreshTokenCookie,
-            HttpServletResponse response,
-            @CurrentClientIp String clientIp
+            @CookieValue(name = "${pwb.iam.refresh-token.cookie.name:pwb_refresh_token}", required = false)
+            String refreshTokenCookie,
+            @CurrentClientIp String clientIp,
+            HttpServletResponse response
     ) {
         if (refreshTokenCookie == null || refreshTokenCookie.isBlank()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("REFRESH_TOKEN_MISSING", messageResolver.get("AUTH_REFRESH_TOKEN_MISSING")));
+            // Same shape as an invalid token so the caller has a single 401 path to handle.
+            throw new RefreshTokenInvalidException("Refresh token cookie is missing");
         }
-        RefreshTokenCommand command = new RefreshTokenCommand(refreshTokenCookie, clientIp);
-        AuthView view = iamFacade.refresh(command);
-        setRefreshTokenCookieIfPresent(response, view);
-        return ResponseEntity.ok(ApiResponse.success(toAuthResponse(view)));
+        AuthView view = iamFacade.refresh(new RefreshTokenCommand(refreshTokenCookie, clientIp));
+        return respondWithTokens(view, response);
     }
 
     @PostMapping("/logout")
@@ -126,29 +137,31 @@ public class AuthController {
             @CurrentUser UUID userId,
             @CurrentClientIp String clientIp,
             @CurrentUserAgent String userAgent,
-            @Valid @RequestBody LogoutRequest request,
-            @CookieValue(name = "pwb_refresh_token", required = false) String refreshTokenCookie,
+            @Valid @RequestBody(required = false) LogoutRequest request,
+            @CookieValue(name = "${pwb.iam.refresh-token.cookie.name:pwb_refresh_token}", required = false)
+            String refreshTokenCookie,
             HttpServletResponse response
     ) {
-        if (userId == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("UNAUTHORIZED", messageResolver.get(MSG_UNAUTHORIZED)));
-        }
+        LogoutRequest body = request == null ? LogoutRequest.empty() : request;
         String refreshTokenToRevoke = (refreshTokenCookie != null && !refreshTokenCookie.isBlank())
                 ? refreshTokenCookie
-                : request.refreshToken();
+                : body.refreshToken();
+
         LogoutCommand command = new LogoutCommand(
                 userId,
                 refreshTokenToRevoke,
-                request.accessJti(),
-                request.accessExpiresInSeconds(),
+                body.accessJti(),
+                // Nullable in the request: a client that only relies on the cookie sends neither
+                // the jti nor its lifetime, and unboxing null into the primitive would 500.
+                body.accessExpiresInSeconds() == null ? 0L : body.accessExpiresInSeconds(),
                 clientIp,
                 userAgent
         );
         UUID resultUserId = iamFacade.logout(command);
-        CookieUtils.clearRefreshTokenCookie(response, "/");
-        LogoutResponse body = LogoutResponse.of(resultUserId, messageResolver.get(MSG_LOGOUT_SUCCESS));
-        return ResponseEntity.ok(ApiResponse.success(body));
+
+        clearRefreshTokenCookie(response);
+        LogoutResponse logoutResponse = LogoutResponse.of(resultUserId, messageResolver.get(MSG_LOGOUT_SUCCESS));
+        return ResponseEntity.ok(ApiResponse.success(logoutResponse));
     }
 
     @PostMapping("/google-login")
@@ -156,36 +169,41 @@ public class AuthController {
             @Valid @RequestBody GoogleLoginRequest request,
             @CurrentClientIp String clientIp,
             @CurrentUserAgent String userAgent,
-            @RequestHeader(value = "Accept-Language", defaultValue = "vi") String acceptLanguage,
+            @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage,
             HttpServletResponse response
     ) {
-        GoogleLoginCommand command = new GoogleLoginCommand(request.idToken(), clientIp, userAgent, normalizeLocale(acceptLanguage));
-        AuthView view = iamFacade.loginWithGoogle(command);
-        setRefreshTokenCookieIfPresent(response, view);
-        return ResponseEntity.ok(ApiResponse.success(toAuthResponse(view)));
+        AuthView view = iamFacade.loginWithGoogle(new GoogleLoginCommand(
+                request.idToken(), clientIp, userAgent, RequestLocale.from(acceptLanguage)));
+        return respondWithTokens(view, response);
     }
 
+    /**
+     * Always answers with the same body, whether or not the address is registered — see
+     * {@code ForgotPasswordUseCaseImpl}. In particular no userId is echoed back.
+     */
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponse<AuthMessageResponse>> forgotPassword(
             @Valid @RequestBody ForgotPasswordRequest request,
             @CurrentUserAgent String userAgent,
             @CurrentClientIp String clientIp,
-            @RequestHeader(value = "Accept-Language", defaultValue = "vi") String acceptLanguage
+            @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage
     ) {
-        ForgotPasswordCommand command = new ForgotPasswordCommand(request.email(), userAgent, normalizeLocale(acceptLanguage), clientIp);
-        ForgotPasswordUseCase.Result result = iamFacade.forgotPassword(command);
-        UUID uid = result == null ? null : result.userId();
-        AuthMessageResponse body = AuthMessageResponse.of(uid, messageResolver.get(MSG_FORGOT_PASSWORD));
+        iamFacade.forgotPassword(new ForgotPasswordCommand(
+                request.email(), userAgent, RequestLocale.from(acceptLanguage), clientIp));
+        AuthMessageResponse body = AuthMessageResponse.of(null, messageResolver.get(MSG_FORGOT_PASSWORD));
         return ResponseEntity.ok(ApiResponse.success(body));
     }
 
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<AuthMessageResponse>> resetPassword(
             @Valid @RequestBody ResetPasswordRequest request,
-            @CurrentUserAgent String userAgent
+            @CurrentUserAgent String userAgent,
+            @CurrentClientIp String clientIp,
+            @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage
     ) {
-        ResetPasswordCommand command = new ResetPasswordCommand(request.token(), request.newPassword(), userAgent);
-        UUID userId = iamFacade.resetPassword(command);
+        UUID userId = iamFacade.resetPassword(new ResetPasswordCommand(
+                request.token(), request.newPassword(), userAgent, clientIp,
+                RequestLocale.from(acceptLanguage)));
         AuthMessageResponse body = AuthMessageResponse.of(userId, messageResolver.get(MSG_RESET_PASSWORD));
         return ResponseEntity.ok(ApiResponse.success(body));
     }
@@ -195,65 +213,52 @@ public class AuthController {
             @CurrentUser UUID userId,
             @CurrentUserAgent String userAgent,
             @CurrentClientIp String clientIp,
-            @Valid @RequestBody ChangePasswordRequest request
+            @Valid @RequestBody ChangePasswordRequest request,
+            @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage
     ) {
-        if (userId == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("UNAUTHORIZED", messageResolver.get(MSG_UNAUTHORIZED)));
-        }
-        ChangePasswordCommand command = new ChangePasswordCommand(userId, request.currentPassword(), request.newPassword(), userAgent, clientIp);
-        UUID resultUserId = iamFacade.changePassword(command);
+        UUID resultUserId = iamFacade.changePassword(new ChangePasswordCommand(
+                userId, request.currentPassword(), request.newPassword(), userAgent, clientIp,
+                RequestLocale.from(acceptLanguage)));
         AuthMessageResponse body = AuthMessageResponse.of(resultUserId, messageResolver.get(MSG_CHANGE_PASSWORD));
         return ResponseEntity.ok(ApiResponse.success(body));
     }
 
-    private static RegisterCommand toCommand(RegisterRequest request) {
-        return new RegisterCommand(request.email(), request.password(), request.fullName());
+    private ResponseEntity<ApiResponse<AuthResponse>> respondWithTokens(AuthView view, HttpServletResponse response) {
+        setRefreshTokenCookie(response, view.refreshToken());
+        return ResponseEntity.ok(ApiResponse.success(AuthResponse.from(view)));
     }
 
-    private static String normalizeLocale(String acceptLanguage) {
-        if (acceptLanguage == null || acceptLanguage.isBlank()) {
-            return "vi";
+    private void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
+        if (refreshToken == null) {
+            return;
         }
-        String primary = acceptLanguage.split(",")[0].trim();
-        if (primary.isBlank()) {
-            return "vi";
-        }
-        return java.util.Set.of("vi", "en").contains(primary) ? primary : "vi";
-    }
-
-    private AuthResponse toAuthResponse(AuthView view) {
-        if (view.accessToken() == null || view.refreshToken() == null) {
-            return AuthResponse.bearerOnly(
-                    view.userId(), view.email(), view.fullName(), view.avatarUrl(), view.status(), view.role());
-        }
-        return AuthResponse.tokens(
-                view.userId(),
-                view.email(),
-                view.fullName(),
-                view.avatarUrl(),
-                view.status(),
-                view.role(),
-                view.accessToken(),
-                view.refreshToken(),
-                view.expiresInSeconds(),
-                view.nextStep() == null ? null : view.nextStep().name()
+        RefreshTokenProperties.CookieConfig cookie = refreshTokenProperties.getCookie();
+        CookieUtils.addRefreshTokenCookie(
+                response,
+                cookie.getName(),
+                refreshToken,
+                cookie.getPath(),
+                cookie.isHttpOnly(),
+                cookie.isSecure(),
+                cookie.getSameSite(),
+                cookie.getMaxAgeSeconds()
         );
     }
 
-    private void setRefreshTokenCookieIfPresent(HttpServletResponse response, AuthView view) {
-        if (view.refreshToken() == null) {
-            return;
-        }
-        RefreshTokenProperties.CookieConfig cookieConfig = refreshTokenProperties.getCookie();
-        CookieUtils.addRefreshTokenCookie(
+    /**
+     * Cleared with the same name/path/attributes it was set with — a browser only replaces a
+     * cookie when those match, so a hard-coded path would silently leave the session cookie
+     * in place whenever the configured path is not "/".
+     */
+    private void clearRefreshTokenCookie(HttpServletResponse response) {
+        RefreshTokenProperties.CookieConfig cookie = refreshTokenProperties.getCookie();
+        CookieUtils.clearRefreshTokenCookie(
                 response,
-                view.refreshToken(),
-                cookieConfig.getPath(),
-                cookieConfig.isHttpOnly(),
-                cookieConfig.isSecure(),
-                cookieConfig.getSameSite(),
-                cookieConfig.getMaxAgeSeconds()
+                cookie.getName(),
+                cookie.getPath(),
+                cookie.isHttpOnly(),
+                cookie.isSecure(),
+                cookie.getSameSite()
         );
     }
 }

@@ -6,11 +6,7 @@ public interface AuthEventPublisher {
 
     void publishAuthSuccess(AuthSuccessEvent event);
 
-    void publishAuthSuccess(UUID userId, String email, String clientIp, String userAgent);
-
     void publishLoginFailed(String email, String clientIp, String userAgent, String reason);
-
-    void publishLogout(UUID userId, String email, String clientIp, String userAgent);
 
     void publishLogout(UUID userId, String clientIp, String userAgent);
 

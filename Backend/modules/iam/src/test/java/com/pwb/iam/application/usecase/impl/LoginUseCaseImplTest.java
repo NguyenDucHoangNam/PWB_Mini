@@ -3,7 +3,6 @@ package com.pwb.iam.application.usecase.impl;
 import com.pwb.iam.application.command.LoginCommand;
 import com.pwb.iam.domain.event.AuthEventPublisher;
 import com.pwb.iam.domain.exception.IamErrorCode;
-import com.pwb.iam.domain.model.AuthNextStep;
 import com.pwb.iam.domain.model.LoginPolicy;
 import com.pwb.iam.domain.model.Password;
 import com.pwb.iam.domain.model.User;
@@ -74,7 +73,6 @@ class LoginUseCaseImplTest {
 
         assertThat(result.accessToken()).isNotNull();
         assertThat(result.refreshToken()).isNotNull();
-        assertThat(result.nextStep()).isEqualTo(AuthNextStep.NONE);
         verify(authEventPublisher).publishAuthSuccess(any(), any(), any(), any());
     }
 

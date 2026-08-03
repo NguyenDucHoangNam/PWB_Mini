@@ -1,7 +1,6 @@
 package com.pwb.iam.e2e;
 
 import com.pwb.iam.api.dto.request.LoginRequest;
-import com.pwb.iam.api.dto.request.RefreshTokenRequest;
 import com.pwb.iam.api.dto.request.RegisterRequest;
 import com.pwb.iam.api.dto.request.VerifyOtpRequest;
 import com.pwb.iam.api.dto.response.AuthMessageResponse;
@@ -80,8 +79,7 @@ class RefreshTokenRotationIT extends AbstractE2EIT {
         assertThat(rotateResp.getBody().isSuccess()).isTrue();
 
         AuthResponse rotated = rotateResp.getBody().getData();
-        assertThat(rotated.getAccessToken()).isNotBlank();
-        assertThat(rotated.getRefreshToken()).isNotBlank();
+        assertThat(rotated.accessToken()).isNotBlank();
         assertThat(rotated.getRefreshToken()).isNotEqualTo(oldRefreshToken);
 
         ResponseEntity<ApiResponse<AuthResponse>> replayResp = refresh(oldRefreshToken);

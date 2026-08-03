@@ -6,9 +6,12 @@ public interface ThrottlingService {
 
     ThrottleDecision consume(String key, int limit, Duration window);
 
+    /**
+     * Starts the cooldown for the address if none is running.
+     *
+     * @return seconds still to wait, or {@code 0} when the caller may proceed
+     */
     long enforceCooldown(String email, CooldownPurpose purpose);
-
-    long enforceCooldownForPasswordReset(String email);
 
     enum CooldownPurpose {
         REGISTER,
@@ -26,13 +29,4 @@ public interface ThrottlingService {
         }
     }
 
-    record CooldownResult(long remainingSeconds, boolean active) {
-        public static CooldownResult inactive() {
-            return new CooldownResult(0L, false);
-        }
-
-        public static CooldownResult active(long remainingSeconds) {
-            return new CooldownResult(remainingSeconds, true);
-        }
-    }
 }

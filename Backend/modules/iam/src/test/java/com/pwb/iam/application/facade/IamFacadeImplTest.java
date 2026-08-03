@@ -12,6 +12,7 @@ import com.pwb.iam.application.command.ResetPasswordCommand;
 import com.pwb.iam.application.command.VerifyOtpCommand;
 import com.pwb.iam.application.usecase.ChangePasswordUseCase;
 import com.pwb.iam.application.usecase.ForgotPasswordUseCase;
+import com.pwb.iam.application.usecase.GetProfileUseCase;
 import com.pwb.iam.application.usecase.GoogleLoginUseCase;
 import com.pwb.iam.application.usecase.LoginResult;
 import com.pwb.iam.application.usecase.LoginUseCase;
@@ -20,8 +21,9 @@ import com.pwb.iam.application.usecase.RefreshTokenUseCase;
 import com.pwb.iam.application.usecase.RegisterUseCase;
 import com.pwb.iam.application.usecase.ResendOtpUseCase;
 import com.pwb.iam.application.usecase.ResetPasswordUseCase;
+import com.pwb.iam.application.usecase.UpdateAvatarUseCase;
+import com.pwb.iam.application.usecase.UpdateProfileUseCase;
 import com.pwb.iam.application.usecase.VerifyOtpUseCase;
-import com.pwb.iam.domain.model.AuthNextStep;
 import com.pwb.iam.domain.model.User;
 import com.pwb.iam.testsupport.TestUserBuilder;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,6 +53,9 @@ class IamFacadeImplTest {
     @Mock private ResetPasswordUseCase resetPasswordUseCase;
     @Mock private ChangePasswordUseCase changePasswordUseCase;
     @Mock private GoogleLoginUseCase googleLoginUseCase;
+    @Mock private GetProfileUseCase getProfileUseCase;
+    @Mock private UpdateProfileUseCase updateProfileUseCase;
+    @Mock private UpdateAvatarUseCase updateAvatarUseCase;
 
     private IamFacadeImpl facade;
 
@@ -59,7 +64,8 @@ class IamFacadeImplTest {
         facade = new IamFacadeImpl(
                 registerUseCase, verifyOtpUseCase, resendOtpUseCase, loginUseCase,
                 refreshTokenUseCase, logoutUseCase, forgotPasswordUseCase,
-                resetPasswordUseCase, changePasswordUseCase, googleLoginUseCase);
+                resetPasswordUseCase, changePasswordUseCase, googleLoginUseCase,
+                getProfileUseCase, updateProfileUseCase, updateAvatarUseCase);
     }
 
     @Test
@@ -81,8 +87,7 @@ class IamFacadeImplTest {
         LoginResult result = new LoginResult(
                 user,
                 new com.pwb.iam.testsupport.StubTokenManagerService(user.getUserId()).accessToken(),
-                new com.pwb.iam.testsupport.StubTokenManagerService(user.getUserId()).refreshToken(),
-                AuthNextStep.NONE);
+                new com.pwb.iam.testsupport.StubTokenManagerService(user.getUserId()).refreshToken());
         when(verifyOtpUseCase.execute(any(VerifyOtpCommand.class))).thenReturn(result);
 
         AuthView view = facade.verifyOtp(new VerifyOtpCommand(user.getUserId(), "123456"));

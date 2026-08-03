@@ -91,7 +91,7 @@ class OtpCodeRepositoryImplIT extends AbstractRepositoryIT {
         repository.save(pendingOtp(userId, OtpPurpose.REGISTER));
         repository.save(pendingOtp(userId, OtpPurpose.PASSWORD_RESET));
 
-        repository.deleteAllByUserAndPurpose(userId, OtpPurpose.REGISTER);
+        repository.invalidateAllByUserAndPurpose(userId, OtpPurpose.REGISTER);
 
         assertThat(repository.findActiveByUserAndPurpose(userId, OtpPurpose.REGISTER)).isEmpty();
         assertThat(repository.findActiveByUserAndPurpose(userId, OtpPurpose.PASSWORD_RESET)).isPresent();
@@ -105,9 +105,9 @@ class OtpCodeRepositoryImplIT extends AbstractRepositoryIT {
         repository.save(pendingOtp(userId, OtpPurpose.REGISTER));
         repository.save(pendingOtp(userId, OtpPurpose.REGISTER));
 
-        int count = repository.countIssuedToday(userId, OtpPurpose.REGISTER, oneHourAgo);
+        int count = repository.countIssuedSince(userId, OtpPurpose.REGISTER, oneHourAgo);
         assertThat(count).isEqualTo(2);
-        assertThat(repository.countIssuedToday(userId, OtpPurpose.PASSWORD_RESET, oneHourAgo)).isZero();
+        assertThat(repository.countIssuedSince(userId, OtpPurpose.PASSWORD_RESET, oneHourAgo)).isZero();
     }
 
     @Test
@@ -139,8 +139,8 @@ class OtpCodeRepositoryImplIT extends AbstractRepositoryIT {
     @DisplayName("should_update_existing_otp_when_save_called_twice")
     void should_update_existing_otp_when_save_called_twice() {
         OtpCode first = repository.save(pendingOtp(UUID.randomUUID(), OtpPurpose.REGISTER));
-        first.registerFailedAttempt();
-        first.registerFailedAttempt();
+        first.registerFailedAttempt(OtpCode.MAX_ATTEMPTS);
+        first.registerFailedAttempt(OtpCode.MAX_ATTEMPTS);
 
         OtpCode second = repository.save(first);
 

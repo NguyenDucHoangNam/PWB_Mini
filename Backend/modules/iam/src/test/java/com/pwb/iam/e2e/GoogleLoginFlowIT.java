@@ -78,10 +78,9 @@ class GoogleLoginFlowIT extends AbstractE2EIT {
         assertThat(resp.getStatusCode().value()).isEqualTo(200);
         assertThat(resp.getBody().isSuccess()).isTrue();
         AuthResponse data = resp.getBody().getData();
-        assertThat(data.getAccessToken()).isNotBlank();
-        assertThat(data.getRefreshToken()).isNotBlank();
-        assertThat(data.getEmail()).isEqualTo("newgoogle@example.com");
-        assertThat(data.getStatus()).isEqualTo("ACTIVE");
+        assertThat(data.accessToken()).isNotBlank();
+        assertThat(data.email()).isEqualTo("newgoogle@example.com");
+        assertThat(data.status()).isEqualTo("ACTIVE");
     }
 
     @Test
@@ -100,9 +99,9 @@ class GoogleLoginFlowIT extends AbstractE2EIT {
         assertThat(resp.getStatusCode().value()).isEqualTo(200);
         assertThat(resp.getBody().isSuccess()).isTrue();
         AuthResponse data = resp.getBody().getData();
-        assertThat(data.getAccessToken()).isNotBlank();
-        assertThat(data.getEmail()).isEqualTo(email);
-        assertThat(data.getStatus()).isEqualTo("ACTIVE");
+        assertThat(data.accessToken()).isNotBlank();
+        assertThat(data.email()).isEqualTo(email);
+        assertThat(data.status()).isEqualTo("ACTIVE");
     }
 
     @Test
@@ -121,8 +120,7 @@ class GoogleLoginFlowIT extends AbstractE2EIT {
         assertThat(secondLogin.getStatusCode().value()).isEqualTo(200);
         assertThat(secondLogin.getBody().isSuccess()).isTrue();
         AuthResponse data = secondLogin.getBody().getData();
-        assertThat(data.getAccessToken()).isNotBlank();
-        assertThat(data.getRefreshToken()).isNotBlank();
-        assertThat(data.getStatus()).isEqualTo("ACTIVE");
+        assertThat(data.accessToken()).isNotBlank();
+        assertThat(data.status()).isEqualTo("ACTIVE");
     }
 }

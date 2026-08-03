@@ -10,5 +10,8 @@ public interface PasswordResetTokenService {
 
     String hashForStorage(String rawToken);
 
-    String buildResetLink(String rawToken);
+    /**
+     * @param signedToken the full {@code raw.signature} token, not the raw part alone
+     */
+    String buildResetLink(String signedToken);
 }

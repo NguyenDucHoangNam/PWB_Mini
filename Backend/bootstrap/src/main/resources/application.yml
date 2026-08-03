@@ -76,6 +76,21 @@ pwb:
     rate-limit:
       login-per-minute: 10
       refresh-per-minute: 30
+      google-login-per-minute: 10
+      reset-password-per-minute: 5
+      verify-otp-per-minute: 10
+      change-password-per-minute: 5
+      # Reject rather than wave requests through when Redis is down: an open rate limiter
+      # protects nothing precisely when the system is already degraded.
+      fail-closed-for-critical-ops: true
+    avatar:
+      max-size-bytes: 5242880
+      allowed-content-types:
+        - image/jpeg
+        - image/png
+        - image/webp
+      # Presigned URLs are minted per profile read, so they only need to outlive one page view.
+      url-ttl: 15m
     password-reset:
       token-secret: ${APP_PASSWORD_RESET_TOKEN_SECRET:dev-only-not-secure-replace-in-production-32chars}
       token-ttl-minutes: 30

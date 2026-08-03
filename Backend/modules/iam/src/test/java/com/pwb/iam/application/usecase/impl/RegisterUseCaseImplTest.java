@@ -92,7 +92,7 @@ class RegisterUseCaseImplTest {
         verify(passwordHasher).hash("StrongP@ss123!");
         verify(validatePasswordPolicyUseCase).validate("StrongP@ss123!");
         verify(roleRepository).findByName(RoleName.USER);
-        verify(otpCodeRepository).deleteAllByUserAndPurpose(saved.getUserId(), com.pwb.iam.domain.model.OtpPurpose.REGISTER);
+        verify(otpCodeRepository).invalidateAllByUserAndPurpose(saved.getUserId(), com.pwb.iam.domain.model.OtpPurpose.REGISTER);
         verify(otpCodeRepository).save(any(com.pwb.iam.domain.model.OtpCode.class));
         verify(emailDeliveryPort).enqueue(any());
     }
@@ -110,7 +110,7 @@ class RegisterUseCaseImplTest {
         assertThat(saved.getFullName()).isEqualTo("Alice New");
         verify(passwordHasher).hash("NewStrongP@ss123!");
         verify(validatePasswordPolicyUseCase).validate("NewStrongP@ss123!");
-        verify(otpCodeRepository).deleteAllByUserAndPurpose(saved.getUserId(), com.pwb.iam.domain.model.OtpPurpose.REGISTER);
+        verify(otpCodeRepository).invalidateAllByUserAndPurpose(saved.getUserId(), com.pwb.iam.domain.model.OtpPurpose.REGISTER);
         verify(otpCodeRepository).save(any(com.pwb.iam.domain.model.OtpCode.class));
         verify(emailDeliveryPort).enqueue(any());
     }

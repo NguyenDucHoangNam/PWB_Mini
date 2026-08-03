@@ -7,7 +7,6 @@ import com.pwb.iam.api.exception.IamExceptionHandler;
 import com.pwb.iam.application.facade.AuthView;
 import com.pwb.iam.application.facade.IamFacade;
 import com.pwb.iam.application.usecase.ForgotPasswordUseCase;
-import com.pwb.iam.domain.model.AuthNextStep;
 import com.pwb.iam.testsupport.IamMessageSourceTestConfig;
 import com.pwb.web.exception.GlobalExceptionHandler;
 import com.pwb.web.message.MessageResolver;
@@ -69,7 +68,7 @@ class AuthEndpointContractTest {
 
     private AuthView authView() {
         return AuthView.withTokens(testUserId, "user@example.com", "Alice", null, "ACTIVE", "USER",
-                "access.jwt", "refresh.jwt", 900L, AuthNextStep.NONE);
+                "access.jwt", "refresh.jwt", 900L);
     }
 
     @Test

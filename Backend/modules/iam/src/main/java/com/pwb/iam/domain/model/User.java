@@ -1,5 +1,7 @@
 package com.pwb.iam.domain.model;
 
+import com.pwb.iam.domain.exception.IamErrorCode;
+import com.pwb.iam.domain.exception.UserStateConflictException;
 import com.pwb.shared.domain.DomainBaseEntity;
 
 import java.util.UUID;
@@ -182,30 +184,30 @@ public final class User extends DomainBaseEntity {
         return oauthProvider != null && oauthProvider != OAuthProvider.LOCAL;
     }
 
+    /**
+     * Account can no longer authenticate, whatever the credentials presented.
+     */
+    public boolean isBlocked() {
+        return status == UserStatus.BANNED || status == UserStatus.DELETED;
+    }
+
     public void markActive() {
         this.status = UserStatus.ACTIVE;
         touch();
     }
 
-    public void markActiveFromRegistration() {
-        if (this.status != UserStatus.PENDING_VERIFICATION) {
-            throw new com.pwb.iam.domain.exception.UserStateConflictException(
-                    com.pwb.iam.domain.exception.IamErrorCode.ACCOUNT_NOT_VERIFIED);
-        }
-        this.status = UserStatus.ACTIVE;
-        touch();
-    }
-
+    /**
+     * Activation after a successful OTP verification. Idempotent: verifying twice is a
+     * client retry, not a conflict, so an already-ACTIVE account is left untouched.
+     */
     public void verifyOtp() {
-        if (this.status == UserStatus.BANNED || this.status == UserStatus.DELETED) {
-            throw new com.pwb.iam.domain.exception.UserStateConflictException(
-                    com.pwb.iam.domain.exception.IamErrorCode.ACCOUNT_INACTIVE);
+        if (isBlocked()) {
+            throw new UserStateConflictException(IamErrorCode.ACCOUNT_INACTIVE);
         }
-        markActiveFromRegistration();
-    }
-
-    public boolean isOnboardingIncomplete() {
-        return false;
+        if (this.status == UserStatus.PENDING_VERIFICATION) {
+            this.status = UserStatus.ACTIVE;
+            touch();
+        }
     }
 
     public void assignRole(RoleName newRole) {
@@ -221,19 +223,6 @@ public final class User extends DomainBaseEntity {
             throw new IllegalArgumentException("password must be hashed");
         }
         this.password = newPassword;
-        touch();
-    }
-
-    public void updateProfile(String fullName, String phone, String avatarUrl) {
-        if (fullName != null) {
-            this.fullName = normalizeFullName(fullName);
-        }
-        if (phone != null) {
-            this.phone = phone;
-        }
-        if (avatarUrl != null) {
-            this.avatarUrl = avatarUrl;
-        }
         touch();
     }
 

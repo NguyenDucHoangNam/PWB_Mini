@@ -2,6 +2,7 @@ package com.pwb.iam.application.usecase.impl;
 
 import com.pwb.iam.application.command.UpdateProfileCommand;
 import com.pwb.iam.application.facade.ProfileView;
+import com.pwb.iam.application.service.AvatarUrlResolver;
 import com.pwb.iam.application.usecase.UpdateProfileUseCase;
 import com.pwb.iam.domain.exception.IamErrorCode;
 import com.pwb.iam.domain.model.User;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UpdateProfileUseCaseImpl implements UpdateProfileUseCase {
 
     private final UserRepository userRepository;
+    private final AvatarUrlResolver avatarUrlResolver;
 
     @Override
     @Transactional
@@ -29,14 +31,6 @@ public class UpdateProfileUseCaseImpl implements UpdateProfileUseCase {
         User saved = userRepository.save(user);
 
         log.info("Profile updated: userId={}", saved.getUserId());
-
-        return ProfileView.from(
-                saved.getUserId(),
-                saved.getEmail() == null ? null : saved.getEmail().value(),
-                saved.getFullName(),
-                saved.getAvatarUrl(),
-                saved.getStatus() == null ? null : saved.getStatus().name(),
-                saved.getRole() == null ? null : saved.getRole().name()
-        );
+        return avatarUrlResolver.resolve(ProfileView.from(saved));
     }
 }
