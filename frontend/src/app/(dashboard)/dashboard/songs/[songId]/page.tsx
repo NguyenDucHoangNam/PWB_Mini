@@ -62,8 +62,8 @@ export default function SongDetailPage() {
             {song.title}
           </h1>
           <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
-            <span>{song.format.toUpperCase()}</span>
-            <span>{formatBytes(song.fileSizeBytes)}</span>
+            {song.format && <span>{song.format.toUpperCase()}</span>}
+            {song.fileSizeBytes !== null && <span>{formatBytes(song.fileSizeBytes)}</span>}
             {song.durationSeconds !== null && (
               <span>
                 {Math.floor(song.durationSeconds / 60)}:
@@ -82,8 +82,9 @@ export default function SongDetailPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-black">
-        <AudioPlayer songId={song.id} />
+      <div className="grid gap-4 rounded-xl border border-neutral-200 bg-white p-4 md:grid-cols-2 dark:border-neutral-800 dark:bg-black">
+        <AudioPlayer songId={song.id} variant="ORIGINAL" />
+        <AudioPlayer songId={song.id} variant="PROCESSED" />
       </div>
 
       <SongDeleteDialog

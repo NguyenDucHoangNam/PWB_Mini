@@ -14,7 +14,16 @@ export const getOriginalUrl = ({
   songId: string;
 }): Promise<ApiResponse<AudioUrl>> =>
   apiClient
-    .get(`/songs/${songId}/audio`)
+    .get(`/songs/${songId}/audio-url`, { params: { variant: "ORIGINAL" } })
+    .then((res) => res.data);
+
+export const getProcessedUrl = ({
+  songId,
+}: {
+  songId: string;
+}): Promise<ApiResponse<AudioUrl>> =>
+  apiClient
+    .get(`/songs/${songId}/audio-url`, { params: { variant: "PROCESSED" } })
     .then((res) => res.data);
 
 export const useOriginalUrl = ({
@@ -29,6 +38,23 @@ export const useOriginalUrl = ({
   useQuery({
     queryKey: songStreamKey(songId, "original"),
     queryFn: () => getOriginalUrl({ songId }),
+    enabled: enabled && Boolean(songId),
+    retry: false,
+    ...queryConfig,
+  });
+
+export const useProcessedUrl = ({
+  songId,
+  enabled = true,
+  queryConfig,
+}: {
+  songId: string;
+  enabled?: boolean;
+  queryConfig?: QueryConfig<typeof getProcessedUrl>;
+}) =>
+  useQuery({
+    queryKey: songStreamKey(songId, "processed"),
+    queryFn: () => getProcessedUrl({ songId }),
     enabled: enabled && Boolean(songId),
     retry: false,
     ...queryConfig,

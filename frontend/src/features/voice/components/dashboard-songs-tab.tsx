@@ -62,10 +62,13 @@ export function DashboardSongsTab() {
   const { data, isLoading, isFetching, isError, refetch } = useListSongs({
     page,
     size: DEFAULT_PAGE_SIZE,
-    status: filter === "ALL" ? undefined : filter,
   });
 
-  const items = data?.success && data.data ? data.data.content : [];
+  const rawItems = data?.success && data.data ? data.data.content : [];
+  const items = useMemo(() => {
+    if (filter === "ALL") return rawItems;
+    return rawItems.filter((s) => s.status === filter);
+  }, [rawItems, filter]);
   const totalPages = data?.success && data.data ? data.data.totalPages : 0;
   const toDeleteId = searchParams.get("delete");
 

@@ -1,12 +1,7 @@
 package com.pwb.audio.infrastructure.audio;
 
-import com.github.kokorin.jaffree.StreamType;
-import com.github.kokorin.jaffree.ffmpeg.FFmpeg;
 import com.github.kokorin.jaffree.ffmpeg.UrlInput;
 import com.github.kokorin.jaffree.ffmpeg.UrlOutput;
-import com.github.kokorin.jaffree.ffprobe.FFprobe;
-import com.github.kokorin.jaffree.ffprobe.FFprobeResult;
-import com.github.kokorin.jaffree.ffprobe.Stream;
 import com.pwb.audio.application.exception.AudioBusinessException;
 import com.pwb.audio.application.exception.AudioErrorCode;
 import com.pwb.audio.domain.model.AudioProcessingRequest;
@@ -35,6 +30,8 @@ public class JaffreeAudioProcessorAdapter implements AudioProcessorPort {
     private final AudioProcessorProperties properties;
     private final StoragePort storagePort;
     private final AudioWorkspace workspace;
+    private final AudioProbeService audioProbe;
+    private final FfmpegBinaries binaries;
 
     @Override
     public AudioProcessingResult embedWatermark(AudioProcessingRequest request) {
@@ -53,7 +50,7 @@ public class JaffreeAudioProcessorAdapter implements AudioProcessorPort {
             String filterComplex = WatermarkFilterBuilder.build(request, songDuration, voiceTagDuration);
             log.debug("FFmpeg filter for songId={}: {}", request.songId(), filterComplex);
 
-            FFmpeg.atPath(Paths.get(properties.getFfmpegPath()))
+            binaries.ffmpeg()
                     .addInput(UrlInput.fromPath(inputFile))
                     .addInput(UrlInput.fromPath(voiceTagFile))
                     .setComplexFilter(filterComplex)
@@ -67,7 +64,7 @@ public class JaffreeAudioProcessorAdapter implements AudioProcessorPort {
             }
 
             long fileSize = Files.size(outputFile);
-            Integer duration = probeDuration(outputFile);
+            Integer duration = audioProbe.probeDuration(outputFile);
             storagePort.uploadFromPath(request.outputKey(), outputFile, fileSize);
 
             log.info("Watermark embedded: songId={}, outputKey={}, size={}, duration={}",
@@ -101,7 +98,7 @@ public class JaffreeAudioProcessorAdapter implements AudioProcessorPort {
     }
 
     private double requireDuration(Path file, String what) {
-        Integer duration = probeDuration(file);
+        Integer duration = audioProbe.probeDuration(file);
         if (duration == null || duration <= 0) {
             log.error("Could not read {} duration from {}", what, file);
             throw new AudioBusinessException(AudioErrorCode.AUDIO_PROBE_FAILED);
@@ -117,21 +114,4 @@ public class JaffreeAudioProcessorAdapter implements AudioProcessorPort {
         }
     }
 
-    private Integer probeDuration(Path file) {
-        try {
-            FFprobeResult probe = FFprobe.atPath(Paths.get(properties.getFfmpegPath()))
-                    .setInput(file)
-                    .execute();
-            return probe.getStreams().stream()
-                    .filter(s -> s.getCodecType() == StreamType.AUDIO)
-                    .map(Stream::getDuration)
-                    .filter(Objects::nonNull)
-                    .map(Float::intValue)
-                    .findFirst()
-                    .orElse(null);
-        } catch (Exception ex) {
-            log.warn("FFprobe duration extraction failed for {}: {}", file, ex.getMessage());
-            return null;
-        }
-    }
 }

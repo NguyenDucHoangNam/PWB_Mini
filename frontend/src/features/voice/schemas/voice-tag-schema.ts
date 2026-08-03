@@ -4,11 +4,11 @@ export const ttsFormSchema = z.object({
   name: z
     .string()
     .min(1, { message: "validation.name.required" })
-    .max(128, { message: "validation.name.maxlength" }),
+    .max(100, { message: "validation.name.maxlength" }),
   text: z
     .string()
     .min(1, { message: "validation.text.required" })
-    .max(4000, { message: "validation.text.maxlength" }),
+    .max(2000, { message: "validation.text.maxlength" }),
   languageCode: z
     .string()
     .min(1, { message: "validation.languagecode.required" })

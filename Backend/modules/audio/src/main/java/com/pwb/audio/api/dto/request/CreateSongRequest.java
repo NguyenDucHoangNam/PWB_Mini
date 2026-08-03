@@ -17,7 +17,7 @@ import java.util.UUID;
 public record CreateSongRequest(
         @NotBlank @Size(max = 200) String title,
         @NotBlank @Size(max = 512) String originalS3Key,
-        @NotNull @Positive Integer durationSeconds,
+        @NotNull(message = "{validation.song.durationSeconds.notNull}") @Positive(message = "{validation.song.durationSeconds.positive}") Integer durationSeconds,
         @NotBlank @Size(max = 16) String format,
         @Valid ConfigureVoiceTagRequest voiceTagConfig
 ) {

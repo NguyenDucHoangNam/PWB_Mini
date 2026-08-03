@@ -1,0 +1,6 @@
+export enum SongStatus {
+  UPLOADED = "UPLOADED",
+  PROCESSING = "PROCESSING",
+  PROCESSED = "PROCESSED",
+  FAILED = "FAILED",
+}

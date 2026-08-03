@@ -6,24 +6,19 @@ export const configFormSchema = z.object({
     .min(1, { message: "validation.song.required" }),
   intervalSeconds: z
     .number()
-    .min(1, { message: "validation.interval.required" })
-    .max(60, { message: "validation.interval.max" }),
+    .min(5, { message: "validation.interval.min" })
+    .max(600, { message: "validation.interval.max" }),
   volumePercentage: z
     .number()
     .min(0, { message: "validation.volume.min" })
     .max(100, { message: "validation.volume.max" }),
-  fadeInDurationMs: z
+  duckingPercentage: z
     .number()
-    .min(0, { message: "validation.fadeIn.min" })
-    .max(5000, { message: "validation.fadeIn.max" }),
-  fadeOutDurationMs: z
-    .number()
-    .min(0, { message: "validation.fadeOut.min" })
-    .max(5000, { message: "validation.fadeOut.max" }),
+    .min(0, { message: "validation.ducking.min" })
+    .max(100, { message: "validation.ducking.max" }),
   startOffsetSeconds: z
     .number()
-    .min(0, { message: "validation.startOffset.min" })
-    .max(300, { message: "validation.startOffset.max" }),
+    .min(0, { message: "validation.startOffset.min" }),
   enabled: z.boolean(),
 });
 
@@ -33,8 +28,8 @@ export const DEFAULT_CONFIG_VALUES: ConfigFormValues = {
   voiceTagId: "",
   intervalSeconds: 30,
   volumePercentage: 80,
-  fadeInDurationMs: 500,
-  fadeOutDurationMs: 500,
+  duckingPercentage: 50,
   startOffsetSeconds: 0,
   enabled: true,
 };
+

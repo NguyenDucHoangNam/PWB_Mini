@@ -43,7 +43,7 @@ export function SessionTimeoutWarning({ onSessionExpired, onRefreshSuccess }: Se
 
   return (
     <Dialog open={shouldShowExpired} onOpenChange={() => {}}>
-      <DialogContent showCloseButton={false} onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
+      <DialogContent showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>{refreshFailed ? t("sessionExpiredTitle") : t("refreshingTitle")}</DialogTitle>
           <DialogDescription>

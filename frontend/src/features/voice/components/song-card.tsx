@@ -35,8 +35,8 @@ export function SongCard({ song, onDelete }: SongCardProps) {
             {song.title}
           </h3>
           <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
-            <span>{song.format.toUpperCase()}</span>
-            <span>{formatBytes(song.fileSizeBytes)}</span>
+            <span>{(song.format ?? "").toUpperCase()}</span>
+            {song.fileSizeBytes !== null && <span>{formatBytes(song.fileSizeBytes)}</span>}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">

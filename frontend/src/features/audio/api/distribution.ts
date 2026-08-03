@@ -4,64 +4,63 @@ import type { QueryConfig, MutationConfig } from "@/lib/react-query";
 import type { ApiResponse, PaginatedResponse } from "@/types/api";
 import type {
   DistributionListItem,
-  DistributeDemoRequest,
-  DistributeDemoResponse,
+  DistributeSongRequest,
+  DistributeSongResponse,
 } from "../types";
-import { DEMOS_KEY } from "./audio";
+import { SONGS_KEY } from "./audio";
 
-export const DISTRIBUTIONS_KEY = (demoId: string) =>
-  ["audio-distributions", demoId] as const;
-export const DEMO_SUMMARIES_KEY = "audio-demo-summaries" as const;
+export const DISTRIBUTIONS_KEY = (songId: string) =>
+  ["audio-distributions", songId] as const;
 
 export const getDistributions = ({
-  demoId,
+  songId,
   page,
   size,
   includeRevoked,
 }: {
-  demoId: string;
+  songId: string;
   page: number;
   size: number;
   includeRevoked: boolean;
 }): Promise<ApiResponse<PaginatedResponse<DistributionListItem>>> => {
   return apiClient
-    .get(`/demos/${demoId}/distributions`, {
+    .get(`/songs/${songId}/distributions`, {
       params: { page, size, includeRevoked },
     })
     .then((res) => res.data);
 };
 
-export const distributeDemo = ({
-  demoId,
+export const distributeSong = ({
+  songId,
   data,
 }: {
-  demoId: string;
-  data: DistributeDemoRequest;
-}): Promise<ApiResponse<DistributeDemoResponse>> => {
+  songId: string;
+  data: DistributeSongRequest;
+}): Promise<ApiResponse<DistributeSongResponse>> => {
   return apiClient
-    .post(`/demos/${demoId}/distribute`, data)
+    .post(`/songs/${songId}/distribute`, data)
     .then((res) => res.data);
 };
 
 export const revokeDistribution = ({
-  demoId,
+  songId,
   distributionId,
 }: {
-  demoId: string;
+  songId: string;
   distributionId: string;
 }): Promise<ApiResponse<DistributionListItem>> => {
   return apiClient
-    .delete(`/demos/${demoId}/distributions/${distributionId}`)
+    .delete(`/songs/${songId}/distributions/${distributionId}`)
     .then((res) => res.data);
 };
 
 export const revokeAllDistributions = ({
-  demoId,
+  songId,
 }: {
-  demoId: string;
+  songId: string;
 }): Promise<ApiResponse<number>> => {
   return apiClient
-    .delete(`/demos/${demoId}/distributions`)
+    .delete(`/songs/${songId}/distributions`)
     .then((res) => res.data);
 };
 
@@ -71,50 +70,50 @@ export const suggestRecipients = ({
   q: string;
 }): Promise<ApiResponse<string[]>> => {
   return apiClient
-    .get("/demos/recipients/suggest", { params: { q } })
+    .get("/songs/recipients/suggest", { params: { q } })
     .then((res) => res.data);
 };
 
 export function useDistributions({
-  demoId,
+  songId,
   page,
   size,
   includeRevoked,
   queryConfig,
 }: {
-  demoId: string;
+  songId: string;
   page: number;
   size: number;
   includeRevoked: boolean;
   queryConfig?: QueryConfig<typeof getDistributions>;
 }) {
   return useQuery({
-    queryKey: DISTRIBUTIONS_KEY(demoId),
-    queryFn: () => getDistributions({ demoId, page, size, includeRevoked }),
-    enabled: Boolean(demoId),
+    queryKey: DISTRIBUTIONS_KEY(songId),
+    queryFn: () => getDistributions({ songId, page, size, includeRevoked }),
+    enabled: Boolean(songId),
     ...queryConfig,
   });
 }
 
-type UseDistributeDemoOptions = {
-  mutationConfig?: MutationConfig<typeof distributeDemo>;
+type UseDistributeSongOptions = {
+  mutationConfig?: MutationConfig<typeof distributeSong>;
 };
 
-export const useDistributeDemo = ({
+export const useDistributeSong = ({
   mutationConfig,
-}: UseDistributeDemoOptions = {}) => {
+}: UseDistributeSongOptions = {}) => {
   const queryClient = useQueryClient();
   return useMutation({
     onSuccess: (response, variables) => {
       if (response.success) {
         queryClient.invalidateQueries({
-          queryKey: DISTRIBUTIONS_KEY(variables.demoId),
+          queryKey: DISTRIBUTIONS_KEY(variables.songId),
         });
-        queryClient.invalidateQueries({ queryKey: [DEMOS_KEY] });
+        queryClient.invalidateQueries({ queryKey: [SONGS_KEY] });
       }
     },
     ...mutationConfig,
-    mutationFn: distributeDemo,
+    mutationFn: distributeSong,
   });
 };
 
@@ -130,7 +129,7 @@ export const useRevokeDistribution = ({
     onSuccess: (response, variables) => {
       if (response.success) {
         queryClient.invalidateQueries({
-          queryKey: DISTRIBUTIONS_KEY(variables.demoId),
+          queryKey: DISTRIBUTIONS_KEY(variables.songId),
         });
       }
     },
@@ -151,7 +150,7 @@ export const useRevokeAllDistributions = ({
     onSuccess: (response, variables) => {
       if (response.success) {
         queryClient.invalidateQueries({
-          queryKey: DISTRIBUTIONS_KEY(variables.demoId),
+          queryKey: DISTRIBUTIONS_KEY(variables.songId),
         });
       }
     },

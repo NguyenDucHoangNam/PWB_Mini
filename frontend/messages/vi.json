@@ -654,18 +654,34 @@
         "fileRequired": "Vui lòng chọn file âm thanh",
         "uploadingProgress": "Đang upload...",
         "uploadSuccess": "Upload bài hát thành công",
+        "dropzoneTitle": "Kéo & thả file âm thanh vào đây, hoặc nhấp để chọn",
+        "dropzoneHint": "Hỗ trợ định dạng MP3, WAV, FLAC (dung lượng tối đa 100MB)",
+        "changeFile": "Đổi file khác",
+        "newSongTitle": "Tải lên bài hát mới",
+        "newSongSubtitle": "Tải file âm thanh gốc và cấu hình chèn Voice Tag bảo vệ bản quyền âm nhạc",
+        "timelineTitle": "Xem trước vị trí chèn Voice Tag & Ducking (Mô phỏng bài hát 3 phút)",
+        "timelineInsertions": "Tổng số lần chèn: {count} lần",
+        "timelinePositions": "Vị trí chèn:",
+        "duckingStatus": "Nhạc nền giảm xuống {percent}% khi Voice Tag phát",
         "attachVoiceTag": "Gắn kèm Voice Tag ngay khi upload",
         "selectVoiceTag": "Chọn Voice Tag",
         "selectVoiceTagPlaceholder": "Chọn một voice tag...",
         "noVoiceTags": "Chưa có Voice Tag nào. Bạn có thể tạo ở mục Voice Tag.",
         "intervalSeconds": "Khoảng cách lặp (giây)",
+        "intervalHint": "Tần suất chèn Voice Tag vào nhạc (từ 5 đến 600 giây)",
         "volumePercentage": "Âm lượng Voice Tag (%)",
-        "fadeInDurationMs": "Fade in (ms)",
-        "fadeInHint": "Voice tag tăng âm lượng dần",
-        "fadeOutDurationMs": "Fade out (ms)",
-        "fadeOutHint": "Voice tag giảm âm lượng dần",
-        "startOffsetSeconds": "Bỏ qua đầu (giây)",
-        "startOffsetHint": "Bỏ qua N giây đầu trước khi chèn lần đầu"
+        "volumeHint": "Mức độ to/nhỏ của Voice Tag (0-100%)",
+        "duckingPercentage": "Hạ nhạc nền / Ducking (%)",
+        "duckingHint": "Tỷ lệ âm lượng nhạc nền giữ lại khi Voice Tag phát lên (ví dụ: 30% nghĩa là nhạc nền sẽ tự động giảm nhỏ xuống 30%).",
+        "duckingTooltip": "Ducking là kỹ thuật tự động hạ nhỏ âm lượng của nhạc nền mỗi khi Voice Tag cất lên, giúp chữ ký âm thanh của bạn nghe rõ ràng mà không bị tiếng nhạc đè lấp.",
+        "startOffsetSeconds": "Thời gian chờ đầu bài (giây)",
+        "startOffsetHint": "Số giây bỏ qua ở đầu bài hát trước khi chèn Voice Tag lần đầu tiên",
+        "uploadProgress": "Đang tải lên... {percent}%",
+        "uploadProgressDetail": "{loaded} / {total} MB",
+        "uploadPreparing": "Đang chuẩn bị...",
+        "uploadCreating": "Đang tạo bài hát...",
+        "cancelUpload": "Hủy upload",
+        "uploadCancelled": "Đã hủy upload"
       },
       "delete": {
         "confirmTitle": "Xóa bài hát?",
@@ -686,10 +702,8 @@
       "intervalHint": "Chèn voice tag mỗi N giây",
       "volumePercentage": "Âm lượng",
       "volumeHint": "Voice tag phát to thế nào (0-100%)",
-      "fadeInMs": "Fade in (ms)",
-      "fadeInHint": "Voice tag tăng âm lượng dần",
-      "fadeOutMs": "Fade out (ms)",
-      "fadeOutHint": "Voice tag giảm âm lượng dần",
+      "duckingPercentage": "Hạ nhạc nền (Ducking)",
+      "duckingHint": "Âm lượng nhạc nền giữ lại khi Voice Tag phát (0-100%)",
       "startOffsetSeconds": "Bỏ qua đầu (giây)",
       "startOffsetHint": "Bỏ qua N giây đầu trước khi chèn lần đầu",
       "enabled": "Kích hoạt",
@@ -735,6 +749,7 @@
       "invalidLanguageCode": "Mã ngôn ngữ không đúng định dạng (vd: en-US)",
       "genericError": "Đã có lỗi xảy ra. Vui lòng thử lại.",
       "fileRequired": "Vui lòng chọn file âm thanh",
+      "invalidDuration": "Không thể xác định thời lượng file âm thanh. Vui lòng chọn file âm thanh hợp lệ.",
       "duplicateVoiceTagName": "Tên voice tag đã tồn tại"
     },
     "actions": {
@@ -797,6 +812,10 @@
     "startOffset": {
       "min": "Bỏ qua đầu tối thiểu là {min}",
       "max": "Bỏ qua đầu tối đa là {max}"
+    },
+    "durationSeconds": {
+      "positive": "Thời lượng bài hát phải lớn hơn 0",
+      "required": "Thời lượng bài hát không được để trống"
     }
   }
 }

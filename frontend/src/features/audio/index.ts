@@ -1,31 +1,42 @@
 export * from "./types";
+export { SongStatus } from "./types/song-status";
+
 export {
-  getDemos,
-  getDemoStatus,
-  requestPresignedUrl,
-  confirmUpload,
-  rotateDemoKey,
-  useDemos,
-  useDemoStatus,
-  useConfirmUpload,
-  useRotateDemoKey,
-  DEMOS_KEY,
-  DEMO_STATUS_KEY,
+  getSongs,
+  getSong,
+  getAudioUrl,
+  requestUploadUrl,
+  createSong,
+  updateSong,
+  deleteSong,
+  configureVoiceTag,
+  triggerProcessing,
+  useSongs,
+  useSong,
+  useAudioUrl,
+  useCreateSong,
+  useUpdateSong,
+  useDeleteSong,
+  useConfigureVoiceTag,
+  useTriggerProcessing,
+  SONGS_KEY,
+  SONG_KEY,
+  AUDIO_URL_KEY,
 } from "./api/audio";
+
 export {
   getDistributions,
-  distributeDemo,
+  distributeSong,
   revokeDistribution,
   revokeAllDistributions,
   suggestRecipients,
   useDistributions,
-  useDistributeDemo,
+  useDistributeSong,
   useRevokeDistribution,
   useRevokeAllDistributions,
   DISTRIBUTIONS_KEY,
-  DEMO_SUMMARIES_KEY,
 } from "./api/distribution";
 
 export { StatCard } from "./components/stat-card";
 export { UploadDemoModal } from "./components/upload-demo-modal";
-export { DistributeDemoModal } from "./components/distribute-demo-modal";
+export { DistributeSongModal } from "./components/distribute-song-modal";

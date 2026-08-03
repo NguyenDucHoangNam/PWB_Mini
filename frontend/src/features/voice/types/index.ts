@@ -12,7 +12,6 @@ export interface VoiceTag {
   durationSeconds: number;
   fileSizeBytes: number;
   isDefault: boolean;
-  version: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -21,14 +20,12 @@ export interface VoiceTagConfig {
   id: string;
   songId: string;
   voiceTagId: string;
-  voiceTagName: string;
+  voiceTagName?: string;
   intervalSeconds: number;
   volumePercentage: number;
-  fadeInDurationMs: number;
-  fadeOutDurationMs: number;
+  duckingPercentage: number;
   startOffsetSeconds: number;
   enabled: boolean;
-  version: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -39,14 +36,13 @@ export interface Song {
   title: string;
   artist: string | null;
   album: string | null;
-  format: string;
+  format: string | null;
   status: SongStatus;
-  fileSizeBytes: number;
+  fileSizeBytes: number | null;
   durationSeconds: number | null;
   processed: boolean;
   thumbnailUrl: string | null;
   lastError: string | null;
-  version: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -61,7 +57,17 @@ export interface ProcessingStatus {
   updatedAt: string | null;
 }
 
+export type AudioVariant = "ORIGINAL" | "PROCESSED";
+
 export interface AudioUrl {
+  url: string;
+  expiresAt: string;
+  /** Which rendition was actually served; can differ from the one requested. */
+  variant?: AudioVariant | null;
+}
+
+export interface UploadUrlResponse {
+  storageKey: string;
   url: string;
   expiresAt: string;
 }
@@ -76,13 +82,12 @@ export interface UpdateVoiceTagRequest {
   name: string;
 }
 
-export interface UploadSongRequest {
+export interface CreateSongRequest {
   title: string;
   originalS3Key: string;
-  fileSizeBytes: number;
   durationSeconds: number;
   format: string;
-  voiceTagConfig?: ConfigureVoiceTagRequest;
+  voiceTagConfig?: ConfigureVoiceTagRequest | null;
 }
 
 export interface UpdateSongRequest {
@@ -93,20 +98,17 @@ export interface ConfigureVoiceTagRequest {
   voiceTagId: string;
   intervalSeconds: number;
   volumePercentage: number;
-  fadeInDurationMs: number;
-  fadeOutDurationMs: number;
-  startOffsetSeconds?: number;
+  duckingPercentage: number;
+  startOffsetSeconds: number;
   enabled?: boolean;
 }
 
 export interface ListVoiceTagsParams {
   page: number;
   size: number;
-  type?: VoiceTagType;
 }
 
 export interface ListSongsParams {
   page: number;
   size: number;
-  status?: SongStatus;
 }

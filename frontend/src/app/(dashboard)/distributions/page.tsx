@@ -5,34 +5,29 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
-import { useDemos, useDistributions } from "@/features/audio";
-import type { DemoListItem } from "@/features/audio/types";
+import { useSongs, useDistributions } from "@/features/audio";
+import type { SongListItem } from "@/features/audio/types";
 
 interface SummaryRow {
-  demo: DemoListItem;
-  totalElements: number;
+  song: SongListItem;
 }
 
-function isActiveFilter(status: string | undefined) {
-  return status === "ACTIVE";
+function formatBytes(bytes: number | null) {
+  if (bytes === null) return "-";
+  if (bytes < 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }
 
 export default function DistributionsPage() {
   const t = useTranslations("dashboard.distributions");
-  const tCommon = useTranslations("dashboard.common");
 
-  const { data: demosRes, isLoading: demosLoading } = useDemos({
+  const { data: songsRes, isLoading: songsLoading } = useSongs({
     page: 0,
     size: 100,
   });
-  const demos: DemoListItem[] =
-    demosRes?.success && demosRes.data ? demosRes.data.content : [];
-
-  const summaries: SummaryRow[] = [];
-  const summaryLoading = false;
-
-  const renderedLoading =
-    demosLoading || summaryLoading;
+  const songs: SongListItem[] =
+    songsRes?.success && songsRes.data ? songsRes.data.content : [];
 
   return (
     <div className="flex flex-col gap-6 font-sans">
@@ -43,12 +38,12 @@ export default function DistributionsPage() {
         <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("subtitle")}</p>
       </div>
 
-      {renderedLoading ? (
+      {songsLoading ? (
         <div className="flex items-center justify-center gap-3 p-12 text-sm text-neutral-500">
           <Spinner size="md" />
           {t("loadingTop")}
         </div>
-      ) : demos.length === 0 ? (
+      ) : songs.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-neutral-300 p-12 text-center dark:border-neutral-700">
           <h2 className="text-lg font-semibold text-black dark:text-white">{t("emptyTitle")}</h2>
           <p className="max-w-md text-sm text-neutral-500 dark:text-neutral-400">{t("emptyDesc")}</p>
@@ -59,26 +54,28 @@ export default function DistributionsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-neutral-200 bg-neutral-50 text-left text-xs uppercase tracking-wide text-neutral-500 dark:border-neutral-800 dark:bg-neutral-900/40">
-                  <th className="px-4 py-3 font-medium">{t("colDemo")}</th>
+                  <th className="px-4 py-3 font-medium">{t("colSong")}</th>
                   <th className="px-4 py-3 font-medium">{t("colTotal")}</th>
                   <th className="px-4 py-3 font-medium text-right">{t("colActions")}</th>
                 </tr>
               </thead>
               <tbody>
-                {demos.map((demo) => (
+                {songs.map((song) => (
                   <tr
-                    key={demo.demoId}
+                    key={song.id}
                     className="border-b border-neutral-200 last:border-b-0 hover:bg-neutral-50/60 dark:border-neutral-800 dark:hover:bg-neutral-900/30"
                   >
-                    <td className="px-4 py-3 font-medium text-black dark:text-white">{demo.title}</td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-black dark:text-white">{song.title}</div>
+                      {song.artist && (
+                        <div className="text-xs text-neutral-500">{song.artist}</div>
+                      )}
+                    </td>
                     <td className="px-4 py-3 tabular-nums">
-                      <DistributionSummaryCell
-                        demoId={demo.demoId}
-                        title={demo.title}
-                      />
+                      <DistributionSummaryCell songId={song.id} />
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Link href={`/distributions/${demo.demoId}`}>
+                      <Link href={`/distributions/${song.id}`}>
                         <Button size="sm" variant="outline">
                           {t("viewDetail")}
                         </Button>
@@ -95,9 +92,9 @@ export default function DistributionsPage() {
   );
 }
 
-function DistributionSummaryCell({ demoId }: { demoId: string; title: string }) {
+function DistributionSummaryCell({ songId }: { songId: string }) {
   const { data, isLoading } = useDistributions({
-    demoId,
+    songId,
     page: 0,
     size: 1,
     includeRevoked: true,

@@ -3,133 +3,242 @@ import { apiClient } from "@/lib/api-client";
 import type { QueryConfig, MutationConfig } from "@/lib/react-query";
 import type { ApiResponse, PaginatedResponse } from "@/types/api";
 import type {
-  ConfirmUploadRequest,
-  ConfirmUploadResponse,
-  DemoListItem,
-  DemoStatusResponse,
-  PresignedUrlRequest,
-  PresignedUrlResponse,
-  RotateKeyResponse,
+  ConfigureVoiceTagRequest,
+  CreateSongRequest,
+  SongListItem,
+  SongResponse,
+  UpdateSongRequest,
+  UploadUrlRequest,
+  UploadUrlResponse,
+  AudioUrlResponse,
 } from "../types";
 
-export const getDemos = ({
+export const getSongs = ({
   page,
   size,
 }: {
   page: number;
   size: number;
-}): Promise<ApiResponse<PaginatedResponse<DemoListItem>>> => {
+}): Promise<ApiResponse<PaginatedResponse<SongListItem>>> => {
   return apiClient
-    .get("/demos", { params: { page, size } })
+    .get("/songs", { params: { page, size } })
     .then((res) => res.data);
 };
 
-export const getDemoStatus = ({
-  demoId,
+export const getSong = ({
+  songId,
 }: {
-  demoId: string;
-}): Promise<ApiResponse<DemoStatusResponse>> => {
-  return apiClient.get(`/demos/${demoId}/status`).then((res) => res.data);
+  songId: string;
+}): Promise<ApiResponse<SongResponse>> => {
+  return apiClient.get(`/songs/${songId}`).then((res) => res.data);
 };
 
-export const requestPresignedUrl = ({
+export const getAudioUrl = ({
+  songId,
+  variant = "PROCESSED",
+  expiresIn = 3600,
+}: {
+  songId: string;
+  variant?: "ORIGINAL" | "PROCESSED";
+  expiresIn?: number;
+}): Promise<ApiResponse<AudioUrlResponse>> => {
+  return apiClient
+    .get(`/songs/${songId}/audio-url`, { params: { variant, expiresIn } })
+    .then((res) => res.data);
+};
+
+export const requestUploadUrl = ({
   data,
 }: {
-  data: PresignedUrlRequest;
-}): Promise<ApiResponse<PresignedUrlResponse>> => {
-  return apiClient
-    .post("/demos/presigned-upload-url", data)
-    .then((res) => res.data);
+  data: UploadUrlRequest;
+}): Promise<ApiResponse<UploadUrlResponse>> => {
+  return apiClient.post("/songs/upload-url", data).then((res) => res.data);
 };
 
-export const confirmUpload = ({
+export const createSong = ({
   data,
 }: {
-  data: ConfirmUploadRequest;
-}): Promise<ApiResponse<ConfirmUploadResponse>> => {
-  return apiClient.post("/demos/confirm-upload", data).then((res) => res.data);
+  data: CreateSongRequest;
+}): Promise<ApiResponse<SongResponse>> => {
+  return apiClient.post("/songs", data).then((res) => res.data);
 };
 
-export const rotateDemoKey = ({
-  demoId,
+export const configureVoiceTag = ({
+  songId,
+  data,
 }: {
-  demoId: string;
-}): Promise<ApiResponse<RotateKeyResponse>> => {
-  return apiClient
-    .post(`/demos/${demoId}/rotate-key`)
-    .then((res) => res.data);
+  songId: string;
+  data: ConfigureVoiceTagRequest;
+}): Promise<ApiResponse<unknown>> => {
+  return apiClient.put(`/songs/${songId}/voice-tag-config`, data).then((res) => res.data);
 };
 
-export const DEMOS_KEY = "audio-demos" as const;
-export const DEMO_STATUS_KEY = (demoId: string) =>
-  ["audio-demos-status", demoId] as const;
-
-type UseConfirmUploadOptions = {
-  mutationConfig?: MutationConfig<typeof confirmUpload>;
+export const triggerProcessing = ({
+  songId,
+}: {
+  songId: string;
+}): Promise<ApiResponse<SongResponse>> => {
+  return apiClient.post(`/songs/${songId}/trigger-processing`).then((res) => res.data);
 };
 
-export const useConfirmUpload = ({
+export const updateSong = ({
+  songId,
+  data,
+}: {
+  songId: string;
+  data: UpdateSongRequest;
+}): Promise<ApiResponse<SongResponse>> => {
+  return apiClient.patch(`/songs/${songId}`, data).then((res) => res.data);
+};
+
+export const deleteSong = ({
+  songId,
+}: {
+  songId: string;
+}): Promise<ApiResponse<void>> => {
+  return apiClient.delete(`/songs/${songId}`).then((res) => res.data);
+};
+
+export const SONGS_KEY = "audio-songs" as const;
+export const SONG_KEY = (songId: string) => ["audio-song", songId] as const;
+export const AUDIO_URL_KEY = (songId: string, variant: string) =>
+  ["audio-url", songId, variant] as const;
+
+type UseCreateSongOptions = {
+  mutationConfig?: MutationConfig<typeof createSong>;
+};
+
+export const useCreateSong = ({
   mutationConfig,
-}: UseConfirmUploadOptions = {}) => {
+}: UseCreateSongOptions = {}) => {
   const queryClient = useQueryClient();
   return useMutation({
     onSuccess: (response) => {
       if (response.success) {
-        queryClient.invalidateQueries({ queryKey: [DEMOS_KEY] });
+        queryClient.invalidateQueries({ queryKey: [SONGS_KEY] });
       }
     },
     ...mutationConfig,
-    mutationFn: confirmUpload,
+    mutationFn: createSong,
   });
 };
 
-type UseRotateDemoKeyOptions = {
-  mutationConfig?: MutationConfig<typeof rotateDemoKey>;
+type UseConfigureVoiceTagOptions = {
+  mutationConfig?: MutationConfig<typeof configureVoiceTag>;
 };
 
-export const useRotateDemoKey = ({
+export const useConfigureVoiceTag = ({
   mutationConfig,
-}: UseRotateDemoKeyOptions = {}) => {
+}: UseConfigureVoiceTagOptions = {}) => {
+  return useMutation({
+    ...mutationConfig,
+    mutationFn: configureVoiceTag,
+  });
+};
+
+type UseTriggerProcessingOptions = {
+  mutationConfig?: MutationConfig<typeof triggerProcessing>;
+};
+
+export const useTriggerProcessing = ({
+  mutationConfig,
+}: UseTriggerProcessingOptions = {}) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    onSuccess: (response, variables) => {
+      if (response.success) {
+        queryClient.invalidateQueries({ queryKey: SONG_KEY(variables.songId) });
+        queryClient.invalidateQueries({ queryKey: [SONGS_KEY] });
+      }
+    },
+    ...mutationConfig,
+    mutationFn: triggerProcessing,
+  });
+};
+
+type UseUpdateSongOptions = {
+  mutationConfig?: MutationConfig<typeof updateSong>;
+};
+
+export const useUpdateSong = ({
+  mutationConfig,
+}: UseUpdateSongOptions = {}) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    onSuccess: (response, variables) => {
+      if (response.success) {
+        queryClient.invalidateQueries({ queryKey: SONG_KEY(variables.songId) });
+        queryClient.invalidateQueries({ queryKey: [SONGS_KEY] });
+      }
+    },
+    ...mutationConfig,
+    mutationFn: updateSong,
+  });
+};
+
+type UseDeleteSongOptions = {
+  mutationConfig?: MutationConfig<typeof deleteSong>;
+};
+
+export const useDeleteSong = ({
+  mutationConfig,
+}: UseDeleteSongOptions = {}) => {
   const queryClient = useQueryClient();
   return useMutation({
     onSuccess: (response) => {
       if (response.success) {
-        queryClient.invalidateQueries({ queryKey: [DEMOS_KEY] });
-        queryClient.invalidateQueries({ queryKey: ["audio-demos-status"] });
+        queryClient.invalidateQueries({ queryKey: [SONGS_KEY] });
       }
     },
     ...mutationConfig,
-    mutationFn: rotateDemoKey,
+    mutationFn: deleteSong,
   });
 };
 
-export function useDemos({
+export function useSongs({
   page,
   size,
   queryConfig,
 }: {
   page: number;
   size: number;
-  queryConfig?: QueryConfig<typeof getDemos>;
+  queryConfig?: QueryConfig<typeof getSongs>;
 }) {
   return useQuery({
-    queryKey: [DEMOS_KEY, { page, size }],
-    queryFn: () => getDemos({ page, size }),
+    queryKey: [SONGS_KEY, { page, size }],
+    queryFn: () => getSongs({ page, size }),
     ...queryConfig,
   });
 }
 
-export function useDemoStatus({
-  demoId,
+export function useSong({
+  songId,
   queryConfig,
 }: {
-  demoId: string;
-  queryConfig?: QueryConfig<typeof getDemoStatus>;
+  songId: string;
+  queryConfig?: QueryConfig<typeof getSong>;
 }) {
   return useQuery({
-    queryKey: DEMO_STATUS_KEY(demoId),
-    queryFn: () => getDemoStatus({ demoId }),
-    enabled: Boolean(demoId),
+    queryKey: SONG_KEY(songId),
+    queryFn: () => getSong({ songId }),
+    enabled: Boolean(songId),
+    ...queryConfig,
+  });
+}
+
+export function useAudioUrl({
+  songId,
+  variant = "PROCESSED",
+  queryConfig,
+}: {
+  songId: string;
+  variant?: "ORIGINAL" | "PROCESSED";
+  queryConfig?: QueryConfig<typeof getAudioUrl>;
+}) {
+  return useQuery({
+    queryKey: AUDIO_URL_KEY(songId, variant),
+    queryFn: () => getAudioUrl({ songId, variant }),
+    enabled: Boolean(songId),
     ...queryConfig,
   });
 }

@@ -68,8 +68,8 @@ app:
 pwb:
   audio:
     processor:
-      # Requires ffmpeg and ffprobe on PATH; set the path explicitly if they live somewhere else.
-      ffmpeg-path: ${PWB_AUDIO_FFMPEG_PATH:ffmpeg}
+      # Directory holding ffmpeg and ffprobe. Empty resolves them from PATH.
+      ffmpeg-dir: ${PWB_AUDIO_FFMPEG_DIR:}
       working-dir: ${PWB_AUDIO_PROCESSOR_WORKING_DIR:./tmp/pwb-audio}
       cleanup-temp-files: ${PWB_AUDIO_CLEANUP_TEMP_FILES:true}
     upload:

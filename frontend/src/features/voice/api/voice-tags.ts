@@ -27,10 +27,9 @@ export const createTtsVoiceTag = ({
 export const listVoiceTags = ({
   page,
   size,
-  type,
 }: ListVoiceTagsParams): Promise<ApiResponse<PaginatedResponse<VoiceTag>>> =>
   apiClient
-    .get("/voice-tags", { params: { page, size, type } })
+    .get("/voice-tags", { params: { page, size } })
     .then((res) => res.data);
 
 export const updateVoiceTag = ({
@@ -41,7 +40,7 @@ export const updateVoiceTag = ({
   data: UpdateVoiceTagRequest;
 }): Promise<ApiResponse<VoiceTag>> =>
   apiClient
-    .put(`/voice-tags/${voiceTagId}`, data)
+    .patch(`/voice-tags/${voiceTagId}`, data)
     .then((res) => res.data);
 
 export const deleteVoiceTag = ({
@@ -57,7 +56,7 @@ export const getVoiceTagAudioUrl = ({
   voiceTagId: string;
 }): Promise<ApiResponse<AudioUrl>> =>
   apiClient
-    .get(`/voice-tags/${voiceTagId}/audio`)
+    .get(`/voice-tags/${voiceTagId}/audio-url`)
     .then((res) => res.data);
 
 type UseCreateTtsVoiceTagOptions = {
@@ -88,12 +87,11 @@ type UseListVoiceTagsOptions = {
 export const useListVoiceTags = ({
   page,
   size,
-  type,
   queryConfig,
 }: ListVoiceTagsParams & UseListVoiceTagsOptions) =>
   useQuery({
-    queryKey: [VOICE_TAGS_KEY, { page, size, type }],
-    queryFn: () => listVoiceTags({ page, size, type }),
+    queryKey: [VOICE_TAGS_KEY, { page, size }],
+    queryFn: () => listVoiceTags({ page, size }),
     ...queryConfig,
   });
 

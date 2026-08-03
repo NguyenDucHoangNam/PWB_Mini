@@ -16,31 +16,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { asApiError } from "@/lib/api-client";
-import { suggestRecipients, useDistributeDemo } from "@/features/audio";
-import type { DistributeDemoResponse } from "@/features/audio/types";
+import { suggestRecipients, useDistributeSong } from "@/features/audio";
+import type { DistributeSongResponse } from "@/features/audio/types";
 
-interface DistributeDemoModalProps {
+interface DistributeSongModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  demoId: string;
-  demoTitle?: string;
+  songId: string;
+  songTitle?: string;
 }
 
-export function DistributeDemoModal({
+export function DistributeSongModal({
   open,
   onOpenChange,
-  demoId,
-  demoTitle,
-}: DistributeDemoModalProps) {
+  songId,
+  songTitle,
+}: DistributeSongModalProps) {
   const t = useTranslations("dashboard.modals");
   const tCommon = useTranslations("dashboard.common");
   const [email, setEmail] = useState("");
   const [allowDownload, setAllowDownload] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<DistributeDemoResponse | null>(null);
+  const [result, setResult] = useState<DistributeSongResponse | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
 
-  const { mutate: distributeMutate, isPending } = useDistributeDemo();
+  const { mutate: distributeMutate, isPending } = useDistributeSong();
 
   useEffect(() => {
     if (!open) {
@@ -85,7 +85,7 @@ export function DistributeDemoModal({
     }
     distributeMutate(
       {
-        demoId,
+        songId,
         data: {
           recipientEmail: email.trim(),
           allowDownload,
@@ -129,7 +129,7 @@ export function DistributeDemoModal({
           <DialogHeader>
             <DialogTitle>{t("shareTitle")}</DialogTitle>
             <DialogDescription>
-              {demoTitle ? `${demoTitle} - ` : ""}
+              {songTitle ? `${songTitle} - ` : ""}
               {t("shareDesc")}
             </DialogDescription>
           </DialogHeader>

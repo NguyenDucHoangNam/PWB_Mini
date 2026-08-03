@@ -61,8 +61,8 @@ app:
 pwb:
   audio:
     processor:
-      # ffmpeg and ffprobe ship in the application image; see Backend/Dockerfile.
-      ffmpeg-path: ${PWB_AUDIO_FFMPEG_PATH:ffmpeg}
+      # ffmpeg and ffprobe ship in the application image on PATH; see Backend/Dockerfile.
+      ffmpeg-dir: ${PWB_AUDIO_FFMPEG_DIR:}
       # Scratch space for a single job: the source, the voice tag and the rendered output. Sized for the
       # largest song accepted, not for the number of songs queued — jobs run one at a time.
       working-dir: ${PWB_AUDIO_PROCESSOR_WORKING_DIR:/var/tmp/pwb-audio}

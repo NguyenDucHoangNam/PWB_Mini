@@ -13,7 +13,11 @@ function extractValidationDetails(error: ApiError): string | null {
   for (const [field, fieldMessages] of Object.entries(fieldErrors)) {
     if (Array.isArray(fieldMessages)) {
       for (const msg of fieldMessages) {
-        messages.push(`${field}: ${msg}`);
+        if (/[\u00C0-\u024F\u1EA0-\u1EF9]/.test(msg) || (/^[A-Z]/.test(msg) && msg.includes(" "))) {
+          messages.push(msg);
+        } else {
+          messages.push(`${field}: ${msg}`);
+        }
       }
     }
   }

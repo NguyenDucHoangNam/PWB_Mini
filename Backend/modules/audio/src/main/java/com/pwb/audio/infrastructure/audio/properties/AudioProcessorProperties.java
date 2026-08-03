@@ -7,7 +7,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "pwb.audio.processor")
 public class AudioProcessorProperties {
 
-    private String ffmpegPath = "ffmpeg";
+    /**
+     * Directory holding the {@code ffmpeg} and {@code ffprobe} executables — a directory, not a path to a
+     * binary. Empty, the default, resolves both from {@code PATH}.
+     */
+    private String ffmpegDir = "";
 
     private String workingDir = "./tmp/pwb-audio";
 

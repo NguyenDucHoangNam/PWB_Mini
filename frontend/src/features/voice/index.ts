@@ -18,22 +18,28 @@ export {
   SONGS_KEY,
   songKey,
   getPresignedUploadUrl,
-  uploadSong,
+  createSong,
   listSongs,
   getSong,
   updateSong,
   deleteSong,
-  useUploadSong,
+  configureVoiceTag,
+  triggerProcessing,
+  useCreateSong,
   useListSongs,
   useSong,
   useUpdateSong,
   useDeleteSong,
+  useConfigureVoiceTag,
+  useTriggerProcessing,
 } from "./api/songs";
 export {
   SONG_STREAM_KEY,
   songStreamKey,
   getOriginalUrl,
   useOriginalUrl,
+  getProcessedUrl,
+  useProcessedUrl,
 } from "./api/song-stream";
 export { usePresignedUrl } from "./hooks/use-presigned-url";
 export { useFileValidation, MAX_AUDIO_FILE_SIZE } from "./hooks/use-file-validation";

@@ -654,18 +654,34 @@
         "fileRequired": "Please select an audio file",
         "uploadingProgress": "Uploading...",
         "uploadSuccess": "Song uploaded successfully",
+        "dropzoneTitle": "Drag & drop your audio file here, or click to browse",
+        "dropzoneHint": "Supports MP3, WAV, FLAC (max size 100MB)",
+        "changeFile": "Change file",
+        "newSongTitle": "Upload New Song",
+        "newSongSubtitle": "Upload your raw audio track and configure Voice Tag watermarking",
+        "timelineTitle": "Voice Tag & Ducking Preview (Simulated 3-minute track)",
+        "timelineInsertions": "Total insertions: {count} times",
+        "timelinePositions": "Insertion times:",
+        "duckingStatus": "Background music dims to {percent}% when Voice Tag speaks",
         "attachVoiceTag": "Attach Voice Tag during upload",
         "selectVoiceTag": "Select Voice Tag",
         "selectVoiceTagPlaceholder": "Select a voice tag...",
         "noVoiceTags": "No Voice Tags available. You can create one under Voice Tags tab.",
         "intervalSeconds": "Repeat Interval (seconds)",
+        "intervalHint": "Tag repetition frequency (5 to 600 seconds)",
         "volumePercentage": "Voice Tag Volume (%)",
-        "fadeInDurationMs": "Fade in (ms)",
-        "fadeInHint": "Gradually increase voice tag volume",
-        "fadeOutDurationMs": "Fade out (ms)",
-        "fadeOutHint": "Gradually decrease voice tag volume",
-        "startOffsetSeconds": "Start offset (seconds)",
-        "startOffsetHint": "Skip this many seconds before first insertion"
+        "volumeHint": "Loudness level of the Voice Tag (0 - 100%)",
+        "duckingPercentage": "Background Audio Ducking (%)",
+        "duckingHint": "Background music volume level maintained while Voice Tag plays (e.g. 30% means music dims down to 30%).",
+        "duckingTooltip": "Audio Ducking automatically lowers the background music whenever the Voice Tag plays, ensuring your voice watermark is clearly audible without being drowned out.",
+        "startOffsetSeconds": "Start Offset (seconds)",
+        "startOffsetHint": "Initial delay in seconds before playing the first Voice Tag",
+        "uploadProgress": "Uploading... {percent}%",
+        "uploadProgressDetail": "{loaded} / {total} MB",
+        "uploadPreparing": "Preparing upload...",
+        "uploadCreating": "Creating song...",
+        "cancelUpload": "Cancel upload",
+        "uploadCancelled": "Upload cancelled"
       },
       "delete": {
         "confirmTitle": "Delete song?",
@@ -686,10 +702,8 @@
       "intervalHint": "Insert voice tag every N seconds",
       "volumePercentage": "Volume",
       "volumeHint": "How loud the voice tag plays (0-100%)",
-      "fadeInMs": "Fade in (ms)",
-      "fadeInHint": "Gradually fade in the voice tag",
-      "fadeOutMs": "Fade out (ms)",
-      "fadeOutHint": "Gradually fade out the voice tag",
+      "duckingPercentage": "Background Ducking",
+      "duckingHint": "Background music volume level during Voice Tag play (0-100%)",
       "startOffsetSeconds": "Start offset (seconds)",
       "startOffsetHint": "Skip this many seconds before first insertion",
       "enabled": "Enabled",
@@ -735,6 +749,7 @@
       "invalidLanguageCode": "Invalid language code format (e.g. en-US)",
       "genericError": "Something went wrong. Please try again.",
       "fileRequired": "Please select an audio file",
+      "invalidDuration": "Unable to determine audio duration. Please select a valid audio file.",
       "duplicateVoiceTagName": "Voice tag name already exists"
     },
     "actions": {
@@ -797,6 +812,10 @@
     "startOffset": {
       "min": "Start offset must be at least {min}",
       "max": "Start offset must not exceed {max}"
+    },
+    "durationSeconds": {
+      "positive": "Song duration must be greater than 0",
+      "required": "Song duration must not be empty"
     }
   }
 }

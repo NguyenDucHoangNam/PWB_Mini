@@ -4,13 +4,16 @@ export const uploadSongFormSchema = z.object({
   title: z
     .string()
     .min(1, { message: "validation.title.required" })
-    .max(256, { message: "validation.title.maxlength" }),
+    .max(200, { message: "validation.title.maxlength" }),
   attachVoiceTag: z.boolean().default(false),
   voiceTagId: z.string().optional().or(z.literal("")),
-  intervalSeconds: z.coerce.number().min(1, { message: "validation.interval.min" }).default(10),
+  intervalSeconds: z.coerce
+    .number()
+    .min(5, { message: "validation.interval.min" })
+    .max(600, { message: "validation.interval.max" })
+    .default(30),
   volumePercentage: z.coerce.number().min(0).max(100).default(80),
-  fadeInDurationMs: z.coerce.number().min(0).default(0),
-  fadeOutDurationMs: z.coerce.number().min(0).default(0),
+  duckingPercentage: z.coerce.number().min(0).max(100).default(50),
   startOffsetSeconds: z.coerce.number().min(0).default(0),
 });
 
@@ -21,7 +24,7 @@ export const updateSongFormSchema = z.object({
   title: z
     .string()
     .min(1, { message: "validation.title.required" })
-    .max(256, { message: "validation.title.maxlength" }),
+    .max(200, { message: "validation.title.maxlength" }),
 });
 
 export type UpdateSongFormValues = z.infer<typeof updateSongFormSchema>;

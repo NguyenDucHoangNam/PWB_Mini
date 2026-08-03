@@ -1,72 +1,85 @@
-export type DemoStatus =
-  | "PROCESSING"
-  | "ACTIVE"
-  | "FAILED"
-  | "REVOKED"
-  | "DELETED";
+import { SongStatus } from "./song-status";
 
-export interface DemoListItem {
-  demoId: string;
+export { SongStatus };
+
+export interface SongListItem {
+  id: string;
+  userId: string;
   title: string;
-  status: DemoStatus;
-  fileSize: number;
-  duration: number | null;
-  sampleRate: number | null;
+  artist: string | null;
+  album: string | null;
+  fileSizeBytes: number | null;
+  durationSeconds: number | null;
   format: string | null;
-  voiceTagId: string | null;
-  voiceTagOwnerId: string | null;
-  voiceTagTextContent: string | null;
-  voiceTagLanguageCode: string | null;
-  voiceTagVoiceName: string | null;
+  status: SongStatus;
+  thumbnailUrl: string | null;
+  lastError: string | null;
+  processed: boolean;
   createdAt: string;
   updatedAt: string;
-  errorMessage: string | null;
 }
 
-export interface PresignedUrlRequest {
-  fileName: string;
-  contentType: string;
-  fileSize: number;
+export interface VoiceTagConfig {
+  id: string;
+  songId: string;
+  voiceTagId: string;
+  intervalSeconds: number;
+  volumePercentage: number;
+  duckingPercentage: number;
+  startOffsetSeconds: number;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface PresignedUrlResponse {
-  uploadUrl: string;
-  s3Key: string;
-  expiresInSeconds: number;
-  issuedAt: string;
-  maxSizeBytes: number;
-  contentType: string;
-}
-
-export interface ConfirmUploadRequest {
-  s3Key: string;
-  title: string;
-  voiceTagId?: string | null;
-  watermarkInterval?: number | null;
-}
-
-export interface ConfirmUploadResponse {
-  demoId: string;
-  status: DemoStatus;
-}
-
-export interface DemoStatusResponse {
-  demoId: string;
-  status: DemoStatus;
-  title: string;
-  duration: number;
-  sampleRate: number;
+export interface UploadUrlRequest {
   format: string;
-  waveform: number[];
-  hlsPlaylistUrl: string;
-  errorMessage: string | null;
 }
 
-export interface RotateKeyResponse {
-  demoId: string;
-  newVersion: number;
-  rotated: boolean;
-  messageKey: string;
+export interface UploadUrlResponse {
+  storageKey: string;
+  url: string;
+  expiresAt: string;
+}
+
+export interface CreateSongRequest {
+  title: string;
+  originalS3Key: string;
+  durationSeconds: number;
+  format: string;
+  voiceTagConfig?: ConfigureVoiceTagRequest | null;
+}
+
+export interface ConfigureVoiceTagRequest {
+  voiceTagId: string;
+  intervalSeconds: number;
+  volumePercentage: number;
+  duckingPercentage: number;
+  startOffsetSeconds: number;
+  enabled: boolean;
+}
+
+export interface SongResponse {
+  id: string;
+  userId: string;
+  title: string;
+  artist: string | null;
+  album: string | null;
+  fileSizeBytes: number | null;
+  durationSeconds: number | null;
+  format: string | null;
+  status: SongStatus;
+  thumbnailUrl: string | null;
+  lastError: string | null;
+  processed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AudioUrlResponse {
+  url: string;
+  expiresAt: string;
+  variant: string;
 }
 
 export interface DistributionListItem {
@@ -85,16 +98,20 @@ export interface DistributionListItem {
   continuousPlaySupported: boolean;
 }
 
-export interface DistributeDemoRequest {
+export interface DistributeSongRequest {
   recipientEmail: string;
   allowDownload: boolean;
 }
 
-export interface DistributeDemoResponse {
+export interface DistributeSongResponse {
   distributionId: string;
   threadId: string;
   shareToken: string;
   recipientEmail: string;
   allowDownload: boolean;
   shareLink: string;
+}
+
+export interface UpdateSongRequest {
+  title: string;
 }

@@ -3,20 +3,21 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import {
-  useDemos,
+  useSongs,
   UploadDemoModal,
-  DistributeDemoModal,
+  DistributeSongModal,
 } from "@/features/audio";
-import type { DemoListItem, DemoStatus } from "@/features/audio/types";
+import { SongStatus } from "@/features/audio/types";
+import type { SongListItem } from "@/features/audio/types";
 
-type StatusFilter = "ALL" | DemoStatus;
+type StatusFilter = "ALL" | SongStatus;
 
-function formatBytes(bytes: number) {
+function formatBytes(bytes: number | null) {
+  if (bytes === null) return "-";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -35,20 +36,18 @@ function formatDate(iso: string) {
   return d.toLocaleString();
 }
 
-function StatusBadge({ status }: { status: DemoStatus }) {
-  const t = useTranslations("dashboard.demos");
-  const styles: Record<DemoStatus, string> = {
+function StatusBadge({ status }: { status: SongStatus }) {
+  const t = useTranslations("dashboard.songs");
+  const styles: Record<SongStatus, string> = {
     PROCESSING: "border-yellow-300 bg-yellow-50 text-yellow-800 dark:border-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-300",
-    ACTIVE: "border-green-300 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300",
+    UPLOADED: "border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300",
+    PROCESSED: "border-green-300 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950/30 dark:text-green-300",
     FAILED: "border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300",
-    REVOKED: "border-neutral-300 bg-neutral-100 text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300",
-    DELETED: "border-neutral-300 bg-neutral-100 text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300",
   };
   const label = status === "PROCESSING" ? t("statusProcessing")
-    : status === "ACTIVE" ? t("statusActive")
-    : status === "FAILED" ? t("statusFailed")
-    : status === "REVOKED" ? t("statusRevoked")
-    : t("statusDeleted");
+    : status === "UPLOADED" ? t("statusUploaded")
+    : status === "PROCESSED" ? t("statusProcessed")
+    : t("statusFailed");
 
   return (
     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${styles[status]}`}>
@@ -59,32 +58,32 @@ function StatusBadge({ status }: { status: DemoStatus }) {
 
 const STATUS_LABELS: { value: StatusFilter; label: string }[] = [
   { value: "ALL", label: "filterAll" },
-  { value: "ACTIVE", label: "filterActive" },
-  { value: "PROCESSING", label: "filterProcessing" },
-  { value: "FAILED", label: "filterFailed" },
+  { value: SongStatus.PROCESSED, label: "filterProcessed" },
+  { value: SongStatus.PROCESSING, label: "filterProcessing" },
+  { value: SongStatus.FAILED, label: "filterFailed" },
 ];
 
-export default function DemosPage() {
-  const t = useTranslations("dashboard.demos");
+export default function SongsPage() {
+  const t = useTranslations("dashboard.songs");
   const tDashboard = useTranslations("dashboard");
   const router = useRouter();
   const [page, setPage] = useState(0);
   const [filter, setFilter] = useState<StatusFilter>("ALL");
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [distributeDemoId, setDistributeDemoId] = useState<string | null>(null);
+  const [distributeSongId, setDistributeSongId] = useState<string | null>(null);
 
-  const { data: demosRes, isLoading, isFetching } = useDemos({
+  const { data: songsRes, isLoading, isFetching } = useSongs({
     page,
     size: DEFAULT_PAGE_SIZE,
   });
 
-  const allDemos: DemoListItem[] = demosRes?.success && demosRes.data ? demosRes.data.content : [];
-  const totalPages = demosRes?.success && demosRes.data ? demosRes.data.totalPages : 0;
-  const totalElements = demosRes?.success && demosRes.data ? demosRes.data.totalElements : 0;
+  const allSongs: SongListItem[] = songsRes?.success && songsRes.data ? songsRes.data.content : [];
+  const totalPages = songsRes?.success && songsRes.data ? songsRes.data.totalPages : 0;
+  const totalElements = songsRes?.success && songsRes.data ? songsRes.data.totalElements : 0;
 
-  const filteredDemos = filter === "ALL" ? allDemos : allDemos.filter((d) => d.status === filter);
+  const filteredSongs = filter === "ALL" ? allSongs : allSongs.filter((s) => s.status === filter);
 
-  const distributeDemo = filteredDemos.find((d) => d.demoId === distributeDemoId) ?? null;
+  const distributeSong = filteredSongs.find((s) => s.id === distributeSongId) ?? null;
 
   return (
     <div className="flex flex-col gap-6 font-sans">
@@ -123,7 +122,7 @@ export default function DemosPage() {
             <Spinner size="md" />
             {tDashboard("common.loading")}
           </div>
-        ) : filteredDemos.length === 0 ? (
+        ) : filteredSongs.length === 0 ? (
           <div className="flex flex-col items-center gap-3 p-12 text-center">
             <h2 className="text-lg font-semibold text-black dark:text-white">
               {t("emptyTitle")}
@@ -150,40 +149,40 @@ export default function DemosPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredDemos.map((demo) => (
+                {filteredSongs.map((song) => (
                   <tr
-                    key={demo.demoId}
+                    key={song.id}
                     className="border-b border-neutral-200 last:border-b-0 hover:bg-neutral-50/60 dark:border-neutral-800 dark:hover:bg-neutral-900/30"
                   >
                     <td className="px-4 py-3">
-                      <div className="font-medium text-black dark:text-white">{demo.title}</div>
-                      {demo.errorMessage && (
+                      <div className="font-medium text-black dark:text-white">{song.title}</div>
+                      {song.lastError && (
                         <div className="mt-1 text-xs text-red-600 dark:text-red-400">
-                          {demo.errorMessage}
+                          {song.lastError}
                         </div>
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <StatusBadge status={demo.status} />
+                      <StatusBadge status={song.status} />
                     </td>
-                    <td className="px-4 py-3 tabular-nums">{formatDuration(demo.duration)}</td>
-                    <td className="px-4 py-3 tabular-nums">{formatBytes(demo.fileSize)}</td>
-                    <td className="px-4 py-3 uppercase">{demo.format ?? "-"}</td>
-                    <td className="px-4 py-3 text-neutral-500">{formatDate(demo.createdAt)}</td>
+                    <td className="px-4 py-3 tabular-nums">{formatDuration(song.durationSeconds)}</td>
+                    <td className="px-4 py-3 tabular-nums">{formatBytes(song.fileSizeBytes)}</td>
+                    <td className="px-4 py-3 uppercase">{song.format ?? "-"}</td>
+                    <td className="px-4 py-3 text-neutral-500">{formatDate(song.createdAt)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => router.push(`/demos/${demo.demoId}`)}
+                          onClick={() => router.push(`/songs/${song.id}`)}
                         >
                           {t("viewDetail")}
                         </Button>
-                        {demo.status === "ACTIVE" && (
+                        {song.status === "PROCESSED" && (
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => setDistributeDemoId(demo.demoId)}
+                            onClick={() => setDistributeSongId(song.id)}
                           >
                             {t("shareBtn")}
                           </Button>
@@ -203,7 +202,7 @@ export default function DemosPage() {
           <span className="text-neutral-500 dark:text-neutral-400">
             {t("pageOf", { page: page + 1, total: totalPages || 1 })}
             {" - "}
-            {totalElements} {tDashboard("demosTotalLabel").toLowerCase()}
+            {totalElements} {tDashboard("songsTotalLabel").toLowerCase()}
           </span>
           <div className="flex gap-2">
             <Button
@@ -232,12 +231,12 @@ export default function DemosPage() {
         onSuccess={() => setPage(0)}
       />
 
-      {distributeDemo && (
-        <DistributeDemoModal
-          open={distributeDemoId !== null}
-          onOpenChange={(o) => !o && setDistributeDemoId(null)}
-          demoId={distributeDemo.demoId}
-          demoTitle={distributeDemo.title}
+      {distributeSong && (
+        <DistributeSongModal
+          open={distributeSongId !== null}
+          onOpenChange={(o) => !o && setDistributeSongId(null)}
+          songId={distributeSong.id}
+          songTitle={distributeSong.title}
         />
       )}
     </div>

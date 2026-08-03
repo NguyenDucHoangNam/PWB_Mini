@@ -3,11 +3,15 @@ import { apiClient } from "@/lib/api-client";
 import type { QueryConfig, MutationConfig } from "@/lib/react-query";
 import type { ApiResponse, PaginatedResponse } from "@/types/api";
 import type {
+  AudioUrl,
+  ConfigureVoiceTagRequest,
+  CreateSongRequest,
   ListSongsParams,
   Song,
   SongStatus,
+  VoiceTagConfig,
   UpdateSongRequest,
-  UploadSongRequest,
+  UploadUrlResponse,
 } from "../types";
 
 export const SONGS_KEY = "voice-songs" as const;
@@ -18,23 +22,22 @@ export const getPresignedUploadUrl = ({
   format,
 }: {
   format: string;
-}): Promise<ApiResponse<{ originalS3Key: string; uploadUrl: string; expiresInSeconds: number }>> =>
+}): Promise<ApiResponse<UploadUrlResponse>> =>
   apiClient
-    .post("/songs/presigned-upload-url", { format })
+    .post("/songs/upload-url", { format })
     .then((res) => res.data);
 
-export const uploadSong = (
-  data: UploadSongRequest,
+export const createSong = (
+  data: CreateSongRequest,
 ): Promise<ApiResponse<Song>> =>
-  apiClient.post("/songs/upload", data).then((res) => res.data);
+  apiClient.post("/songs", data).then((res) => res.data);
 
 export const listSongs = ({
   page,
   size,
-  status,
 }: ListSongsParams): Promise<ApiResponse<PaginatedResponse<Song>>> =>
   apiClient
-    .get("/songs", { params: { page, size, status } })
+    .get("/songs", { params: { page, size } })
     .then((res) => res.data);
 
 export const getSong = ({
@@ -51,7 +54,7 @@ export const updateSong = ({
   songId: string;
   data: UpdateSongRequest;
 }): Promise<ApiResponse<Song>> =>
-  apiClient.put(`/songs/${songId}`, data).then((res) => res.data);
+  apiClient.patch(`/songs/${songId}`, data).then((res) => res.data);
 
 export const deleteSong = ({
   songId,
@@ -60,24 +63,39 @@ export const deleteSong = ({
 }): Promise<ApiResponse<void>> =>
   apiClient.delete(`/songs/${songId}`).then((res) => res.data);
 
+export const configureVoiceTag = ({
+  songId,
+  data,
+}: {
+  songId: string;
+  data: ConfigureVoiceTagRequest;
+}): Promise<ApiResponse<VoiceTagConfig>> =>
+  apiClient.put(`/songs/${songId}/voice-tag-config`, data).then((res) => res.data);
 
+export const triggerProcessing = ({
+  songId,
+}: {
+  songId: string;
+}): Promise<ApiResponse<Song>> =>
+  apiClient.post(`/songs/${songId}/trigger-processing`).then((res) => res.data);
 
-type UseUploadSongOptions = {
-  mutationConfig?: MutationConfig<typeof uploadSong>;
+type UseCreateSongOptions = {
+  mutationConfig?: MutationConfig<typeof createSong>;
 };
 
-export const useUploadSong = ({
+export const useCreateSong = ({
   mutationConfig,
-}: UseUploadSongOptions = {}) => {
+}: UseCreateSongOptions = {}) => {
   const queryClient = useQueryClient();
   return useMutation({
-    onSuccess: (response) => {
+    onSuccess: (response, variables, onMutateResult, context) => {
       if (response.success) {
         queryClient.invalidateQueries({ queryKey: [SONGS_KEY] });
       }
+      return mutationConfig?.onSuccess?.(response, variables, onMutateResult, context);
     },
     ...mutationConfig,
-    mutationFn: uploadSong,
+    mutationFn: createSong,
   });
 };
 
@@ -88,12 +106,11 @@ type UseListSongsOptions = {
 export const useListSongs = ({
   page,
   size,
-  status,
   queryConfig,
 }: ListSongsParams & UseListSongsOptions) =>
   useQuery({
-    queryKey: [SONGS_KEY, { page, size, status }],
-    queryFn: () => listSongs({ page, size, status }),
+    queryKey: [SONGS_KEY, { page, size }],
+    queryFn: () => listSongs({ page, size }),
     staleTime: 0,
     ...queryConfig,
   });
@@ -125,13 +142,14 @@ export const useUpdateSong = ({
 }: UseUpdateSongOptions = {}) => {
   const queryClient = useQueryClient();
   return useMutation({
-    onSuccess: (response, variables) => {
+    onSuccess: (response, variables, onMutateResult, context) => {
       if (response.success) {
         queryClient.invalidateQueries({ queryKey: [SONGS_KEY] });
         queryClient.invalidateQueries({
           queryKey: songKey(variables.songId),
         });
       }
+      return mutationConfig?.onSuccess?.(response, variables, onMutateResult, context);
     },
     ...mutationConfig,
     mutationFn: updateSong,
@@ -147,18 +165,59 @@ export const useDeleteSong = ({
 }: UseDeleteSongOptions = {}) => {
   const queryClient = useQueryClient();
   return useMutation({
-    onSuccess: (response, variables) => {
+    onSuccess: (response, variables, onMutateResult, context) => {
       if (response.success) {
         queryClient.invalidateQueries({ queryKey: [SONGS_KEY] });
         queryClient.invalidateQueries({
           queryKey: songKey(variables.songId),
         });
       }
+      return mutationConfig?.onSuccess?.(response, variables, onMutateResult, context);
     },
     ...mutationConfig,
     mutationFn: deleteSong,
   });
 };
 
+type UseConfigureVoiceTagOptions = {
+  mutationConfig?: MutationConfig<typeof configureVoiceTag>;
+};
 
-export type { Song, SongStatus };
+export const useConfigureVoiceTag = ({
+  mutationConfig,
+}: UseConfigureVoiceTagOptions = {}) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    onSuccess: (response, variables, onMutateResult, context) => {
+      if (response.success) {
+        queryClient.invalidateQueries({ queryKey: songKey(variables.songId) });
+      }
+      return mutationConfig?.onSuccess?.(response, variables, onMutateResult, context);
+    },
+    ...mutationConfig,
+    mutationFn: configureVoiceTag,
+  });
+};
+
+type UseTriggerProcessingOptions = {
+  mutationConfig?: MutationConfig<typeof triggerProcessing>;
+};
+
+export const useTriggerProcessing = ({
+  mutationConfig,
+}: UseTriggerProcessingOptions = {}) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    onSuccess: (response, variables, onMutateResult, context) => {
+      if (response.success) {
+        queryClient.invalidateQueries({ queryKey: songKey(variables.songId) });
+        queryClient.invalidateQueries({ queryKey: [SONGS_KEY] });
+      }
+      return mutationConfig?.onSuccess?.(response, variables, onMutateResult, context);
+    },
+    ...mutationConfig,
+    mutationFn: triggerProcessing,
+  });
+};
+
+export type { Song, SongStatus };

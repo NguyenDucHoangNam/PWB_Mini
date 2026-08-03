@@ -16,10 +16,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import {
-  confirmUpload,
-  requestPresignedUrl,
+  requestUploadUrl,
+  createSong,
 } from "@/features/audio";
-import type { PresignedUrlResponse } from "@/features/audio/types";
+import type { UploadUrlResponse } from "@/features/audio/types";
+
 const ALLOWED_CONTENT_TYPES = [
   "audio/wav",
   "audio/wave",
@@ -28,6 +29,15 @@ const ALLOWED_CONTENT_TYPES = [
   "audio/mp3",
   "audio/mpeg",
 ] as const;
+
+const AUDIO_FORMAT_MAP: Record<string, string> = {
+  "audio/wav": "wav",
+  "audio/wave": "wav",
+  "audio/flac": "flac",
+  "audio/x-flac": "flac",
+  "audio/mp3": "mp3",
+  "audio/mpeg": "mp3",
+};
 
 type UploadStep = "form" | "uploading" | "confirming" | "done";
 
@@ -46,17 +56,15 @@ export function UploadDemoModal({ open, onOpenChange, onSuccess }: UploadDemoMod
   const [step, setStep] = useState<UploadStep>("form");
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
-  const [watermarkInterval, setWatermarkInterval] = useState<string>("");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [presigned, setPresigned] = useState<PresignedUrlResponse | null>(null);
+  const [presigned, setPresigned] = useState<UploadUrlResponse | null>(null);
 
   useEffect(() => {
     if (!open) {
       setStep("form");
       setFile(null);
       setTitle("");
-      setWatermarkInterval("");
       setProgress(0);
       setError(null);
       setPresigned(null);
@@ -88,17 +96,14 @@ export function UploadDemoModal({ open, onOpenChange, onSuccess }: UploadDemoMod
       return false;
     }
     const trimmedTitle = title.trim();
-    if (trimmedTitle.length < 2 || trimmedTitle.length > 100) {
+    if (trimmedTitle.length < 2 || trimmedTitle.length > 200) {
       setError(t("uploadErrorTitle"));
       return false;
     }
     try {
-      const res = await requestPresignedUrl({
-        data: {
-          fileName: file.name,
-          contentType: file.type,
-          fileSize: file.size,
-        },
+      const format = AUDIO_FORMAT_MAP[file.type] || "mp3";
+      const res = await requestUploadUrl({
+        data: { format },
       });
       if (!res.success || !res.data) {
         setError(res.message || tCommon("error"));
@@ -125,7 +130,7 @@ export function UploadDemoModal({ open, onOpenChange, onSuccess }: UploadDemoMod
     });
     xhr.addEventListener("load", () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        confirmUploadNow();
+        createSongNow();
       } else {
         setStep("form");
         setError(tCommon("error"));
@@ -138,22 +143,22 @@ export function UploadDemoModal({ open, onOpenChange, onSuccess }: UploadDemoMod
     xhr.addEventListener("abort", () => {
       setStep("form");
     });
-    xhr.open("PUT", presigned.uploadUrl);
-    if (presigned.contentType) {
-      xhr.setRequestHeader("Content-Type", presigned.contentType);
-    }
+    xhr.open("PUT", presigned.url);
+    xhr.setRequestHeader("Content-Type", file.type);
     xhr.send(file);
   };
 
-  const confirmUploadNow = async () => {
+  const createSongNow = async () => {
     if (!presigned) return;
     setStep("confirming");
     try {
-      const res = await confirmUpload({
+      const format = AUDIO_FORMAT_MAP[file?.type || ""] || "mp3";
+      const res = await createSong({
         data: {
-          s3Key: presigned.s3Key,
           title: title.trim(),
-          watermarkInterval: watermarkInterval ? Number(watermarkInterval) : null,
+          originalS3Key: presigned.storageKey,
+          durationSeconds: 0,
+          format,
         },
       });
       if (!res.success) {
@@ -219,18 +224,7 @@ export function UploadDemoModal({ open, onOpenChange, onSuccess }: UploadDemoMod
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder={t("uploadTitleLabel")}
-                  maxLength={100}
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="upload-watermark">{t("uploadWatermarkLabel")}</Label>
-                <Input
-                  id="upload-watermark"
-                  type="number"
-                  min={10}
-                  value={watermarkInterval}
-                  onChange={(e) => setWatermarkInterval(e.target.value)}
+                  maxLength={200}
                 />
               </div>
 

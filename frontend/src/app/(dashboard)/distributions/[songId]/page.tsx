@@ -20,11 +20,11 @@ import { Label } from "@/components/ui/label";
 import { asApiError } from "@/lib/api-client";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import {
-  DistributeDemoModal,
+  DistributeSongModal,
   useDistributions,
-  useDemos,
-  useRevokeAllDistributions,
+  useSong,
   useRevokeDistribution,
+  useRevokeAllDistributions,
 } from "@/features/audio";
 
 function formatDate(iso: string) {
@@ -32,23 +32,21 @@ function formatDate(iso: string) {
 }
 
 export default function DistributionsDetailPage() {
-  const params = useParams<{ demoId: string }>();
+  const params = useParams<{ songId: string }>();
   const router = useRouter();
   const t = useTranslations("dashboard.distributions");
 
-  const demoId = params?.demoId ?? "";
+  const songId = params?.songId ?? "";
   const [page, setPage] = useState(0);
   const [includeRevoked, setIncludeRevoked] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [confirmRevokeAll, setConfirmRevokeAll] = useState(false);
 
-  const { data: demosRes } = useDemos({ page: 0, size: 100 });
-  const demo = demosRes?.success && demosRes.data
-    ? demosRes.data.content.find((d) => d.demoId === demoId) ?? null
-    : null;
+  const { data: songRes } = useSong({ songId });
+  const song = songRes?.success && songRes.data ? songRes.data : null;
 
   const { data: distRes, isLoading, refetch } = useDistributions({
-    demoId,
+    songId,
     page,
     size: DEFAULT_PAGE_SIZE,
     includeRevoked,
@@ -72,7 +70,7 @@ export default function DistributionsDetailPage() {
 
   const handleRevoke = (distributionId: string) => {
     revokeMutate(
-      { demoId, distributionId },
+      { songId, distributionId },
       {
         onSuccess: () => {
           toast.success(t("revokeBtn"));
@@ -85,7 +83,7 @@ export default function DistributionsDetailPage() {
 
   const handleRevokeAll = () => {
     revokeAllMutate(
-      { demoId },
+      { songId },
       {
         onSuccess: (res) => {
           if (res.success) {
@@ -111,7 +109,7 @@ export default function DistributionsDetailPage() {
       <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
-            {demo?.title ?? t("detailTitle")}
+            {song?.title ?? t("detailTitle")}
           </h1>
           <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("detailSubtitle")}</p>
         </div>
@@ -234,11 +232,11 @@ export default function DistributionsDetailPage() {
         </div>
       )}
 
-      <DistributeDemoModal
+      <DistributeSongModal
         open={shareOpen}
         onOpenChange={setShareOpen}
-        demoId={demoId}
-        demoTitle={demo?.title}
+        songId={songId}
+        songTitle={song?.title}
       />
 
       <Dialog open={confirmRevokeAll} onOpenChange={setConfirmRevokeAll}>
