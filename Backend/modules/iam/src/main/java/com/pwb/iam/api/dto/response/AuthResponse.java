@@ -1,7 +1,7 @@
 package com.pwb.iam.api.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.pwb.iam.application.facade.AuthView;
+import com.pwb.iam.application.dto.AuthView;
 
 import java.util.UUID;
 
@@ -21,6 +21,7 @@ public record AuthResponse(
         String avatarUrl,
         String status,
         String role,
+        String oauthProvider,
         String tokenType,
         long expiresIn,
         String accessToken
@@ -36,6 +37,7 @@ public record AuthResponse(
                 view.avatarUrl(),
                 view.status(),
                 view.role(),
+                view.oauthProvider(),
                 BEARER,
                 view.expiresInSeconds(),
                 view.accessToken()

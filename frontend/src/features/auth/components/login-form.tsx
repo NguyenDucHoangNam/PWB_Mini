@@ -1,19 +1,22 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
+import { useForm } from "react-hook-form";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useLogin, useLoginWithGoogle } from "../api/login";
 import { useAuthStore } from "../stores/use-auth-store";
 import { useGoogleIdentity } from "../hooks/use-google-identity";
 import { useRetryCountdown } from "../hooks/use-retry-countdown";
-import { useCaptureReturnTo } from "@/hooks/use-return-to";
+import { useCaptureReturnTo, useRedirectAfterLogin } from "@/hooks/use-return-to";
 import { broadcastAuthMessage } from "@/lib/broadcast-channel";
 import { decodeJwtExpiry } from "@/lib/jwt-decode";
 import { asApiError } from "@/lib/api-client";
+import { IamErrorCode } from "../lib/iam-error-codes";
+import { loginSchema, type LoginFormValues } from "../schemas/login-schema";
 import { sanitizeApiMessage } from "@/lib/form-errors";
-import type { ApiError } from "@/lib/api-client";
 import type { AuthUser } from "../types";
 import { mapAuthResponseToUser } from "../lib/map-auth-response";
 import { PasswordInput } from "./password-input";
@@ -26,19 +29,30 @@ export function LoginForm() {
   const t = useTranslations("auth.login");
 
   const router = useRouter();
-  const pathname = usePathname();
-  const locale = pathname.split("/")[1] || "vi";
+  const locale = useLocale();
   const { mutate: loginMutate, isPending } = useLogin();
   const { mutate: loginWithGoogleMutate } = useLoginWithGoogle();
   const setAuth = useAuthStore((state) => state.setAuth);
   const isAuthenticated = useAuthStore((state) => !!state.accessToken);
-  const emailInputRef = useRef<HTMLInputElement>(null);
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isGooglePending, setIsGooglePending] = useState(false);
   const retryCountdown = useRetryCountdown();
+
+  const {
+    register,
+    handleSubmit,
+    setError,
+    setFocus,
+    clearErrors,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormValues>({
+    resolver: standardSchemaResolver(loginSchema),
+    mode: "onSubmit",
+    defaultValues: { email: "", password: "" },
+  });
+
+  // `root` carries whatever the server rejected the whole attempt with.
+  const formError = errors.root?.message ?? null;
+  // Drives the dimmed/disabled state of the Google button, so it has to trigger a re-render.
+  const [isGooglePending, setIsGooglePending] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -55,17 +69,11 @@ export function LoginForm() {
   useCaptureReturnTo();
 
   useEffect(() => {
-    if (emailInputRef.current) {
-      emailInputRef.current.focus();
-    }
-  }, []);
+    setFocus("email");
+  }, [setFocus]);
 
-  const redirectAfterLogin = useCallback(
-    (_nextStep?: string) => {
-      router.push("/");
-    },
-    [router],
-  );
+  // Sends the user back where the 401 interceptor bounced them from, falling back to home.
+  const redirectAfterLogin = useRedirectAfterLogin();
 
   const handleAuthSuccess = useCallback(
     (accessToken: string, user: AuthUser) => {
@@ -75,41 +83,37 @@ export function LoginForm() {
     [setAuth],
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) {
-      setError(t("fillAll"));
-      return;
-    }
-    setError(null);
+  const onSubmit = handleSubmit((values) => {
+    clearErrors("root");
     loginMutate(
-      { data: { email: email.trim(), password } },
+      { data: { email: values.email.trim(), password: values.password } },
       {
         onSuccess: (response) => {
           if (response.success && response.data) {
             const data = response.data;
-            const user: AuthUser = mapAuthResponseToUser(data, { oauthProvider: "LOCAL" });
+            const user: AuthUser = mapAuthResponseToUser(data);
             toast.success(t("successToast"));
             handleAuthSuccess(data.accessToken, user);
-            redirectAfterLogin(data.nextStep);
+            broadcastAuthMessage({ type: "TOKEN_UPDATED", token: data.accessToken, user });
+            redirectAfterLogin("/");
           } else {
-            setError(response.message || t("errorToast"));
+            setError("root", { message: response.message || t("errorToast") });
           }
         },
         onError: asApiError((err) => {
-          if (err.code === "IAM_005" || err.code === "ACCOUNT_LOCKED") {
+          if (err.code === IamErrorCode.ACCOUNT_LOCKED) {
             const lockedMsg = t("accountLocked");
-            setError(lockedMsg);
+            setError("root", { message: lockedMsg });
             toast.error(lockedMsg);
             return;
           }
           if (err.status === 429) {
             retryCountdown.startFromError(err.retryAfterSeconds);
-            setError(
-              err.retryAfterSeconds
+            setError("root", {
+              message: err.retryAfterSeconds
                 ? t("rateLimitErrorWithSeconds", { seconds: retryCountdown.remaining })
                 : t("errorToast"),
-            );
+            });
             toast.error(
               err.retryAfterSeconds
                 ? t("rateLimitToastWithSeconds", { seconds: err.retryAfterSeconds })
@@ -118,12 +122,12 @@ export function LoginForm() {
             return;
           }
           const errorMsg = sanitizeApiMessage(err, t("errorToast"));
-          setError(errorMsg);
+          setError("root", { message: errorMsg });
           toast.error(errorMsg);
         }),
       },
     );
-  };
+  });
 
   const handleGoogleCredential = useCallback(
     (idToken: string) => {
@@ -134,11 +138,11 @@ export function LoginForm() {
           onSuccess: (response) => {
             if (response.success && response.data) {
               const data = response.data;
-              const user: AuthUser = mapAuthResponseToUser(data, { oauthProvider: "GOOGLE" });
+              const user: AuthUser = mapAuthResponseToUser(data);
               toast.success(t("successToast"));
               handleAuthSuccess(data.accessToken, user);
               broadcastAuthMessage({ type: "TOKEN_UPDATED", token: data.accessToken, user });
-              redirectAfterLogin(data.nextStep);
+              redirectAfterLogin("/");
             } else {
               toast.error(response.message || t("errorToast"));
             }
@@ -162,7 +166,7 @@ export function LoginForm() {
   }, [handleGoogleCredential]);
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6 font-sans">
+    <form onSubmit={onSubmit} className="flex flex-col gap-6 font-sans">
       <div className="flex flex-col gap-2 text-center">
         <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
           {t("title")}
@@ -170,32 +174,34 @@ export function LoginForm() {
         <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("subtitle")}</p>
       </div>
 
-      {error && (
+      {formError && (
         <div
           role="alert"
           aria-live="assertive"
           className="rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-600 dark:bg-red-950/20 dark:text-red-400 border border-red-100/50 dark:border-red-950/30"
         >
-          <p>{error}</p>
+          <p>{formError}</p>
         </div>
       )}
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="email">{t("emailLabel")}</Label>
         <Input
-          ref={emailInputRef}
           id="email"
           type="email"
           inputMode="email"
           disabled={isPending}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          {...register("email")}
           placeholder={t("emailPlaceholder")}
-          required
           tabIndex={1}
-          aria-invalid={!!error}
+          aria-invalid={!!errors.email || !!formError}
           autoComplete="email"
         />
+        {errors.email?.message && (
+          <span className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
+            {t(errors.email.message as never)}
+          </span>
+        )}
       </div>
 
       <div className="flex flex-col gap-1.5">
@@ -212,21 +218,24 @@ export function LoginForm() {
         <PasswordInput
           id="password"
           disabled={isPending}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          {...register("password")}
           placeholder={t("passwordPlaceholder")}
-          required
           tabIndex={2}
-          aria-invalid={!!error}
+          aria-invalid={!!errors.password || !!formError}
           autoComplete="current-password"
         />
+        {errors.password?.message && (
+          <span className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
+            {t(errors.password.message as never)}
+          </span>
+        )}
       </div>
 
       <Button
         type="submit"
         variant="default"
         size="lg"
-        disabled={isPending || retryCountdown.isActive}
+        disabled={isPending || isSubmitting || retryCountdown.isActive}
         className="w-full justify-center h-10 font-bold"
         tabIndex={3}
       >

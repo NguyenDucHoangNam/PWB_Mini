@@ -1,7 +1,7 @@
 package com.pwb.iam.api.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.pwb.iam.application.facade.ProfileView;
+import com.pwb.iam.application.dto.ProfileView;
 
 import java.util.UUID;
 
@@ -12,7 +12,8 @@ public record ProfileResponse(
         String fullName,
         String avatarUrl,
         String status,
-        String role
+        String role,
+        String oauthProvider
 ) {
 
     public static ProfileResponse from(ProfileView view) {
@@ -22,7 +23,8 @@ public record ProfileResponse(
                 view.fullName(),
                 view.avatarUrl(),
                 view.status(),
-                view.role()
+                view.role(),
+                view.oauthProvider()
         );
     }
 }

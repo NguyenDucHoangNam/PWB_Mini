@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useChangePassword } from "../api/change-password";
@@ -9,91 +11,86 @@ import { useRetryCountdown } from "../hooks/use-retry-countdown";
 import { PasswordInput } from "./password-input";
 import { PasswordStrengthBar } from "./password-strength-bar";
 import { PasswordRules } from "./password-rules";
-import { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH } from "../hooks/password-validators";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { asApiError } from "@/lib/api-client";
+import { IamErrorCode } from "../lib/iam-error-codes";
+import { changePasswordSchema, type ChangePasswordFormValues } from "../schemas/change-password-schema";
 
 export function ChangePasswordForm() {
   const t = useTranslations("profile.changePassword");
   const router = useRouter();
   const { mutate: changePasswordMutate, isPending } = useChangePassword();
 
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [isOauthOnly, setIsOauthOnly] = useState(false);
   const retryCountdown = useRetryCountdown();
 
+  const {
+    register,
+    handleSubmit,
+    watch,
+    reset,
+    setError,
+    clearErrors,
+    formState: { errors },
+  } = useForm<ChangePasswordFormValues>({
+    resolver: standardSchemaResolver(changePasswordSchema),
+    mode: "onSubmit",
+    reValidateMode: "onBlur",
+    defaultValues: { currentPassword: "", newPassword: "", confirmPassword: "" },
+  });
+
+  const newPassword = watch("newPassword");
+  const formError = errors.root?.message ?? null;
   const strength = usePasswordStrength(newPassword);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = handleSubmit((values) => {
+    clearErrors("root");
 
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setError(t("fillAll"));
+    // "Same as the current password" is the one rule the schema cannot express, because it
+    // compares two fields the server also checks; keeping it here gives immediate feedback.
+    if (values.newPassword === values.currentPassword) {
+      setError("newPassword", { message: "reuseError" });
       return;
     }
-
-    if (newPassword.length < PASSWORD_MIN_LENGTH) {
-      setError(t("minLen"));
-      return;
-    }
-
-    if (newPassword.length > PASSWORD_MAX_LENGTH) {
-      setError(t("maxLen"));
-      return;
-    }
-
-    if (newPassword === currentPassword) {
-      setError(t("reuseError"));
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setError(t("notMatch"));
-      return;
-    }
-
-    setError(null);
 
     changePasswordMutate(
-      { data: { currentPassword, newPassword } },
+      { data: { currentPassword: values.currentPassword, newPassword: values.newPassword } },
       {
         onSuccess: (response) => {
           if (response.success) {
             toast.success(t("success"));
-            setCurrentPassword("");
-            setNewPassword("");
-            setConfirmPassword("");
+            reset();
           } else {
-            setError(response.message || t("error"));
+            setError("root", { message: response.message || t("error") });
           }
         },
         onError: asApiError((err) => {
-          const apiError = err.errors?.[0];
-          if (apiError?.code === "AUTH_OAUTH_USER_NO_PASSWORD") {
+          if (err.code === IamErrorCode.AUTH_OAUTH_USER_NO_PASSWORD) {
             setIsOauthOnly(true);
-          } else if (apiError?.code === "AUTH_INVALID_CURRENT_PASSWORD") {
-            setError(t("incorrectOld"));
-          } else if (apiError?.code === "AUTH_PASSWORD_REUSED") {
-            setError(t("reuseError"));
+          } else if (err.code === IamErrorCode.AUTH_INVALID_CURRENT_PASSWORD) {
+            setError("currentPassword", { message: "incorrectOld" });
+          } else if (
+            err.code === IamErrorCode.AUTH_PASSWORD_REUSED ||
+            err.code === IamErrorCode.AUTH_PASSWORD_RECENTLY_USED
+          ) {
+            setError("newPassword", { message: "reuseError" });
           } else if (err.status === 429) {
             retryCountdown.startFromError(err.retryAfterSeconds);
-            const msg = err.retryAfterSeconds
-              ? t("rateLimitErrorWithSeconds", { seconds: err.retryAfterSeconds })
-              : t("error");
-            setError(msg);
+            setError("root", {
+              message: err.retryAfterSeconds
+                ? t("rateLimitErrorWithSeconds", { seconds: err.retryAfterSeconds })
+                : t("error"),
+            });
           } else {
-            setError(err.message || t("error"));
+            setError("root", { message: err.message || t("error") });
           }
           toast.error(t("error"));
         }),
       },
     );
-  };
+  });
 
   if (isOauthOnly) {
     return (
@@ -127,15 +124,15 @@ export function ChangePasswordForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6 font-sans">
+    <form onSubmit={onSubmit} className="flex flex-col gap-6 font-sans">
       <h2 className="text-xl font-bold tracking-tight text-black dark:text-white">{t("title")}</h2>
 
-      {error && (
+      {formError && (
         <div
           role="alert"
           className="rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-600 dark:bg-red-950/20 dark:text-red-400 border border-red-100/50 dark:border-red-950/30"
         >
-          {error}
+          {formError}
         </div>
       )}
 
@@ -145,11 +142,15 @@ export function ChangePasswordForm() {
           <PasswordInput
             id="currentPassword"
             disabled={isPending}
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
+            {...register("currentPassword")}
             placeholder={t("oldPasswordPlaceholder")}
-            required
+            aria-invalid={!!errors.currentPassword}
           />
+          {errors.currentPassword?.message && (
+            <span className="text-xs text-red-600 dark:text-red-400 font-semibold">
+              {t(errors.currentPassword.message as never)}
+            </span>
+          )}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -157,11 +158,15 @@ export function ChangePasswordForm() {
           <PasswordInput
             id="newPassword"
             disabled={isPending}
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
+            {...register("newPassword")}
             placeholder={t("newPasswordPlaceholder")}
-            required
+            aria-invalid={!!errors.newPassword}
           />
+          {errors.newPassword?.message && (
+            <span className="text-xs text-red-600 dark:text-red-400 font-semibold">
+              {t(errors.newPassword.message as never)}
+            </span>
+          )}
           <PasswordStrengthBar strength={strength} />
           <PasswordRules password={newPassword} />
         </div>
@@ -171,18 +176,15 @@ export function ChangePasswordForm() {
           <PasswordInput
             id="confirmPassword"
             disabled={isPending}
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            onBlur={() => {
-              if (newPassword && confirmPassword && newPassword !== confirmPassword) {
-                setError(t("notMatch"));
-              } else if (newPassword && confirmPassword && newPassword === confirmPassword) {
-                setError(null);
-              }
-            }}
+            {...register("confirmPassword")}
             placeholder={t("confirmPasswordPlaceholder")}
-            required
+            aria-invalid={!!errors.confirmPassword}
           />
+          {errors.confirmPassword?.message && (
+            <span className="text-xs text-red-600 dark:text-red-400 font-semibold">
+              {t(errors.confirmPassword.message as never)}
+            </span>
+          )}
         </div>
       </div>
 

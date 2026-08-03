@@ -31,13 +31,6 @@ class KafkaTopicPropertiesTest {
     }
 
     @Test
-    @DisplayName("should_default_iam_audit_topic")
-    void should_default_iam_audit_topic() {
-        assertThat(properties.getIamAudit()).isEqualTo("iam.audit.v1");
-        assertThat(properties.getIamAudit()).isEqualTo(KafkaTopicProperties.TOPIC_IAM_AUDIT);
-    }
-
-    @Test
     @DisplayName("should_allow_overriding_email_topic_via_setter")
     void should_allow_overriding_email_topic_via_setter() {
         properties.setEmail("custom.email.v2");

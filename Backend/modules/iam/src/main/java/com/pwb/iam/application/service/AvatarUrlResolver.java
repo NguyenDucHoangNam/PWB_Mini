@@ -1,6 +1,6 @@
 package com.pwb.iam.application.service;
 
-import com.pwb.iam.application.facade.ProfileView;
+import com.pwb.iam.application.dto.ProfileView;
 import com.pwb.iam.domain.model.AvatarPolicy;
 import com.pwb.infra.storage.StorageService;
 import com.pwb.infra.storage.exception.StorageException;
@@ -22,7 +22,8 @@ public class AvatarUrlResolver {
             return view;
         }
         return new ProfileView(
-                view.userId(), view.email(), view.fullName(), resolved, view.status(), view.role());
+                view.userId(), view.email(), view.fullName(), resolved,
+                view.status(), view.role(), view.oauthProvider());
     }
 
     public String resolve(String storedReference) {

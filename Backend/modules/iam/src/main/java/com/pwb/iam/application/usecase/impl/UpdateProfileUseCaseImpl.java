@@ -1,7 +1,7 @@
 package com.pwb.iam.application.usecase.impl;
 
 import com.pwb.iam.application.command.UpdateProfileCommand;
-import com.pwb.iam.application.facade.ProfileView;
+import com.pwb.iam.application.dto.ProfileView;
 import com.pwb.iam.application.service.AvatarUrlResolver;
 import com.pwb.iam.application.usecase.UpdateProfileUseCase;
 import com.pwb.iam.domain.exception.IamErrorCode;

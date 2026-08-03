@@ -4,6 +4,7 @@ import Link from "next/link";
 import { memo } from "react";
 import { ChevronDown, LogOut, Crown } from "lucide-react";
 import { useDropdownMenu, type DropdownItem } from "@/hooks/use-dropdown-menu";
+import { useAvatarUrl } from "@/features/profile/api/use-avatar-url";
 import type { AuthUser } from "@/features/auth/stores/use-auth-store";
 import { cn } from "@/lib/utils";
 
@@ -29,10 +30,12 @@ function UserDropdownImpl({ user, isPro = false, labels, items }: UserDropdownPr
   const { isOpen, focusedIndex, triggerRef, containerRef, onKeyDown, toggle, close } =
     useDropdownMenu(items);
 
+  // Read from the profile query rather than the auth store: the URL is presigned and expires.
+  const { avatarUrl, onImageError } = useAvatarUrl();
+
   const initials = getInitials(user?.fullName || user?.email);
   const fullName = user?.fullName?.trim();
   const showFullName = !!fullName;
-  const avatarUrl = user?.avatarUrl ?? null;
   const resolvedName = fullName || user?.email || labels.account;
 
   return (
@@ -64,6 +67,7 @@ function UserDropdownImpl({ user, isPro = false, labels, items }: UserDropdownPr
               <img
                 src={avatarUrl}
                 alt={resolvedName}
+                onError={onImageError}
                 className="h-full w-full object-cover"
               />
             ) : (
@@ -101,6 +105,7 @@ function UserDropdownImpl({ user, isPro = false, labels, items }: UserDropdownPr
                 <img
                   src={avatarUrl}
                   alt={resolvedName}
+                  onError={onImageError}
                   className="h-full w-full object-cover"
                 />
               ) : (

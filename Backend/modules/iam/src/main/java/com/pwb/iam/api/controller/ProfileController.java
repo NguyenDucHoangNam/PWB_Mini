@@ -6,8 +6,10 @@ import com.pwb.iam.api.dto.response.ProfileResponse;
 import com.pwb.iam.application.command.AvatarUpload;
 import com.pwb.iam.application.command.UpdateAvatarCommand;
 import com.pwb.iam.application.command.UpdateProfileCommand;
-import com.pwb.iam.application.facade.IamFacade;
-import com.pwb.iam.application.facade.ProfileView;
+import com.pwb.iam.application.dto.ProfileView;
+import com.pwb.iam.application.usecase.GetProfileUseCase;
+import com.pwb.iam.application.usecase.UpdateAvatarUseCase;
+import com.pwb.iam.application.usecase.UpdateProfileUseCase;
 import com.pwb.iam.domain.exception.IamErrorCode;
 import com.pwb.shared.dto.ApiResponse;
 import com.pwb.shared.exception.BusinessException;
@@ -43,12 +45,14 @@ public class ProfileController {
     private static final String MSG_PROFILE_UPDATED = "PROFILE_UPDATED";
     private static final String MSG_PROFILE_AVATAR_UPLOADED = "PROFILE_AVATAR_UPLOADED";
 
-    private final IamFacade iamFacade;
+    private final GetProfileUseCase getProfileUseCase;
+    private final UpdateProfileUseCase updateProfileUseCase;
+    private final UpdateAvatarUseCase updateAvatarUseCase;
     private final MessageResolver messageResolver;
 
     @GetMapping
     public ResponseEntity<ApiResponse<ProfileResponse>> getProfile(@CurrentUser UUID userId) {
-        ProfileView view = iamFacade.getProfile(userId);
+        ProfileView view = getProfileUseCase.execute(userId);
         return ResponseEntity.ok(ApiResponse.success(
                 messageResolver.get(MSG_PROFILE_RETRIEVED), ProfileResponse.from(view)));
     }
@@ -58,7 +62,7 @@ public class ProfileController {
             @CurrentUser UUID userId,
             @Valid @RequestBody UpdateProfileRequest request
     ) {
-        ProfileView view = iamFacade.updateProfile(new UpdateProfileCommand(userId, request.fullName()));
+        ProfileView view = updateProfileUseCase.execute(new UpdateProfileCommand(userId, request.fullName()));
         return ResponseEntity.ok(ApiResponse.success(
                 messageResolver.get(MSG_PROFILE_UPDATED), ProfileResponse.from(view)));
     }
@@ -69,7 +73,7 @@ public class ProfileController {
             @RequestParam("file") MultipartFile file
     ) {
         UpdateAvatarCommand command = new UpdateAvatarCommand(userId, toUpload(file));
-        String avatarUrl = iamFacade.updateAvatar(command);
+        String avatarUrl = updateAvatarUseCase.execute(command);
         AvatarUploadResponse response = AvatarUploadResponse.of(
                 userId, avatarUrl, messageResolver.get(MSG_PROFILE_AVATAR_UPLOADED));
         return ResponseEntity.ok(ApiResponse.success(response));

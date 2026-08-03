@@ -7,7 +7,6 @@ import org.springframework.test.context.ActiveProfiles;
 
 import com.pwb.iam.infrastructure.config.IamJpaConfig;
 import com.pwb.iam.infrastructure.persistence.adapter.RoleRepositoryImpl;
-import com.pwb.iam.infrastructure.persistence.mapper.AuditLogMapper;
 import com.pwb.iam.infrastructure.persistence.mapper.OtpCodeMapper;
 import com.pwb.iam.infrastructure.persistence.mapper.PasswordHistoryMapper;
 import com.pwb.iam.infrastructure.persistence.mapper.PasswordResetTokenMapper;
@@ -24,8 +23,7 @@ import com.pwb.iam.infrastructure.persistence.mapper.UserMapper;
         RoleMapper.class,
         OtpCodeMapper.class,
         PasswordHistoryMapper.class,
-        PasswordResetTokenMapper.class,
-        AuditLogMapper.class
+        PasswordResetTokenMapper.class
 })
 public abstract class AbstractRepositoryIT {
 }

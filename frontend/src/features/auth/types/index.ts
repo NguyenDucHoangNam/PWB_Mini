@@ -12,21 +12,28 @@ export type UserStatus =
   | "BANNED"
   | "DELETED";
 
-export type AuthNextStep = "NONE";
-
+/** Client-side view of the signed-in user, built straight from the API response. */
 export interface AuthUser {
   userId: string;
   email: string;
   fullName: string;
-  avatarUrl?: string | null;
   role?: string;
   status: UserStatus;
   oauthProvider: OAuthProvider;
 }
 
+/**
+ * Mirrors the backend `AuthResponse`.
+ *
+ * The refresh token is deliberately absent: the backend delivers it only as an HttpOnly cookie,
+ * so it is unreachable from JS by design. Every auth request must therefore be credentialed
+ * (`withCredentials`) for `POST /auth/refresh` to work.
+ *
+ * `avatarUrl` is a short-lived presigned URL (see `pwb.iam.avatar.url-ttl`, 15 minutes by
+ * default), not a permanent link — it must not be cached beyond that window.
+ */
 export interface AuthResponse {
   accessToken: string;
-  refreshToken: string;
   tokenType: string;
   expiresIn: number;
   userId: string;
@@ -35,7 +42,11 @@ export interface AuthResponse {
   avatarUrl?: string | null;
   status: UserStatus;
   role?: string;
-  nextStep: AuthNextStep;
+  /**
+   * Omitted from the payload when null — the backend serialises with NON_NULL inclusion — so
+   * treat absence as "unknown" and fall back to LOCAL rather than assuming it is always present.
+   */
+  oauthProvider?: OAuthProvider | null;
 }
 
 export interface OAuth2LoginRequest {
@@ -60,7 +71,8 @@ export interface VerifyOtpRequest {
 
 export type VerifyOtpResponse = AuthResponse;
 
-export type OtpPurpose = "REGISTER" | "RESET_PASSWORD";
+/** Must match the backend `OtpPurpose` enum exactly — Jackson rejects unknown values. */
+export type OtpPurpose = "REGISTER" | "PASSWORD_RESET";
 
 export interface ResendOtpRequest {
   userId: string;
@@ -87,16 +99,5 @@ export interface ChangePasswordRequest {
   newPassword: string;
 }
 
-export interface RefreshAccessTokenResponse {
-  accessToken: string;
-  refreshToken: string;
-  tokenType: string;
-  expiresIn: number;
-  userId: string;
-  email: string;
-  fullName?: string;
-  avatarUrl?: string | null;
-  status: UserStatus;
-  role?: string;
-  nextStep: AuthNextStep;
-}
+/** `POST /auth/refresh` returns the same shape as any other authentication response. */
+export type RefreshAccessTokenResponse = AuthResponse;

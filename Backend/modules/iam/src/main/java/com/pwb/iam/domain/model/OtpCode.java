@@ -11,8 +11,6 @@ import java.util.UUID;
 
 public final class OtpCode extends DomainBaseEntity {
 
-    public static final int MAX_ATTEMPTS = 5;
-
     private final UUID id;
     private final UUID userId;
     private final OtpPurpose purpose;

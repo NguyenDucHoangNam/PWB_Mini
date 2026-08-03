@@ -6,6 +6,18 @@ spring:
     include: dev-users
   jpa:
     open-in-view: false
+  jackson:
+    # Spring Boot builds the ObjectMapper (registering JavaTimeModule from the classpath).
+    # A hand-rolled `new ObjectMapper()` marked @Primary used to override it, which silently
+    # re-enabled Jackson's raw defaults — notably FAIL_ON_UNKNOWN_PROPERTIES. That turned any
+    # extra field a client sent into a 400, and would break Kafka consumers reading messages
+    # written before a payload gained a field. The settings below are Boot's defaults, stated
+    # explicitly so the intent survives the next person who reaches for a custom mapper.
+    deserialization:
+      fail-on-unknown-properties: false
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
   flyway:
     out-of-order: true
   servlet:
@@ -100,20 +112,12 @@ pwb:
     google:
       client-id: ${GOOGLE_CLIENT_ID:}
       clock-skew-seconds: 30
-    audit:
-      consumer:
-        enabled: true
-        group: iam-audit-consumer
 
 kafka:
   topics:
     email: notification.email.v1
-    iam-audit: iam.audit.v1
   admin:
     new-topics:
       - name: notification.email.v1.DLT
-        partitions: 1
-        replicas: 1
-      - name: iam.audit.v1.DLT
         partitions: 1
         replicas: 1

@@ -23,8 +23,19 @@ import com.pwb.iam.application.command.RegisterCommand;
 import com.pwb.iam.application.command.ResendOtpCommand;
 import com.pwb.iam.application.command.ResetPasswordCommand;
 import com.pwb.iam.application.command.VerifyOtpCommand;
-import com.pwb.iam.application.facade.AuthView;
-import com.pwb.iam.application.facade.IamFacade;
+import com.pwb.iam.application.dto.AuthView;
+import com.pwb.iam.application.service.AvatarUrlResolver;
+import com.pwb.iam.application.usecase.LoginResult;
+import com.pwb.iam.application.usecase.ChangePasswordUseCase;
+import com.pwb.iam.application.usecase.ForgotPasswordUseCase;
+import com.pwb.iam.application.usecase.GoogleLoginUseCase;
+import com.pwb.iam.application.usecase.LoginUseCase;
+import com.pwb.iam.application.usecase.LogoutUseCase;
+import com.pwb.iam.application.usecase.RefreshTokenUseCase;
+import com.pwb.iam.application.usecase.RegisterUseCase;
+import com.pwb.iam.application.usecase.ResendOtpUseCase;
+import com.pwb.iam.application.usecase.ResetPasswordUseCase;
+import com.pwb.iam.application.usecase.VerifyOtpUseCase;
 import com.pwb.iam.domain.exception.RefreshTokenInvalidException;
 import com.pwb.iam.infrastructure.config.RefreshTokenProperties;
 import com.pwb.shared.dto.ApiResponse;
@@ -67,7 +78,17 @@ public class AuthController {
     private static final String MSG_RESET_PASSWORD = "AUTH_PASSWORD_RESET_SUCCESSFUL";
     private static final String MSG_CHANGE_PASSWORD = "AUTH_PASSWORD_UPDATED";
 
-    private final IamFacade iamFacade;
+    private final RegisterUseCase registerUseCase;
+    private final VerifyOtpUseCase verifyOtpUseCase;
+    private final ResendOtpUseCase resendOtpUseCase;
+    private final LoginUseCase loginUseCase;
+    private final RefreshTokenUseCase refreshTokenUseCase;
+    private final LogoutUseCase logoutUseCase;
+    private final GoogleLoginUseCase googleLoginUseCase;
+    private final ForgotPasswordUseCase forgotPasswordUseCase;
+    private final ResetPasswordUseCase resetPasswordUseCase;
+    private final ChangePasswordUseCase changePasswordUseCase;
+    private final AvatarUrlResolver avatarUrlResolver;
     private final MessageResolver messageResolver;
     private final RefreshTokenProperties refreshTokenProperties;
 
@@ -78,7 +99,7 @@ public class AuthController {
     ) {
         RegisterCommand command = new RegisterCommand(
                 request.email(), request.password(), request.fullName(), RequestLocale.from(acceptLanguage));
-        UUID userId = iamFacade.register(command);
+        UUID userId = registerUseCase.execute(command).getUserId();
         AuthMessageResponse body = AuthMessageResponse.of(userId, messageResolver.get(MSG_REGISTER));
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(body));
     }
@@ -89,8 +110,8 @@ public class AuthController {
             @CurrentClientIp String clientIp,
             HttpServletResponse response
     ) {
-        AuthView view = iamFacade.verifyOtp(
-                new VerifyOtpCommand(request.userId(), request.code(), request.purpose(), clientIp));
+        AuthView view = toAuthView(verifyOtpUseCase.execute(
+                new VerifyOtpCommand(request.userId(), request.code(), request.purpose(), clientIp)));
         return respondWithTokens(view, response);
     }
 
@@ -99,7 +120,7 @@ public class AuthController {
             @Valid @RequestBody ResendOtpRequest request,
             @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage
     ) {
-        iamFacade.resendOtp(new ResendOtpCommand(
+        resendOtpUseCase.execute(new ResendOtpCommand(
                 request.userId(), request.purpose(), RequestLocale.from(acceptLanguage)));
         AuthMessageResponse body = AuthMessageResponse.of(request.userId(), messageResolver.get(MSG_OTP_RESENT));
         return ResponseEntity.ok(ApiResponse.success(body));
@@ -112,8 +133,8 @@ public class AuthController {
             @CurrentUserAgent String userAgent,
             HttpServletResponse response
     ) {
-        AuthView view = iamFacade.login(
-                new LoginCommand(request.email(), request.password(), clientIp, userAgent));
+        AuthView view = toAuthView(loginUseCase.execute(
+                new LoginCommand(request.email(), request.password(), clientIp, userAgent)));
         return respondWithTokens(view, response);
     }
 
@@ -125,10 +146,10 @@ public class AuthController {
             HttpServletResponse response
     ) {
         if (refreshTokenCookie == null || refreshTokenCookie.isBlank()) {
-            // Same shape as an invalid token so the caller has a single 401 path to handle.
             throw new RefreshTokenInvalidException("Refresh token cookie is missing");
         }
-        AuthView view = iamFacade.refresh(new RefreshTokenCommand(refreshTokenCookie, clientIp));
+        AuthView view = toAuthView(refreshTokenUseCase.execute(
+                new RefreshTokenCommand(refreshTokenCookie, clientIp)));
         return respondWithTokens(view, response);
     }
 
@@ -151,16 +172,14 @@ public class AuthController {
                 userId,
                 refreshTokenToRevoke,
                 body.accessJti(),
-                // Nullable in the request: a client that only relies on the cookie sends neither
-                // the jti nor its lifetime, and unboxing null into the primitive would 500.
                 body.accessExpiresInSeconds() == null ? 0L : body.accessExpiresInSeconds(),
                 clientIp,
                 userAgent
         );
-        UUID resultUserId = iamFacade.logout(command);
+        logoutUseCase.execute(command);
 
         clearRefreshTokenCookie(response);
-        LogoutResponse logoutResponse = LogoutResponse.of(resultUserId, messageResolver.get(MSG_LOGOUT_SUCCESS));
+        LogoutResponse logoutResponse = LogoutResponse.of(userId, messageResolver.get(MSG_LOGOUT_SUCCESS));
         return ResponseEntity.ok(ApiResponse.success(logoutResponse));
     }
 
@@ -172,8 +191,8 @@ public class AuthController {
             @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage,
             HttpServletResponse response
     ) {
-        AuthView view = iamFacade.loginWithGoogle(new GoogleLoginCommand(
-                request.idToken(), clientIp, userAgent, RequestLocale.from(acceptLanguage)));
+        AuthView view = toAuthView(googleLoginUseCase.execute(new GoogleLoginCommand(
+                request.idToken(), clientIp, userAgent, RequestLocale.from(acceptLanguage))));
         return respondWithTokens(view, response);
     }
 
@@ -188,7 +207,7 @@ public class AuthController {
             @CurrentClientIp String clientIp,
             @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage
     ) {
-        iamFacade.forgotPassword(new ForgotPasswordCommand(
+        forgotPasswordUseCase.execute(new ForgotPasswordCommand(
                 request.email(), userAgent, RequestLocale.from(acceptLanguage), clientIp));
         AuthMessageResponse body = AuthMessageResponse.of(null, messageResolver.get(MSG_FORGOT_PASSWORD));
         return ResponseEntity.ok(ApiResponse.success(body));
@@ -201,10 +220,10 @@ public class AuthController {
             @CurrentClientIp String clientIp,
             @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage
     ) {
-        UUID userId = iamFacade.resetPassword(new ResetPasswordCommand(
+        UUID resultUserId = resetPasswordUseCase.execute(new ResetPasswordCommand(
                 request.token(), request.newPassword(), userAgent, clientIp,
-                RequestLocale.from(acceptLanguage)));
-        AuthMessageResponse body = AuthMessageResponse.of(userId, messageResolver.get(MSG_RESET_PASSWORD));
+                RequestLocale.from(acceptLanguage))).userId();
+        AuthMessageResponse body = AuthMessageResponse.of(resultUserId, messageResolver.get(MSG_RESET_PASSWORD));
         return ResponseEntity.ok(ApiResponse.success(body));
     }
 
@@ -216,11 +235,20 @@ public class AuthController {
             @Valid @RequestBody ChangePasswordRequest request,
             @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage
     ) {
-        UUID resultUserId = iamFacade.changePassword(new ChangePasswordCommand(
+        UUID resultUserId = changePasswordUseCase.execute(new ChangePasswordCommand(
                 userId, request.currentPassword(), request.newPassword(), userAgent, clientIp,
-                RequestLocale.from(acceptLanguage)));
+                RequestLocale.from(acceptLanguage))).userId();
         AuthMessageResponse body = AuthMessageResponse.of(resultUserId, messageResolver.get(MSG_CHANGE_PASSWORD));
         return ResponseEntity.ok(ApiResponse.success(body));
+    }
+
+    /**
+     * Single place where a {@link LoginResult} becomes a client-facing view, so the avatar key
+     * stored on the user is always turned into a fetchable URL. Four endpoints build this view;
+     * doing the resolution per call site is how one of them ends up shipping a raw storage key.
+     */
+    private AuthView toAuthView(LoginResult result) {
+        return AuthView.from(result, avatarUrlResolver::resolve);
     }
 
     private ResponseEntity<ApiResponse<AuthResponse>> respondWithTokens(AuthView view, HttpServletResponse response) {

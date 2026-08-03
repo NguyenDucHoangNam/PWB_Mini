@@ -1,7 +1,6 @@
 package com.pwb.iam.infrastructure.persistence.repository;
 
 import com.pwb.iam.domain.model.OAuthProvider;
-import com.pwb.iam.domain.model.UserStatus;
 import com.pwb.iam.infrastructure.persistence.entity.UserJpaEntity;
 import org.springframework.data.jpa.repository.EntityGraph;
 
@@ -15,9 +14,6 @@ public interface UserJpaRepository extends IamJpaRepository<UserJpaEntity> {
 
     @EntityGraph(attributePaths = "role")
     Optional<UserJpaEntity> findByIdAndDeletedFalse(UUID id);
-
-    @EntityGraph(attributePaths = "role")
-    Optional<UserJpaEntity> findByIdAndStatusAndDeletedFalse(UUID id, UserStatus status);
 
     @EntityGraph(attributePaths = "role")
     Optional<UserJpaEntity> findByOauthProviderAndOauthIdAndDeletedFalse(OAuthProvider oauthProvider, String oauthId);

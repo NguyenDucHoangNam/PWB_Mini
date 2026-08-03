@@ -11,7 +11,7 @@ import { useLoginWithGoogle } from "../api/login";
 import { useAuthStore } from "../stores/use-auth-store";
 import { useGoogleIdentity } from "../hooks/use-google-identity";
 import { useRetryCountdown } from "../hooks/use-retry-countdown";
-import { useCaptureReturnTo } from "@/hooks/use-return-to";
+import { useCaptureReturnTo, useRedirectAfterLogin } from "@/hooks/use-return-to";
 import { decodeJwtExpiry } from "@/lib/jwt-decode";
 import { asApiError, type ApiError } from "@/lib/api-client";
 import { sanitizeApiMessage } from "@/lib/form-errors";
@@ -32,14 +32,10 @@ import { toast } from "sonner";
 import { pendingRegistration } from "../lib/pending-registration";
 import { registerSchema, type RegisterFormValues } from "../schemas/register-schema";
 import { applyFieldErrors } from "@/lib/form-errors";
+import { EMAIL_ALREADY_TAKEN_CODES, IamErrorCode } from "../lib/iam-error-codes";
 
-const RATE_LIMIT_CODE = "AUTH_RATE_LIMIT_EXCEEDED";
-const EMAIL_EXISTS_CODES = new Set([
-  "EMAIL_ALREADY_REGISTERED_AUTH",
-  "EMAIL_ALREADY_EXISTS",
-  "IAM_001",
-  "IAM_020",
-]);
+const RATE_LIMIT_CODE = IamErrorCode.AUTH_RATE_LIMIT_EXCEEDED;
+const EMAIL_EXISTS_CODES = EMAIL_ALREADY_TAKEN_CODES;
 const FIELD_MAPPING: Record<string, string> = {
   email: "email",
   password: "password",
@@ -95,12 +91,7 @@ export function RegisterForm() {
 
   useCaptureReturnTo();
 
-  const redirectAfterLogin = useCallback(
-    (_nextStep?: string) => {
-      router.push("/");
-    },
-    [router],
-  );
+  const redirectAfterLogin = useRedirectAfterLogin();
 
   const handleGoogleCredential = useCallback(
     (idToken: string) => {
@@ -110,10 +101,10 @@ export function RegisterForm() {
           onSuccess: (response) => {
             if (response.success && response.data) {
               const data = response.data;
-              const user: AuthUser = mapAuthResponseToUser(data, { oauthProvider: "GOOGLE" });
+              const user: AuthUser = mapAuthResponseToUser(data);
               toast.success(t("successToast"));
               setAuth(data.accessToken, user, decodeJwtExpiry(data.accessToken) ?? undefined);
-              redirectAfterLogin(data.nextStep);
+              redirectAfterLogin("/");
             } else {
               toast.error(response.message || t("errorToast"));
             }
@@ -163,7 +154,7 @@ export function RegisterForm() {
           }
         },
         onError: asApiError<unknown>((err: ApiError) => {
-          const errorCode = err.errors?.[0]?.code;
+          const errorCode = err.code;
           if (err.status === 429 || errorCode === RATE_LIMIT_CODE) {
             retryCountdown.startFromError(err.retryAfterSeconds);
             const msg = err.retryAfterSeconds

@@ -1,4 +1,4 @@
-package com.pwb.iam.application.facade;
+package com.pwb.iam.application.dto;
 
 import com.pwb.iam.domain.model.User;
 
@@ -10,7 +10,8 @@ public record ProfileView(
         String fullName,
         String avatarUrl,
         String status,
-        String role
+        String role,
+        String oauthProvider
 ) {
 
     public static ProfileView from(User user) {
@@ -20,7 +21,8 @@ public record ProfileView(
                 user.getFullName(),
                 user.getAvatarUrl(),
                 user.getStatus() == null ? null : user.getStatus().name(),
-                user.getRole() == null ? null : user.getRole().name()
+                user.getRole() == null ? null : user.getRole().name(),
+                user.getOauthProvider() == null ? null : user.getOauthProvider().name()
         );
     }
 }

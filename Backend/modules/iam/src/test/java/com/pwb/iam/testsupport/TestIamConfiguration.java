@@ -68,8 +68,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
                         "com\\.pwb\\.iam\\.infrastructure\\.config\\.IamAutoConfiguration",
                         "com\\.pwb\\.iam\\.infrastructure\\.config\\.UserSeederService",
                         "com\\.pwb\\.iam\\.infrastructure\\.config\\.JacksonConfig",
-                        "com\\.pwb\\.iam\\.infrastructure\\.config\\.EmailTemplateConfig",
-                        "com\\.pwb\\.iam\\.infrastructure\\.audit\\.AuditPersistListener"
+                        "com\\.pwb\\.iam\\.infrastructure\\.config\\.EmailTemplateConfig"
                 }
         )
 )

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -9,11 +11,11 @@ import { usePasswordStrength } from "../hooks/use-password-strength";
 import { PasswordInput } from "./password-input";
 import { PasswordStrengthBar } from "./password-strength-bar";
 import { PasswordRules } from "./password-rules";
-import { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH } from "../hooks/password-validators";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { asApiError } from "@/lib/api-client";
+import { resetPasswordSchema, type ResetPasswordFormValues } from "../schemas/reset-password-schema";
 
 export function ResetPasswordForm() {
   const t = useTranslations("auth.reset");
@@ -22,41 +24,33 @@ export function ResetPasswordForm() {
 
   const token = searchParams.get("token") || "";
 
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setError,
+    clearErrors,
+    formState: { errors },
+  } = useForm<ResetPasswordFormValues>({
+    resolver: standardSchemaResolver(resetPasswordSchema),
+    mode: "onSubmit",
+    reValidateMode: "onBlur",
+    defaultValues: { newPassword: "", confirmPassword: "" },
+  });
+
+  const newPassword = watch("newPassword");
+  // Only the root slot carries server-side failures; field errors come from the schema.
+  const formError = errors.root?.message ?? null;
 
   const { mutate: resetMutate, isPending } = useResetPassword();
   const strength = usePasswordStrength(newPassword);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!newPassword || !confirmPassword) {
-      setError(t("fillAll"));
-      return;
-    }
-
-    if (newPassword.length < PASSWORD_MIN_LENGTH) {
-      setError(t("minLen"));
-      return;
-    }
-
-    if (newPassword.length > PASSWORD_MAX_LENGTH) {
-      setError(t("maxLen"));
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setError(t("notMatch"));
-      return;
-    }
-
-    setError(null);
-
+  const onSubmit = handleSubmit((values) => {
+    clearErrors("root");
     resetMutate(
-      { data: { token, newPassword } },
+      { data: { token, newPassword: values.newPassword } },
       {
         onSuccess: (response) => {
           if (response.success) {
@@ -66,17 +60,16 @@ export function ResetPasswordForm() {
               router.push("/login");
             }, 5000);
           } else {
-            setError(response.message || t("errorToast"));
+            setError("root", { message: response.message || t("errorToast") });
           }
         },
         onError: asApiError((err) => {
-          const apiError = err.errors?.[0]?.message;
-          setError(apiError || err.message || t("invalidTokenError"));
+          setError("root", { message: err.message || t("invalidTokenError") });
           toast.error(t("errorToast"));
         }),
       },
     );
-  };
+  });
 
   if (!token) {
     return (
@@ -137,7 +130,7 @@ export function ResetPasswordForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6 font-sans">
+    <form onSubmit={onSubmit} className="flex flex-col gap-6 font-sans">
       <div className="flex flex-col gap-2 text-center">
         <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
           {t("title")}
@@ -145,13 +138,13 @@ export function ResetPasswordForm() {
         <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("desc")}</p>
       </div>
 
-      {error && (
+      {formError && (
         <div
           role="alert"
           aria-live="assertive"
           className="rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-600 dark:bg-red-950/20 dark:text-red-400 border border-red-100/50 dark:border-red-950/30"
         >
-          {error}
+          {formError}
         </div>
       )}
 
@@ -160,11 +153,15 @@ export function ResetPasswordForm() {
         <PasswordInput
           id="newPassword"
           disabled={isPending}
-          value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)}
+          {...register("newPassword")}
           placeholder={t("newPasswordPlaceholder")}
-          required
+          aria-invalid={!!errors.newPassword}
         />
+        {errors.newPassword?.message && (
+          <span className="text-xs text-red-600 dark:text-red-400 font-semibold">
+            {t(errors.newPassword.message as never)}
+          </span>
+        )}
         <PasswordStrengthBar strength={strength} />
         <PasswordRules password={newPassword} />
       </div>
@@ -174,18 +171,15 @@ export function ResetPasswordForm() {
         <PasswordInput
           id="confirmPassword"
           disabled={isPending}
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          onBlur={() => {
-            if (newPassword && confirmPassword && newPassword !== confirmPassword) {
-              setError(t("notMatch"));
-            } else if (newPassword && confirmPassword && newPassword === confirmPassword) {
-              setError(null);
-            }
-          }}
+          {...register("confirmPassword")}
           placeholder={t("confirmPasswordPlaceholder")}
-          required
+          aria-invalid={!!errors.confirmPassword}
         />
+        {errors.confirmPassword?.message && (
+          <span className="text-xs text-red-600 dark:text-red-400 font-semibold">
+            {t(errors.confirmPassword.message as never)}
+          </span>
+        )}
       </div>
 
       <Button

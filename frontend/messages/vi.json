@@ -106,7 +106,8 @@
       "captchaServiceUnavailable": "Dịch vụ CAPTCHA tạm thời không khả dụng. Vui lòng thử lại sau.",
       "rateLimitErrorWithSeconds": "Bạn đã thao tác quá nhiều. Vui lòng thử lại sau {seconds} giây.",
       "rateLimitToastWithSeconds": "Bạn đã thao tác quá nhiều. Vui lòng thử lại sau {seconds} giây.",
-      "retryCountdownText": "Thử lại sau {seconds}s"
+      "retryCountdownText": "Thử lại sau {seconds}s",
+      "invalidEmail": "Email không hợp lệ"
     },
     "register": {
       "title": "ĐĂNG KÝ",
@@ -230,7 +231,7 @@
       "strengthVeryStrong": "Rất mạnh",
       "strengthTitle": "Độ mạnh mật khẩu:",
       "fillAll": "Vui lòng điền đầy đủ các trường",
-      "minLen": "Mật khẩu mới phải chứa ít nhất 8 ký tự",
+      "minLen": "Mật khẩu mới phải chứa ít nhất 12 ký tự",
       "maxLen": "Mật khẩu mới phải chứa tối đa 128 ký tự",
       "notMatch": "Mật khẩu xác nhận không khớp",
       "successToast": "Đặt lại mật khẩu thành công! Tất cả phiên khác đã đăng xuất.",
@@ -298,12 +299,13 @@
       "success": "Đổi mật khẩu thành công. Các thiết bị khác đã bị đăng xuất.",
       "error": "Đổi mật khẩu thất bại",
       "fillAll": "Vui lòng điền đầy đủ các trường",
-      "minLen": "Mật khẩu mới phải chứa ít nhất 8 ký tự",
+      "minLen": "Mật khẩu mới phải chứa ít nhất 12 ký tự",
       "reuseError": "Mật khẩu mới không được trùng mật khẩu cũ",
       "notMatch": "Mật khẩu xác nhận không khớp",
       "incorrectOld": "Mật khẩu hiện tại không chính xác",
       "rateLimitErrorWithSeconds": "Bạn đã thao tác quá nhiều. Vui lòng thử lại sau {seconds} giây.",
-      "retryCountdownText": "Thử lại sau {seconds}s"
+      "retryCountdownText": "Thử lại sau {seconds}s",
+      "maxLen": "Mật khẩu mới phải chứa tối đa 128 ký tự"
     },
     "dangerZone": {
       "title": "VÙNG NGUY HIỂM",

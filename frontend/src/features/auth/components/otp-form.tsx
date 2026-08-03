@@ -20,12 +20,13 @@ import { decodeJwtExpiry } from "@/lib/jwt-decode";
 import { pendingRegistration } from "../lib/pending-registration";
 import { useExpiryCountdown, useCooldown } from "../hooks/use-otp-countdown";
 import { mapAuthResponseToUser } from "../lib/map-auth-response";
+import { IamErrorCode } from "../lib/iam-error-codes";
 
-const OTP_LOCKED_CODE = "AUTH_OTP_LOCKED";
+const OTP_LOCKED_CODE = IamErrorCode.AUTH_OTP_INVALID;
 const OTP_INVALID_CODE = "AUTH_OTP_INVALID";
-const OTP_EXPIRED_CODE = "AUTH_OTP_EXPIRED";
-const OTP_RESEND_COOLDOWN_CODE = "AUTH_RATE_LIMIT_EXCEEDED";
-const OTP_DAILY_LIMIT_CODE = "AUTH_OTP_DAILY_LIMIT_EXCEEDED";
+const OTP_EXPIRED_CODE = IamErrorCode.AUTH_OTP_EXPIRED;
+const OTP_RESEND_COOLDOWN_CODE = IamErrorCode.AUTH_RATE_LIMIT_EXCEEDED;
+const OTP_DAILY_LIMIT_CODE = IamErrorCode.AUTH_OTP_DAILY_LIMIT_EXCEEDED;
 const COOLDOWN_MESSAGE_PATTERN = /(\d+)\s*(giây|seconds|s)\b/i;
 
 function extractCooldownSeconds(message: string | undefined | null): number | null {
@@ -104,7 +105,7 @@ export function OtpForm() {
           if (response.success && response.data) {
             const data = response.data;
             const expiresAt = decodeJwtExpiry(data.accessToken);
-            setAuth(data.accessToken, mapAuthResponseToUser(data, { oauthProvider: "LOCAL" }), expiresAt ?? undefined);
+            setAuth(data.accessToken, mapAuthResponseToUser(data), expiresAt ?? undefined);
             pendingRegistration.clear();
             toast.success(t("successToast"));
             router.push("/");
@@ -114,7 +115,7 @@ export function OtpForm() {
           }
         },
         onError: asApiError<unknown>((err: ApiError) => {
-          const errorCode = err.errors?.[0]?.code;
+          const errorCode = err.code;
           if (errorCode === OTP_LOCKED_CODE) {
             setOtpIssuedAt(Date.now() - otpExpiryTtl * 1000);
             setError(t("lockedError"));
@@ -169,9 +170,9 @@ export function OtpForm() {
           }
         },
         onError: asApiError<unknown>((err: ApiError) => {
-          const errorCode = err.errors?.[0]?.code;
+          const errorCode = err.code;
           if (errorCode === OTP_RESEND_COOLDOWN_CODE) {
-            const cooldownSeconds = extractCooldownSeconds(err.errors?.[0]?.message);
+            const cooldownSeconds = extractCooldownSeconds(err.message);
             if (cooldownSeconds !== null) {
               cooldown.setFromServer(Date.now(), cooldownSeconds);
             } else {

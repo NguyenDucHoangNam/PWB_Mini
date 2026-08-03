@@ -66,11 +66,7 @@ export const refreshAccessToken = async (): Promise<string> => {
     if (existingUser) {
       user = existingUser;
     } else {
-      user = mapAuthResponseToUser(data, { oauthProvider: "LOCAL" });
-    }
-
-    if (existingUser && data.avatarUrl !== undefined && existingUser.avatarUrl !== data.avatarUrl) {
-      useAuthStore.getState().setAvatarUrl(data.avatarUrl ?? null);
+      user = mapAuthResponseToUser(data);
     }
 
     useAuthStore.getState().setAuth(data.accessToken, user, expiresAt ?? undefined);

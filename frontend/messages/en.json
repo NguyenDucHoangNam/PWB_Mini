@@ -106,7 +106,8 @@
       "captchaServiceUnavailable": "CAPTCHA service is temporarily unavailable. Please try again later.",
       "rateLimitErrorWithSeconds": "Too many attempts. Please try again in {seconds} seconds.",
       "rateLimitToastWithSeconds": "Too many attempts. Please try again in {seconds} seconds.",
-      "retryCountdownText": "Retry in {seconds}s"
+      "retryCountdownText": "Retry in {seconds}s",
+      "invalidEmail": "Invalid email address"
     },
     "register": {
       "title": "REGISTER",
@@ -230,7 +231,7 @@
       "strengthVeryStrong": "Very Strong",
       "strengthTitle": "Password strength:",
       "fillAll": "Please fill in all fields",
-      "minLen": "New password must be at least 8 characters long",
+      "minLen": "New password must be at least 12 characters",
       "maxLen": "New password must be at most 128 characters",
       "notMatch": "Confirmed password does not match",
       "successToast": "Password reset successfully! All other sessions logged out.",
@@ -298,12 +299,13 @@
       "success": "Password changed successfully. Sessions on other devices have been logged out.",
       "error": "Failed to change password",
       "fillAll": "Please fill in all fields",
-      "minLen": "New password must be at least 8 characters long",
+      "minLen": "New password must be at least 12 characters",
       "reuseError": "New password must be different from the old password",
       "notMatch": "Confirmed password does not match",
       "incorrectOld": "Incorrect current password",
       "rateLimitErrorWithSeconds": "Too many attempts. Please try again in {seconds} seconds.",
-      "retryCountdownText": "Retry in {seconds}s"
+      "retryCountdownText": "Retry in {seconds}s",
+      "maxLen": "New password must be at most 128 characters"
     },
     "dangerZone": {
       "title": "DANGER ZONE",

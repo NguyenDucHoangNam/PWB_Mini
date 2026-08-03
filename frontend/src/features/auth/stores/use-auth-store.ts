@@ -8,7 +8,6 @@ interface AuthState {
   bootstrapping: boolean;
   setAuth: (token: string, user: AuthUser, expiresAt?: number) => void;
   setUser: (user: AuthUser) => void;
-  setAvatarUrl: (avatarUrl: string | null) => void;
   clearAuth: () => void;
   isAuthenticated: () => boolean;
   setBootstrapping: (value: boolean) => void;
@@ -25,6 +24,11 @@ interface AuthState {
  * Cross-tab sync is done through BroadcastChannel (`pwb_auth_channel`) which
  * posts `LOGOUT` and `TOKEN_UPDATED` messages. localStorage `storage` events
  * are not used because they are unreliable for non-storage changes.
+ *
+ * The avatar URL is deliberately NOT kept here. The backend hands out a presigned URL that
+ * expires (`pwb.iam.avatar.url-ttl`, 15 minutes by default), and this store lives for the whole
+ * session — caching the URL here means every avatar breaks once the window passes. It belongs in
+ * the React Query cache, which re-fetches it; see `useAvatarUrl`.
  */
 export const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: null,
@@ -43,12 +47,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setUser: (user) => {
     set({ user });
-  },
-
-  setAvatarUrl: (avatarUrl) => {
-    const currentUser = get().user;
-    if (!currentUser) return;
-    set({ user: { ...currentUser, avatarUrl } });
   },
 
   clearAuth: () => {

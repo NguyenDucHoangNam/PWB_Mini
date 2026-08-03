@@ -26,13 +26,9 @@ export const updateProfile = ({
 export const uploadAvatar = (file: File): Promise<ApiResponse<AvatarUploadResponse>> => {
   const formData = new FormData();
   formData.append("file", file);
-  return apiClient
-    .post("/profile/avatar", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    })
-    .then((res) => res.data);
+  // No explicit Content-Type: axios unsets it for FormData so the browser can add the
+  // multipart boundary. Setting it by hand here would be at best redundant, at worst boundary-less.
+  return apiClient.post("/profile/avatar", formData).then((res) => res.data);
 };
 
 type UseProfileOptions = {
@@ -67,11 +63,7 @@ export const useUpdateProfile = ({ mutationConfig }: UseUpdateProfileOptions = {
       if (updatedData) {
         const currentUser = useAuthStore.getState().user;
         if (currentUser) {
-          setUser({
-            ...currentUser,
-            fullName: updatedData.fullName ?? currentUser.fullName,
-            avatarUrl: updatedData.avatarUrl ?? currentUser.avatarUrl,
-          });
+          setUser({ ...currentUser, fullName: updatedData.fullName ?? currentUser.fullName });
         }
       }
       mutationConfig?.onSuccess?.(response, variables, onMutateResult, context);
@@ -85,16 +77,12 @@ type UseUploadAvatarOptions = {
 
 export const useUploadAvatar = ({ mutationConfig }: UseUploadAvatarOptions = {}) => {
   const queryClient = useQueryClient();
-  const setAvatarUrl = useAuthStore((state) => state.setAvatarUrl);
   return useMutation({
     ...mutationConfig,
     mutationFn: uploadAvatar,
     onSuccess: (response, variables, onMutateResult, context) => {
+      // Invalidating is enough: the avatar URL is served from this query, never copied elsewhere.
       queryClient.invalidateQueries({ queryKey: [PROFILE_KEY] });
-      const newAvatarUrl = response?.data?.avatarUrl;
-      if (newAvatarUrl) {
-        setAvatarUrl(newAvatarUrl);
-      }
       mutationConfig?.onSuccess?.(response, variables, onMutateResult, context);
     },
   });
