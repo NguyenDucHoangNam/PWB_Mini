@@ -49,7 +49,11 @@ public enum LiveroomErrorCode implements ErrorCode {
     MUSIC_OWNER_ABSENT           (ErrorCategory.FORBIDDEN,         "LR_076", "Owner has left. Music stays paused until the owner returns."),
     MUSIC_SONG_LOAD_FAILED       (ErrorCategory.INTERNAL,          "LR_077", "Failed to load the audio file."),
 
-    WS_UNAUTHORIZED              (ErrorCategory.FORBIDDEN,         "LR_080", "You are not allowed to subscribe to this room.");
+    WS_UNAUTHORIZED              (ErrorCategory.FORBIDDEN,         "LR_080", "You are not allowed to subscribe to this room."),
+
+    RTC_SELF_SIGNALING           (ErrorCategory.VALIDATION,        "LR_090", "You cannot send a signal to yourself."),
+    RTC_PAYLOAD_TOO_LARGE        (ErrorCategory.VALIDATION,        "LR_091", "Signaling payload is too large."),
+    RTC_PAYLOAD_INVALID          (ErrorCategory.VALIDATION,        "LR_092", "Signaling payload is missing or malformed.");
 
     LiveroomErrorCode(ErrorCategory category, String code, String defaultMessage) {
         this.category = category;

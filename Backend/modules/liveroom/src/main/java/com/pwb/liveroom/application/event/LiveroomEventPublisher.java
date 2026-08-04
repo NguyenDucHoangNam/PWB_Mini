@@ -12,6 +12,9 @@ public interface LiveroomEventPublisher {
     String MUSIC_CHANNEL = "music";
 
 
+    String RTC_CHANNEL = "rtc";
+
+
     void broadcastToRoom(RoomEvent event);
 
 
@@ -19,4 +22,7 @@ public interface LiveroomEventPublisher {
 
 
     void sendToUser(UUID userId, RoomEvent event);
+
+
+    void sendToUserChannel(UUID userId, RoomEvent event, String channel);
 }

@@ -1,10 +1,14 @@
 package com.pwb.liveroom.infrastructure.config.properties;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 
 @Getter
@@ -15,6 +19,7 @@ public class LiveroomConfig {
     private Room room = new Room();
     private CodeLookup codeLookup = new CodeLookup();
     private Moderation moderation = new Moderation();
+    private Rtc rtc = new Rtc();
 
     @Getter
     @Setter
@@ -57,5 +62,30 @@ public class LiveroomConfig {
 
 
         private Duration micUnmuteCooldown = Duration.ofSeconds(30);
+    }
+
+    @Getter
+    @Setter
+    public static class Rtc {
+
+        private List<IceServer> iceServers = new ArrayList<>(List.of(
+                new IceServer(List.of("stun:stun.l.google.com:19302"), null, null)));
+
+        private int maxSdpLength = 16384;
+
+        private int maxCandidateLength = 1024;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class IceServer {
+
+        private List<String> urls = new ArrayList<>();
+
+        private String username;
+
+        private String credential;
     }
 }

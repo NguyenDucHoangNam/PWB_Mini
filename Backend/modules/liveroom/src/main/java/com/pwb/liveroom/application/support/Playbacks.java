@@ -7,8 +7,6 @@ import com.pwb.liveroom.application.exception.LiveroomErrorCode;
 import com.pwb.liveroom.domain.model.LiveRoom;
 import com.pwb.liveroom.domain.model.Participant;
 import com.pwb.liveroom.domain.model.PlaybackState;
-import com.pwb.liveroom.domain.repository.LiveRoomRepository;
-import com.pwb.liveroom.domain.repository.ParticipantRepository;
 import com.pwb.liveroom.domain.repository.PlaybackStateRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,26 +21,18 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class Playbacks {
 
-    private final LiveRoomRepository liveRoomRepository;
-    private final ParticipantRepository participantRepository;
+    private final RoomSessions roomSessions;
     private final PlaybackStateRepository playbackStateRepository;
     private final LiveroomEventPublisher eventPublisher;
 
 
     public LiveRoom requireActiveRoom(UUID roomId) {
-        LiveRoom room = liveRoomRepository.findById(roomId)
-                .orElseThrow(() -> new LiveroomBusinessException(LiveroomErrorCode.ROOM_NOT_FOUND));
-        if (!room.isActive() || room.getCurrentCycleId() == null) {
-            throw new LiveroomBusinessException(LiveroomErrorCode.ROOM_ENDED);
-        }
-        return room;
+        return roomSessions.requireActiveRoom(roomId);
     }
 
 
     public Participant requireInRoom(LiveRoom room, UUID actorId) {
-        return participantRepository.findByCycleIdAndUserId(room.getCurrentCycleId(), actorId)
-                .filter(Participant::isInRoom)
-                .orElseThrow(() -> new LiveroomBusinessException(LiveroomErrorCode.NOT_IN_SESSION));
+        return roomSessions.requireInRoom(room, actorId);
     }
 
 

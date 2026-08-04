@@ -46,6 +46,14 @@ public class StompLiveroomEventPublisherAdapter implements LiveroomEventPublishe
         });
     }
 
+    @Override
+    public void sendToUserChannel(UUID userId, RoomEvent event, String channel) {
+        afterCommit(() -> {
+            messagingTemplate.convertAndSendToUser(userId.toString(), USER_QUEUE + "/" + channel, event);
+            log.debug("Sent {} to user {} channel {}", event.type(), userId, channel);
+        });
+    }
+
 
     private void afterCommit(Runnable send) {
         if (!TransactionSynchronizationManager.isActualTransactionActive()

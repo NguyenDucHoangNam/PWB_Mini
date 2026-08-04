@@ -1,5 +1,7 @@
 package com.pwb.liveroom.application.event;
 
+import com.pwb.liveroom.application.command.RtcIceCandidate;
+import com.pwb.liveroom.application.command.RtcSignalType;
 import com.pwb.liveroom.domain.enums.EndedReason;
 import com.pwb.liveroom.domain.model.ChatMessage;
 import com.pwb.liveroom.domain.model.JoinRequest;
@@ -143,6 +145,23 @@ public final class RoomEvents {
                 "requestId", request.getId(),
                 "userId", request.getUserId(),
                 "rejectCountByCapacity", rejectCountByCapacity
+        ));
+    }
+
+    public static RoomEvent rtcDescription(UUID roomId, UUID fromUserId, RtcSignalType type, String sdp) {
+        return event(type.eventType(), roomId, map(
+                "fromUserId", fromUserId,
+                "sdp", sdp
+        ));
+    }
+
+    public static RoomEvent rtcIceCandidate(UUID roomId, UUID fromUserId, RtcIceCandidate candidate) {
+        return event(LiveroomEventType.RTC_ICE_CANDIDATE, roomId, map(
+                "fromUserId", fromUserId,
+                "candidate", candidate.candidate(),
+                "sdpMid", candidate.sdpMid(),
+                "sdpMLineIndex", candidate.sdpMLineIndex(),
+                "usernameFragment", candidate.usernameFragment()
         ));
     }
 

@@ -37,6 +37,10 @@ public enum LiveroomEventType {
 
     MUSIC_SONG_CHANGED,
 
+    RTC_OFFER,
+    RTC_ANSWER,
+    RTC_ICE_CANDIDATE,
+
     ROOM_MANUAL_ENDED,
 
     ROOM_AUTO_ENDED,

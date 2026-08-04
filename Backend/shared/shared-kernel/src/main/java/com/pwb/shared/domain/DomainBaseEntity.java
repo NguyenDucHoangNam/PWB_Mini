@@ -26,6 +26,11 @@ public abstract class DomainBaseEntity {
         this.updatedAt = updatedAt;
     }
 
+    public void restoreAuditTimestamps(Instant createdAt, Instant updatedAt) {
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
+
     protected void touch() {
         this.updatedAt = Instant.now();
     }
