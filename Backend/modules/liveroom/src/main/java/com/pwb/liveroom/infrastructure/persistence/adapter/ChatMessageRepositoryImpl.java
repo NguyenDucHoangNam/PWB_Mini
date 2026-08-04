@@ -53,6 +53,11 @@ public class ChatMessageRepositoryImpl implements ChatMessageRepository {
                 .toList();
     }
 
+    @Override
+    public int deleteSentBefore(Instant threshold) {
+        return chatMessageJpaRepository.deleteSentBefore(threshold);
+    }
+
     private Pageable limit(int limit) {
         return PageRequest.ofSize(limit);
     }

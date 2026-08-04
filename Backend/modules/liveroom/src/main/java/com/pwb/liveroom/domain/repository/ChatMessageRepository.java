@@ -19,4 +19,7 @@ public interface ChatMessageRepository {
 
 
     List<ChatMessage> findOlderByCycleId(UUID cycleId, Instant beforeSentAt, UUID beforeId, int limit);
+
+
+    int deleteSentBefore(Instant threshold);
 }

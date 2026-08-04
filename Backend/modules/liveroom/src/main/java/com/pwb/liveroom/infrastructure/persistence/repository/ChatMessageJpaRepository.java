@@ -3,6 +3,7 @@ package com.pwb.liveroom.infrastructure.persistence.repository;
 import com.pwb.liveroom.infrastructure.persistence.entity.ChatMessageJpaEntity;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -30,4 +31,9 @@ public interface ChatMessageJpaRepository extends JpaRepository<ChatMessageJpaEn
             @Param("beforeSentAt") Instant beforeSentAt,
             @Param("beforeId") UUID beforeId,
             Pageable pageable);
+
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM ChatMessageJpaEntity m WHERE m.sentAt < :threshold")
+    int deleteSentBefore(@Param("threshold") Instant threshold);
 }

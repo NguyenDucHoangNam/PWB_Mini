@@ -21,6 +21,9 @@ public interface JoinRequestRepository {
     Optional<JoinRequest> findPendingByRoomIdAndUserId(UUID roomId, UUID userId);
 
 
+    Optional<JoinRequest> findLatestByRoomIdAndUserId(UUID roomId, UUID userId);
+
+
     List<JoinRequest> findPendingByRoomId(UUID roomId);
 
 

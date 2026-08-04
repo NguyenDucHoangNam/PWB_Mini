@@ -24,7 +24,7 @@ public class StompSubscriptionScopeInterceptor implements ChannelInterceptor {
     static final String ROOM_TOPIC_PREFIX = "/topic/liveroom/";
 
 
-    private static final List<String> BROKER_PREFIXES = List.of("/topic/", "/queue/");
+    private static final List<String> BROKER_PREFIXES = List.of("/topic/", "/queue/", "/user/");
 
     private final RoomSubscriptionPolicy subscriptionPolicy;
 

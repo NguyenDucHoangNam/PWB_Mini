@@ -1,6 +1,6 @@
 # Live Room — Việc còn lại & quy ước (bàn giao)
 
-**Cập nhật**: 2026-08-04 — backend xong (Phase 0–8), còn frontend.
+**Cập nhật**: 2026-08-04 — backend xong (Phase 0–8) + một lượt vá lỗ hổng/thiếu sót (mục 7), còn frontend.
 **Mục đích**: đủ để một phiên làm việc mới tiếp tục module mà không cần đọc lại lịch sử hội thoại. Nghiệp vụ đọc ở [`liveroom-business-requirements.md`](./liveroom-business-requirements.md). Tài liệu này chỉ giữ **việc chưa làm, nợ chưa fix, và những quy ước không đọc ra được từ code**.
 
 ---
@@ -31,6 +31,10 @@ Danh sách route REST, kênh STOMP và WS event **không chép lại ở đây**
 Error code là `LR_001`…`LR_092` (theo chuẩn `IAM_xxx` / `AUDIO_xxx` của repo), **không** dùng key `LIVEROOM_ROOM_NOT_FOUND` như §8.3 tài liệu. Tên trong tài liệu trở thành **tên hằng của enum**. Key i18n cho lỗi là chính mã số; key cho message thành công/cảnh báo thì giữ nguyên tên như tài liệu.
 
 Nhóm mã chừa khoảng trống giữa các cụm để luật mới chèn được cạnh hàng xóm của nó thay vì nối vào cuối. Thêm mã mới nhớ cập nhật **cả hai** file `liveroom/messages*.properties`.
+
+Viết đủ hai file vẫn chưa đủ: bundle phải được **đăng ký** trong `MessageSourceConfig.setBasenames` (`classpath:liveroom/messages`). Thiếu dòng đó thì không có lỗi nào cả — `getMessage` lặng lẽ rơi về default, lỗi trả `defaultMessage` tiếng Anh hard-code trong enum còn message thành công trả về **đúng cái key thô** (`"LIVEROOM_ROOM_CREATED"`). Module liveroom chạy suốt Phase 1–8 trong tình trạng này mà không ai thấy, vì response vẫn 200 và vẫn có trường `message`. Thêm module mới có bundle riêng thì nhớ dòng basename.
+
+Placeholder đếm số ở bản tiếng Anh dùng `ChoiceFormat` (`{0} {0,choice,1#minute|1<minutes}`) để không ra "1 minutes"; tiếng Việt không cần vì không chia số nhiều.
 
 ### 2.2 Gộp bảng `liveroom_room_members`
 
@@ -90,6 +94,10 @@ Không dùng `HttpRateLimitFilter` chung, vì filter đó gộp mọi endpoint v
 ### 2.13 Client không được SEND thẳng vào broker
 
 Simple broker của Spring **chuyển tiếp nguyên văn** frame `SEND` mà client gửi tới `/topic/**` hay `/queue/**`. Không chặn thì bất kỳ session đã đăng nhập nào cũng phát được event giả vào topic phòng — không qua use case, không kiểm tra thành viên, và với chat thì không có dòng nào trong DB. Lỗ này tồn tại từ Phase 3, chặn ở `StompSubscriptionScopeInterceptor` (`checkPublish`).
+
+`/user/**` cũng nằm trong danh sách chặn, và đây là phần **dễ sót nhất**. `UserDestinationMessageHandler` đăng ký trên `clientInboundChannel`, và frame `SEND` của client mang `SimpMessageType.MESSAGE` — nhánh mà `DefaultUserDestinationResolver` đọc tên người nhận **từ chính destination**, không phải từ principal của session. Chặn mỗi `/topic/` + `/queue/` thì một client vẫn gửi được `/user/{userId người khác}/queue/liveroom` và Spring giao tận nơi: giả được `REQUEST_APPROVED`, `PARTICIPANT_KICKED`, cả offer RTC.
+
+Chặn ở clientInbound **không** ảnh hưởng đường phát của server: `convertAndSendToUser` đi qua `brokerChannel`, còn `SUBSCRIBE` tới `/user/queue/**` là lệnh khác nên không bị đụng. Đã chạy lại chat, quyết định join request và signaling RTC sau khi thêm luật — vẫn nhận đủ.
 
 Hệ quả: **mọi thứ client gửi phải đi qua `/app/**`** và có `@MessageMapping` xử lý.
 
@@ -266,17 +274,23 @@ Hành vi phía client mà tài liệu yêu cầu nhưng backend **không** làm 
 - Tháo peer connection khi nhận `PARTICIPANT_LEFT` / `PARTICIPANT_KICKED` — backend không có event RTC riêng cho việc đó
 - Đọc `GET /rtc/config` khi vào phòng, đừng hard-code ICE server hay giới hạn payload
 
+Hai endpoint thêm ở lượt vá (mục 7), FE cần biết là có:
+
+- `GET /rooms/{roomId}` giờ **participant đang trong phòng cũng đọc được**, không còn chỉ owner. Người ngoài vẫn nhận 404 (`LR_001`) chứ không phải 403 — cố ý, để không lộ phòng có tồn tại hay không.
+- `GET /rooms/{roomId}/join-requests/me` trả yêu cầu **mới nhất** của chính mình (`PENDING` / `APPROVED` / `REJECTED_*`), 404 `LR_030` nếu chưa từng gửi. Đây là thứ để màn lobby dựng lại trạng thái sau F5 thay vì phải nhớ `requestId` trong `localStorage`.
+
+Khuôn frame WS: `{ type, roomId, timestamp, data }` — payload nằm ở **`data`**, không phải `payload`.
+
 ---
 
 ## 5. Nợ chưa fix
 
-Đã đối chiếu với code ngày 2026-08-04 — **tất cả các mục dưới đây vẫn còn nguyên**.
+Đã đối chiếu với code ngày 2026-08-04, **sau** lượt vá ở mục 6 — những gì mục 6 đã xử lý thì đã gỡ khỏi bảng này.
 
 ### 5.1 Phải xử lý trước khi lên production / scale
 
 | Vấn đề | Ảnh hưởng |
 | ------ | --------- |
-| **`restoreAuditTimestamps` chưa commit** | `DomainBaseEntity.restoreAuditTimestamps` mới chỉ là sửa đổi local ở shared-kernel (`git status` vẫn báo `M`). Đã mất một lần và cả module ngừng compile. **Commit sớm.** |
 | **Broker STOMP in-memory** | `enableSimpleBroker` — đúng với 1 instance. Chạy nhiều node thì broadcast của node này không tới subscriber của node kia. Phải thay bằng broker ngoài (Redis/RabbitMQ) trước khi scale. |
 | **Registry phiên WS in-memory** | `StompSessionRegistryAdapter` giữ `ConcurrentHashMap` trong process. Kick chỉ đóng được phiên gắn với node hiện tại. Cùng gốc với vấn đề trên. |
 | **TURN credential tĩnh** | `username` / `credential` lấy thẳng từ `pwb.liveroom.rtc.ice-servers` rồi trả cho mọi client trong phòng. Lộ ra là ai cũng relay qua TURN server bằng băng thông của mình. Dựng TURN thật thì phải chuyển sang credential có hạn dùng (HMAC theo thời gian, RFC 5766 REST API). Hiện chưa có TURN nên chưa cháy. |
@@ -288,20 +302,38 @@ Hành vi phía client mà tài liệu yêu cầu nhưng backend **không** làm 
 | ------ | --------- |
 | **R-ROLE-06 chưa có gì cả** | PRO bị hạ quyền giữa phiên thì phải force-end phòng. Hiện **chỉ có mã `LR_010` nằm im, 0 chỗ dùng** — không có hook, không có nguồn kích hoạt, vì IAM chưa có API đổi role. |
 | **Timer debounce trong process** | `OwnerPresenceAnnouncer` giữ `ScheduledFuture` trong bộ nhớ. Node chết giữa cửa sổ 3s thì mất thông báo `OWNER_LEFT`. Không ảnh hưởng tính đúng của grace — scheduler vẫn kết thúc phòng đúng hạn. |
-| `GET /rooms/{roomId}` chỉ owner đọc được | `GetRoomUseCaseImpl` gọi `requireOwned`. Participant đang ở trong phòng chưa đọc được chi tiết. Mở rộng khi client thật sự cần. |
-| **Chưa có cleanup chat 90 ngày** | R-CHAT-06 nói xoá sau 90 ngày. `infrastructure/scheduler/` mới có empty-room, owner-grace, idempotency-key. Chat lưu vĩnh viễn. POST-MVP. |
 | **Không có REST POST gửi chat** | Tài liệu (UC-10, EC-15) mô tả `POST /:id/chat/messages`. Cố ý không làm — gửi tin chỉ qua STOMP. Muốn thêm thì `SendChatMessageUseCase` dùng lại nguyên vẹn, chỉ cần thêm controller. |
 | **Không có event peer rời (RTC)** | Client tự tháo peer connection theo `PARTICIPANT_LEFT` / `PARTICIPANT_KICKED`. Không có event RTC riêng. |
 | **Mesh 7 người** | Mỗi client giữ tới 6 peer connection. Giới hạn của mesh; đông hơn phải chuyển SFU. |
-| Message `LR_051` ghi "1 minutes" | Template `{0} phút` / `{0} minutes` do §8.3 quy định; tiếng Việt không dính, tiếng Anh sai số ít/nhiều khi còn dưới 1 phút. |
 | **Test IAM hỏng sẵn** | `AuthControllerTest`, `IamFacadeImplTest`, `AuthEndpointContractTest` tham chiếu class đã xoá → `-DskipTests` không build được. Ngoài phạm vi module này. |
-| **`SongMapper` thiếu `restoreAuditTimestamps`** | Response bài hát của module audio không có `createdAt`/`updatedAt`. Ngoài phạm vi module này nhưng dễ fix (§2.10). |
+| **Quét chat chạy một câu DELETE** | `ChatRetentionScheduler` xoá cả lượt trong một transaction. Dữ liệu còn nhỏ nên chưa sao; khi bảng lớn thì chia lô. |
+| **Signaling RTC mở transaction mỗi frame** | `RelayRtcSignalUseCaseImpl` là `@Transactional(readOnly = true)` với 3 truy vấn cho **mỗi** ICE candidate. Đúng nhưng tốn; đông người thì cache membership. |
 
 ---
 
-## 6. Bắt đầu một phiên mới thế nào
+## 6. Lượt vá trước khi sang FE (2026-08-04)
 
-Backend đã xong hết; còn lại là Phase 9 (frontend, mục 4). Trước khi viết code nên:
+Một lượt rà lại backend trước khi bắt đầu Phase 9. Tất cả đã kiểm chứng bằng script chạy API + STOMP thật trên DB tạm theo §3.3 (12 kiểm tra REST/WS + retention + regression RTC), script đã xoá sau khi xong.
+
+| # | Sửa | Vì sao đáng sửa |
+| - | --- | --------------- |
+| 1 | Chặn client `SEND` tới `/user/**` (`StompSubscriptionScopeInterceptor`) | Lỗ bảo mật: giả được event riêng tư gửi cho người khác. Xem §2.13. |
+| 2 | Đăng ký `classpath:liveroom/messages` trong `MessageSourceConfig` | Toàn bộ i18n của module chưa từng chạy — lỗi trả tiếng Anh hard-code, message thành công trả key thô. Xem §2.1. |
+| 3 | 3 mapper của module audio gọi `restoreAuditTimestamps` | `SongMapper`, `VoiceTagMapper`, `SongTagConfigMapper` đều đánh rơi `createdAt`/`updatedAt`, và `non_null` làm hai trường đó biến mất khỏi mọi response audio. Xem §2.10. |
+| 4 | `GET /rooms/{roomId}` cho participant trong phòng | FE không đọc được tên/sức chứa phòng mình đang ở. Người ngoài vẫn 404. |
+| 5 | Thêm `GET /rooms/{roomId}/join-requests/me` | Màn lobby không có cách dựng lại trạng thái sau F5. |
+| 6 | `ChatRetentionScheduler` (R-CHAT-06, mặc định 90 ngày) | Chat trước đó lưu vĩnh viễn. Chỉnh bằng `pwb.liveroom.chat.retention` + `pwb.liveroom.scheduler.chat-retention-cron`. |
+| 7 | `ChoiceFormat` cho `LR_051` / `LR_052` bản tiếng Anh | Hết "1 minutes" / "1 seconds". |
+
+**Không** đụng tới, vẫn nằm ở mục 5: broker/registry in-memory, TURN credential tĩnh, R-ROLE-06 (IAM chưa có API đổi role nên không có nguồn kích hoạt), REST POST gửi chat (cố ý không làm).
+
+Lưu ý khi test: `-Dspring-boot.run.jvmArguments` **không truyền được** giá trị có dấu cách (cron), dùng biến môi trường (`PWB_LIVEROOM_SCHEDULER_CHATRETENTIONCRON`). Và script STOMP phải `sleep` sau khi `subscribe` rồi mới publish — không thì frame tới trước lúc SUBSCRIBE được xử lý và trông y hệt một lỗi thật (đã mất công vì đúng chỗ này).
+
+---
+
+## 7. Bắt đầu một phiên mới thế nào
+
+Backend đã xong hết và đã qua một lượt vá (mục 6); còn lại là Phase 9 (frontend, mục 4). Trước khi viết code nên:
 
 1. Đọc mục **2 (quy ước đã chốt)** — quan trọng nhất, tránh "sửa" những thứ cố ý.
 2. Đọc phần nghiệp vụ tương ứng trong `liveroom-business-requirements.md`.

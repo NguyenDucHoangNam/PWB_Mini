@@ -19,6 +19,7 @@ public class LiveroomConfig {
     private Room room = new Room();
     private CodeLookup codeLookup = new CodeLookup();
     private Moderation moderation = new Moderation();
+    private Chat chat = new Chat();
     private Rtc rtc = new Rtc();
 
     @Getter
@@ -62,6 +63,13 @@ public class LiveroomConfig {
 
 
         private Duration micUnmuteCooldown = Duration.ofSeconds(30);
+    }
+
+    @Getter
+    @Setter
+    public static class Chat {
+
+        private Duration retention = Duration.ofDays(90);
     }
 
     @Getter

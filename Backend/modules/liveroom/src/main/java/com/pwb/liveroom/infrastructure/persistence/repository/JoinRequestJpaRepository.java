@@ -20,6 +20,8 @@ public interface JoinRequestJpaRepository extends JpaRepository<JoinRequestJpaEn
     Optional<JoinRequestJpaEntity> findByRoomIdAndUserIdAndState(
             UUID roomId, UUID userId, JoinRequestState state);
 
+    Optional<JoinRequestJpaEntity> findFirstByRoomIdAndUserIdOrderByCreatedAtDesc(UUID roomId, UUID userId);
+
     List<JoinRequestJpaEntity> findAllByRoomIdAndStateOrderByCreatedAtAsc(UUID roomId, JoinRequestState state);
 
     void deleteAllByRoomId(UUID roomId);

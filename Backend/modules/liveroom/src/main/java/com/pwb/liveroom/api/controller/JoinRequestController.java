@@ -7,6 +7,7 @@ import com.pwb.liveroom.application.command.CreateJoinRequestCommand;
 import com.pwb.liveroom.application.usecase.ApproveJoinRequestUseCase;
 import com.pwb.liveroom.application.usecase.CancelJoinRequestUseCase;
 import com.pwb.liveroom.application.usecase.CreateJoinRequestUseCase;
+import com.pwb.liveroom.application.usecase.GetMyJoinRequestUseCase;
 import com.pwb.liveroom.application.usecase.ListPendingJoinRequestsUseCase;
 import com.pwb.liveroom.application.usecase.RejectJoinRequestUseCase;
 import com.pwb.liveroom.application.view.JoinRequestView;
@@ -45,6 +46,7 @@ public class JoinRequestController {
 
     private final CreateJoinRequestUseCase createJoinRequest;
     private final CancelJoinRequestUseCase cancelJoinRequest;
+    private final GetMyJoinRequestUseCase getMyJoinRequest;
     private final ListPendingJoinRequestsUseCase listPendingJoinRequests;
     private final ApproveJoinRequestUseCase approveJoinRequest;
     private final RejectJoinRequestUseCase rejectJoinRequest;
@@ -73,6 +75,15 @@ public class JoinRequestController {
                 .map(JoinRequestResponse::from)
                 .toList();
         return ResponseEntity.ok(ApiResponse.success(body));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<JoinRequestResponse>> getMine(
+            @CurrentUser UUID userId,
+            @PathVariable UUID roomId
+    ) {
+        JoinRequestView view = getMyJoinRequest.execute(userId, roomId);
+        return ResponseEntity.ok(ApiResponse.success(JoinRequestResponse.from(view)));
     }
 
     @DeleteMapping("/{requestId}")

@@ -58,6 +58,13 @@ public class JoinRequestRepositoryImpl implements JoinRequestRepository {
     }
 
     @Override
+    public Optional<JoinRequest> findLatestByRoomIdAndUserId(UUID roomId, UUID userId) {
+        return joinRequestJpaRepository
+                .findFirstByRoomIdAndUserIdOrderByCreatedAtDesc(roomId, userId)
+                .map(joinRequestMapper::toDomain);
+    }
+
+    @Override
     public List<JoinRequest> findPendingByRoomId(UUID roomId) {
         return joinRequestJpaRepository
                 .findAllByRoomIdAndStateOrderByCreatedAtAsc(roomId, JoinRequestState.PENDING).stream()
