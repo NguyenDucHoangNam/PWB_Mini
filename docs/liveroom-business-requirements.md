@@ -7,141 +7,6 @@
 
 ---
 
-**Lịch sử thay đổi**:
-- **v1.7** (2026-07-25):
-  - **[C1] Tách 2 loại reject counter** (R-REJECT-04 v1.7):
-    - `rejectCountByOwner`: REJECTED do owner chủ động reject (có chủ đích) → tính vào LOCKED limit (3 lần)
-    - `rejectCountByCapacity`: REJECTED do phòng đầy (R-APPROVE-05) → KHÔNG tính vào LOCKED, chỉ là thông báo thông thường
-    - Lý do: Tránh user bị LOCKED oan vì phòng đầy (bất công)
-  - **[C2] Owner grace hết + có participant khác → ENDED** (R-LEAVE-08 v1.7):
-    - Grace hết mà owner không rejoin → phòng ENDED ngay lập tức (kể cả khi có participant đang họp)
-    - Participants nhận banner WS `ROOM_AUTO_ENDED` với reason `owner_grace_expired` để hiển thị "Owner không quay lại — phòng đã kết thúc"
-    - Lý do: Phòng không thể tiếp tục nếu owner không quay lại (cần owner để quản lý)
-  - **[H3] Thêm Race Condition Protection** (R-CAPACITY-02 v1.7):
-    - Approve/rejoin sử dụng **pessimistic lock** trên `LiveRoom` row (`SELECT ... FOR UPDATE`) để tránh race (xem `liveroom-concurrency.md` §2.1)
-    - Quyết định v1.8: **CHỈ dùng PESSIMISTIC** cho LiveRoom — `@Version` optimistic lock **CHỈ** dùng cho `PlaybackState` (R-MUSIC-10 v1.8)
-    - EC-24: Khi 2 user approve/rejoin đồng thời → chỉ 1 thắng, user còn lại nhận REJECT_WHEN_FULL hoặc "phòng đầy"
-  - **[H4] Owner có slot reserved trong grace period** (R-LEAVE-09 v1.7):
-    - Khi owner leave, max effective capacity trong grace = `max - 1` (giữ 1 slot cho owner rejoin)
-    - Khi owner rejoin → slot được restore, max effective = max
-    - Nếu phòng đã max trước khi owner leave → owner leave → effective = max - 1 → 1 user mới có thể vào
-    - Nếu grace hết → slot của owner được giải phóng (END)
-  - **[H5] Bổ sung WS events còn thiếu**:
-    - `OWNER_LEFT`: Broadcast khi owner leave (bắt đầu grace) → UI update banner
-    - `OWNER_REJOINED`: Broadcast khi owner rejoin → UI update banner
-    - `PARTICIPANT_LEFT` (vs `PARTICIPANT_KICKED`): Phân biệt leave/kick
-    - `CAPACITY_REACHED`: Lobby hiển thị rõ "phòng đã đầy"
-    - `ROOM_AUTO_ENDED` (vs `ROOM_MANUAL_ENDED`): Phân biệt lý do end
-  - **[M6] Sửa State Diagram**: Thêm trigger "owner is last person leaves" → grace active → ENDED
-  - **[M7] Đổi tên**: `Session` của room → `RoomSessionCycle` (để tránh nhầm với `ParticipantSession`)
-  - **[M8] R-ANNOT-03 đơn giản hóa**: Bỏ điều kiện "JoinRequest.state = APPROVED" (vì auto-join nên tương đương ACTIVE participant). Chỉ cần "participant.state = ACTIVE trong session hiện tại"
-  - **[M9] Reset `started_at` khi REOPEN** (R-REOPEN-04.1): Mỗi lần reopen, `started_at = now()` để empty timeout chính xác
-  - **[M10] Downgrade không ảnh hưởng phòng user là participant** (R-ROLE-06 v1.7):
-    - Downgrade PRO → USER chỉ force-end phòng do user TẠO (owner)
-    - Phòng user là participant (của owner khác) → KHÔNG bị ảnh hưởng
-    - User vẫn là participant bình thường ở phòng khác
-  - Thêm i18n messages: `LIVEROOM_REJECTED_BY_OWNER`, `LIVEROOM_ROOM_AUTO_ENDED_OWNER_GRACE`
-  - Thêm EC-24 (race condition khi approve/rejoin đồng thời)
-- **v1.6** (2026-07-25):
-  - **Thêm Shared Listening** (R-MUSIC-01 → R-MUSIC-08): phát nhạc realtime trong phòng
-  - **Nguồn nhạc**: Reuse từ module Voice đã có (Song entity) — user upload file MP3/M4A từ trước
-  - **Chọn bài của chính mình**: User chỉ được chọn bài hát thuộc sở hữu của mình (Song.userId = currentUser.id)
-  - **1 bài tại 1 thời điểm**: Khi user mới chọn bài → stop bài cũ (nếu có)
-  - **Control đồng bộ toàn phòng**: Mọi ACTIVE participant đều play/pause/seek/volume được
-  - **Volume GLOBAL**: Khi 1 người chỉnh volume → cả phòng sync (không cá nhân)
-  - **Owner leave → pause nhạc** (không end phòng, không stop nhạc)
-  - **Thêm Annotation** (R-ANNOT-01 → R-ANNOT-08): ghi chú tại timestamp bài hát
-  - **Bỏ APPROVED_WAITING state**: Approve khi phòng đầy → REJECT luôn với reason "Room is full, please try later". Capacity check **real-time** lúc approve, không có queue đợi slot.
-  - **Annotation visibility**: CHỈ user đã được duyệt vào phòng TRONG PHIÊN HIỆN TẠI (JoinRequest state = APPROVED hoặc đã là ACTIVE participant)
-  - **Annotation scope**: Theo phiên hiện tại — khi phòng ENDED → annotation được lưu + view được sau
-  - **Annotation lifecycle**: Chỉ tạo được khi đang phát nhạc; ai cũng tạo được trong ACTIVE participant
-  - **Annotation storage**: Lưu theo (sessionId, songId, timestampSeconds) → lịch sử
-  - Thêm UC-12 (Select song), UC-13 (Control playback), UC-14 (Create annotation)
-  - Thêm EC-18/19/20 (music/annotation edge cases)
-  - Thêm i18n: LIVEROOM_MUSIC_OWNER_PAUSED, LIVEROOM_MUSIC_SONG_LOAD_FAILED, LIVEROOM_ANNOTATION_TOO_LONG
-  - Thêm WS events: MUSIC_PLAYBACK_STATE_CHANGED, MUSIC_SONG_CHANGED, ANNOTATION_CREATED
-- **v1.5** (2026-07-25):
-  - **Thêm Chat trong phòng** (R-CHAT-01 → R-CHAT-08): text chat realtime giống Google Meet sidebar
-  - **Chat scope**: Group chat chung trong phòng (không có private DM trong MVP)
-  - **Chat persistence (v1.5 → v1.8 UPDATED)**: Ban đầu KHÔNG lưu lịch sử sau ENDED → v1.8 đổi thành **LƯU VĨNH VIỄN trong DB** (audit trail), cleanup job chỉ xoá sau 90 ngày (R-CHAT-06 v1.8)
-  - **Chat reset on reopen (v1.5 → v1.8 UPDATED)**: Ban đầu Reopen = clean slate, lịch sử bị xoá → v1.8 đổi thành **GIỮ NGUYÊN** chat theo cycle (mỗi message có `sessionCycleId` phân biệt). UI mặc định chỉ load cycle hiện tại (empty cho cycle mới), toggle xem cycle cũ qua SC-07
-  - **Chat permission**: Tất cả ACTIVE participant (kể cả owner) đều gửi được
-  - **Giới đoạn 200 (v1.5 → v1.8 UPDATED)**: Ban đầu max 200 message/room (rolling window) → v1.8 đổi thành **UI mặc định load 200 mới nhất** qua WS broadcast + REST API default; backend vẫn lưu TẤT CẢ (pagination POST-MVP)
-  - **Out of MVP**: file share, reactions, edit/delete message, @mention, read receipt
-  - Thêm UC-10 (Send chat message), EC-13 (Chat khi room ENDED)
-  - Thêm i18n messages: LIVEROOM_CHAT_EMPTY, LIVEROOM_CHAT_TOO_LONG
-  - Thêm WS event: `CHAT_MESSAGE_RECEIVED`, `CHAT_HISTORY_LOADED`
-  - Thêm API: `POST /:id/chat/messages`, `GET /:id/chat/messages`
-- **v1.4** (2026-07-25):
-  - **Reopen reset rejectCount**: Reopen = clean slate hoàn toàn (kể cả REJECTED lock) — Bug 1 fix
-  - **Grace period ưu tiên Empty Room**: Owner leave grace 60s THẮNG empty room 5min — Bug 2 fix
-  - **Thống nhất tên state**: `APPROVED_WAITING` (bỏ `_SLOT`) — Bug 3 fix
-  - **Auto-join khi được approve**: Owner approve user (còn slot) → auto tạo participant + redirect, user không cần click "Vào phòng" — Bug 4 fix
-  - **Upgrade sau downgrade → reopen được**: Role mới của upgrade ghi rõ — Bug 5 fix
-  - **Lobby user thấy thông báo ENDED**: WS ROOM_ENDED broadcast cho cả user ở lobby → state chuyển EXPIRED + UI thông báo — Bug 6 fix
-  - **Capacity real-time cho APPROVED_WAITING**: Lobby hiển thị count `current/max` realtime; khi có slot → auto promote + auto redirect — Bug 7 fix (đã bỏ hoàn toàn trong v1.6 — REJECT luôn khi phòng đầy)
-  - **Modal "Bị ban" ở prejoin**: User click "Xin vào" mà bị LOCKED → modal thông báo (không cần recourse) — Bug 9 fix
-  - **Prejoin tutorial**: Gộp SC-04 + SC-05a — preview mic/cam ngay khi nhập roomCode — Bug 11 fix
-  - **Flow Google Meet style**: Single screen prejoin & lobby — Bug 12 fix
-  - **Keyboard shortcuts**: M=mute, V=camera, Ctrl/Cmd+E=leave — Bug 10 fix
-- **v1.3** (2026-07-25):
-  - Bỏ chức năng "mời" — owner chỉ chia sẻ roomCode/link
-  - Thêm giới hạn 3 lần REJECTED per-room, state LOCKED (reset on reopen - v1.4)
-  - **Quyết định MVP**: KHÔNG có whitelist — REJECTED 3 lần = cấm cho phòng đó (reset on reopen - v1.4)
-  - Thêm R-ROLE-01 → R-ROLE-11: phân quyền PRO/USER + PRO join phòng khác
-  - Thêm Permission Matrix (section 9.1)
-  - Force-end phòng khi owner bị downgrade từ PRO xuống USER
-  - Sửa R-CREATE-04: capacity min = 1 (phòng mới chỉ có owner)
-  - Sửa R-CREATE-06: tên phòng unique per-owner
-  - Edge cases 7.11, 7.12
-  - i18n messages: LIVEROOM_PRO_REQUIRED, LIVEROOM_REQUEST_LOCKED, LIVEROOM_ROOM_FORCE_ENDED_ROLE_CHANGE
-- **v1.2** (2026-07-25): Bổ sung luồng Video (camera + microphone), thêm R-MEDIA-01 → R-MEDIA-10, edge cases 7.7-7.10, UC-08/UC-09, media state messages
-- **v1.1** (2026-07-25): Cập nhật email immutable, grace period, reopen logic
-- **v1.0** (2026-07-25): Phiên bản đầu tiên
-
-**v1.8 (2026-07-26) — Bug Fixes + UX Improvements**:
-
-**Blocker fixes**:
-- **[B-Fix-01] Room code length chốt 6 chars** (R-CREATE-05 v1.8): uppercase alphanumeric `A-Z0-9` (36 chars × 36^6 = 2.1 tỷ combinations). Bổ sung rate limit 5 attempts/IP/giờ ở Phase 2 (BOT brute-force protection)
-- **[B-Fix-02] KICKED có cooldown 5 phút** (R-ADMIN-04 NEW): user bị kick → 5 phút sau mới được join/rejoin lại. Trước đây có thể rejoin ngay (loop)
-- **[B-Fix-03] Room name unique rule** (R-CREATE-06 v1.8): Trim leading/trailing whitespace + Lowercase comparison. Max length 100 chars
-- **[B-Fix-04] Music dùng STOMP WS** (R-MUSIC-09 NEW): phát nhạc qua STOMP subscription `/topic/liveroom/{roomId}/music`, control qua send `/app/liveroom/{roomId}/music`. REST chỉ cho query + initial state sync. Bỏ POST /music/play riêng lẻ
-- **[B-Fix-05] RejectionReason enum đầy đủ** (R-JOIN-09 NEW): `OWNER_REJECT | ROOM_FULL | ROOM_ENDED | USER_CANCELLED | NONE`. REJECTED state mang theo field `rejectionReason`
-
-**Bug fixes**:
-- **[B-Fix-06] Counter scope rõ ràng** (R-REJECT-04 v1.8 clarification): `rejectCountByOwner` chỉ tăng khi state REJECTED + reason=OWNER_REJECT. CANCELLED, EXPIRED, REJECTED (ROOM_FULL) đều KHÔNG tăng counter nào
-- **[B-Fix-07] 1 room = 1 owner tuyệt đối** (R-ROLE-12 NEW): không có co-owner. Downgrade owner → room force-end (R-ROLE-06). Phòng bị force-end vẫn giữ owner_id của user đó (audit), owner có thể reopen khi upgrade lại PRO
-- **[B-Fix-08] Owner rejoin flash event** (R-LEAVE-04.1 NEW): thêm grace minimum 3 giây. Nếu owner leave + rejoin trong 3s → KHÔNG broadcast WS (debounce). Sau 3s mới broadcast OWNER_LEFT
-- **[B-Fix-09] Multi-tab cùng user cùng phòng bị chặn** (R-JOIN-10 NEW): user A đã ACTIVE trong phòng P → mở tab 2 cùng account → tab 2 thấy Phase 2 với cảnh báo "Bạn đang ở phòng này ở tab khác, vui lòng dùng tab hiện tại hoặc đóng tab này". Không cho kick tab 1 từ tab 2 (an toàn, tránh lừa đảo)
-- **[B-Fix-10] was_approved = was ACTIVE** (R-REOPEN-08 v1.8 clarification): `was_approved = TRUE` chỉ dành cho user đã từng có participant row ACTIVE. User chỉ REJECTED (kể cả 3 lần) → was_approved = FALSE → phải gửi JoinRequest mới sau reopen
-- **[B-Fix-11] Music race condition** (R-MUSIC-10 NEW): Backend dùng atomic UPDATE với `@Version` optimistic lock trên PlaybackState. 2 user cùng play/pause trong 100ms → last-write-wins + WS broadcast có `lastUpdatedAt` ordering. Client apply theo timestamp
-- **[B-Fix-12] Chat history > 200 nhưng có option load older** (R-CHAT-05 v1.8): backend lưu TẤT CẢ messages vào DB không xóa, chỉ expose 200 mới nhất qua WS broadcast và API default. Có pagination `?cursor=...&size=...` để load thêm (POST-MVP)
-- **[B-Fix-13] Oldest participant definition** (R-RANK-01 NEW): oldest = participant có `joinedAt` sớm nhất TRONG `RoomSessionCycle` hiện tại + state = ACTIVE. Participant rows từ cycle cũ KHÔNG tính vào
-- **[B-Fix-14] Annotation cross-session** (R-ANNOT-08 NEW): UI history view (SC-07) phải phân biệt annotation theo RoomSessionCycle (hiển thị sessionStart date). Annotation ở cycle cũ không ảnh hưởng cycle mới
-- **[B-Fix-15] KICKED cache state** (R-KICK-04 NEW): Frontend cache state KICKED vào sessionStorage 1 giờ. Reload/navigate → vẫn thấy KICKED screen, không bị flash
-- **[B-Fix-16] Idle ghost participant indicator** (R-MEDIA-12 NEW): user không tương tác (không gửi message, không toggle media, không reaction) > 10 phút → tile hiển thị icon zZz. Sau 30 phút idle vẫn ở ACTIVE (không auto-kick, "nghe thầm" là valid use case R-MEDIA-04)
-- **[B-Fix-17] Email GDPR mask** (R-DISPLAY-06 NEW): Option user ẩn email ở last part `an@com***.com`. Mặc định hiển thị full email trong nội bộ. User từ công ty khác tham gia → có nút "Ẩn email"
-- **[B-Fix-18] WS broadcast scope rule** (R-WS-SCOPE-01 NEW): chỉ user có JoinRequest state ∈ {PENDING, APPROVED} mới subscribe room WS event. User REJECTED/EXPIRED/CANCELLED + LOCKED → unsubscribe + không nhận ROOM_CAPACITY_CHANGED
-- **[B-Fix-19] Owner leave grace configurable** (R-GRACE-01 NEW): grace period mặc định 60s, **configurable 30s-1800s** (tối đa 30 phút) qua system config. Owner thiết lập khi tạo phòng. Đề xuất: 5 phút (300s) cho meeting thường
-- **[B-Fix-20] REMOTE_MUTE permission** (R-ADMIN-05 NEW): owner có quyền mute mic của participant (không tắt camera). WS broadcast `PARTICIPANT_MIC_MUTED_BY_OWNER`. UI hiển thị icon 🔇 + text "Chủ phòng đã tắt mic của bạn"
-- **[B-Fix-21] End room undo trong 5s** (R-END-12 NEW): owner ENDED phòng → toast ở owner UI với button "Hoàn tác" (Undo). Click trong 5 giây → phòng ACTIVE lại, không cần reopen. Sau 5s → revert thành ENDED (không thể undo nữa)
-- **[B-Fix-22] Music pause khi owner absent** (R-MUSIC-11 NEW): trong grace period, non-owner KHÔNG có quyền resume music. Nút Play disabled + tooltip "Chờ owner quay lại". Owner rejoin → nút Play enabled cho cả phòng
-
-**MC fixes**:
-- **[MC-Fix-01] User Flow version bump**: `liveroom-user-flow.md` v1.2 → v1.3 đồng bộ với BR v1.8
-- **[MC-Fix-02] REJECTED state tách 2 enum** (R-JOIN-11 NEW): thay vì 1 state REJECTED với field rejectionReason, BR công nhận 2 state riêng biệt `REJECTED_BY_OWNER` + `REJECTED_BY_CAPACITY` để matching với state diagram đã vẽ ở User Flow. Đơn giản hoá enum trong code
-
-**UX fixes (đã chấp thuận)**:
-- **[UX-Fix-01] Grace duration cấu hình được**: 30s-1800s, mặc định 60s (R-GRACE-01)
-- **[UX-Fix-03] Email short form trong annotation**: hiển thị `name@d***.com` thay vì full email. Tooltip full email
-- **[UX-Fix-05] SC-04 progress bar step**: top bar "Bước 1/4 → 2/4 → 3/4 → 4/4" (Phase 1 → 2 → 3 → 4)
-- **[UX-Fix-07] reservedOwnerSlot tooltip**: hiển thị "1 slot reserved cho owner" khi owner absent
-- **[UX-Fix-08] Auto-join countdown 3s + cancel**: trước khi auto-redirect, hiển thị countdown 3s với nút "Hủy" để user chuẩn bị
-- **[UX-Fix-11] Music mobile progress bar**: snap-to-5s khi tap, touch target ≥ 44px
-- **[UX-Fix-12] Annotation popup position**: popup hiển thị BÊN TRÊN progress bar (không che), auto-flip xuống dưới nếu không đủ chỗ
-
----
-
 ## 1. Bối cảnh sản phẩm
 
 Live Room là tính năng **phòng họp trực tuyến** (voice + video meeting) trong hệ thống PWB_MiNi. Người dùng có thể tạo phòng họp nhanh (instant meeting), mời người khác tham gia, và cùng trao đổi bằng **giọng nói + hình ảnh** theo thời gian thực (thấy mặt nhau).
@@ -189,30 +54,6 @@ Use Case 6: Nghe thầm / Xem thầm
   - Dùng cho observer, người học, hoặc xem demo
 ```
 
-### 1.3. So sánh với Voice-only
-
-| Tiêu chí | Voice-only (cũ) | Voice + Video (mới) |
-|---|---|---|
-| Người tham gia thấy nhau | Không | **Có** |
-| Bật/tắt mic | Bắt buộc? | Tự chọn |
-| Bật/tắt camera | Không có | Tự chọn |
-| Bandwidth | Thấp | Trung bình - Cao |
-| Fallback khi mạng yếu | N/A | Tắt video, giữ voice |
-| Chất lượng trải nghiệm | Nghe thôi | **Trực quan, gần gũi hơn** |
-
-### 1.4. Yêu cầu phương tiện (Media Requirements)
-
-Để tham gia phòng video, người dùng cần:
-
-- **Microphone**: Bắt buộc có (nhưng có thể tắt mic khi không muốn nói)
-- **Camera**: Khuyến nghị (nhưng có thể tắt camera khi không muốn hiện hình)
-- **Bandwidth tối thiểu**:
-  - Chỉ voice: ~50 kbps upload/download
-  - Voice + 1 video stream: ~500 kbps
-  - Voice + 7 video streams (mesh): ~3.5 Mbps (giới hạn cho mạng nội bộ)
-
-> **Lưu ý**: Thiết bị và bandwidth là yêu cầu kỹ thuật, không thuộc phạm vi nghiệp vụ. Backend chỉ cần biết user có bật/tắt mic/camera hay không, không can thiệp vào thiết bị.
-
 ---
 
 ## 2. Đối tượng sử dụng (Personas)
@@ -220,7 +61,7 @@ Use Case 6: Nghe thầm / Xem thầm
 ### 2.1. Owner (Chủ phòng)
 
 - Người tạo phòng, có quyền cao nhất trong phòng
-- Phải có role **PRO** trong hệ thống (xem R-ROLE-01)
+- Phải có role **PRO** trong hệ thống
 - Quyết định ai được vào (phê duyệt hoặc từ chối yêu cầu)
 - Quyết định kết thúc phòng
 - Quyết định mở lại phòng sau khi kết thúc
@@ -245,31 +86,31 @@ Use Case 6: Nghe thầm / Xem thầm
 - Có thể gửi JoinRequest để xin vào phòng
 - **Nếu đã bị REJECTED**: được phép gửi yêu cầu lại, nhưng **tối đa 3 lần** (tính trong cùng 1 phiên)
   - Sau 3 lần REJECTED → bị **LOCKED** cho phiên này của phòng, không thể gửi yêu cầu nữa
-  - Khi phòng REOPEN → rejectCount reset về 0, user có thể thử lại (xem R-REJECT-04.1)
+  - Khi phòng REOPEN → rejectCount reset về 0, user có thể thử lại
 - Thấy danh sách phòng nhưng không có quyền truy cập nội dung
 
 ---
 
 ## 3. Thuật ngữ nghiệp vụ (Glossary)
 
-| Thuật ngữ | Định nghĩa |
-|---|---|
-| **Live Room** | Phòng họp thoại trực tuyến, có mã phòng riêng |
-| **Room Code** | Mã định danh phòng, dùng để mời người khác tham gia |
-| **Owner** | Chủ phòng, người tạo phòng |
-| **Participant** | Người đang trong phòng (bao gồm owner) |
-| **Capacity** | Sức chứa tối đa của phòng |
-| **Slot** | Một vị trí trong phòng, tương ứng với 1 người |
-| **Join Request** | Yêu cầu tham gia phòng, cần owner phê duyệt |
-| **Approve** | Phê duyệt cho người vào phòng |
-| **Reject** | Từ chối yêu cầu tham gia |
-| **Rejoin** | Tham gia lại phòng sau khi đã từng vào (không cần duyệt lại) |
-| **FIFO** | First In First Out - vào theo thứ tự, ai vào trước thì giữ slot trước |
-| **Grace Period** | Khoảng thời gian "ân hạn" trước khi hệ thống tự động xử lý |
-| **Auto-End** | Hệ thống tự động kết thúc phòng khi điều kiện đủ |
-| **Reopen** | Mở lại phòng sau khi đã kết thúc, dùng cho persistent room |
-| **Persistent Room** | Phòng có thể tái sử dụng nhiều lần qua nhiều phiên họp |
-| **Session** | Một lần họp cụ thể trong persistent room |
+| Thuật ngữ           | Định nghĩa                                                            |
+| ------------------- | --------------------------------------------------------------------- |
+| **Live Room**       | Phòng họp thoại trực tuyến, có mã phòng riêng                         |
+| **Room Code**       | Mã định danh phòng, dùng để mời người khác tham gia                   |
+| **Owner**           | Chủ phòng, người tạo phòng                                            |
+| **Participant**     | Người đang trong phòng (bao gồm owner)                                |
+| **Capacity**        | Sức chứa tối đa của phòng                                             |
+| **Slot**            | Một vị trí trong phòng, tương ứng với 1 người                         |
+| **Join Request**    | Yêu cầu tham gia phòng, cần owner phê duyệt                           |
+| **Approve**         | Phê duyệt cho người vào phòng                                         |
+| **Reject**          | Từ chối yêu cầu tham gia                                              |
+| **Rejoin**          | Tham gia lại phòng sau khi đã từng vào (không cần duyệt lại)          |
+| **FIFO**            | First In First Out - vào theo thứ tự, ai vào trước thì giữ slot trước |
+| **Grace Period**    | Khoảng thời gian "ân hạn" trước khi hệ thống tự động xử lý            |
+| **Auto-End**        | Hệ thống tự động kết thúc phòng khi điều kiện đủ                      |
+| **Reopen**          | Mở lại phòng sau khi đã kết thúc, dùng cho persistent room            |
+| **Persistent Room** | Phòng có thể tái sử dụng nhiều lần qua nhiều phiên họp                |
+| **Session**         | Một lần họp cụ thể trong persistent room                              |
 
 ---
 
@@ -286,7 +127,7 @@ Use Case 6: Nghe thầm / Xem thầm
 - **R-CREATE-03**: Sức chứa mặc định của phòng là **7 người** (tối đa)
 - **R-CREATE-04**: Sức chứa tối thiểu là **1 người** (chỉ owner — phòng mới tạo có thể chỉ có 1 mình owner)
 - **R-CREATE-05**: Mỗi phòng có 1 mã `roomCode` duy nhất, dùng để chia sẻ cho người khác vào phòng. **Quy tắc mã phòng (v1.8)**:
-  - **Độ dài**: 6 ký tự (ĐÃ CHỐT — không dùng 8 như đề xuất cũ)
+  - **Độ dài**: 6 ký tự
   - **Bộ ký tự**: `A-Z` (uppercase) + `0-9` → 36 ký tự
   - **Không trùng**: kiểm tra unique trong DB trước khi lưu, retry tối đa 5 lần nếu trùng
   - **Không phân biệt chữ hoa/thường khi user nhập**: client tự uppercase trước khi gọi API
@@ -311,6 +152,7 @@ Use Case 6: Nghe thầm / Xem thầm
 - **R-CREATE-08**: Chỉ user có role **PRO** mới có quyền tạo phòng (xem chi tiết tại R-ROLE-01)
 
 **R-CAPACITY-01 (Real-time capacity cho lobby)**: Phòng cập nhật `current_count` real-time và broadcast qua WS `ROOM_CAPACITY_CHANGED`
+
 - Trigger: Có participant join/leave/timeout
 - WS payload: `{ roomId, currentCount, maxParticipants, timestamp }`
 - User ở lobby (PENDING) subscribe để hiển thị count
@@ -318,6 +160,7 @@ Use Case 6: Nghe thầm / Xem thầm
 - **Lưu ý v1.6**: Khi `currentCount >= maxParticipants` → owner KHÔNG thể approve user mới (R-APPROVE-05 sẽ reject)
 
 **R-CAPACITY-02 (Race condition protection - v1.7)**: Approve/rejoin sử dụng **lock** để tránh race condition khi nhiều request đồng thời:
+
 - **Pessimistic lock (CHÍNH - chọn v1.8)**: `SELECT ... FOR UPDATE` trên `LiveRoom` row khi thực hiện approve/rejoin
   - Lock acquire → check capacity → update participant → release lock
   - Đảm bảo chỉ 1 request thành công tại 1 thời điểm
@@ -330,6 +173,7 @@ Use Case 6: Nghe thầm / Xem thầm
 - **Không áp dụng cho**: Read-only API (xem capacity), WS broadcast
 
 **Ví dụ nghiệp vụ**:
+
 ```
 An tạo phòng "Daily Sync" → Phòng ACTIVE, An là owner, capacity = 7
 Hiện tại có 1 người (An) trong phòng
@@ -413,6 +257,7 @@ User thực hiện Rejoin
 - Nếu user đã từng được duyệt → vẫn phải đợi slot (không được ưu tiên)
 
 **R-JOIN-07 (Idempotency cho duplicate JoinRequest - v1.8 NEW)**:
+
 - Khi user click "Gửi yêu cầu tham gia" 2 lần liên tiếp (double-click, lag, network retry) → **KHÔNG tạo 2 JoinRequest**
 - **Idempotency key**: Mỗi request kèm theo `idempotencyKey` (UUID v4 generated frontend, lưu localStorage 24h)
 - Nếu backend nhận request với key đã tồn tại (chưa expire) → trả về JoinRequest đã tạo trước đó (state hiện tại)
@@ -422,12 +267,14 @@ User thực hiện Rejoin
 - **Lý do**: Tránh UI double-click tạo 2 request, owner nhận 2 notify, user bị reject 2 lần → oan
 
 **R-JOIN-08 (Camera/Mic permission gate - v1.8 NEW)**:
+
 - **Trước khi JoinRequest POST**: Frontend phải check `navigator.mediaDevices` available
 - Nếu browser không support hoặc user không cấp permission → vẫn cho phép JoinRequest (vì SC-04 pre-join là optional screen)
 - Nhưng khi user vào phòng (state = ACTIVE) → nếu không có mic/camera thì chỉ "nghe thầm" (R-MEDIA-04)
 - **Lý do**: Không gate JoinRequest bởi permission, tránh mất cơ hội vào phòng
 
 **R-JOIN-09 (RejectionReason enum - v1.8 NEW)**: Mỗi JoinRequest state kết thúc có `rejectionReason` để hiển thị UI chính xác:
+
 - `OWNER_REJECT` — REJECTED_BY_OWNER (owner chủ động reject)
 - `CAPACITY_FULL` — REJECTED_BY_CAPACITY (phòng đầy)
 - `ROOM_ENDED` — EXPIRED (phòng ENDED trước khi duyệt)
@@ -436,8 +283,10 @@ User thực hiện Rejoin
 - UI hiển thị message i18n theo reason (EN/VI)
 
 **R-JOIN-10 (Multi-tab cùng user cùng phòng - v1.8 NEW)**:
+
 - User A đã có participant state = ACTIVE trong phòng P → mở tab 2 cùng account, cùng URL phòng P
-- **Detect**: Frontend check `localStorage.activeRoomSession = {roomId, sessionId}` khi load. Nếu trùng roomId + sessionId Khác → block UI
+- **Detect**: Frontend check `localStorage` key `activeRoomSession:{roomId}` = `{sessionId, tabId}` khi load. Nếu trùng roomId + sessionId khác tabId → block UI
+  - **Lưu ý**: Key là **per-room** (`activeRoomSession:{roomId}`) để hỗ trợ multi-room (R-ROLE-10: user có thể ở phòng A tab 1 + phòng B tab 2)
 - **Behavior**:
   - Hiển thị warning page "Bạn đang ở phòng này ở tab khác"
   - 2 button: "Chuyển sang tab kia" (focus existing tab qua BroadcastChannel) + "Đóng tab này"
@@ -507,6 +356,7 @@ Tình huống 4: Phòng đã kết thúc
 - **R-APPROVE-04**: Nếu user rời phòng sau khi được duyệt, vẫn giữ `was_approved = TRUE` (để rejoin)
 
 **R-APPROVE-05 (REJECT khi phòng đầy - v1.7)**: Approve mà `currentParticipantCount >= maxParticipants` → REJECT luôn (KHÔNG đợi slot)
+
 - Lý do: tránh queue phức tạp, tránh race condition khi nhiều slot trống cùng lúc
 - User bị reject → toast `"Phòng đã đầy, vui lòng thử lại sau"`
 - User muốn vào → phải gửi JoinRequest mới sau khi có slot trống
@@ -528,6 +378,7 @@ LOCKED               → Tự động chặn (user đã REJECTED_BY_OWNER 3 lầ
 ```
 
 **Lưu ý quan trọng**:
+
 - **REJECTED_BY_OWNER, REJECTED_BY_CAPACITY, CANCELLED, EXPIRED, LOCKED** đều là trạng thái kết thúc (terminal state)
 - **LOCKED chỉ áp dụng** cho JoinRequest mới của user đã đạt giới hạn 3 lần `REJECTED_BY_OWNER`
 - LOCKED không hiển thị cho owner (vì user không thể gửi yêu cầu nữa — hệ thống chặn từ đầu)
@@ -582,15 +433,16 @@ Tình huống 3: Sau khi được duyệt, rejoin không cần duyệt lại
   - **Lưu ý**: Chỉ `rejectCountByOwner` mới trigger LOCKED, `rejectCountByCapacity` KHÔNG bao giờ trigger LOCKED
 - **R-REJECT-06 (Mapping state ↔ counter - v1.8)**: Bảng mapping chính thức:
 
-| State JoinRequest | `rejectionReason` | `rejectCountByOwner` | `rejectCountByCapacity` |
-|---|---|---|---|
-| `REJECTED_BY_OWNER` | `OWNER_REJECT` | +1 | 0 |
-| `REJECTED_BY_CAPACITY` | `CAPACITY_FULL` | 0 | +1 |
-| `CANCELLED` | `USER_CANCELLED` | 0 | 0 |
-| `EXPIRED` | `ROOM_ENDED` | 0 | 0 |
-| `LOCKED` | `RATE_LIMIT` | 0 | 0 |
+| State JoinRequest      | `rejectionReason` | `rejectCountByOwner` | `rejectCountByCapacity` |
+| ---------------------- | ----------------- | -------------------- | ----------------------- |
+| `REJECTED_BY_OWNER`    | `OWNER_REJECT`    | +1                   | 0                       |
+| `REJECTED_BY_CAPACITY` | `CAPACITY_FULL`   | 0                    | +1                      |
+| `CANCELLED`            | `USER_CANCELLED`  | 0                    | 0                       |
+| `EXPIRED`              | `ROOM_ENDED`      | 0                    | 0                       |
+| `LOCKED`               | `RATE_LIMIT`      | 0                    | 0                       |
 
 **v1.7 RATIONALE (tại sao tách 2 loại counter)**:
+
 - Tình huống cũ (v1.6): User gửi request → owner vô tình bấm Approve khi phòng đầy → user bị REJECTED → lặp 3 lần → user bị LOCKED oan → bất công
 - Tình huống mới (v1.7): User gửi request → owner vô tình bấm Approve khi phòng đầy → user bị REJECTED với reason `ROOM_FULL` → chỉ toast thông báo → không ảnh hưởng counter → user có thể gửi lại bình thường
 - Trade-off: Counter phức tạp hơn 1 chút, nhưng công bằng cho user hơn
@@ -602,24 +454,27 @@ Tình huống 3: Sau khi được duyệt, rejoin không cần duyệt lại
 **Mô tả**: Owner có quyền quản trị participants trong phòng: kick (đuổi) participant ra khỏi phòng, mute mic từ xa. Mục đích: duy trì trật tự, chống quấy rối, quản lý chất lượng cuộc họp.
 
 **Quy tắc chung**:
+
 - **R-ADMIN-01**: Chỉ **owner** mới có quyền kick/remote-mute
 - **R-ADMIN-02**: Owner **không thể tự kick** chính mình (vì không có ai khác claim owner trong phòng đó — nếu owner muốn rời → dùng R-LEAVE)
   - Cố tình gọi API → HTTP 400 `SELF_KICK_NOT_ALLOWED`
 - **R-ADMIN-03**: Mỗi action đều **audit log**: `actor=userId owner`, `target=userId`, `action=KICK|REMOTE_MUTE`, `timestamp`, `roomId`, `reason` (optional)
 
 **R-ADMIN-04 (Kick participant - v1.8 NEW)**:
+
 - Khi owner kick user X khỏi phòng:
   - User X chuyển participant state → `KICKED`
   - WS broadcast `PARTICIPANT_KICKED` cho room (mọi participant đang ACTIVE)
   - User X nhận redirect về SC-13 (KICKED screen) hiển thị "Bạn đã bị chủ phòng đuổi khỏi phòng"
-  - **Cooldown 5 phút (5 * 60 = 300 giây)**: User X **KHÔNG thể**:
+  - **Cooldown 5 phút (5 \* 60 = 300 giây)**: User X **KHÔNG thể**:
     - Tự gửi JoinRequest mới cho cùng phòng
     - Rejoin (kể cả khi was_approved = TRUE)
     - Vào phòng qua link/code
-  - Sau 5 phút cooldown, user X có thể gửi JoinRequest mới (state = PENDING, owner phải duyệt lại — was_approved KHÔNG tự động restore)
+  - Sau 5 phút cooldown, user X có thể gửi JoinRequest mới (state = PENDING, owner phải duyệt lại)
+  - **was_approved = FALSE**: Khi user bị KICKED, backend set `was_approved = FALSE` cho user đó trong phòng. User không thể rejoin trực tiếp mà phải qua JoinRequest mới để owner duyệt lại
   - **Implement**: Backend lưu `kickedAt` + `kickedFromRoomId` + `kickedCooldownUntil = kickedAt + 300s`. Mọi API Join/Rejoin check `now() < kickedCooldownUntil` → HTTP 429 `KICKED_COOLDOWN` với message `"Bạn đã bị đuổi khỏi phòng này. Vui lòng thử lại sau X phút."`
   - **Cooldown KHÔNG reset** khi reopen phòng (cố ý: user bị kick 1 lần, phải chờ 5 phút, không có ngoại lệ)
-  - **Frontend cache KICKED state** (R-KICK-04): sau khi nhận event KICKED, lưu vào sessionStorage key `kicked:{roomId}` value `{kickedAt, cooldownUntil}`. Reload/navigate về URL phòng → check cache → vẫn thấy KICKED screen, không bị flash sang "ask to join"
+  - **Frontend cache KICKED state** (R-KICK-04): sau khi nhận event KICKED, lưu vào localStorage key `kicked:{roomId}` value `{kickedAt, cooldownUntil}`. Reload/navigate về URL phòng → check cache → vẫn thấy KICKED screen, không bị flash sang "ask to join"
 - **R-ADMIN-05 (Remote Mute mic - v1.8 NEW)**:
   - Owner có quyền **mute mic** của participant X (KHÔNG tắt camera — tôn trọng privacy)
   - Khi owner remote-mute user X:
@@ -638,15 +493,16 @@ Tình huống 3: Sau khi được duyệt, rejoin không cần duyệt lại
   - Giữ tối thiểu 90 ngày (POST-MVP sẽ configurable)
 
 **R-KICK-04 (Frontend cache KICKED state - v1.8 NEW)**:
-- Sau khi user nhận WS event `PARTICIPANT_KICKED`, frontend cache state vào `sessionStorage`:
+
+- Sau khi user nhận WS event `PARTICIPANT_KICKED`, frontend cache state vào `localStorage` (cross-tab):
   - Key: `kicked:{roomId}`
   - Value: `{kickedAt: ISO timestamp, cooldownUntil: ISO timestamp, reason: string}`
 - **TTL**: 1 giờ (trùng cooldown 5 phút + buffer)
 - **Behavior**:
-  - User reload page → frontend check `sessionStorage.kicked:{roomId}` → nếu còn TTL → render SC-13 ngay, không bị flash sang "ask to join"
+  - User reload page → frontend check `localStorage.kicked:{roomId}` → nếu còn TTL → render SC-13 ngay, không bị flash sang "ask to join"
   - User navigate tới URL phòng → check cache → render SC-13
   - Sau TTL → cache tự expire, user có thể join lại nếu cooldown backend hết
-- **Edge case**: User mở tab 2 sau khi bị kick tab 1 → tab 2 cũng thấy SC-13 (vì cache ở localStorage theo roomId)
+- **Edge case**: User mở tab 2 sau khi bị kick tab 1 → tab 2 cũng thấy SC-13 (vì dùng localStorage, cross-tab sharing)
 - **Lý do**: Tránh UX "ghost" — user bị kick, F5 trang, vẫn thấy "ask to join" → confused
 
 **Ví dụ nghiệp vụ**:
@@ -709,6 +565,7 @@ Tình huống 3: Kicked user cố rejoin
 - **Hành vi trong grace period**:
   - Phòng vẫn ở trạng thái ACTIVE
   - Participants khác vẫn có thể tiếp tục họp
+  - **Cảnh báo UX với grace dài**: Nếu `ownerGraceSeconds > 600` (10 phút), UI form tạo phòng hiển thị warning: _"Grace period dài có thể gây bất tiện cho participants khi owner mất kết nối"_
   - Owner có thể rejoin để tiếp tục
 - **Sau grace period (v1.7 - ENDED nhưng có participants)**:
   - Phòng tự động chuyển sang ENDED **BẤT KỂ** còn participant hay không
@@ -722,6 +579,7 @@ Tình huống 3: Kicked user cố rejoin
   - Sau grace hết: nếu vẫn trống → ENDED luôn (không cần đợi thêm 5min)
 
 **R-LEAVE-09 (Owner slot reserved trong grace - v1.7)**:
+
 - Khi owner leave, **max effective capacity** trong grace period = `max - 1` (giữ 1 slot cho owner rejoin)
 - Ví dụ: Phòng max = 7 → đầy 7/7 (gồm owner) → owner leave → effective max = 6 → 1 user mới có thể vào
 - Khi owner rejoin trong grace → slot được restore, effective max = max (7)
@@ -731,7 +589,8 @@ Tình huống 3: Kicked user cố rejoin
 - Lý do: Tránh tình huống owner rejoin nhưng không còn slot (vừa kỳ cục vừa mất công rejoin)
 - Implement: Khi owner leave, set `room.reservedOwnerSlot = true`. Trong approve/rejoin, check `current_count < (max - 1)` nếu `reservedOwnerSlot = true`, ngược lại check `current_count < max`. Khi owner rejoin, set `reservedOwnerSlot = false`. Khi END, reset cả 2.
 
-**R-LEAVE-10 (Auto-join countdown 3s - v1.8 UX-08)**:
+**R-LEAVE-10 (Auto-join countdown 3s - v1.8 UX-08)** _(Lưu ý: Rule này liên quan đến Join/Approve flow, đặt ở đây vì gắn với UX flow của Leave section)_:
+
 - Khi user được approve → backend tự động tạo participant + session (R-APPROVE-02.1)
 - Trước khi auto-redirect sang SC-06, frontend hiển thị **countdown 3 giây** với nút "Vào phòng ngay" và "Hủy"
 - Mục đích: Cho user chuẩn bị (bật mic, kiểm tra camera) trước khi vào phòng
@@ -754,7 +613,7 @@ Tình huống 1: Owner rời và rejoin trong grace period
 Tình huống 2: Owner rời và hết grace period (v1.7 - có participants khác)
   - An (owner) rời phòng → owner_left_at = now (T0), reservedOwnerSlot = true
   - Phòng còn 3 participants khác đang họp
-  - Lúc T0 + 60s: An chưa rejoin → Phòng auto-end
+  - Lúc T0 + ownerGraceSeconds (mặc định 60s): An chưa rejoin → Phòng auto-end
   - WS broadcast ROOM_AUTO_ENDED với reason="owner_grace_expired"
   - Participants thấy banner "Owner không quay lại — phòng đã kết thúc"
 
@@ -805,6 +664,7 @@ Tình huống 4: Participant rời (không phải owner)
   - Khi grace hết → ENDED luôn (kể cả empty hay có participants) → không chờ empty 5min
 
 **R-END-12 (Undo End Room trong 5s - v1.8 NEW)**:
+
 - Sau khi owner click "Kết thúc phòng" (R-END-01) → phòng chuyển sang ENDED, WS broadcast `ROOM_ENDED`
 - Đồng thời hiển thị **toast ở owner UI** với button "Hoàn tác" (Undo) + countdown 5s
 - **Trong 5 giây**, owner có thể click "Hoàn tác":
@@ -813,18 +673,28 @@ Tình huống 4: Participant rời (không phải owner)
   - WS broadcast `ROOM_REVIVED` để UI cập nhật
   - State trở về như trước khi END (participants vẫn ACTIVE, room_cycle data preserved)
 - **Sau 5 giây**: Toast biến mất, **KHÔNG thể undo** nữa. Owner muốn mở lại phòng → phải dùng R-REOPEN (với effect reset rejectCount, v.v.)
-- **Edge case**: Nếu có user mới gửi JoinRequest trong 5s undo window → JoinRequest đã EXPIRED theo R-END-04. Khi owner undo → JoinRequest KHÔNG tự động revert. User phải gửi lại
+- **Edge case**: Nếu có user mới gửi JoinRequest trong 5s undo window → JoinRequest đã EXPIRED theo R-END-04. Khi owner undo → JoinRequest KHÔNG tự động revert (vì EXPIRED là terminal state). User phải gửi lại JoinRequest mới
 - **Edge case**: Nếu owner force-end vì downgrade (R-ROLE-06) → KHÔNG có undo (admin action, không phải owner voluntary)
+- **Edge case**: Auto-end (grace_expired / empty_timeout) → KHÔNG có undo (owner absent, không có UI hiển thị toast). Chỉ manual end mới có undo
 - **Lý do**: Tránh "oops" moment — owner click nhầm nút End có thể recover ngay
+
+**R-END-12.1 (Participant redirect delay khi ENDED - v1.8 NEW)**:
+
+- Khi participant nhận `ROOM_ENDED` (manual end), frontend **DELAY redirect 5s** (không redirect ngay)
+- Hiển thị modal "Phòng đã kết thúc" với countdown 5s
+- **Trong 5s**, nếu nhận `ROOM_REVIVED` → dismiss modal, tiếp tục ở phòng bình thường
+- **Sau 5s** không có REVIVED → redirect về home/history
+- **Lý do**: Đảm bảo participants nhận được `ROOM_REVIVED` nếu owner undo — tránh tình huống owner undo thành công nhưng phòng trống vì mọi người đã redirect
+- **Chỉ áp dụng cho manual end**: Auto-end (grace_expired/empty_timeout) không có undo → redirect ngay, không cần delay
 
 **Quy tắc ưu tiên auto-end (v1.7)**:
 
 ```
 Phòng ACTIVE:
-  ├─ Owner left_at < 60s ago (grace active)?
+  ├─ Owner left_at < ownerGraceSeconds ago (grace active, mặc định 60s)?
   │      ├─ Có → KHÔNG auto-end (chờ grace hết)
   │      └─ Không → Check empty
-  └─ Grace expired (owner_left_at + 60s < now)?
+  └─ Grace expired (owner_left_at + ownerGraceSeconds < now)?
          ├─ Có → Auto-end với reason="owner_grace_expired" (kể cả có participants)
          └─ Không → Check empty
             └─ Empty (current_count = 0)?
@@ -835,8 +705,9 @@ Phòng ACTIVE:
 **Trong grace period → Empty Room timeout bị suspend** (xem R-LEAVE-08).
 
 **Lưu ý thực tế**: Owner là người duy nhất trong phòng + owner leave:
-- Grace period 60s bắt đầu
-- Sau 60s mà không rejoin → ENDED luôn (R-END-08)
+
+- Grace period ownerGraceSeconds (mặc định 60s) bắt đầu
+- Sau ownerGraceSeconds mà không rejoin → ENDED luôn (R-END-08)
 - KHÔNG cần đợi thêm 5min vì grace đã cover trường hợp này
 
 **Ví dụ nghiệp vụ**:
@@ -871,7 +742,6 @@ Tình huống 3: Phòng trống quá lâu
 - **R-REOPEN-04**: Lưu `previous_ended_at` (thời điểm kết thúc phiên trước) để audit
 - **R-REOPEN-04.1 (Reset started_at - v1.7)**: Mỗi lần reopen, **`started_at = now()`** (reset về thời điểm reopen)
   - Lý do: Empty timeout 5min (R-END-09) tính từ `started_at`. Nếu không reset, phòng có thể auto-end ngay khi reopen
-  - Tương tự: `roomSessionCycleId` mới được tạo (annotation, chat thuộc cycle cũ sẽ được archive)
 - **R-REOPEN-05**: Tăng `reopened_count` mỗi lần reopen
 - **R-REOPEN-06**: Cập nhật `last_reopened_at = now`
 
@@ -945,6 +815,7 @@ Tình huống 3: Reopen nhiều lần
   - **Lý do**: Một số user (đặc biệt freelance, consultant) muốn ẩn email khỏi người lạ khi tham gia phòng không phải của mình
 
 **R-DISPLAY-07 (Domain detection - v1.8)**: Hệ thống xác định "cùng tổ chức" bằng **email domain trùng với owner email domain**:
+
 - `an@congty.com` tham gia phòng của `owner@congty.com` → same org → hiển thị full email
 - `external@gmail.com` tham gia phòng của `owner@congty.com` → different org → hiển thị nút "Ẩn email" (mặc định vẫn full, user tự ẩn)
 - **Whitelist domain** (POST-MVP): chỉ áp dụng cho tenant enterprise
@@ -1011,20 +882,20 @@ Tình huống 2: Lịch sử tham gia
   - **Implement**: Backend lưu `micMutedByOwnerAt + cooldownUntil`. Khi user cố bật mic → check `now() < cooldownUntil` → HTTP 429 với message
 - **R-MEDIA-11 (Camera giữ nguyên rule "không ép bật" - v1.8 clarification)**: Owner không có quyền remote-off camera. Lý do: camera gắn liền với hình ảnh cá nhân, nhạy cảm hơn mic
 - **R-MEDIA-12 (Idle ghost participant indicator - v1.8 NEW)**: Phát hiện user "idle" trong phòng:
-  - **Định nghĩa idle**: User không có hoạt động tương tác trong **10 phút** (no chat message, no media toggle, no reaction, no annotation)
+  - **Định nghĩa idle**: User không có hoạt động tương tác trong **10 phút** (no chat message, no media toggle, no reaction)
   - **Indicator**: Tile của user idle hiển thị icon `zZz` ở góc
   - **Sau 30 phút idle**: Vẫn ở ACTIVE (KHÔNG auto-kick). "Nghe thầm" là use case hợp lệ (R-MEDIA-04)
-  - **Tracking**: Backend lưu `lastInteractionAt` mỗi user. Update mỗi khi nhận: chat message, media toggle, reaction, annotation
+  - **Tracking**: Backend lưu `lastInteractionAt` mỗi user. Update mỗi khi nhận: chat message, media toggle, reaction
   - **Privacy**: Tracker không bao gồm "xem ai đang nói" (active speaker) — đó là WS packet, không phải tương tác bằng chứng user
   - **UX**: Khi user hover vào tile idle → tooltip "An đang nghe thầm (idle 12 phút)"
   - **Lý do**: Giúp owner biết ai đang "ngồi đó" mà không tương tác, dễ mời phát biểu hoặc xác nhận vẫn còn tham gia
 
 **Trạng thái Media khi tham gia**:
 
-| Trạng thái | Mặc định | Mô tả |
-|---|---|---|
-| `camera_on` | FALSE | Camera tắt, người khác không thấy hình |
-| `mic_on` | FALSE | Mic tắt, người khác không nghe thấy |
+| Trạng thái  | Mặc định | Mô tả                                  |
+| ----------- | -------- | -------------------------------------- |
+| `camera_on` | FALSE    | Camera tắt, người khác không thấy hình |
+| `mic_on`    | FALSE    | Mic tắt, người khác không nghe thấy    |
 
 **Kịch bản sử dụng**:
 
@@ -1058,13 +929,13 @@ Kịch bản 5: Lỡ tay bật mic
 - Owner có thể yêu cầu (verbal) nhưng không ép technical
 - Nếu user vi phạm nghiêm trọng (spam, nội dung xấu) → owner dùng quyền kick (R-ADMIN-01)
 
-**R-MEDIA-09 - Xử lý sự cố media**:
+**R-MEDIA-13 - Xử lý sự cố media**:
 
 - Nếu mất kết nối media stream (network issue) → trạng thái hiển thị "Connecting..."
 - Nếu user từ chối cấp quyền camera/mic → vẫn vào phòng được, media = off
 - Nếu trình duyệt không hỗ trợ WebRTC → hiển thị cảnh báo, vẫn cho vào phòng (chỉ voice-only fallback)
 
-**R-MEDIA-10 - Audit media history**:
+**R-MEDIA-14 - Audit media history**:
 
 - Lưu lại lần cuối cùng user có `camera_on`/`mic_on` là khi nào
 - Dùng cho audit: "user X có bật mic khi nói không phù hợp không?"
@@ -1077,6 +948,7 @@ Kịch bản 5: Lỡ tay bật mic
 **Mô tả**: Một số UI cần biết "ai vào phòng sớm nhất" (oldest), "ai vào gần nhất" (newest), phục vụ cho visual cue (highlight tile, badge).
 
 **R-RANK-01 (Oldest participant definition - v1.8 NEW)**:
+
 - **Oldest participant** = participant có `joinedAt` sớm nhất trong `RoomSessionCycle` hiện tại + `state = ACTIVE`
 - **Tie-breaker**: Nếu cùng `joinedAt` (hiếm) → ưu tiên userId nhỏ hơn (UUID order)
 - **Scope**: Chỉ tính trong cycle hiện tại. Participant rows từ cycle cũ (sau reopen) KHÔNG tính vào
@@ -1085,11 +957,13 @@ Kịch bản 5: Lỡ tay bật mic
 - **Use case**: UI có thể highlight tile của oldest với badge "Vào đầu tiên" (POST-MVP)
 
 **R-RANK-02 (Newest participant - v1.8 NEW)**:
+
 - **Newest participant** = participant có `joinedAt` muộn nhất trong `RoomSessionCycle` hiện tại + `state = ACTIVE`
 - **Tie-breaker**: Cùng `joinedAt` → ưu tiên userId lớn hơn
 - **Use case**: UI có thể gợi ý "Chào mừng {newest_email} vừa tham gia!" (toast 3s, optional)
 
 **R-RANK-03 (Out of MVP - các loại rank khác)**:
+
 - ❌ Voice activity ranking (top N người nói nhiều nhất)
 - ❌ Reaction count ranking
 - ❌ Attendance streak (tham gia N meeting liên tiếp)
@@ -1100,6 +974,7 @@ Kịch bản 5: Lỡ tay bật mic
 ### 4.10. Phân quyền Role (PRO vs USER)
 
 **Mô tả**: Live Room phân biệt rõ 2 role trong hệ thống IAM:
+
 - **PRO**: Có quyền tạo và quản lý phòng (trở thành owner)
 - **USER (non-PRO)**: Chỉ tham gia phòng với vai trò Participant, không có quyền tạo phòng
 
@@ -1179,6 +1054,7 @@ Kịch bản 5: Lỡ tay bật mic
 - Lý do: Tránh JoinRequest thừa cho chính phòng mình
 
 **R-ROLE-12 (1 room = 1 owner tuyệt đối - v1.8 NEW)**:
+
 - **KHÔNG có co-owner** trong MVP. 1 phòng chỉ có đúng 1 owner tại mọi thời điểm
 - **Transfer ownership**: MVP KHÔNG hỗ trợ chuyển owner cho user khác. Nếu owner muốn thoát → dùng R-LEAVE (hoặc R-END nếu muốn đóng phòng). Phòng persistent khi owner downgrade sẽ vẫn lưu owner_id (audit)
 - **Downgrade behavior** (R-ROLE-06 recap): Phòng ACTIVE → force-end ngay, KHÔNG auto-transfer
@@ -1186,6 +1062,7 @@ Kịch bản 5: Lỡ tay bật mic
 - **Lý do**: Đơn giản hoá RBAC, tránh conflict permission. Multi-ownership là complex feature (ngoài MVP scope)
 
 **R-ROLE-13 (Room ownership audit - v1.8 NEW)**:
+
 - Khi owner bị downgrade → phòng ENDED, **KHÔNG xoá** `room.owner_id` (giữ nguyên để audit)
 - Khi owner upgrade back → có thể REOPEN phòng cũ với owner_id giữ nguyên
 - **Audit table** `room_ownership_history`:
@@ -1263,26 +1140,27 @@ Tình huống 4: PRO có nhiều phòng
 
 **Các trạng thái chính**:
 
-| Trạng thái | Mô tả |
-|---|---|
-| `ACTIVE` | Phòng đang hoạt động, có thể join/leave |
-| `ENDED` | Phòng đã kết thúc, không thể join/leave, có thể reopen |
+| Trạng thái | Mô tả                                                  |
+| ---------- | ------------------------------------------------------ |
+| `ACTIVE`   | Phòng đang hoạt động, có thể join/leave                |
+| `ENDED`    | Phòng đã kết thúc, không thể join/leave, có thể reopen |
 
 **Các trigger chuyển trạng thái (v1.7)**:
 
-| Trigger | Từ | Đến | Điều kiện |
-|---|---|---|---|
-| Owner leaves | ACTIVE | ACTIVE (grace) | owner_left_at = now, reservedSlot = true (R-LEAVE-09) |
-| Owner rejoins | ACTIVE (grace) | ACTIVE | Trong 60s, owner_left_at = null, reservedSlot = false |
-| Owner ends | ACTIVE | ENDED | Owner action (manual) |
-| Grace expired (v1.7) | ACTIVE (grace) | ENDED | owner_left_at + 60s < now (kể cả có participants khác - R-END-08 v1.7) |
-| Empty timeout | ACTIVE | ENDED | current_count = 0 + 5min, KHÔNG có grace active |
-| Owner reopens (v1.7) | ENDED | ACTIVE | Owner action, started_at = now(), rejectCount = 0 |
+| Trigger              | Từ             | Đến            | Điều kiện                                                              |
+| -------------------- | -------------- | -------------- | ---------------------------------------------------------------------- |
+| Owner leaves         | ACTIVE         | ACTIVE (grace) | owner_left_at = now, reservedSlot = true (R-LEAVE-09)                  |
+| Owner rejoins        | ACTIVE (grace) | ACTIVE         | Trong ownerGraceSeconds (mặc định 60s), owner_left_at = null, reservedSlot = false |
+| Owner ends           | ACTIVE         | ENDED          | Owner action (manual)                                                  |
+| Grace expired (v1.7) | ACTIVE (grace) | ENDED          | owner_left_at + ownerGraceSeconds < now (kể cả có participants khác - R-END-08 v1.7) |
+| Empty timeout        | ACTIVE         | ENDED          | current_count = 0 + 5min, KHÔNG có grace active                        |
+| Owner reopens (v1.7) | ENDED          | ACTIVE         | Owner action, started_at = now(), rejectCount = 0                      |
 
 **v1.7 LƯU Ý quan trọng về State Machine**:
+
 - Owner leave KHÔNG đi thẳng tới ENDED - luôn vào trạng thái ACTIVE (grace)
 - Trong grace: owner_left_at = now, reservedOwnerSlot = true → max effective = max - 1 (R-LEAVE-09)
-- Sau grace (60s) → ENDED với endedReason = "owner_grace_expired" (R-END-08)
+- Sau grace (ownerGraceSeconds, mặc định 60s) → ENDED với endedReason = "owner_grace_expired" (R-END-08)
 - KỂ CẢ khi phòng còn participants khác (v1.7 thay đổi so với v1.6)
 - Trigger "last person leaves" chỉ áp dụng khi người rời cuối cùng KHÔNG PHẢI owner - empty timeout 5min sẽ trigger sau
 
@@ -1335,6 +1213,7 @@ Luồng thay thế:
 ```
 
 **UX-05 (SC-04 progress bar step - v1.8)**: Top bar hiển thị "Bước X/4" để user biết họ đang ở đâu trong flow:
+
 - **Phase 1 (Bước 1/4) — Nhập roomCode**: SC-02 form nhập mã phòng
 - **Phase 2 (Bước 2/4) — Pre-join (SC-04)**: Preview mic/cam, điền tên hiển thị (optional)
 - **Phase 3 (Bước 3/4) — Chờ duyệt (SC-05)**: Trang "Đang chờ chủ phòng duyệt..." (PENDING state)
@@ -1505,12 +1384,14 @@ Quy tắc:
 ### 7.1. Conflict 1: Phòng đầy + Rejoin
 
 **Tình huống**:
+
 - Bình đã từng vào phòng (was_approved = TRUE)
 - Bình rời phòng
 - Sau đó phòng đầy 7/7 với người mới
 - Bình muốn rejoin
 
 **Giải pháp nghiệp vụ**:
+
 - `was_approved = TRUE` = user **được phép** rejoin (không cần duyệt)
 - NHƯNG vẫn phải tuân thủ FIFO: nếu phòng đầy → đợi slot
 - Không có queue ưu tiên, ai cũng phải đợi khi phòng đầy
@@ -1518,11 +1399,13 @@ Quy tắc:
 ### 7.2. Conflict 2: Phòng đầy + Phê duyệt mới
 
 **Tình huống**:
+
 - Phòng đầy 7/7
 - Có người gửi JoinRequest mới
 - Owner muốn duyệt
 
 **Giải pháp nghiệp vụ (v1.6)**:
+
 - Approve khi phòng đầy → REJECT luôn với reason "Room is full" (R-APPROVE-05)
 - User bị reject → toast "Phòng đã đầy, vui lòng thử lại sau"
 - Owner muốn tạo slot → kick người khác, sau đó user mới gửi JoinRequest lại
@@ -1531,12 +1414,14 @@ Quy tắc:
 ### 7.3. Conflict 3: Reopen + JoinRequest cũ (đã chốt)
 
 **Tình huống**:
+
 - Phiên 1: C gửi JoinRequest → bị REJECTED
 - Owner kết thúc phòng
 - Owner reopen phòng (phiên 2)
 - C muốn vào
 
 **Giải pháp nghiệp vụ** (đã chốt Option 1):
+
 - Khi reopen, xoá hết JoinRequest cũ
 - C phải gửi JoinRequest mới
 - Lý do: Reopen = meeting mới, clean slate, dễ audit
@@ -1544,11 +1429,13 @@ Quy tắc:
 ### 7.4. Conflict 4: Reopen + Participant cũ (đã chốt)
 
 **Tình huống**:
+
 - Phiên 1: A, B tham gia (was_approved = TRUE)
 - Phòng ENDED
 - Reopen phòng
 
 **Giải pháp nghiệp vụ** (đã chốt Option 1):
+
 - Giữ nguyên was_approved = TRUE cho A, B
 - A, B có thể rejoin ngay khi phòng ACTIVE (không cần duyệt lại)
 - Lý do: Persistent room pattern, người quen thuộc không cần duyệt lại
@@ -1556,11 +1443,13 @@ Quy tắc:
 ### 7.5. Conflict 5: Email bất biến + Audit
 
 **Tình huống**:
+
 - User đã tham gia phòng với email "a@company.com"
 - (Lưu ý: vì email bất biến, điều này không thể xảy ra trong thực tế)
 - Nếu user bị xoá (GDPR), participant row sẽ orphan
 
 **Giải pháp nghiệp vụ**:
+
 - Vì email bất biến → hiển thị email luôn chính xác (không cần sync)
 - Nếu user bị xoá → hiển thị "deleted user" trong lịch sử
 - Audit trail vẫn chính xác (chỉ cần user_id, tra cứu lại được)
@@ -1568,10 +1457,12 @@ Quy tắc:
 ### 7.6. Conflict 6: Owner leave + Reopen
 
 **Tình huống**:
+
 - Owner rời phòng, grace period 60s
 - Trong 60s, owner nhấn "Mở lại phòng" (reopen) thay vì rejoin
 
 **Giải pháp nghiệp vụ**:
+
 - Reopen chỉ áp dụng cho phòng ENDED
 - Trong grace period, phòng vẫn ACTIVE → không thể reopen
 - Owner chỉ có 2 lựa chọn: rejoin hoặc đợi auto-end
@@ -1579,10 +1470,12 @@ Quy tắc:
 ### 7.7. Conflict 7: User không cấp quyền camera/mic
 
 **Tình huống**:
+
 - User truy cập phòng nhưng trình duyệt hỏi cấp quyền camera/mic
 - User từ chối (click "Block")
 
 **Giải pháp nghiệp vụ**:
+
 - User **vẫn vào phòng được** (chỉ voice-only / chỉ xem)
 - Trạng thái media = off
 - Hiển thị hướng dẫn: "Bạn có thể bật camera/mic bất cứ lúc nào"
@@ -1591,10 +1484,12 @@ Quy tắc:
 ### 7.8. Conflict 8: Nhiều người bật camera khi mạng yếu
 
 **Tình huống**:
+
 - Phòng 7 người, tất cả bật camera
 - 2-3 người dùng mạng yếu → video giật/lag/đứng hình
 
 **Giải pháp nghiệp vụ**:
+
 - Không có giải pháp nghiệp vụ, đây là vấn đề kỹ thuật
 - Frontend nên hiển thị cảnh báo "Mạng không ổn định, nên tắt camera"
 - Có thể khuyến nghị trong UI: "Tắt camera nếu mạng chậm"
@@ -1603,10 +1498,12 @@ Quy tắc:
 ### 7.9. Conflict 9: Owner yêu cầu bật camera, user từ chối
 
 **Tình huống**:
+
 - Owner yêu cầu (verbal) tất cả bật camera cho buổi thuyết trình
 - Một số user không muốn bật
 
 **Giải pháp nghiệp vụ**:
+
 - Owner **không có quyền ép** user bật camera
 - Nếu user vi phạm nghiêm trọng (spam, không phù hợp) → owner dùng quyền kick
 - Nếu chỉ đơn giản là không muốn bật camera → tôn trọng
@@ -1614,10 +1511,12 @@ Quy tắc:
 ### 7.10. Conflict 10: Mic/camera lỗi giữa cuộc họp
 
 **Tình huống**:
+
 - Đang họp, mic/camera user bị lỗi (driver, thiết bị)
 - User vẫn muốn tiếp tục họp (chỉ nghe, hoặc dùng thiết bị khác)
 
 **Giải pháp nghiệp vụ**:
+
 - Hệ thống tự động chuyển trạng thái media = off nếu mất stream
 - User có thể thử refresh, chuyển thiết bị
 - Không bị kick khỏi phòng vì lỗi media
@@ -1625,12 +1524,14 @@ Quy tắc:
 ### 7.11. Conflict 11: Guest bị REJECTED 3 lần liên tiếp
 
 **Tình huống**:
+
 - User Bình gửi JoinRequest → REJECTED do owner (lần 1)
 - User Bình gửi lại → REJECTED do owner (lần 2)
 - User Bình gửi lại → REJECTED do owner (lần 3)
 - User Bình gửi lại lần 4
 
 **Giải pháp nghiệp vụ** (R-REJECT-04 v1.7 + R-REJECT-04.1):
+
 - Hệ thống đếm **`rejectCountByOwner`** của Bình cho phòng này trong **cùng 1 phiên** (KHÔNG tính REJECTED do phòng đầy)
 - Khi `rejectCountByOwner >= 3` → **LOCKED** cho phiên hiện tại của phòng này
 - JoinRequest tiếp theo → **403 FORBIDDEN** + message `LIVEROOM_REQUEST_LOCKED`
@@ -1639,6 +1540,7 @@ Quy tắc:
 - Triết lý: "Lock chỉ là hình phạt cho phiên đó, không phải lifetime vĩnh viễn" — công bằng hơn cho user
 
 **Phân biệt 2 loại REJECTED (v1.7)**:
+
 - **REJECTED_BY_OWNER**: Owner chủ động reject (có chủ đích) → tính vào `rejectCountByOwner`
 - **REJECTED_BY_CAPACITY**: Phòng đầy (R-APPROVE-05) → chỉ tính vào `rejectCountByCapacity`, KHÔNG trigger LOCKED
 - Khi user nhận REJECTED, message sẽ khác nhau:
@@ -1646,6 +1548,7 @@ Quy tắc:
   - REJECTED_BY_CAPACITY: "Phòng đã đầy, vui lòng thử lại sau" (có thể retry thoải mái)
 
 **Ví dụ (v1.7 - tách 2 counter)**:
+
 ```
 Bình gửi request 1 → An reject (rejectCountByOwner = 1)
 Bình gửi request 2 → An reject (rejectCountByOwner = 2)
@@ -1662,11 +1565,13 @@ Trường hợp khác: Bình gửi request → An vô tình Approve khi phòng �
 ### 7.12. Conflict 12: PRO bị downgrade giữa phiên
 
 **Tình huống**:
+
 - An (PRO) đang là owner phòng "Daily Sync", 5 người đang họp
 - Admin downgrade An xuống USER (vì lý do nào đó: hết hạn gói, vi phạm, ...)
 - Phòng đang ACTIVE
 
 **Giải pháp nghiệp vụ** (R-ROLE-06):
+
 - Hệ thống **force-end phòng ngay lập tức**:
   - status = ENDED
   - ended_at = now
@@ -1676,6 +1581,7 @@ Trường hợp khác: Bình gửi request → An vô tình Approve khi phòng �
 - An vẫn có thể join phòng của PRO khác (với vai trò Participant) ngay cả khi đang USER
 
 **Ví dụ (v1.4 - vẫn có thể reopen sau upgrade)**:
+
 ```
 Lúc 10:00: An (PRO) tạo phòng "Daily Sync", 5 người vào
 Lúc 10:30: Admin downgrade An xuống USER
@@ -1690,27 +1596,32 @@ Lúc 11:00: An upgrade lại PRO
 ### 7.13. EC-24: Race condition khi approve/rejoin đồng thời (v1.7 NEW)
 
 **Tình huống**:
+
 - Phòng P còn 1 slot trống (6/7)
 - User A và User B cùng gửi request join đồng thời
 - Owner approve A và B cùng lúc
 
 **Giải pháp nghiệp vụ (R-CAPACITY-02)**:
+
 - Backend sử dụng pessimistic lock `SELECT ... FOR UPDATE` trên `LiveRoom` row
 - Request A acquire lock trước → check slot (6 < 7 OK) → tạo participant → current = 7 → release lock
 - Request B acquire lock → check slot (7 >= 7 FULL) → REJECT với reason `ROOM_FULL` (R-APPROVE-05)
 - Kết quả: A vào phòng, B nhận "Phòng đã đầy"
 
 **Không có lock**:
+
 - Request A và B cùng đọc `current_count = 6` → đều pass
 - Cả 2 cùng update → `current_count = 8` → vượt max → **BUG**
 - Triệu chứng: WebSocket bị lỗi, video stream bị nhiễu, hoặc user không nhận được stream
 
 **Tương tự cho rejoin**:
+
 - User A và User B cùng rejoin sau khi slot trống
 - Lock đảm bảo FIFO tự nhiên (ai acquire lock trước vào trước)
 
 **Implement** (Spring Boot):
-```12:15:docs/liveroom-business-requirements.md
+
+```java
 @Transactional
 public void approveJoinRequest(UUID roomId, UUID requestId) {
   LiveRoom room = entityManager.find(
@@ -1725,7 +1636,7 @@ public void approveJoinRequest(UUID roomId, UUID requestId) {
 
 ---
 
-## 7.5. Chat trong phòng (v1.5 NEW)
+### 7.5. Chat trong phòng (v1.5 NEW)
 
 ### R-CHAT-01 (Scope)
 
@@ -1747,6 +1658,7 @@ public void approveJoinRequest(UUID roomId, UUID requestId) {
 ChatMessage {
   id: UUID
   roomId: UUID
+  roomSessionCycleId: UUID
   userId: UUID
   userEmail: string (display name)
   content: string (max 500 chars)
@@ -1769,7 +1681,9 @@ ChatMessage {
 ### R-CHAT-05 (Rolling window - storage limit - v1.8 CLARIFIED)
 
 - **Lưu trữ DB**: Backend lưu **TẤT CẢ** messages vào DB, KHÔNG xoá theo rolling window (lưu vĩnh viễn cho audit trail)
-- **Hiển thị mặc định qua WS**: Broadcast **200 messages gần nhất** khi user join (`CHAT_HISTORY_SNAPSHOT` event)
+- **Hiển thị mặc định qua WS**: Broadcast **200 messages gần nhất của cycle hiện tại** khi user join (`CHAT_HISTORY_SNAPSHOT` event)
+  - Query: `WHERE roomSessionCycleId = :currentCycle ORDER BY sentAt DESC LIMIT 200`
+  - Sau reopen, phòng mới chỉ có 0 messages (cycle mới) — không lẫn với chat cycle cũ
 - **Pagination API (POST-MVP)**: `GET /api/v1/liveroom/{roomId}/chat/messages?cursor={msgId}&size=50`:
   - `cursor` = id của message cũ nhất client đang có → trả về 50 messages cũ hơn
   - Nếu `cursor` không truyền → trả 200 messages mới nhất
@@ -1868,8 +1782,7 @@ Flow chính:
    - Body: { content: string }
 3. Backend:
    - Check actor có participant.state = ACTIVE
-   - Lưu ChatMessage vào DB (hoặc in-memory cache)
-   - Trim rolling window (nếu > 200 message → xoá cũ nhất)
+   - Lưu ChatMessage vào DB
    - WS broadcast CHAT_MESSAGE_RECEIVED cho các participant ACTIVE khác
 4. Frontend update:
    - User gửi: thêm message vào local state với status = SENT
@@ -1903,7 +1816,7 @@ Edge cases:
 
 ---
 
-## 7.9. Shared Listening trong phòng (v1.6 NEW)
+### 7.9. Shared Listening trong phòng (v1.6 NEW)
 
 ### R-MUSIC-01 (Scope)
 
@@ -1939,6 +1852,8 @@ Nếu room không ACTIVE → 409 LIVEROOM_ROOM_ENDED
   - Trường hợp nhận event cũ hơn (out-of-order) → discard
 - **Tolerance latency**: ±500ms (chấp nhận được, giống Spotify Jam)
 - **Volume GLOBAL**: Khi 1 người chỉnh volume → cả phòng sync theo (0-100%)
+  - **Known UX risk**: Nếu user A set 100% và user B set 20% → loop điều chỉnh. Hầu hết app (Spotify Jam, Discord) dùng personal volume
+  - **MVP decision**: Giữ GLOBAL cho đơn giản. POST-MVP cân nhắc: tách **master volume** (global, owner-only) + **personal volume** (local, mỗi user)
 
 ### R-MUSIC-04 (Playback state)
 
@@ -1976,7 +1891,7 @@ PlaybackState {
 
 ### R-MUSIC-07 (Room ended → music cleanup)
 
-- Khi phòng ENDED → backend xoá `PlaybackState` (R-MUSIC-08)
+- Khi phòng ENDED → backend xoá `PlaybackState` row của phòng đó
 - WS broadcast `ROOM_ENDED` cho cả lobby (giống Bug 6)
 - Client dừng phát nhạc ngay lập tức
 
@@ -1996,6 +1911,7 @@ PlaybackState {
 **MC-08 RESOLUTION**: Music KHÔNG dùng REST API riêng lẻ cho control. Toàn bộ control qua STOMP WebSocket.
 
 **Lý do quyết định**:
+
 - Music là real-time feature, latency-critical (play/pause/seek cần feedback tức thì)
 - REST + poll loop → waste bandwidth, race condition nhiều
 - WS broadcast tự nhiên đẩy state cho mọi client
@@ -2003,21 +1919,23 @@ PlaybackState {
 
 **Endpoints (STOMP only)**:
 
-| Action | STOMP destination | Direction | Payload |
-|---|---|---|---|
-| Subscribe (lắng nghe) | `/topic/liveroom/{roomId}/music` | Server → Client | `MUSIC_PLAYBACK_STATE_CHANGED` event |
-| Play | `/app/liveroom/{roomId}/music/play` | Client → Server | `{songId: UUID}` |
-| Pause | `/app/liveroom/{roomId}/music/pause` | Client → Server | `{}` |
-| Seek | `/app/liveroom/{roomId}/music/seek` | Client → Server | `{positionSeconds: double}` |
-| Change volume | `/app/liveroom/{roomId}/music/volume` | Client → Server | `{volumePercent: int}` |
-| Get current state (one-shot) | `/app/liveroom/{roomId}/music/get-state` | Client → Server | `{}` (response trên topic) |
+| Action                       | STOMP destination                        | Direction       | Payload                              |
+| ---------------------------- | ---------------------------------------- | --------------- | ------------------------------------ |
+| Subscribe (lắng nghe)        | `/topic/liveroom/{roomId}/music`         | Server → Client | `MUSIC_PLAYBACK_STATE_CHANGED` event |
+| Play                         | `/app/liveroom/{roomId}/music/play`      | Client → Server | `{songId: UUID}`                     |
+| Pause                        | `/app/liveroom/{roomId}/music/pause`     | Client → Server | `{}`                                 |
+| Seek                         | `/app/liveroom/{roomId}/music/seek`      | Client → Server | `{positionSeconds: double}`          |
+| Change volume                | `/app/liveroom/{roomId}/music/volume`    | Client → Server | `{volumePercent: int}`               |
+| Get current state (one-shot) | `/app/liveroom/{roomId}/music/get-state` | Client → Server | `{}` (response trên topic)           |
 
 **REST chỉ dùng cho**:
+
 - List/select song metadata: `GET /api/v1/liveroom/{roomId}/songs` (query DB)
 - Upload song: `POST /api/v1/songs` (gọi Voice module)
 - **KHÔNG** có REST endpoint `POST /music/play` (đã bỏ từ v1.8)
 
-**Permission**: 
+**Permission**:
+
 - Subscribe `/topic/liveroom/{roomId}/music` chỉ được khi user có `participant.state = ACTIVE` trong phòng (R-JOIN-10 check)
 - Control (play/pause/seek/volume) yêu cầu ACTIVE + R-MUSIC-11 (owner absent check)
 
@@ -2046,110 +1964,16 @@ PlaybackState {
   - Non-owner **KHÔNG thể RESUME** play (click Play → button disabled + tooltip "Chờ owner quay lại")
   - Non-owner CÓ THỂ pause, seek, change volume (vì nhạc đang pause, không cần owner permission)
   - Non-owner CÓ THỂ **chọn bài mới** (R-MUSIC-02) — nhạc mới tự động PLAY khi owner absent? **KHÔNG** — bài mới cũng ở PAUSED state, chờ owner quay lại
-- **Khi owner rejoin**: 
+- **Khi owner rejoin**:
   - Banner biến mất
   - Button Play enabled cho cả phòng
   - Owner hoặc bất kỳ ai có thể click Play → resume
 - **Lý do**: Owner là người chịu trách nhiệm về nội dung phòng (tránh tình huống user chọn nhạc không phù hợp khi owner vắng)
 - **Edge case**: Nếu owner bị downgrade → phòng ENDED → music cleanup (R-MUSIC-07), KHÔNG có grace choice nào
 
----
 
-### 7.10. Annotation (ghi chú bài hát) - v1.6 NEW
 
-### R-ANNOT-01 (Scope)
-
-- User tạo ghi chú (annotation) tại 1 timestamp cụ thể của bài hát đang phát
-- Format: `positionSeconds` (double) + `content` (text, max 200 chars)
-- Annotation gắn với **session hiện tại** (KHÔNG theo bài hát, KHÔNG cross-session)
-- Khi phòng ENDED → annotation lưu lại + view được trong lịch sử
-
-### R-ANNOT-02 (Permission tạo annotation)
-
-```
-Actor.participant.state = ACTIVE trong phòng
-Room có playbackState.songId != null (đang phát hoặc pause bài nào đó)
-Song.userId hiện tại trong phòng không quan trọng (cả owner lẫn participant khác đều tạo được)
-
-Nếu actor chưa ACTIVE → 403 LIVEROOM_NOT_IN_SESSION
-Nếu room không có bài đang phát → 400 LIVEROOM_MUSIC_NOT_PLAYING
-Nếu content empty/too long → 400 LIVEROOM_ANNOTATION_EMPTY / LIVEROOM_ANNOTATION_TOO_LONG
-```
-
-### R-ANNOT-03 (Annotation visibility)
-
-- CHỈ user đã được duyệt vào phòng TRONG PHIÊN HIỆN TẠI mới thấy annotation
-- "Đã được duyệt" = `participant.state = ACTIVE` trong `roomSessionCycle` hiện tại (v1.7 đơn giản hóa — không cần check JoinRequest.state vì auto-join nên APPROVED đồng nghĩa ACTIVE)
-- User ở lobby (PENDING/REJECTED/EXPIRED/LOCKED) → KHÔNG thấy annotation realtime
-- Sau khi phòng ENDED → chỉ owner + participant đã ACTIVE trong phiên đó thấy lại annotation
-
-### R-ANNOT-04 (Annotation structure)
-
-```
-Annotation {
-  id: UUID
-  roomId: UUID
-  roomSessionCycleId: UUID  // phiên của phòng (theo v1.7: 1 RoomSessionCycle = 1 ACTIVE → ENDED, đổi tên từ sessionId để tránh nhầm với ParticipantSession)
-  songId: UUID
-  userId: UUID  // người tạo
-  userEmail: string  // display name
-  positionSeconds: double  // timestamp trong bài hát (0.0 → durationSeconds)
-  content: string  // max 200 chars
-  createdAt: timestamp
-}
-```
-
-### R-ANNOT-05 (Lifecycle - v1.8 CLARIFIED)
-
-- **Trong ACTIVE session**: tạo realtime → WS broadcast `ANNOTATION_CREATED` cho user đã được duyệt
-- **Khi phòng ENDED**: annotation vẫn lưu trong DB (không xoá)
-- **v1.8 CROSS-SESSION (R-ANNOT-08)**: Khi phòng REOPEN:
-  - Annotation CŨ **KHÔNG bị xoá** — được archive với `roomSessionCycleId` của cycle cũ
-  - Annotation MỚI có `roomSessionCycleId` mới (cycle mới)
-  - **UI behavior (SC-07 History view)**:
-    - Mặc định hiển thị annotation của cycle hiện tại
-    - Có dropdown "Phiên họp: 2026-07-26 (hiện tại) | 2026-07-25 (đã kết thúc) | 2026-07-20 (đã kết thúc)"
-    - Chọn cycle cũ → load annotation của cycle đó
-  - **Analogy**: Giống Google Meet recording — mỗi phiên là 1 record riêng
-  - **Lý do**: User muốn xem lại annotation của phiên trước để tham khảo (ví dụ: nhạc meeting daily, cùng 1 bài hát, annotation có thể khác nhau theo context)
-- **Implement**: `Annotation` table có `roomSessionCycleId` (xem R-ANNOT-04). Query `WHERE roomSessionCycleId = :currentCycle` cho default view
-- **Xem lại**: SC-07 (lịch sử phòng) → tab "Annotations" của cycle được chọn
-
-### R-ANNOT-06 (Validation)
-
-- `content.length > 0` sau trim
-- `content.length <= 200`
-- `positionSeconds >= 0` và `<= song.durationSeconds`
-- HTML escape khi hiển thị (XSS prevention)
-- KHÔNG hỗ trợ edit/delete annotation (out of MVP)
-
-### R-ANNOT-07 (Out of MVP - annotation features)
-
-- ❌ Edit annotation
-- ❌ Delete annotation
-- ❌ Reply/thread annotation
-- ❌ @mention user
-- ❌ Annotation reactions (emoji)
-- ❌ Annotation scope theo user (chỉ người tạo thấy)
-
-### R-ANNOT-08 (Cross-session archive - v1.8 NEW)
-
-- Mỗi annotation có `roomSessionCycleId` (R-ANNOT-04)
-- **Không xoá annotation khi reopen** — chỉ phân biệt theo cycle
-- **UI history view (SC-07)**:
-  - List các cycle theo `started_at DESC` (cycle mới nhất trên cùng)
-  - Mỗi cycle hiển thị: `Phiên {yyyymmdd} • {HH:mm} • {participant_count} người • {annotation_count} ghi chú`
-  - Click cycle → load annotation của cycle đó, sắp xếp theo `positionSeconds`
-- **API endpoint**:
-  - `GET /api/v1/liveroom/{roomId}/sessions` — list các cycle (id, startedAt, endedAt, annotationCount, participantCount)
-  - `GET /api/v1/liveroom/{roomId}/sessions/{cycleId}/annotations` — list annotation của cycle
-- **Cache**: Frontend cache list cycle cho mỗi room (1 giờ TTL)
-- **Lý do**: Tránh mất data khi reopen, user có thể xem lại meeting history đầy đủ
-- ❌ Annotation scope theo song (cross-session)
-
----
-
-### 7.11. Edge Cases cho Music + Annotation (v1.6 NEW)
+### 7.11. Edge Cases cho Music (v1.6 NEW)
 
 #### EC-18: Chọn bài mới khi đang phát (v1.8 STOMP)
 
@@ -2209,30 +2033,9 @@ Cả 2 request cùng đến backend:
 Hậu quả: KHÔNG có conflict nghiêm trọng (cả 2 đều pause, chỉ khác "ai pause cuối")
 ```
 
-#### EC-22: Annotation tại timestamp X, sau đó phát lại từ đầu
-
-```
-Bài X duration = 5:00 (300s)
-User A annotate lúc 2:30 (150s): "đoạn này nhạc to quá"
-PlaybackState vẫn còn bài X, positionSeconds = 0 (replay từ đầu)
-UI: annotation "đoạn này nhạc to quá" vẫn hiển thị ở marker 2:30 (không di chuyển)
-→ Annotation gắn với positionSeconds cố định, không relative
-```
-
-#### EC-23: Kết thúc phòng xem lại annotation
-
-```
-Phòng P có 5 annotation trong phiên hiện tại
-Owner end phòng P:
-1. Annotation vẫn lưu trong DB (R-ANNOT-05)
-2. User A vào /history SC-07 → click vào phòng P (ENDED)
-3. UI hiển thị: "Annotations (5) - xem tại các mốc trong bài 'Tên bài'"
-4. Click vào annotation → jump đến timestamp đó (nếu nhạc vẫn accessible qua Voice module API)
-```
-
 ---
 
-### 7.12. UC-12: Select song (v1.6 NEW → v1.8 STOMP UPDATED)
+### 7.14. UC-12: Select song (v1.6 NEW → v1.8 STOMP UPDATED)
 
 ```
 Actor: ACTIVE participant trong phòng
@@ -2271,7 +2074,7 @@ Edge cases:
 
 ---
 
-### 7.13. UC-13: Control playback (v1.6 NEW → v1.8 STOMP UPDATED)
+### 7.15. UC-13: Control playback (v1.6 NEW → v1.8 STOMP UPDATED)
 
 ```
 Actor: ACTIVE participant trong phòng
@@ -2323,51 +2126,10 @@ Edge cases:
 
 ---
 
-### 7.14. UC-14: Create annotation (v1.6 NEW)
-
-```
-Actor: ACTIVE participant đã được duyệt vào phòng TRONG PHIÊN HIỆN TẠI
-Trigger: User click "Đánh dấu" tại timestamp hiện tại của bài đang phát
-
-Flow:
-1. User click nút 📍 (hoặc keyboard shortcut A) trên player
-2. UI: Modal nhập content (max 200 chars)
-3. User nhập "đoạn này nhạc to quá" → click Lưu
-4. POST /api/v1/liverooms/:id/annotations
-   - Body: { positionSeconds: 150, content: "đoạn này nhạc to quá" }
-5. Backend:
-   - Check actor.participant.state = ACTIVE
-   - Check actor đã được duyệt trong phiên (R-ANNOT-03)
-   - Check PlaybackState.songId != null (đang phát/pause bài nào đó)
-   - Validate positionSeconds, content
-   - Persist Annotation
-   - WS broadcast ANNOTATION_CREATED cho user đã được duyệt
-6. UI: marker xuất hiệt trên progress bar tại 2:30 + popup hiển thị content
-
-Edge cases:
-- Chưa join session → 403 LIVEROOM_NOT_IN_SESSION
-- Không có bài đang phát → 400 LIVEROOM_MUSIC_NOT_PLAYING
-- Content empty → 400 LIVEROOM_ANNOTATION_EMPTY
-- Content > 200 chars → 400 LIVEROOM_ANNOTATION_TOO_LONG
-- Position < 0 hoặc > duration → 400 LIVEROOM_ANNOTATION_INVALID_POSITION
-- User ở lobby (PENDING/REJECTED/...) → 403 LIVEROOM_ANNOTATION_NOT_APPROVED
-```
-
-**UX-12 (Annotation popup position - v1.8)**: Khi user hover/click vào marker trên progress bar:
-- **Popup mặc định**: hiển thị **BÊN TRÊN** progress bar (không che progress bar)
-- **Auto-flip**: Nếu marker ở gần đầu/cuối progress bar → popup không đủ chỗ phía trên → tự động flip xuống phía dưới
-- **Nội dung popup**:
-  - Dòng 1: `positionSeconds` formatted "2:30"
-  - Dòng 2: `userEmail` short form (R-DISPLAY-06): `an.ng***@congty.com` (mask 3 char sau dấu `.`)
-  - Dòng 3: Annotation content (max 200 chars, wrap text)
-  - Dòng 4 (optional): Timestamp `createdAt` relative ("2 phút trước")
-- **Hover delay**: 300ms (tránh flicker khi user lướt qua)
-- **Click marker**: pin popup (ở lại khi click ra ngoài mới đóng)
-- **Mobile**: Tap marker → popup full-screen modal (vì mobile không đủ chỗ hiển thị popup inline)
-- **Touch target**: Marker trên mobile >= 24px (Apple HIG khuyến nghị), click dễ dàng
-- **Lý do**: Che progress bar gây khó chịu, user muốn vừa xem content vừa xem position; email short form bảo vệ privacy
+### 7.16. UX Guidelines cho Music (v1.8)
 
 **UX-11 (Music mobile progress bar - v1.8)**: Optimize progress bar cho mobile:
+
 - **Touch target**: Track của progress bar có height >= 44px (Apple HIG) để dễ tap
   - Trên desktop: 8px (visual), vùng tap 44px
   - Trên mobile: visual 12px, vùng tap 44px
@@ -2379,7 +2141,6 @@ Edge cases:
   - Tap: < 200ms và không move → snap
   - Drag: >= 200ms hoặc move > 5px → no snap
 - **Visual feedback**: Highlight vùng tap tạm thời (200ms) khi tap
-- **Annotation marker**: Hiển thị icons trên progress bar (UX-12)
 - **Lý do**: Mobile user khó tap chính xác, snap-to-5s cải thiện UX
 
 ---
@@ -2390,138 +2151,131 @@ Các message nghiệp vụ cần đa ngôn ngữ (EN + VI):
 
 ### 8.1. Success messages
 
-| Key | EN | VI |
-|---|---|---|
-| `LIVEROOM_ROOM_CREATED` | Room created successfully | Phòng đã được tạo |
-| `LIVEROOM_ROOM_JOINED` | You have joined the room | Bạn đã tham gia phòng |
-| `LIVEROOM_ROOM_LEFT` | You have left the room | Bạn đã rời phòng |
-| `LIVEROOM_ROOM_ENDED` | Room has been ended | Phòng đã kết thúc |
-| `LIVEROOM_ROOM_REOPENED` | Room has been reopened | Phòng đã được mở lại |
-| `LIVEROOM_REQUEST_APPROVED` | Join request approved | Yêu cầu tham gia đã được duyệt |
-| `LIVEROOM_REQUEST_REJECTED` | Join request rejected | Yêu cầu tham gia đã bị từ chối |
-| `LIVEROOM_REQUEST_CANCELLED` | Join request cancelled | Yêu cầu tham gia đã được hủy |
+| Key                          | EN                        | VI                             |
+| ---------------------------- | ------------------------- | ------------------------------ |
+| `LIVEROOM_ROOM_CREATED`      | Room created successfully | Phòng đã được tạo              |
+| `LIVEROOM_ROOM_JOINED`       | You have joined the room  | Bạn đã tham gia phòng          |
+| `LIVEROOM_ROOM_LEFT`         | You have left the room    | Bạn đã rời phòng               |
+| `LIVEROOM_ROOM_ENDED`        | Room has been ended       | Phòng đã kết thúc              |
+| `LIVEROOM_ROOM_REOPENED`     | Room has been reopened    | Phòng đã được mở lại           |
+| `LIVEROOM_REQUEST_APPROVED`  | Join request approved     | Yêu cầu tham gia đã được duyệt |
+| `LIVEROOM_REQUEST_REJECTED`  | Join request rejected     | Yêu cầu tham gia đã bị từ chối |
+| `LIVEROOM_REQUEST_CANCELLED` | Join request cancelled    | Yêu cầu tham gia đã được hủy   |
 
 ### 8.2. Warning messages
 
-| Key | EN | VI |
-|---|---|---|
-| `LIVEROOM_ROOM_FULL` (v1.6 update) | Room is full. Please try later | Phòng đã đầy, vui lòng thử lại sau |
-| `LIVEROOM_REJECTED_BY_OWNER` (v1.7) | Join request rejected by owner | Yêu cầu tham gia đã bị chủ phòng từ chối |
-| `LIVEROOM_ROOM_AUTO_ENDED_OWNER_GRACE` (v1.7) | Room ended - owner did not return | Phòng đã kết thúc - chủ phòng không quay lại |
-| `LIVEROOM_OWNER_GRACE_EXPIRING` | Owner has {0} seconds to rejoin | Chủ phòng còn {0} giây để quay lại |
-| `LIVEROOM_AUTO_ENDED_GRACE` | Room ended automatically (owner left) | Phòng tự kết thúc (chủ phòng đã rời) |
-| `LIVEROOM_AUTO_ENDED_EMPTY` | Room ended (no participants) | Phòng tự kết thúc (không có người) |
-| `LIVEROOM_MEDIA_PERMISSION_DENIED` | Camera/microphone permission denied. You can still listen. | Không có quyền truy cập camera/mic. Bạn vẫn có thể nghe. |
-| `LIVEROOM_MEDIA_NETWORK_UNSTABLE` | Network unstable. Consider turning off video. | Mạng không ổn định. Nên tắt video. |
-| `LIVEROOM_MEDIA_CONNECTING` | Connecting to media stream... | Đang kết nối media... |
+| Key                                           | EN                                                         | VI                                                       |
+| --------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------- |
+| `LIVEROOM_ROOM_FULL` (v1.6 update)            | Room is full. Please try later                             | Phòng đã đầy, vui lòng thử lại sau                       |
+| `LIVEROOM_REJECTED_BY_OWNER` (v1.7)           | Join request rejected by owner                             | Yêu cầu tham gia đã bị chủ phòng từ chối                 |
+| `LIVEROOM_ROOM_AUTO_ENDED_OWNER_GRACE` (v1.7) | Room ended - owner did not return                          | Phòng đã kết thúc - chủ phòng không quay lại             |
+| `LIVEROOM_OWNER_GRACE_EXPIRING`               | Owner has {0} seconds to rejoin                            | Chủ phòng còn {0} giây để quay lại                       |
+| `LIVEROOM_AUTO_ENDED_GRACE`                   | Room ended automatically (owner left)                      | Phòng tự kết thúc (chủ phòng đã rời)                     |
+| `LIVEROOM_AUTO_ENDED_EMPTY`                   | Room ended (no participants)                               | Phòng tự kết thúc (không có người)                       |
+| `LIVEROOM_MEDIA_PERMISSION_DENIED`            | Camera/microphone permission denied. You can still listen. | Không có quyền truy cập camera/mic. Bạn vẫn có thể nghe. |
+| `LIVEROOM_MEDIA_NETWORK_UNSTABLE`             | Network unstable. Consider turning off video.              | Mạng không ổn định. Nên tắt video.                       |
+| `LIVEROOM_MEDIA_CONNECTING`                   | Connecting to media stream...                              | Đang kết nối media...                                    |
 
 ### 8.3. Error messages
 
-| Key | EN | VI |
-|---|---|---|
-| `LIVEROOM_ROOM_NOT_FOUND` | Room not found | Không tìm thấy phòng |
-| `LIVEROOM_ROOM_ENDED` | Room has ended | Phòng đã kết thúc |
-| `LIVEROOM_ALREADY_IN_ROOM` | You are already in this room | Bạn đã ở trong phòng này |
-| `LIVEROOM_NOT_OWNER` | Only the owner can perform this action | Chỉ chủ phòng mới có quyền này |
-| `LIVEROOM_REQUEST_NOT_FOUND` | Join request not found | Không tìm thấy yêu cầu tham gia |
-| `LIVEROOM_REQUEST_EXPIRED` | Join request has expired | Yêu cầu tham gia đã hết hạn |
-| `LIVEROOM_CANNOT_REOPEN` | Only ended rooms can be reopened | Chỉ phòng đã kết thúc mới có thể mở lại |
-| `LIVEROOM_PRO_REQUIRED` | Only PRO accounts can create rooms | Chỉ tài khoản PRO mới có quyền tạo phòng |
-| `LIVEROOM_REQUEST_LOCKED` | You have been rejected 3 times. Cannot send more requests to this room | Bạn đã bị từ chối 3 lần. Không thể gửi yêu cầu cho phòng này |
-| `LIVEROOM_ROOM_FORCE_ENDED_ROLE_CHANGE` | Room ended due to owner role change | Phòng đã kết thúc do thay đổi quyền của chủ phòng |
-| `LIVEROOM_CHAT_EMPTY` (v1.5) | Chat message content is empty | Tin nhắn không được để trống |
-| `LIVEROOM_CHAT_TOO_LONG` (v1.5) | Chat message exceeds maximum length | Tin nhắn vượt quá 500 ký tự |
-| `LIVEROOM_NOT_IN_SESSION` (v1.5) | User is not in active session, cannot send chat | Bạn không trong phòng, không thể gửi tin nhắn |
-| `LIVEROOM_MUSIC_NOT_OWN_SONG` (v1.6) | User tried to select a song not owned by them | Bạn chỉ có thể chọn bài hát của chính mình |
-| `LIVEROOM_MUSIC_NOT_READY` (v1.6) | Song status is not PROCESSED | Bài hát chưa sẵn sàng để phát |
-| `LIVEROOM_MUSIC_NOT_PLAYING` (v1.6) | No song is currently playing/paused in the room | Không có bài hát nào đang phát |
-| `LIVEROOM_MUSIC_INVALID_POSITION` (v1.6) | Position out of range | Vị trí phát không hợp lệ |
-| `LIVEROOM_MUSIC_INVALID_VOLUME` (v1.6) | Volume must be 0-100 | Âm lượng phải từ 0-100 |
-| `LIVEROOM_MUSIC_OWNER_PAUSED` (v1.6) | Owner left, music auto-paused | Chủ phòng đã rời, nhạc tạm dừng |
-| `LIVEROOM_MUSIC_SONG_LOAD_FAILED` (v1.6) | Failed to load audio file from Voice module | Không tải được file nhạc |
-| `LIVEROOM_ANNOTATION_EMPTY` (v1.6) | Annotation content is empty | Ghi chú không được để trống |
-| `LIVEROOM_ANNOTATION_TOO_LONG` (v1.6) | Annotation content exceeds 200 characters | Ghi chú vượt quá 200 ký tự |
-| `LIVEROOM_ANNOTATION_INVALID_POSITION` (v1.6) | Annotation position out of range | Vị trí ghi chú không hợp lệ |
-| `LIVEROOM_ANNOTATION_NOT_APPROVED` (v1.6) | User has not been approved in current session | Bạn chưa được duyệt vào phòng, không thể tạo ghi chú |
-| `LIVEROOM_KICKED_COOLDOWN` (v1.8 NEW) | You were kicked from this room. Please try again in {0} minutes | Bạn đã bị đuổi khỏi phòng này. Vui lòng thử lại sau {0} phút |
-| `LIVEROOM_SELF_KICK_NOT_ALLOWED` (v1.8 NEW) | You cannot kick yourself | Bạn không thể tự đuổi chính mình |
-| `LIVEROOM_MIC_MUTED_BY_OWNER` (v1.8 NEW) | Owner has muted your microphone | Chủ phòng đã tắt mic của bạn |
-| `LIVEROOM_MIC_MUTE_COOLDOWN` (v1.8 NEW) | You cannot unmute for {0} seconds | Bạn không thể bật mic trong {0} giây |
-| `LIVEROOM_MUSIC_STATE_CONFLICT` (v1.8 NEW) | Music was controlled by another user. Please try again | Nhạc đã được điều khiển bởi người khác. Vui lòng thử lại |
-| `LIVEROOM_MUSIC_OWNER_ABSENT` (v1.8 NEW) | Owner has left. Music is paused. Please wait for owner to return | Chủ phòng đã rời. Nhạc đang tạm dừng. Vui lòng chờ chủ phòng quay lại |
-| `LIVEROOM_DUPLICATE_REQUEST` (v1.8 NEW) | You already have a pending request | Bạn đã có yêu cầu đang chờ |
-| `LIVEROOM_MULTI_TAB_CONFLICT` (v1.8 NEW) | You are in this room in another tab | Bạn đang ở phòng này ở tab khác |
-| `LIVEROOM_GRACE_INVALID` (v1.8 NEW) | Grace period must be between 30 and 1800 seconds | Grace period phải từ 30 đến 1800 giây |
-| `LIVEROOM_ROOM_REVIVED` (v1.8 NEW) | Room has been revived by owner | Phòng đã được hồi sinh bởi chủ phòng |
+| Key                                           | EN                                                                     | VI                                                                    |
+| --------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `LIVEROOM_ROOM_NOT_FOUND`                     | Room not found                                                         | Không tìm thấy phòng                                                  |
+| `LIVEROOM_ROOM_ENDED`                         | Room has ended                                                         | Phòng đã kết thúc                                                     |
+| `LIVEROOM_ALREADY_IN_ROOM`                    | You are already in this room                                           | Bạn đã ở trong phòng này                                              |
+| `LIVEROOM_NOT_OWNER`                          | Only the owner can perform this action                                 | Chỉ chủ phòng mới có quyền này                                        |
+| `LIVEROOM_REQUEST_NOT_FOUND`                  | Join request not found                                                 | Không tìm thấy yêu cầu tham gia                                       |
+| `LIVEROOM_REQUEST_EXPIRED`                    | Join request has expired                                               | Yêu cầu tham gia đã hết hạn                                           |
+| `LIVEROOM_CANNOT_REOPEN`                      | Only ended rooms can be reopened                                       | Chỉ phòng đã kết thúc mới có thể mở lại                               |
+| `LIVEROOM_PRO_REQUIRED`                       | Only PRO accounts can create rooms                                     | Chỉ tài khoản PRO mới có quyền tạo phòng                              |
+| `LIVEROOM_REQUEST_LOCKED`                     | You have been rejected 3 times. Cannot send more requests to this room | Bạn đã bị từ chối 3 lần. Không thể gửi yêu cầu cho phòng này          |
+| `LIVEROOM_ROOM_FORCE_ENDED_ROLE_CHANGE`       | Room ended due to owner role change                                    | Phòng đã kết thúc do thay đổi quyền của chủ phòng                     |
+| `LIVEROOM_CHAT_EMPTY` (v1.5)                  | Chat message content is empty                                          | Tin nhắn không được để trống                                          |
+| `LIVEROOM_CHAT_TOO_LONG` (v1.5)               | Chat message exceeds maximum length                                    | Tin nhắn vượt quá 500 ký tự                                           |
+| `LIVEROOM_NOT_IN_SESSION` (v1.5)              | User is not in active session, cannot send chat                        | Bạn không trong phòng, không thể gửi tin nhắn                         |
+| `LIVEROOM_MUSIC_NOT_OWN_SONG` (v1.6)          | User tried to select a song not owned by them                          | Bạn chỉ có thể chọn bài hát của chính mình                            |
+| `LIVEROOM_MUSIC_NOT_READY` (v1.6)             | Song status is not PROCESSED                                           | Bài hát chưa sẵn sàng để phát                                         |
+| `LIVEROOM_MUSIC_NOT_PLAYING` (v1.6)           | No song is currently playing/paused in the room                        | Không có bài hát nào đang phát                                        |
+| `LIVEROOM_MUSIC_INVALID_POSITION` (v1.6)      | Position out of range                                                  | Vị trí phát không hợp lệ                                              |
+| `LIVEROOM_MUSIC_INVALID_VOLUME` (v1.6)        | Volume must be 0-100                                                   | Âm lượng phải từ 0-100                                                |
+| `LIVEROOM_MUSIC_OWNER_PAUSED` (v1.6)          | Owner left, music auto-paused                                          | Chủ phòng đã rời, nhạc tạm dừng                                       |
+| `LIVEROOM_MUSIC_SONG_LOAD_FAILED` (v1.6)      | Failed to load audio file from Voice module                            | Không tải được file nhạc                                              |
+
+| `LIVEROOM_KICKED_COOLDOWN` (v1.8 NEW)         | You were kicked from this room. Please try again in {0} minutes        | Bạn đã bị đuổi khỏi phòng này. Vui lòng thử lại sau {0} phút          |
+| `LIVEROOM_SELF_KICK_NOT_ALLOWED` (v1.8 NEW)   | You cannot kick yourself                                               | Bạn không thể tự đuổi chính mình                                      |
+| `LIVEROOM_MIC_MUTED_BY_OWNER` (v1.8 NEW)      | Owner has muted your microphone                                        | Chủ phòng đã tắt mic của bạn                                          |
+| `LIVEROOM_MIC_MUTE_COOLDOWN` (v1.8 NEW)       | You cannot unmute for {0} seconds                                      | Bạn không thể bật mic trong {0} giây                                  |
+| `LIVEROOM_MUSIC_STATE_CONFLICT` (v1.8 NEW)    | Music was controlled by another user. Please try again                 | Nhạc đã được điều khiển bởi người khác. Vui lòng thử lại              |
+| `LIVEROOM_MUSIC_OWNER_ABSENT` (v1.8 NEW)      | Owner has left. Music is paused. Please wait for owner to return       | Chủ phòng đã rời. Nhạc đang tạm dừng. Vui lòng chờ chủ phòng quay lại |
+| `LIVEROOM_DUPLICATE_REQUEST` (v1.8 NEW)       | You already have a pending request                                     | Bạn đã có yêu cầu đang chờ                                            |
+| `LIVEROOM_MULTI_TAB_CONFLICT` (v1.8 NEW)      | You are in this room in another tab                                    | Bạn đang ở phòng này ở tab khác                                       |
+| `LIVEROOM_GRACE_INVALID` (v1.8 NEW)           | Grace period must be between 30 and 1800 seconds                       | Grace period phải từ 30 đến 1800 giây                                 |
+| `LIVEROOM_ROOM_REVIVED` (v1.8 NEW)            | Room has been revived by owner                                         | Phòng đã được hồi sinh bởi chủ phòng                                  |
 
 ---
 
 ## 9. Giới hạn nghiệp vụ (Business Constraints)
 
-| Thuộc tính | Giá trị | Lý do |
-|---|---|---|
-| **Capacity min** | 1 | Phòng mới tạo có thể chỉ có owner |
-| **Capacity max** | 7 | Tối ưu cho voice + video meeting nhóm nhỏ |
-| **Capacity default** | 7 | Match max, cho phép họp nhóm lớn nhất |
-| **Owner grace period** | 60s (default), 30s-1800s (configurable) | Đủ để owner thoát/đăng nhập lại |
-| **Empty room timeout** | 5 phút | Tránh phòng "ma" (không ai nhưng vẫn ACTIVE) |
-| **Reopen cooldown** | Không giới hạn | Owner có thể reopen bao nhiêu lần cũng được |
-| **JoinRequest expiry** | Khi phòng ENDED | Auto-expire khi phiên kết thúc |
-| **Rejected limit (per room)** | 3 lần | Chống spam, **reset = 0 khi phòng reopen** (xem R-REJECT-04.1) |
-| **Room code length** (v1.8) | 6 ký tự A-Z0-9 | 36^6 = 2.1 tỷ combinations, đủ chống brute-force |
-| **Room name unique** | Per-owner (case-insensitive, trim) | 2 owner khác nhau có thể cùng tên phòng |
-| **Create room role** | PRO only | Chỉ PRO mới có quyền tạo và quản lý phòng |
-| **Max rooms per PRO** | Không giới hạn | PRO có thể tạo nhiều persistent rooms |
-| **Media mặc định khi join** | camera=off, mic=off | Tôn trọng privacy, user tự bật khi sẵn sàng |
-| **Max video streams** | 7 (mesh) | 7 người bật camera đồng thời (giới hạn cho mạng nội bộ) |
-| **Media state update latency** | < 1 giây | Realtime, các client khác thấy ngay khi user bật/tắt |
-| **Chat message max length** (v1.5) | 500 ký tự | Đủ cho text ngắn, tránh spam |
-| **Chat history max messages** (v1.5) | 200 messages/room | Rolling window, tiết kiệm storage |
-| **Chat persistence** (v1.5) | Chỉ trong session ACTIVE | Cleanup khi phòng ENDED, reset on reopen |
-| **Chat scope** (v1.5) | Group chat (1 channel) | Không có private DM trong MVP |
-| **Music: track count** (v1.6) | 1 bài / phòng / thời điểm | Single track, không queue |
-| **Music: control latency** (v1.6) | ±500ms | Chấp nhận được, giống Spotify Jam |
-| **Music: volume range** (v1.6) | 0-100% | Global sync (R-MUSIC-03) |
-| **Music: source** (v1.6) | Module Voice (Song entity) | User upload từ trước, reuse API |
-| **Annotation max length** (v1.6) | 200 ký tự | Tương đương ~2 dòng text |
-| **Annotation visibility** (v1.6) | User đã được duyệt trong phiên | R-ANNOT-03 |
-| **Annotation persistence** (v1.6) | Theo phiên (reset on reopen) | Giống chat, giống rejectCount |
-| **Room code brute-force rate limit** (v1.8) | 5 attempts/IP/giờ | Chống BOT attack |
-| **KICKED cooldown** (v1.8) | 5 phút (300s) | User bị kick phải chờ trước khi rejoin |
-| **REMOTE_MUTE cooldown** (v1.8) | 30s | User bị mute không tự bật mic ngay |
-| **Idle ghost threshold** (v1.8) | 10 phút (indicator), 30 phút (review) | Hiển thị icon zZz khi user không tương tác |
-| **End room undo window** (v1.8) | 5 giây | Owner có thể hoàn tác nếu click End nhầm |
-| **Auto-join countdown** (v1.8) | 3 giây + cancel | User chuẩn bị trước khi vào phòng |
-| **Idempotency key TTL** (v1.8) | 24 giờ | Tránh duplicate JoinRequest |
+| Thuộc tính                                  | Giá trị                                 | Lý do                                                          |
+| ------------------------------------------- | --------------------------------------- | -------------------------------------------------------------- |
+| **Capacity min**                            | 1                                       | Phòng mới tạo có thể chỉ có owner                              |
+| **Capacity max**                            | 7                                       | Tối ưu cho voice + video meeting nhóm nhỏ                      |
+| **Capacity default**                        | 7                                       | Match max, cho phép họp nhóm lớn nhất                          |
+| **Owner grace period**                      | 60s (default), 30s-1800s (configurable) | Đủ để owner thoát/đăng nhập lại                                |
+| **Empty room timeout**                      | 5 phút                                  | Tránh phòng "ma" (không ai nhưng vẫn ACTIVE)                   |
+| **Reopen cooldown**                         | Không giới hạn                          | Owner có thể reopen bao nhiêu lần cũng được                    |
+| **JoinRequest expiry**                      | Khi phòng ENDED                         | Auto-expire khi phiên kết thúc                                 |
+| **Rejected limit (per room)**               | 3 lần                                   | Chống spam, **reset = 0 khi phòng reopen** (xem R-REJECT-04.1) |
+| **Room code length** (v1.8)                 | 6 ký tự A-Z0-9                          | 36^6 = 2.1 tỷ combinations, đủ chống brute-force               |
+| **Room name unique**                        | Per-owner (case-insensitive, trim)      | 2 owner khác nhau có thể cùng tên phòng                        |
+| **Create room role**                        | PRO only                                | Chỉ PRO mới có quyền tạo và quản lý phòng                      |
+| **Max rooms per PRO**                       | Không giới hạn                          | PRO có thể tạo nhiều persistent rooms                          |
+| **Media mặc định khi join**                 | camera=off, mic=off                     | Tôn trọng privacy, user tự bật khi sẵn sàng                    |
+| **Max video streams**                       | 7 (mesh)                                | 7 người bật camera đồng thời (giới hạn cho mạng nội bộ)        |
+| **Media state update latency**              | < 1 giây                                | Realtime, các client khác thấy ngay khi user bật/tắt           |
+| **Chat message max length** (v1.5)          | 500 ký tự                               | Đủ cho text ngắn, tránh spam                                   |
+| **Chat history max messages** (v1.5)        | 200 messages/room                       | Rolling window, tiết kiệm storage                              |
+| **Chat persistence** (v1.8)                 | Lưu DB vĩnh viễn, cleanup 90 ngày      | R-CHAT-06 v1.8 — audit trail dài hạn                          |
+| **Chat scope** (v1.5)                       | Group chat (1 channel)                  | Không có private DM trong MVP                                  |
+| **Music: track count** (v1.6)               | 1 bài / phòng / thời điểm               | Single track, không queue                                      |
+| **Music: control latency** (v1.6)           | ±500ms                                  | Chấp nhận được, giống Spotify Jam                              |
+| **Music: volume range** (v1.6)              | 0-100%                                  | Global sync (R-MUSIC-03)                                       |
+| **Music: source** (v1.6)                    | Module Voice (Song entity)              | User upload từ trước, reuse API                                |
+
+| **Room code brute-force rate limit** (v1.8) | 5 attempts/IP/giờ                       | Chống BOT attack                                               |
+| **KICKED cooldown** (v1.8)                  | 5 phút (300s)                           | User bị kick phải chờ trước khi rejoin                         |
+| **REMOTE_MUTE cooldown** (v1.8)             | 30s                                     | User bị mute không tự bật mic ngay                             |
+| **Idle ghost threshold** (v1.8)             | 10 phút (indicator), 30 phút (review)   | Hiển thị icon zZz khi user không tương tác                     |
+| **End room undo window** (v1.8)             | 5 giây                                  | Owner có thể hoàn tác nếu click End nhầm                       |
+| **Auto-join countdown** (v1.8)              | 3 giây + cancel                         | User chuẩn bị trước khi vào phòng                              |
+| **Idempotency key TTL** (v1.8)              | 24 giờ                                  | Tránh duplicate JoinRequest                                    |
 
 ### 9.1. Ma trận quyền (Permission Matrix)
 
 Ma trận xác định quyền của từng vai trò trong từng phòng. **Quyền theo vai trò trong phòng** (owner/participant), không phải theo role hệ thống (PRO/USER).
 
-| Hành động | PRO (Owner) | PRO (Participant) | USER (Participant) | Trạng thái yêu cầu |
-|---|---|---|---|---|
-| Tạo phòng mới | ✅ | ❌ | ❌ | — |
-| Vào phòng của mình | ✅ (owner) | — | — | ACTIVE |
-| Join phòng khác | — | ✅ | ✅ | ACTIVE |
-| Join phòng của chính mình | ❌ | — | — | (R-ROLE-11) |
-| Rejoin (sau khi rời) | ✅ (owner) | ✅ | ✅ | ACTIVE |
-| Rời phòng (leave) | ✅ | ✅ | ✅ | ACTIVE |
-| Approve JoinRequest | ✅ | ❌ | ❌ | PENDING |
-| Reject JoinRequest | ✅ | ❌ | ❌ | PENDING |
-| Kick participant | ✅ | ❌ | ❌ | ACTIVE |
-| Remote mute mic participant | ✅ | ❌ | ❌ | ACTIVE (v1.8 NEW) |
-| End phòng | ✅ | ❌ | ❌ | ACTIVE |
-| Reopen phòng | ✅ | ❌ | ❌ | ENDED |
-| Bật/tắt camera | ✅ | ✅ | ✅ | ACTIVE |
-| Bật/tắt mic | ✅ | ✅ | ✅ | ACTIVE |
-| Multi-session (nhiều phòng đồng thời) | ✅ | ✅ | ✅ | — |
-| Gửi chat message | ✅ | ✅ | ✅ | ACTIVE |
-| Đọc chat history | ✅ | ✅ | ✅ | ACTIVE |
-| Chọn bài hát (của chính mình) vào phòng | ✅ | ✅ | ✅ | ACTIVE (v1.6) |
-| Điều khiển playback (play/pause/seek/volume) | ✅ | ✅ | ✅ | ACTIVE (v1.6) |
-| Tạo annotation | ✅ | ✅ | ✅ | ACTIVE + đã duyệt (v1.6) |
-| Xem annotation trong phiên | ✅ | ✅ | ✅ | ACTIVE (v1.6) |
-| Xem annotation sau ENDED | ✅ (owner) | ✅ (đã ACTIVE trong phiên) | ✅ (đã ACTIVE trong phiên) | (v1.6) |
+| Hành động                                    | PRO (Owner) | PRO (Participant)          | USER (Participant)         | Trạng thái yêu cầu       |
+| -------------------------------------------- | ----------- | -------------------------- | -------------------------- | ------------------------ |
+| Tạo phòng mới                                | ✅          | ❌                         | ❌                         | —                        |
+| Vào phòng của mình                           | ✅ (owner)  | —                          | —                          | ACTIVE                   |
+| Join phòng khác                              | —           | ✅                         | ✅                         | ACTIVE                   |
+| Join phòng của chính mình                    | ❌          | —                          | —                          | (R-ROLE-11)              |
+| Rejoin (sau khi rời)                         | ✅ (owner)  | ✅                         | ✅                         | ACTIVE                   |
+| Rời phòng (leave)                            | ✅          | ✅                         | ✅                         | ACTIVE                   |
+| Approve JoinRequest                          | ✅          | ❌                         | ❌                         | PENDING                  |
+| Reject JoinRequest                           | ✅          | ❌                         | ❌                         | PENDING                  |
+| Kick participant                             | ✅          | ❌                         | ❌                         | ACTIVE                   |
+| Remote mute mic participant                  | ✅          | ❌                         | ❌                         | ACTIVE (v1.8 NEW)        |
+| End phòng                                    | ✅          | ❌                         | ❌                         | ACTIVE                   |
+| Reopen phòng                                 | ✅          | ❌                         | ❌                         | ENDED                    |
+| Bật/tắt camera                               | ✅          | ✅                         | ✅                         | ACTIVE                   |
+| Bật/tắt mic                                  | ✅          | ✅                         | ✅                         | ACTIVE                   |
+| Multi-session (nhiều phòng đồng thời)        | ✅          | ✅                         | ✅                         | —                        |
+| Gửi chat message                             | ✅          | ✅                         | ✅                         | ACTIVE                   |
+| Đọc chat history                             | ✅          | ✅                         | ✅                         | ACTIVE                   |
+| Chọn bài hát (của chính mình) vào phòng      | ✅          | ✅                         | ✅                         | ACTIVE (v1.6)            |
+| Điều khiển playback (play/pause/seek/volume) | ✅          | ✅                         | ✅                         | ACTIVE (v1.6)            |
+
 
 **Giải thích chi tiết**:
 
@@ -2564,6 +2318,7 @@ Ma trận xác định quyền của từng vai trò trong từng phòng. **Quy�
   - Sync trạng thái participants
 
 **R-WS-SCOPE-01 (Subscription scope rule - v1.8 NEW)**:
+
 - **Ai được subscribe topic của phòng**: chỉ user có `JoinRequest.state ∈ {PENDING, APPROVED}` (JoinRequest còn active) HOẶC `participant.state ∈ {ACTIVE, RECONNECTING, OWNER_GRACE}` (đang trong phòng)
 - **Các trạng thái KHÔNG được subscribe**:
   - `JoinRequest.state ∈ {REJECTED_BY_OWNER, REJECTED_BY_CAPACITY, CANCELLED, EXPIRED, LOCKED}` → unsubscribe ngay
@@ -2580,6 +2335,7 @@ Ma trận xác định quyền của từng vai trò trong từng phòng. **Quy�
 - **Reconnect logic**: Khi user reconnect WS → re-validate scope → nếu state vẫn valid → re-subscribe; nếu không → force disconnect
 
 **R-WS-SCOPE-02 (Topic path convention - v1.8 NEW)**:
+
 - Topic chính: `/topic/liveroom/{roomId}` (nhận generic event của phòng)
 - Topic con cho music: `/topic/liveroom/{roomId}/music` (R-MUSIC-09)
 - Topic con cho chat: `/topic/liveroom/{roomId}/chat` (R-CHAT-07)
@@ -2597,43 +2353,45 @@ Ma trận xác định quyền của từng vai trò trong từng phòng. **Quy�
 
 Tổng hợp các WS event mà Realtime Gateway cần broadcast cho Live Room module:
 
-| Event | Trigger | Receiver | Payload |
-|---|---|---|---|
-| `PARTICIPANT_JOINED` | User join thành công | Tất cả ACTIVE participant | `{ roomId, userId, userEmail, joinedAt }` |
-| `PARTICIPANT_LEFT` (v1.7 NEW) | User leave chủ động (không phải kick) | Tất cả ACTIVE participant | `{ roomId, userId, leftAt }` |
-| `PARTICIPANT_KICKED` | Owner kick user | User bị kick + tất cả ACTIVE participant | `{ roomId, userId, kickedBy, reason }` |
-| `OWNER_LEFT` (v1.7 NEW) | Owner leave (bắt đầu grace) | Tất cả ACTIVE participant + lobby user | `{ roomId, ownerId, ownerLeftAt, graceExpiresAt }` |
-| `OWNER_REJOINED` (v1.7 NEW) | Owner rejoin trong grace | Tất cả ACTIVE participant + lobby user | `{ roomId, ownerId, rejoinedAt }` |
-| `ROOM_CAPACITY_CHANGED` (v1.7 NEW: thêm reservedOwnerSlot) | Participant join/leave/timeout | Tất cả ACTIVE participant + lobby user | `{ roomId, currentCount, maxParticipants, reservedOwnerSlot, timestamp }` |
-| `CAPACITY_REACHED` (v1.7 NEW) | currentCount >= maxParticipants | Lobby user (PENDING) | `{ roomId, currentCount, maxParticipants }` |
-| `JOIN_REQUEST_CREATED` | User gửi JoinRequest mới | Owner | `{ roomId, requestId, userId, userEmail, createdAt }` |
-| `JOIN_REQUEST_CANCELLED` | User tự huỷ JoinRequest | Owner | `{ roomId, requestId, userId, cancelledAt }` |
-| `REQUEST_APPROVED` | Owner approve user | User được approve | `{ roomId, requestId, autoJoin: true, roomState }` |
-| `JOIN_REQUEST_REJECTED` (v1.7 NEW: phân biệt owner vs capacity) | Owner reject hoặc phòng đầy | User bị reject | `{ roomId, requestId, reason: "OWNER_REJECT" \| "ROOM_FULL", rejectCountByOwner }` |
-| `REQUEST_LOCKED` | User đạt 3 lần reject của owner | User bị lock | `{ roomId, rejectCountByOwner: 3 }` |
-| `ROOM_MANUAL_ENDED` | Owner end phòng thủ công | Tất cả (ACTIVE + lobby) | `{ roomId, endedAt, reason: "manual" }` |
-| `ROOM_AUTO_ENDED` (v1.7 NEW) | Phòng auto-end vì grace hoặc empty | Tất cả (ACTIVE + lobby) | `{ roomId, endedAt, reason: "owner_grace_expired" \| "empty_timeout" }` |
-| `ROOM_REOPENED` | Owner reopen phòng | Owner + participant cũ (was_approved) | `{ roomId, reopenedCount, previousEndedAt, startedAt }` |
-| `MEDIA_STATE_CHANGED` | User bật/tắt camera/mic | Tất cả ACTIVE participant | `{ roomId, userId, cameraOn, micOn, timestamp }` |
-| `PARTICIPANT_CONNECTION_CHANGED` | WS connect/disconnect | Tất cả ACTIVE participant | `{ roomId, userId, status: "RECONNECTING" \| "OFFLINE", timestamp }` |
-| `CHAT_MESSAGE_RECEIVED` (v1.5) | User gửi chat message | Tất cả ACTIVE participant | `{ roomId, messageId, userId, userEmail, content, sentAt }` |
-| `CHAT_HISTORY_LOADED` (v1.5) | User load history (qua API, không qua WS) | Client gọi API | — |
-| `MUSIC_SONG_CHANGED` (v1.6) | User chọn bài mới | Tất cả ACTIVE participant | `{ roomId, songId, songTitle, songArtist, songDurationSeconds, songOwnerId }` |
-| `MUSIC_PLAYBACK_STATE_CHANGED` (v1.6) | Play/pause/seek/volume | Tất cả ACTIVE participant | `{ roomId, status, positionSeconds, volumePercent, lastUpdatedBy, lastUpdatedAt }` |
-| `ANNOTATION_CREATED` (v1.6) | User tạo annotation | User đã được duyệt trong phiên | `{ roomId, annotationId, songId, userId, userEmail, positionSeconds, content, createdAt }` |
-| `REQUEST_REJECTED_BY_OWNER` (v1.8 NEW) | Owner reject user | User bị reject | `{ roomId, requestId, reason: "OWNER_REJECT", rejectCountByOwner }` |
-| `REQUEST_REJECTED_BY_CAPACITY` (v1.8 NEW) | Phòng đầy khi approve | User bị reject | `{ roomId, requestId, reason: "CAPACITY_FULL", rejectCountByCapacity }` |
-| `PARTICIPANT_MIC_MUTED_BY_OWNER` (v1.8 NEW) | Owner remote-mute user | User bị mute + tất cả ACTIVE participant | `{ roomId, userId, mutedBy, mutedAt, cooldownUntil }` |
-| `PARTICIPANT_MIC_UNMUTED` (v1.8 NEW) | User tự bật mic sau mute cooldown | Tất cả ACTIVE participant | `{ roomId, userId, unmutedAt }` |
-| `ROOM_REVIVED` (v1.8 NEW) | Owner undo end phòng (trong 5s) | Tất cả (ACTIVE + lobby) | `{ roomId, revivedAt, revokedEndedAt }` |
+| Event                                                           | Trigger                                   | Receiver                                 | Payload                                                                                    |
+| --------------------------------------------------------------- | ----------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `PARTICIPANT_JOINED`                                            | User join thành công                      | Tất cả ACTIVE participant                | `{ roomId, userId, userEmail, joinedAt }`                                                  |
+| `PARTICIPANT_LEFT` (v1.7 NEW)                                   | User leave chủ động (không phải kick)     | Tất cả ACTIVE participant                | `{ roomId, userId, leftAt }`                                                               |
+| `PARTICIPANT_KICKED`                                            | Owner kick user                           | User bị kick + tất cả ACTIVE participant | `{ roomId, userId, kickedBy, reason }`                                                     |
+| `OWNER_LEFT` (v1.7 NEW)                                         | Owner leave (bắt đầu grace)               | Tất cả ACTIVE participant + lobby user   | `{ roomId, ownerId, ownerLeftAt, graceExpiresAt }`                                         |
+| `OWNER_REJOINED` (v1.7 NEW)                                     | Owner rejoin trong grace                  | Tất cả ACTIVE participant + lobby user   | `{ roomId, ownerId, rejoinedAt }`                                                          |
+| `ROOM_CAPACITY_CHANGED` (v1.7 NEW: thêm reservedOwnerSlot)      | Participant join/leave/timeout            | Tất cả ACTIVE participant + lobby user   | `{ roomId, currentCount, maxParticipants, reservedOwnerSlot, timestamp }`                  |
+| `CAPACITY_REACHED` (v1.7 NEW)                                   | currentCount >= maxParticipants           | Lobby user (PENDING)                     | `{ roomId, currentCount, maxParticipants }`                                                |
+| `JOIN_REQUEST_CREATED`                                          | User gửi JoinRequest mới                  | Owner                                    | `{ roomId, requestId, userId, userEmail, createdAt }`                                      |
+| `JOIN_REQUEST_CANCELLED`                                        | User tự huỷ JoinRequest                   | Owner                                    | `{ roomId, requestId, userId, cancelledAt }`                                               |
+| `REQUEST_APPROVED`                                              | Owner approve user                        | User được approve                        | `{ roomId, requestId, autoJoin: true, roomState }`                                         |
+| `JOIN_REQUEST_REJECTED` (v1.7 NEW: phân biệt owner vs capacity) | Owner reject hoặc phòng đầy               | User bị reject                           | `{ roomId, requestId, reason: "OWNER_REJECT" \| "ROOM_FULL", rejectCountByOwner }`         |
+| `REQUEST_LOCKED`                                                | User đạt 3 lần reject của owner           | User bị lock                             | `{ roomId, rejectCountByOwner: 3 }`                                                        |
+| `ROOM_MANUAL_ENDED`                                             | Owner end phòng thủ công                  | Tất cả (ACTIVE + lobby)                  | `{ roomId, endedAt, reason: "manual" }`                                                    |
+| `ROOM_AUTO_ENDED` (v1.7 NEW)                                    | Phòng auto-end vì grace hoặc empty        | Tất cả (ACTIVE + lobby)                  | `{ roomId, endedAt, reason: "owner_grace_expired" \| "empty_timeout" }`                    |
+| `ROOM_REOPENED`                                                 | Owner reopen phòng                        | Owner + participant cũ (was_approved)    | `{ roomId, reopenedCount, previousEndedAt, startedAt }`                                    |
+| `MEDIA_STATE_CHANGED`                                           | User bật/tắt camera/mic                   | Tất cả ACTIVE participant                | `{ roomId, userId, cameraOn, micOn, timestamp }`                                           |
+| `PARTICIPANT_CONNECTION_CHANGED`                                | WS connect/disconnect                     | Tất cả ACTIVE participant                | `{ roomId, userId, status: "RECONNECTING" \| "OFFLINE", timestamp }`                       |
+| `CHAT_MESSAGE_RECEIVED` (v1.5)                                  | User gửi chat message                     | Tất cả ACTIVE participant                | `{ roomId, messageId, userId, userEmail, content, sentAt }`                                |
+| `CHAT_HISTORY_LOADED` (v1.5)                                    | User load history (qua API, không qua WS) | Client gọi API                           | —                                                                                          |
+| `MUSIC_SONG_CHANGED` (v1.6)                                     | User chọn bài mới                         | Tất cả ACTIVE participant                | `{ roomId, songId, songTitle, songArtist, songDurationSeconds, songOwnerId }`              |
+| `MUSIC_PLAYBACK_STATE_CHANGED` (v1.6)                           | Play/pause/seek/volume                    | Tất cả ACTIVE participant                | `{ roomId, status, positionSeconds, volumePercent, lastUpdatedBy, lastUpdatedAt }`         |
+
+| `REQUEST_REJECTED_BY_OWNER` (v1.8 NEW)                          | Owner reject user                         | User bị reject                           | `{ roomId, requestId, reason: "OWNER_REJECT", rejectCountByOwner }`                        |
+| `REQUEST_REJECTED_BY_CAPACITY` (v1.8 NEW)                       | Phòng đầy khi approve                     | User bị reject                           | `{ roomId, requestId, reason: "CAPACITY_FULL", rejectCountByCapacity }`                    |
+| `PARTICIPANT_MIC_MUTED_BY_OWNER` (v1.8 NEW)                     | Owner remote-mute user                    | User bị mute + tất cả ACTIVE participant | `{ roomId, userId, mutedBy, mutedAt, cooldownUntil }`                                      |
+| `PARTICIPANT_MIC_UNMUTED` (v1.8 NEW)                            | User tự bật mic sau mute cooldown         | Tất cả ACTIVE participant                | `{ roomId, userId, unmutedAt }`                                                            |
+| `ROOM_REVIVED` (v1.8 NEW)                                       | Owner undo end phòng (trong 5s)           | Tất cả (ACTIVE + lobby)                  | `{ roomId, revivedAt, revokedEndedAt }`                                                    |
 
 **Lưu ý v1.8**:
+
 - `REQUEST_REJECTED_BY_OWNER` vs `REQUEST_REJECTED_BY_CAPACITY` (split event cho dễ xử lý frontend, R-JOIN-09)
 - `PARTICIPANT_MIC_MUTED_BY_OWNER` thông báo user bị mute + cooldown end timestamp để user biết khi nào có thể self-unmute
 - `ROOM_REVIVED` giúp UI revert sang ACTIVE state khi owner undo end trong 5s (R-END-12)
 - Music events giờ chỉ qua STOMP WS (R-MUSIC-09), không qua REST control
 
 **Lưu ý v1.7**:
+
 - `OWNER_LEFT` và `OWNER_REJOINED` giúp UI hiển thị banner "Owner đã rời — nhạc tạm dừng" / "Owner đã quay lại"
 - `PARTICIPANT_LEFT` (vs `PARTICIPANT_KICKED`) phân biệt leave chủ động với bị đuổi → UI hiển thị khác nhau
 - `CAPACITY_REACHED` thông báo cho lobby user biết phòng vừa đầy → frontend tắt nút "Xin vào" real-time
@@ -2658,26 +2416,26 @@ Hệ thống nên track các metrics sau để đánh giá:
 
 ## 12. Phụ lục: Glossary mở rộng
 
-| Thuật ngữ | Định nghĩa |
-|---|---|
-| **Meeting** | Một cuộc họp giữa nhiều người (voice + video) |
-| **RoomSessionCycle** (v1.7) | Một phiên hoạt động của phòng (từ ACTIVE → ENDED, hoặc ACTIVE → REOPEN). Đổi tên từ "Session" trong v1.6 để tránh nhầm với ParticipantSession. Lifecycle: tạo khi ACTIVE → kết thúc khi ENDED → tạo mới khi REOPEN |
-| **ParticipantSession** (v1.7) | Phiên tham gia của 1 user trong 1 phòng (từ join → leave). Nhiều ParticipantSession có thể tồn tại trong cùng 1 RoomSessionCycle |
-| **Live Room** | Phòng họp trực tuyến (tên sản phẩm) |
-| **Persistent Room** | Phòng có thể tái sử dụng qua nhiều session |
-| **Instant Meeting** | Phòng họp không cần lên lịch trước |
-| **Voice + Video** | Họp vừa nói vừa thấy mặt nhau (giống Google Meet) |
-| **Room State** | Trạng thái hiện tại của phòng (ACTIVE/ENDED) |
-| **Participant State** | Trạng thái tham gia của user (in room / left / approved / pending) |
-| **Media State** | Trạng thái camera/mic của user (on/off) |
-| **camera_on** | User có đang bật camera hay không |
-| **mic_on** | User có đang bật microphone hay không |
-| **Listen-only Mode** | User chỉ nghe/xem, không nói, không hiện hình |
-| **WebRTC** | Công nghệ truyền media realtime giữa browser-browser |
-| **rejectCountByOwner** (v1.7) | Số lần user bị owner chủ động REJECTED trong cùng RoomSessionCycle. Đếm vào LOCKED limit (3 lần) |
-| **rejectCountByCapacity** (v1.7) | Số lần user bị REJECTED do phòng đầy (R-APPROVE-05) trong cùng RoomSessionCycle. KHÔNG trigger LOCKED |
-| **reservedOwnerSlot** (v1.7) | Flag = true khi owner leave (grace period). Khi true, max effective capacity = max - 1 (giữ slot cho owner rejoin) |
-| **Mesh Network** | Mỗi user kết nối trực tiếp với các user khác (giới hạn ~7 người) |
+| Thuật ngữ                        | Định nghĩa                                                                                                                                                                                                         |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Meeting**                      | Một cuộc họp giữa nhiều người (voice + video)                                                                                                                                                                      |
+| **RoomSessionCycle** (v1.7)      | Một phiên hoạt động của phòng (từ ACTIVE → ENDED, hoặc ACTIVE → REOPEN). Đổi tên từ "Session" trong v1.6 để tránh nhầm với ParticipantSession. Lifecycle: tạo khi ACTIVE → kết thúc khi ENDED → tạo mới khi REOPEN |
+| **ParticipantSession** (v1.7)    | Phiên tham gia của 1 user trong 1 phòng (từ join → leave). Nhiều ParticipantSession có thể tồn tại trong cùng 1 RoomSessionCycle                                                                                   |
+| **Live Room**                    | Phòng họp trực tuyến (tên sản phẩm)                                                                                                                                                                                |
+| **Persistent Room**              | Phòng có thể tái sử dụng qua nhiều session                                                                                                                                                                         |
+| **Instant Meeting**              | Phòng họp không cần lên lịch trước                                                                                                                                                                                 |
+| **Voice + Video**                | Họp vừa nói vừa thấy mặt nhau (giống Google Meet)                                                                                                                                                                  |
+| **Room State**                   | Trạng thái hiện tại của phòng (ACTIVE/ENDED)                                                                                                                                                                       |
+| **Participant State**            | Trạng thái tham gia của user (in room / left / approved / pending)                                                                                                                                                 |
+| **Media State**                  | Trạng thái camera/mic của user (on/off)                                                                                                                                                                            |
+| **camera_on**                    | User có đang bật camera hay không                                                                                                                                                                                  |
+| **mic_on**                       | User có đang bật microphone hay không                                                                                                                                                                              |
+| **Listen-only Mode**             | User chỉ nghe/xem, không nói, không hiện hình                                                                                                                                                                      |
+| **WebRTC**                       | Công nghệ truyền media realtime giữa browser-browser                                                                                                                                                               |
+| **rejectCountByOwner** (v1.7)    | Số lần user bị owner chủ động REJECTED trong cùng RoomSessionCycle. Đếm vào LOCKED limit (3 lần)                                                                                                                   |
+| **rejectCountByCapacity** (v1.7) | Số lần user bị REJECTED do phòng đầy (R-APPROVE-05) trong cùng RoomSessionCycle. KHÔNG trigger LOCKED                                                                                                              |
+| **reservedOwnerSlot** (v1.7)     | Flag = true khi owner leave (grace period). Khi true, max effective capacity = max - 1 (giữ slot cho owner rejoin)                                                                                                 |
+| **Mesh Network**                 | Mỗi user kết nối trực tiếp với các user khác (giới hạn ~7 người)                                                                                                                                                   |
 
 ---
 
