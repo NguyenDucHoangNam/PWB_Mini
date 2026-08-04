@@ -19,6 +19,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -71,6 +72,15 @@ public class UserJpaEntity extends IamJpaBaseEntity {
 
     @Column(name = "oauth_id", length = 255)
     private String oauthId;
+
+    @Column(name = "ban_reason", length = 500)
+    private String banReason;
+
+    @Column(name = "banned_at")
+    private Instant bannedAt;
+
+    @Column(name = "banned_by")
+    private UUID bannedBy;
 
     public UUID getRoleId() {
         return role == null ? null : role.getId();

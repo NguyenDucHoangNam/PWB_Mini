@@ -1,6 +1,5 @@
 package com.pwb.iam.infrastructure.persistence.mapper;
 
-import com.pwb.iam.domain.model.EmailAddress;
 import com.pwb.iam.domain.model.OAuthProvider;
 import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.model.UserStatus;
@@ -39,6 +38,9 @@ public class UserMapper {
             existing.setRole(managedRole);
             existing.setOauthProvider(domain.getOauthProvider());
             existing.setOauthId(domain.getOauthId());
+            existing.setBanReason(domain.getBanReason());
+            existing.setBannedAt(domain.getBannedAt());
+            existing.setBannedBy(domain.getBannedBy());
             return existing;
         }
         return UserJpaEntity.builder()
@@ -51,6 +53,9 @@ public class UserMapper {
                 .role(managedRole)
                 .oauthProvider(domain.getOauthProvider() == null ? OAuthProvider.LOCAL : domain.getOauthProvider())
                 .oauthId(domain.getOauthId())
+                .banReason(domain.getBanReason())
+                .bannedAt(domain.getBannedAt())
+                .bannedBy(domain.getBannedBy())
                 .build();
     }
 
@@ -77,7 +82,10 @@ public class UserMapper {
                 entity.getStatus() == null ? UserStatus.PENDING_VERIFICATION : entity.getStatus(),
                 roleName,
                 entity.getOauthProvider(),
-                entity.getOauthId()
+                entity.getOauthId(),
+                entity.getBanReason(),
+                entity.getBannedAt(),
+                entity.getBannedBy()
         );
     }
 }

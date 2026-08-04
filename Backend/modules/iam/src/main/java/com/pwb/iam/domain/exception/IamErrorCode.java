@@ -35,7 +35,15 @@ public enum IamErrorCode implements ErrorCode {
     ACCESS_DENIED                     (ErrorCategory.FORBIDDEN,        "IAM_ACCESS_001", "Access denied due to insufficient permissions."),
     SERVICE_UNAVAILABLE              (ErrorCategory.INTERNAL,         "IAM_034", "Service temporarily unavailable. Please try again later."),
     PROFILE_INVALID_AVATAR_FORMAT    (ErrorCategory.VALIDATION,       "IAM_PROFILE_001", "Invalid avatar format. Allowed: JPEG, PNG, WebP."),
-    PROFILE_AVATAR_TOO_LARGE        (ErrorCategory.VALIDATION,       "IAM_PROFILE_002", "Avatar file size must not exceed 5MB.");
+    PROFILE_AVATAR_TOO_LARGE        (ErrorCategory.VALIDATION,       "IAM_PROFILE_002", "Avatar file size must not exceed 5MB."),
+
+    ADMIN_CANNOT_MODIFY_SELF         (ErrorCategory.FORBIDDEN,        "IAM_ADMIN_001", "Cannot modify your own account."),
+    ADMIN_CANNOT_MODIFY_ADMIN        (ErrorCategory.FORBIDDEN,        "IAM_ADMIN_002", "Cannot modify another admin account."),
+    ADMIN_USER_ALREADY_BANNED        (ErrorCategory.CONFLICT,         "IAM_ADMIN_003", "User is already banned."),
+    ADMIN_USER_NOT_BANNED            (ErrorCategory.CONFLICT,         "IAM_ADMIN_004", "User is not currently banned."),
+    ADMIN_USER_ALREADY_PENDING_DELETION (ErrorCategory.CONFLICT,      "IAM_ADMIN_005", "User is already pending deletion."),
+    ADMIN_INVALID_ROLE_ASSIGNMENT    (ErrorCategory.VALIDATION,       "IAM_ADMIN_006", "Cannot assign ADMIN role through this endpoint."),
+    ADMIN_BAN_REASON_REQUIRED        (ErrorCategory.VALIDATION,       "IAM_ADMIN_007", "Ban reason is required.");
 
     IamErrorCode(ErrorCategory category, String code, String defaultMessage) {
         this.category = category;

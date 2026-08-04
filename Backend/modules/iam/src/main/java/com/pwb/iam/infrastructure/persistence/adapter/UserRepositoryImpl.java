@@ -1,16 +1,23 @@
 package com.pwb.iam.infrastructure.persistence.adapter;
 
 import com.pwb.iam.domain.model.OAuthProvider;
+import com.pwb.iam.domain.model.RoleName;
 import com.pwb.iam.domain.model.User;
 import com.pwb.iam.domain.model.UserStatus;
 import com.pwb.iam.domain.repository.UserRepository;
+import com.pwb.iam.domain.repository.UserSearchCriteria;
 import com.pwb.iam.infrastructure.persistence.entity.UserJpaEntity;
 import com.pwb.iam.infrastructure.persistence.mapper.UserMapper;
 import com.pwb.iam.infrastructure.persistence.repository.UserJpaRepository;
+import com.pwb.iam.infrastructure.persistence.specification.UserSpecifications;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,12 +29,6 @@ public class UserRepositoryImpl implements UserRepository {
     private final UserJpaRepository userJpaRepository;
     private final UserMapper userMapper;
 
-    /**
-     * Loads the managed entity first so an update mutates the existing row rather than detaching
-     * and re-attaching it. Inside an active persistence context that lookup is served from the
-     * first-level cache — the entity was almost always already read by the use case — so it costs
-     * a query only when saving an entity this transaction has not touched.
-     */
     @Override
     public User save(User user) {
         UserJpaEntity target = userJpaRepository.findByIdAndDeletedFalse(user.getUserId())
@@ -59,5 +60,36 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public boolean existsByEmail(String email) {
         return email != null && userJpaRepository.existsByEmailAndDeletedFalse(email.toLowerCase());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<User> findAll(UserSearchCriteria criteria, Pageable pageable) {
+        Specification<UserJpaEntity> spec = UserSpecifications.fromCriteria(criteria);
+        return userJpaRepository.findAll(spec, pageable).map(userMapper::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countByStatus(UserStatus status) {
+        return userJpaRepository.countByStatusAndDeletedFalse(status);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countByRole(RoleName role) {
+        return userJpaRepository.countByRole_NameAndDeletedFalse(role.name());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countAll() {
+        return userJpaRepository.countByDeletedFalse();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countCreatedAfter(Instant after) {
+        return userJpaRepository.countByCreatedAtAfterAndDeletedFalse(after);
     }
 }

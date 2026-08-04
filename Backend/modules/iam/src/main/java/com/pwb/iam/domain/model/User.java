@@ -4,6 +4,7 @@ import com.pwb.iam.domain.exception.IamErrorCode;
 import com.pwb.iam.domain.exception.UserStateConflictException;
 import com.pwb.shared.domain.DomainBaseEntity;
 
+import java.time.Instant;
 import java.util.UUID;
 
 public final class User extends DomainBaseEntity {
@@ -20,6 +21,9 @@ public final class User extends DomainBaseEntity {
     private RoleName role;
     private OAuthProvider oauthProvider;
     private String oauthId;
+    private String banReason;
+    private Instant bannedAt;
+    private UUID bannedBy;
 
     private User(
             UUID userId,
@@ -31,7 +35,10 @@ public final class User extends DomainBaseEntity {
             UserStatus status,
             RoleName role,
             OAuthProvider oauthProvider,
-            String oauthId
+            String oauthId,
+            String banReason,
+            Instant bannedAt,
+            UUID bannedBy
     ) {
         this.userId = userId;
         this.email = email;
@@ -43,6 +50,9 @@ public final class User extends DomainBaseEntity {
         this.role = role;
         this.oauthProvider = oauthProvider;
         this.oauthId = oauthId;
+        this.banReason = banReason;
+        this.bannedAt = bannedAt;
+        this.bannedBy = bannedBy;
     }
 
     public static User createLocal(
@@ -71,6 +81,9 @@ public final class User extends DomainBaseEntity {
                 UserStatus.PENDING_VERIFICATION,
                 role,
                 OAuthProvider.LOCAL,
+                null,
+                null,
+                null,
                 null
         );
     }
@@ -98,7 +111,10 @@ public final class User extends DomainBaseEntity {
                 UserStatus.PENDING_VERIFICATION,
                 RoleName.USER,
                 OAuthProvider.GOOGLE,
-                oauthId
+                oauthId,
+                null,
+                null,
+                null
         );
     }
 
@@ -112,7 +128,10 @@ public final class User extends DomainBaseEntity {
             UserStatus status,
             String roleName,
             OAuthProvider oauthProvider,
-            String oauthId
+            String oauthId,
+            String banReason,
+            Instant bannedAt,
+            UUID bannedBy
     ) {
         EmailAddress emailAddress = (email == null || email.isBlank()) ? null : EmailAddress.of(email);
         Password password = (passwordHash == null || passwordHash.isBlank())
@@ -136,7 +155,10 @@ public final class User extends DomainBaseEntity {
                 status == null ? UserStatus.PENDING_VERIFICATION : status,
                 role,
                 oauthProvider,
-                oauthId
+                oauthId,
+                banReason,
+                bannedAt,
+                bannedBy
         );
     }
 
@@ -184,9 +206,6 @@ public final class User extends DomainBaseEntity {
         return oauthProvider != null && oauthProvider != OAuthProvider.LOCAL;
     }
 
-    /**
-     * Account can no longer authenticate, whatever the credentials presented.
-     */
     public boolean isBlocked() {
         return status == UserStatus.BANNED || status == UserStatus.DELETED;
     }
@@ -196,10 +215,6 @@ public final class User extends DomainBaseEntity {
         touch();
     }
 
-    /**
-     * Activation after a successful OTP verification. Idempotent: verifying twice is a
-     * client retry, not a conflict, so an already-ACTIVE account is left untouched.
-     */
     public void verifyOtp() {
         if (isBlocked()) {
             throw new UserStateConflictException(IamErrorCode.ACCOUNT_INACTIVE);
@@ -246,6 +261,54 @@ public final class User extends DomainBaseEntity {
         this.oauthProvider = provider;
         this.oauthId = oauthId;
         touch();
+    }
+
+    public void ban(String reason, UUID adminId) {
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("ban reason must not be blank");
+        }
+        if (this.status == UserStatus.BANNED) {
+            throw new UserStateConflictException(IamErrorCode.ADMIN_USER_ALREADY_BANNED);
+        }
+        this.status = UserStatus.BANNED;
+        this.banReason = reason.trim();
+        this.bannedAt = Instant.now();
+        this.bannedBy = adminId;
+        touch();
+    }
+
+    public void unban() {
+        if (this.status != UserStatus.BANNED) {
+            throw new UserStateConflictException(IamErrorCode.ADMIN_USER_NOT_BANNED);
+        }
+        this.status = UserStatus.ACTIVE;
+        this.banReason = null;
+        this.bannedAt = null;
+        this.bannedBy = null;
+        touch();
+    }
+
+    public void markPendingDeletion() {
+        if (this.status == UserStatus.PENDING_DELETION) {
+            throw new UserStateConflictException(IamErrorCode.ADMIN_USER_ALREADY_PENDING_DELETION);
+        }
+        if (this.status == UserStatus.DELETED) {
+            throw new UserStateConflictException(IamErrorCode.ACCOUNT_INACTIVE);
+        }
+        this.status = UserStatus.PENDING_DELETION;
+        touch();
+    }
+
+    public String getBanReason() {
+        return banReason;
+    }
+
+    public Instant getBannedAt() {
+        return bannedAt;
+    }
+
+    public UUID getBannedBy() {
+        return bannedBy;
     }
 
     private static String normalizeFullName(String fullName) {
