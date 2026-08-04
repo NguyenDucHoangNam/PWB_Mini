@@ -15,6 +15,8 @@ import type { Song, SongStatus } from "@/features/voice/types";
 
 type StatusFilter = "ALL" | SongStatus;
 
+const LIST_POLL_INTERVAL_MS = 5000;
+
 const ALLOWED_STATUSES: ReadonlySet<SongStatus> = new Set([
   "UPLOADED",
   "PROCESSING",
@@ -62,13 +64,20 @@ export function DashboardSongsTab() {
   const { data, isLoading, isFetching, isError, refetch } = useListSongs({
     page,
     size: DEFAULT_PAGE_SIZE,
+    status: filter === "ALL" ? null : filter,
+    queryConfig: {
+      // Songs land here straight from upload while still rendering; without this their badge would sit
+      // on PROCESSING until the user reloaded by hand.
+      refetchInterval: (query) =>
+        query.state.data?.data?.content.some((song) => song.status === "PROCESSING")
+          ? LIST_POLL_INTERVAL_MS
+          : false,
+    },
   });
 
-  const rawItems = data?.success && data.data ? data.data.content : [];
-  const items = useMemo(() => {
-    if (filter === "ALL") return rawItems;
-    return rawItems.filter((s) => s.status === filter);
-  }, [rawItems, filter]);
+  // The server applies the status filter, so this page and the page count already describe the
+  // filtered set. Filtering here as well would only re-hide rows the query never returned.
+  const items = data?.success && data.data ? data.data.content : [];
   const totalPages = data?.success && data.data ? data.data.totalPages : 0;
   const toDeleteId = searchParams.get("delete");
 
@@ -116,8 +125,13 @@ export function DashboardSongsTab() {
         ))}
       </div>
 
-      <div className="rounded-xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-black">
-        {isLoading || isFetching ? (
+      <div
+        aria-busy={isFetching}
+        className={`rounded-xl border border-neutral-200 bg-white transition-opacity dark:border-neutral-800 dark:bg-black ${
+          isFetching && !isLoading ? "opacity-60" : ""
+        }`}
+      >
+        {isLoading ? (
           <div className="flex items-center justify-center gap-3 p-12 text-sm text-neutral-500">
             <Spinner size="md" />
             {tList("loading")}

@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import {
@@ -35,19 +33,13 @@ export function VoiceTagDeleteDialog({
   const t = useTranslations("voice.voiceTags.delete");
   const tCommon = useTranslations("common");
   const tErrors = useTranslations("voice.errors");
-  const router = useRouter();
 
   const { mutate: deleteTag, isPending } = useDeleteVoiceTag({
     mutationConfig: {
-      onSuccess: (response) => {
-        if (response.success) {
-          toast.success(t("confirmButton"));
-          onOpenChange(false);
-          onSuccess?.();
-          router.refresh();
-        } else {
-          toast.error(response.message || tCommon("error"));
-        }
+      onSuccess: () => {
+        toast.success(t("deleteSuccess"));
+        onOpenChange(false);
+        onSuccess?.();
       },
       onError: asApiError((err) => {
         toast.error(resolveVoiceErrorMessage(err, tErrors, tCommon));

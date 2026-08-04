@@ -7,6 +7,7 @@ public record SongTagConfigView(
         UUID id,
         UUID songId,
         UUID voiceTagId,
+        String voiceTagName,
         Integer intervalSeconds,
         Integer volumePercentage,
         Integer duckingPercentage,

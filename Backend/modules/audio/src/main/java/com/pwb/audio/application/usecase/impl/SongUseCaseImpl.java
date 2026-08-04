@@ -16,6 +16,7 @@ import com.pwb.audio.application.view.SongTagConfigView;
 import com.pwb.audio.application.view.SongView;
 import com.pwb.audio.application.view.UploadUrlView;
 import com.pwb.audio.domain.enums.AudioVariant;
+import com.pwb.audio.domain.enums.SongStatus;
 import com.pwb.audio.domain.model.Song;
 import com.pwb.audio.domain.model.SongTagConfig;
 import com.pwb.audio.domain.model.VoiceTag;
@@ -39,6 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -120,9 +122,19 @@ public class SongUseCaseImpl implements SongUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<SongView> listSongs(UUID userId, Pageable pageable) {
-        return songRepository.findAllByUserId(userId, pageable)
-                .map(this::toSongView);
+    public Page<SongView> listSongs(UUID userId, SongStatus status, Pageable pageable) {
+        Page<Song> page = status == null
+                ? songRepository.findAllByUserId(userId, pageable)
+                : songRepository.findAllByUserIdAndStatus(userId, status, pageable);
+        return page.map(this::toSongView);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<SongTagConfigView> getVoiceTagConfig(UUID userId, UUID songId) {
+        Song song = requireOwnedSong(userId, songId);
+        return songTagConfigRepository.findBySongId(song.getId())
+                .map(this::toSongTagConfigView);
     }
 
     @Override
@@ -167,7 +179,8 @@ public class SongUseCaseImpl implements SongUseCase {
                 toTagConfig(song.getId(), voiceTag.getId(), settings));
 
         log.info("Voice tag configured: songId={}, voiceTagId={}", song.getId(), voiceTag.getId());
-        return toSongTagConfigView(saved);
+        // The tag was just loaded to authorise this call, so there is no reason to look it up again.
+        return toSongTagConfigView(saved, voiceTag.getName());
     }
 
     @Override
@@ -277,11 +290,23 @@ public class SongUseCaseImpl implements SongUseCase {
         );
     }
 
+    /**
+     * Carries the voice tag's name so a client rendering the configuration does not have to fetch the whole
+     * tag list just to label the one it is already showing.
+     */
     private SongTagConfigView toSongTagConfigView(SongTagConfig config) {
+        String voiceTagName = voiceTagRepository.findById(config.getVoiceTagId())
+                .map(VoiceTag::getName)
+                .orElse(null);
+        return toSongTagConfigView(config, voiceTagName);
+    }
+
+    private SongTagConfigView toSongTagConfigView(SongTagConfig config, String voiceTagName) {
         return new SongTagConfigView(
                 config.getId(),
                 config.getSongId(),
                 config.getVoiceTagId(),
+                voiceTagName,
                 config.getIntervalSeconds(),
                 config.getVolumePercentage(),
                 config.getDuckingPercentage(),

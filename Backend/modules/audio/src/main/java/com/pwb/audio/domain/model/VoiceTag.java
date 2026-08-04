@@ -13,6 +13,7 @@ public final class VoiceTag extends DomainBaseEntity {
     private final VoiceTagType tagType;
     private String sourceText;
     private String languageCode;
+    private String voiceName;
     private String s3Key;
     private Integer durationSeconds;
     private Long fileSizeBytes;
@@ -25,6 +26,7 @@ public final class VoiceTag extends DomainBaseEntity {
             VoiceTagType tagType,
             String sourceText,
             String languageCode,
+            String voiceName,
             String s3Key,
             Integer durationSeconds,
             Long fileSizeBytes,
@@ -36,6 +38,7 @@ public final class VoiceTag extends DomainBaseEntity {
         this.tagType = tagType;
         this.sourceText = sourceText;
         this.languageCode = languageCode;
+        this.voiceName = voiceName;
         this.s3Key = s3Key;
         this.durationSeconds = durationSeconds;
         this.fileSizeBytes = fileSizeBytes;
@@ -47,6 +50,7 @@ public final class VoiceTag extends DomainBaseEntity {
             String name,
             String sourceText,
             String languageCode,
+            String voiceName,
             String s3Key,
             Integer durationSeconds,
             Long fileSizeBytes
@@ -71,6 +75,7 @@ public final class VoiceTag extends DomainBaseEntity {
                 VoiceTagType.TTS,
                 sourceText,
                 languageCode,
+                voiceName,
                 s3Key,
                 durationSeconds,
                 fileSizeBytes,
@@ -85,6 +90,7 @@ public final class VoiceTag extends DomainBaseEntity {
             VoiceTagType tagType,
             String sourceText,
             String languageCode,
+            String voiceName,
             String s3Key,
             Integer durationSeconds,
             Long fileSizeBytes,
@@ -97,6 +103,7 @@ public final class VoiceTag extends DomainBaseEntity {
                 tagType,
                 sourceText,
                 languageCode,
+                voiceName,
                 s3Key,
                 durationSeconds,
                 fileSizeBytes,
@@ -126,6 +133,10 @@ public final class VoiceTag extends DomainBaseEntity {
 
     public String getLanguageCode() {
         return languageCode;
+    }
+
+    public String getVoiceName() {
+        return voiceName;
     }
 
     public String getS3Key() {

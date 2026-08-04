@@ -12,6 +12,7 @@ public record VoiceTagView(
         VoiceTagType tagType,
         String sourceText,
         String languageCode,
+        String voiceName,
         Integer durationSeconds,
         Long fileSizeBytes,
         boolean isDefault,

@@ -51,6 +51,9 @@ public class VoiceTagJpaEntity extends AudioJpaBaseEntity {
     @Column(name = "language_code", length = 8)
     private String languageCode;
 
+    @Column(name = "voice_name", length = 64)
+    private String voiceName;
+
     @Column(name = "s3_key", length = 512)
     private String s3Key;
 

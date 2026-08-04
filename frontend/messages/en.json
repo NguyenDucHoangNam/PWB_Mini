@@ -383,55 +383,6 @@
       "songs": "Manage your uploaded songs.",
       "voiceTags": "Manage your voice tags."
     },
-    "demosCardTitle": "Demo Library",
-    "demosCardDesc": "Upload audio files, monitor processing, manage encryption keys.",
-    "demosTotalLabel": "Total demos",
-    "demosActiveCount": "Active",
-    "demosProcessingCount": "Processing",
-    "demosErrorCount": "Failed",
-    "distributionsCardTitle": "Distributions",
-    "distributionsCardDesc": "Active share links and revocation history.",
-    "distributionsActiveCount": "Active links",
-    "distributionsRevokedCount": "Revoked",
-    "distributionsTotalLabel": "Total shares",
-    "openLibrary": "Open library",
-    "uploadDemo": "Upload Demo",
-    "shareDemo": "Share Demo",
-    "viewAll": "View all",
-    "emptyDemos": "No demos yet. Upload your first track to get started.",
-    "emptyDistributions": "No shares yet. Share a demo with a recipient.",
-    "hintsTitle": "Quick tips",
-    "hintsActive": "Only ACTIVE demos can be shared.",
-    "demos": {
-      "title": "Demo Library",
-      "subtitle": "All audio demos you have uploaded.",
-      "uploadBtn": "Upload Demo",
-      "filterAll": "All",
-      "filterActive": "Active",
-      "filterProcessing": "Processing",
-      "filterFailed": "Failed",
-      "colTitle": "Title",
-      "colStatus": "Status",
-      "colDuration": "Duration",
-      "colSize": "Size",
-      "colFormat": "Format",
-      "colCreatedAt": "Created at",
-      "colActions": "Actions",
-      "viewDetail": "View details",
-      "shareBtn": "Share",
-      "pageSizeLabel": "{size} per page",
-      "pageOf": "Page {page} of {total}",
-      "emptyTitle": "No demos yet",
-      "emptyDesc": "Upload your first audio file to get started.",
-      "emptyAction": "Upload Demo",
-      "prev": "Previous",
-      "next": "Next",
-      "statusProcessing": "Processing",
-      "statusActive": "Active",
-      "statusFailed": "Failed",
-      "statusRevoked": "Revoked",
-      "statusDeleted": "Deleted"
-    },
     "voiceLibrary": {
       "tabs": {
         "songs": "Songs",
@@ -439,118 +390,9 @@
       },
       "uploadBtn": "Upload song",
       "createBtn": "Create voice tag"
-    },
-    "demoDetail": {
-      "back": "Back to library",
-      "waveformPlaceholder": "Waveform will appear here once processing is complete.",
-      "playerLabel": "Streaming player",
-      "rotateKey": "Rotate AES key",
-      "rotateKeyConfirmTitle": "Rotate AES key?",
-      "rotateKeyConfirmDesc": "All existing share links will need a new key. Active sessions will be invalidated.",
-      "rotateKeyConfirmBtn": "Rotate",
-      "metadataFileSize": "File size",
-      "metadataFormat": "Format",
-      "metadataSampleRate": "Sample rate",
-      "metadataDuration": "Duration",
-      "metadataCreatedAt": "Created at",
-      "metadataUpdatedAt": "Updated at",
-      "metadataErrorTitle": "Processing failed",
-      "loading": "Loading demo status...",
-      "notFound": "Demo not found",
-      "toastRotated": "AES key rotated",
-      "toastPolling": "Processing... checking again in {seconds}s"
-    },
-    "distributions": {
-      "title": "Distributions",
-      "subtitle": "All share links you have created across your demos.",
-      "colDemo": "Demo",
-      "colTotal": "Total shares",
-      "colActive": "Active",
-      "colRevoked": "Revoked",
-      "viewDetail": "View share links",
-      "emptyTitle": "No distributions yet",
-      "emptyDesc": "Share an ACTIVE demo to generate your first share link.",
-      "loadingTop": "Loading distribution summary...",
-      "detailTitle": "Share links",
-      "detailSubtitle": "Recipients who can stream your demo.",
-      "revokeAllBtn": "Revoke all",
-      "revokeAllConfirmTitle": "Revoke all share links?",
-      "revokeAllConfirmDesc": "All active share links for this demo will be invalidated. Recipients will lose access immediately.",
-      "revokeAllConfirmBtn": "Revoke all",
-      "colRecipient": "Recipient",
-      "colShareLink": "Share link",
-      "colPlayCount": "Plays",
-      "colCreatedAt": "Created",
-      "colStatus": "Status",
-      "colActions": "Actions",
-      "copyBtn": "Copy",
-      "copiedBtn": "Copied!",
-      "copyFailed": "Copy failed",
-      "revokeBtn": "Revoke",
-      "activeBadge": "Active",
-      "revokedBadge": "Revoked",
-      "includeRevoked": "Show revoked",
-      "shareAnotherBtn": "Share with another recipient",
-      "emptyRecipients": "No share links yet for this demo.",
-      "pageBack": "Back to distributions",
-      "newShareBtn": "New share",
-      "loading": "Loading...",
-      "cancel": "Cancel",
-      "prev": "Previous",
-      "next": "Next"
-    },
-    "modals": {
-      "uploadTitle": "Upload Demo",
-      "uploadDesc": "Choose an audio file to upload to your library.",
-      "uploadStepLabel": "Step {current} of {total}",
-      "uploadFileLabel": "Audio file",
-      "uploadFilePlaceholder": "Select an audio file (WAV, FLAC, MP3)",
-      "uploadTitleLabel": "Title",
-      "uploadWatermarkLabel": "Watermark interval (seconds, optional)",
-      "uploadNext": "Continue",
-      "uploadStart": "Start upload",
-      "uploadProgress": "Uploading... {percent}%",
-      "uploadRetry": "Retry upload",
-      "uploadCancel": "Cancel",
-      "uploadConfirmTitle": "Confirm upload",
-      "uploadConfirmDesc": "Click start to upload the file directly to object storage and submit for processing.",
-      "uploadSuccess": "Upload confirmed. The audio is being processed.",
-      "uploadErrorFile": "Please choose a supported audio file.",
-      "uploadErrorTitle": "Title must be 2 to 100 characters.",
-      "retry": "Retry",
-      "shareTitle": "Share Demo",
-      "shareDesc": "Create a secure share link for this demo.",
-      "shareEmailLabel": "Recipient email",
-      "shareEmailPlaceholder": "recipient@example.com",
-      "shareAllowDownload": "Allow download",
-      "shareSubmit": "Create link",
-      "shareSuccess": "Share link created",
-      "shareResultTitle": "Share link ready",
-      "shareResultCopy": "Copy link",
-      "shareResultCopied": "Copied!",
-      "shareResultRecentTitle": "Send to another recipient",
-      "closeBtn": "Close"
-    },
-    "common": {
-      "loading": "Loading...",
-      "error": "Something went wrong. Please try again.",
-      "back": "Back",
-      "copyLink": "Copy link",
-      "retry": "Retry"
     }
   },
   "errors": {
-    "common": {
-      "operationFailed": "Operation failed",
-      "rateLimited": "Too many requests. Please try again later.",
-      "dataIntegrity": "Data conflicts with an existing constraint.",
-      "notFound": "Resource not found.",
-      "fileTooLarge": "Uploaded file exceeds the allowed limit.",
-      "serverError": "The system encountered an error. Please try again later."
-    },
-    "auth": {
-      "generic": "Login failed. Please try again."
-    },
     "401": {
       "title": "LOGIN SESSION EXPIRED",
       "desc": "Your active session has expired or has been revoked. Please log in again to continue.",
@@ -571,6 +413,17 @@
       "desc": "We are currently resolving this issue. Please try again in a few minutes or contact support.",
       "btn": "RETRY",
       "contact": "Contact Support"
+    },
+    "common": {
+      "operationFailed": "Operation failed",
+      "rateLimited": "Too many requests. Please try again later.",
+      "dataIntegrity": "Data conflicts with an existing constraint.",
+      "notFound": "Resource not found.",
+      "fileTooLarge": "Uploaded file exceeds the allowed limit.",
+      "serverError": "The system encountered an error. Please try again later."
+    },
+    "auth": {
+      "generic": "Login failed. Please try again."
     }
   },
   "network": {
@@ -614,12 +467,21 @@
         "cancelButton": "Cancel",
         "fileLabel": "Audio file",
         "createSuccess": "Voice tag created successfully",
-        "uploadSuccess": "Voice tag uploaded successfully"
+        "uploadSuccess": "Voice tag uploaded successfully",
+        "voiceLabel": "Voice",
+        "voiceDefaultOption": "System default voice",
+        "voiceHint": "Each language has its own voices. Switching language resets this choice.",
+        "previewTitle": "Listen before saving",
+        "previewHint": "Synthesises a sample. Nothing is saved until you create the voice tag.",
+        "previewButton": "Preview",
+        "previewFailed": "Could not generate the preview. Please try again.",
+        "previewRateLimited": "Too many previews. Try again in {seconds} seconds."
       },
       "delete": {
         "confirmTitle": "Delete voice tag?",
         "confirmMessage": "This action cannot be undone.",
-        "confirmButton": "Delete"
+        "confirmButton": "Delete",
+        "deleteSuccess": "Voice tag deleted"
       },
       "wizard": {
         "selectMethod": "Choose how to create your voice tag",
@@ -635,6 +497,10 @@
         "vi-VN": "Vietnamese",
         "en-US": "English (US)",
         "en-GB": "English (UK)"
+      },
+      "voiceGender": {
+        "FEMALE": "Female",
+        "MALE": "Male"
       }
     },
     "songs": {
@@ -688,11 +554,26 @@
       "delete": {
         "confirmTitle": "Delete song?",
         "confirmMessage": "This will permanently remove the song and all processed versions.",
-        "confirmButton": "Delete"
+        "confirmButton": "Delete",
+        "deleteSuccess": "Song deleted"
       },
       "errorLoad": "Unable to load song list. Please check your connection and try again.",
       "retry": "Retry",
-      "emptyHint": "Upload your first song to start adding Voice Tags and protect your music copyright."
+      "emptyHint": "Upload your first song to start adding Voice Tags and protect your music copyright.",
+      "detail": {
+        "processingBanner": "Processing this song. The page updates itself once it finishes.",
+        "processingTriggered": "Song queued for processing",
+        "triggerProcessing": "Start processing",
+        "retryProcessing": "Retry processing",
+        "uploadedHint": "This song has not been processed yet. Hit \"Start processing\" to mix your voice tag in.",
+        "failedTitle": "Processing failed",
+        "failedUnknownReason": "No reason was reported. Try processing it again.",
+        "metadataFormat": "Format",
+        "metadataDuration": "Duration",
+        "metadataFileSize": "File size",
+        "metadataCreatedAt": "Created at",
+        "configSavedHint": "Configuration saved. Hit \"Retry processing\" to apply it."
+      }
     },
     "config": {
       "title": "Voice Tag Configuration",
@@ -712,7 +593,9 @@
       "saveButton": "Save configuration",
       "saveSuccess": "Configuration saved successfully",
       "removeButton": "Remove configuration",
-      "removeSuccess": "Configuration removed successfully"
+      "removeSuccess": "Configuration removed successfully",
+      "noVoiceTags": "You have no voice tags yet. Create one under Voice Tags first.",
+      "saveHint": "After saving, hit \"Retry processing\" at the top to render a new version."
     },
     "processing": {
       "trigger": "Process song",

@@ -1,13 +1,16 @@
 package com.pwb.audio.api.controller;
 
 import com.pwb.audio.api.dto.request.CreateVoiceTagTtsRequest;
+import com.pwb.audio.api.dto.request.PreviewVoiceTagTtsRequest;
 import com.pwb.audio.api.dto.request.UpdateVoiceTagRequest;
 import com.pwb.audio.api.dto.response.AudioUrlResponse;
+import com.pwb.audio.api.dto.response.TtsVoiceResponse;
 import com.pwb.audio.api.dto.response.VoiceTagResponse;
 import com.pwb.audio.application.command.DeleteVoiceTagCommand;
 import com.pwb.audio.application.command.UpdateVoiceTagCommand;
 import com.pwb.audio.application.usecase.VoiceTagUseCase;
 import com.pwb.audio.application.view.AudioUrlView;
+import com.pwb.audio.application.view.TtsPreview;
 import com.pwb.audio.application.view.VoiceTagView;
 import com.pwb.shared.dto.ApiResponse;
 import com.pwb.shared.dto.PageResponse;
@@ -20,7 +23,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,6 +37,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -47,6 +53,8 @@ public class VoiceTagController {
 
     private static final Duration AUDIO_URL_EXPIRATION = Duration.ofHours(1);
 
+    private static final String HEADER_PREVIEW_DURATION = "X-Preview-Duration-Seconds";
+
     private final VoiceTagUseCase voiceTagUseCase;
     private final MessageResolver messageResolver;
 
@@ -59,11 +67,42 @@ public class VoiceTagController {
                 userId,
                 request.name(),
                 request.text(),
-                request.languageCode()
+                request.languageCode(),
+                request.voiceName()
         );
         VoiceTagResponse body = VoiceTagResponse.from(view);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(messageResolver.get(MSG_TTS_VOICE_TAG_CREATED), body));
+    }
+
+    /**
+     * Returns the audio itself rather than an envelope: the client feeds it straight to an audio element,
+     * and nothing was stored that a URL could point at.
+     */
+    @PostMapping("/tts/preview")
+    public ResponseEntity<byte[]> previewVoiceTagTts(
+            @Valid @RequestBody PreviewVoiceTagTtsRequest request
+    ) {
+        TtsPreview preview = voiceTagUseCase.previewVoiceTagTts(
+                request.text(),
+                request.languageCode(),
+                request.voiceName()
+        );
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(preview.contentType()))
+                .cacheControl(CacheControl.noStore())
+                .header(HEADER_PREVIEW_DURATION, String.valueOf(
+                        preview.durationSeconds() == null ? 0 : preview.durationSeconds()))
+                .body(preview.audioBytes());
+    }
+
+    @GetMapping("/tts/voices")
+    public ResponseEntity<ApiResponse<List<TtsVoiceResponse>>> listTtsVoices() {
+        List<TtsVoiceResponse> body = voiceTagUseCase.listAvailableVoices().stream()
+                .map(TtsVoiceResponse::from)
+                .toList();
+        return ResponseEntity.ok(ApiResponse.success(body));
     }
 
     @GetMapping

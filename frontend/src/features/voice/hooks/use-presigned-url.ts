@@ -9,6 +9,14 @@ const REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
 type Fetcher = () => Promise<ApiResponse<AudioUrl>>;
 
+/**
+ * Wraps a presigned-URL query and renews it shortly before the URL dies, so a listener who leaves the
+ * page open does not hit a 403 mid-playback.
+ *
+ * The renewal deadline is derived inside the effect rather than during render: reading the clock while
+ * rendering makes the delay change on every re-render, which used to re-arm the timer constantly while
+ * still never scheduling anything for a URL that was not already expiring.
+ */
 export function usePresignedUrl({
   fetcher,
   enabled,
@@ -26,21 +34,25 @@ export function usePresignedUrl({
     retry: false,
   });
 
-  const expiresAt = query.data?.data?.expiresAt
-    ? new Date(query.data.data.expiresAt).getTime()
-    : 0;
-  const remainingMs = expiresAt > 0 ? expiresAt - Date.now() : 0;
-  const isNearExpiry =
-    expiresAt > 0 && remainingMs > 0 && remainingMs < REFRESH_BUFFER_MS;
+  const expiresAt = query.data?.data?.expiresAt ?? null;
+  const { refetch } = query;
 
   useEffect(() => {
-    if (!isNearExpiry || !enabled || !query.data?.data?.url) return;
-    const timeoutMs = Math.max(0, remainingMs - REFRESH_BUFFER_MS);
+    if (!enabled || !expiresAt) return;
+
+    const expiresAtMs = new Date(expiresAt).getTime();
+    if (!Number.isFinite(expiresAtMs)) return;
+
+    // Already inside the buffer means renew now. The refetch yields a new expiry, which re-runs this
+    // effect with a fresh deadline; an unchanged expiry leaves the dependency untouched, so a server
+    // that keeps handing back the same URL cannot spin this into a loop.
+    const delay = Math.max(0, expiresAtMs - REFRESH_BUFFER_MS - Date.now());
     const timer = setTimeout(() => {
-      query.refetch();
-    }, timeoutMs);
+      refetch();
+    }, delay);
+
     return () => clearTimeout(timer);
-  }, [isNearExpiry, remainingMs, enabled, query.data?.data?.url, query.refetch]);
+  }, [expiresAt, enabled, refetch]);
 
   return query;
 }

@@ -2,6 +2,14 @@ export type VoiceTagType = "TTS" | "UPLOADED";
 
 export type SongStatus = "UPLOADED" | "PROCESSING" | "PROCESSED" | "FAILED";
 
+export type TtsVoiceGender = "FEMALE" | "MALE";
+
+export interface TtsVoice {
+  name: string;
+  languageCode: string;
+  gender: TtsVoiceGender;
+}
+
 export interface VoiceTag {
   id: string;
   userId: string;
@@ -9,6 +17,8 @@ export interface VoiceTag {
   tagType: VoiceTagType;
   sourceText: string | null;
   languageCode: string | null;
+  /** Absent on tags created before voices became selectable. */
+  voiceName?: string | null;
   durationSeconds: number;
   fileSizeBytes: number;
   isDefault: boolean;
@@ -76,6 +86,14 @@ export interface CreateTtsVoiceTagRequest {
   name: string;
   text: string;
   languageCode: string;
+  /** Omit to let the provider pick its default voice for the language. */
+  voiceName?: string | null;
+}
+
+export interface PreviewTtsRequest {
+  text: string;
+  languageCode: string;
+  voiceName?: string | null;
 }
 
 export interface UpdateVoiceTagRequest {
@@ -111,4 +129,6 @@ export interface ListVoiceTagsParams {
 export interface ListSongsParams {
   page: number;
   size: number;
+  /** Omit to list every status. Filtering happens server-side so paging stays correct. */
+  status?: SongStatus | null;
 }

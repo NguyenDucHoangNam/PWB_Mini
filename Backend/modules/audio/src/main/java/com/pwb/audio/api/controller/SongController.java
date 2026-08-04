@@ -17,6 +17,7 @@ import com.pwb.audio.application.view.SongTagConfigView;
 import com.pwb.audio.application.view.SongView;
 import com.pwb.audio.application.view.UploadUrlView;
 import com.pwb.audio.domain.enums.AudioVariant;
+import com.pwb.audio.domain.enums.SongStatus;
 import com.pwb.shared.dto.ApiResponse;
 import com.pwb.shared.dto.PageResponse;
 import com.pwb.web.dto.PageResponses;
@@ -104,12 +105,17 @@ public class SongController {
         return ResponseEntity.ok(ApiResponse.success(messageResolver.get(MSG_SONG_RETRIEVED), body));
     }
 
+    /**
+     * @param status optional; filtering runs in the query so the returned page counts describe the
+     *               filtered set rather than the caller's whole library
+     */
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<SongResponse>>> listSongs(
             @CurrentUser UUID userId,
+            @RequestParam(required = false) SongStatus status,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Page<SongView> page = songUseCase.listSongs(userId, pageable);
+        Page<SongView> page = songUseCase.listSongs(userId, status, pageable);
         PageResponse<SongResponse> body = PageResponses.from(page, SongResponse::from);
         return ResponseEntity.ok(ApiResponse.success(body));
     }
@@ -132,6 +138,21 @@ public class SongController {
     ) {
         songUseCase.deleteSong(new DeleteSongCommand(userId, songId));
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * @return the configuration, or a {@code null} payload when the song has none yet — not having one is
+     *         an ordinary state for a freshly uploaded song, so it is not reported as an error
+     */
+    @GetMapping("/{songId}/voice-tag-config")
+    public ResponseEntity<ApiResponse<SongTagConfigResponse>> getVoiceTagConfig(
+            @CurrentUser UUID userId,
+            @PathVariable UUID songId
+    ) {
+        SongTagConfigResponse body = songUseCase.getVoiceTagConfig(userId, songId)
+                .map(SongTagConfigResponse::from)
+                .orElse(null);
+        return ResponseEntity.ok(ApiResponse.success(body));
     }
 
     /**

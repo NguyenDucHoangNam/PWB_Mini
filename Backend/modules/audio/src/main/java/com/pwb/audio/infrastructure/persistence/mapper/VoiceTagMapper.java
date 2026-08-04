@@ -25,6 +25,7 @@ public class VoiceTagMapper {
         target.setName(domain.getName());
         target.setSourceText(domain.getSourceText());
         target.setLanguageCode(domain.getLanguageCode());
+        target.setVoiceName(domain.getVoiceName());
         target.setS3Key(domain.getS3Key());
         target.setDurationSeconds(domain.getDurationSeconds());
         target.setFileSizeBytes(domain.getFileSizeBytes());
@@ -42,6 +43,7 @@ public class VoiceTagMapper {
                 entity.getTagType(),
                 entity.getSourceText(),
                 entity.getLanguageCode(),
+                entity.getVoiceName(),
                 entity.getS3Key(),
                 entity.getDurationSeconds(),
                 entity.getFileSizeBytes(),

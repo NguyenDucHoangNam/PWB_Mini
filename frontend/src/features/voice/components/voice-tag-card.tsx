@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { Play, Pause, Volume2, VolumeX, Pencil, Trash2, Globe } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { VoiceTag } from "../types";
@@ -80,7 +79,30 @@ export function VoiceTagCard({ voiceTag }: VoiceTagCardProps) {
 
 function VoiceTagPreviewInline({ voiceTagId }: { voiceTagId: string }) {
   const t = useTranslations("voice.voiceTags");
-  const { data, isLoading, error } = useVoiceTagAudioUrl({ voiceTagId });
+  const tPlayer = useTranslations("voice.player");
+  // Signing a URL on mount cost one round trip per card just to draw a play button — a page of 20 tags
+  // fired 20 of them before the user pressed anything. Ask only once someone actually wants to listen.
+  const [requested, setRequested] = useState(false);
+  const { data, isLoading, error } = useVoiceTagAudioUrl({
+    voiceTagId,
+    enabled: requested,
+  });
+  const url = data?.data?.url ?? null;
+
+  if (!requested) {
+    return (
+      <button
+        type="button"
+        onClick={() => setRequested(true)}
+        className="flex items-center gap-3 rounded-lg border border-neutral-200/80 bg-neutral-50 px-3 py-2.5 text-xs font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+      >
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-black text-white dark:bg-white dark:text-black">
+          <Play className="ml-0.5 size-3.5 fill-current" />
+        </span>
+        {t("preview")}
+      </button>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -91,14 +113,18 @@ function VoiceTagPreviewInline({ voiceTagId }: { voiceTagId: string }) {
     );
   }
 
-  if (error || !data?.data?.url) {
-    return null;
+  if (error || !url) {
+    return (
+      <div className="rounded-lg bg-neutral-50 px-3 py-2.5 text-xs text-red-600 dark:bg-neutral-900 dark:text-red-400">
+        {tPlayer("loadError")}
+      </div>
+    );
   }
 
-  return <VoiceTagCustomPlayer url={data.data.url} />;
+  return <VoiceTagCustomPlayer url={url} autoPlay />;
 }
 
-function VoiceTagCustomPlayer({ url }: { url: string }) {
+function VoiceTagCustomPlayer({ url, autoPlay = false }: { url: string; autoPlay?: boolean }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -159,6 +185,7 @@ function VoiceTagCustomPlayer({ url }: { url: string }) {
       <audio
         ref={audioRef}
         src={url}
+        autoPlay={autoPlay}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onTimeUpdate={handleTimeUpdate}

@@ -7,6 +7,7 @@ import com.pwb.audio.application.exception.AudioErrorCode;
 import com.pwb.audio.application.support.StorageCleaner;
 import com.pwb.audio.application.usecase.VoiceTagUseCase;
 import com.pwb.audio.application.view.AudioUrlView;
+import com.pwb.audio.application.view.TtsPreview;
 import com.pwb.audio.application.view.VoiceTagView;
 import com.pwb.audio.domain.model.VoiceTag;
 import com.pwb.audio.domain.repository.SongTagConfigRepository;
@@ -16,6 +17,7 @@ import com.pwb.audio.domain.service.StoragePort;
 import com.pwb.audio.domain.service.TextToSpeechPort;
 import com.pwb.audio.domain.service.TtsRequest;
 import com.pwb.audio.domain.service.TtsResult;
+import com.pwb.audio.domain.service.TtsVoice;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -25,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -44,14 +47,16 @@ public class VoiceTagUseCaseImpl implements VoiceTagUseCase {
      * gets its own transaction, and the uploaded object is reclaimed if that write fails.
      */
     @Override
-    public VoiceTagView createVoiceTagTts(UUID userId, String name, String text, String languageCode) {
-        log.info("Creating TTS voice tag: userId={}, name={}", userId, name);
+    public VoiceTagView createVoiceTagTts(UUID userId, String name, String text, String languageCode, String voiceName) {
+        log.info("Creating TTS voice tag: userId={}, name={}, voice={}", userId, name, voiceName);
+
+        assertVoiceAvailable(languageCode, voiceName);
 
         if (voiceTagRepository.existsByUserIdAndName(userId, name)) {
             throw new AudioBusinessException(AudioErrorCode.DUPLICATE_VOICE_TAG_NAME);
         }
 
-        TtsSynthesisOutcome outcome = synthesizeAndUploadTts(userId, name, text, languageCode);
+        TtsSynthesisOutcome outcome = synthesizeAndUploadTts(userId, name, text, languageCode, voiceName);
 
         VoiceTag saved;
         try {
@@ -60,6 +65,7 @@ public class VoiceTagUseCaseImpl implements VoiceTagUseCase {
                     name,
                     text,
                     languageCode,
+                    voiceName,
                     outcome.s3Key(),
                     outcome.durationSeconds(),
                     outcome.fileSizeBytes()
@@ -75,6 +81,26 @@ public class VoiceTagUseCaseImpl implements VoiceTagUseCase {
 
         log.info("TTS voice tag created: voiceTagId={}", saved.getId());
         return toVoiceTagView(saved);
+    }
+
+    /**
+     * Not transactional and deliberately touching nothing but the provider: a preview exists so the user can
+     * reject it, and rejected audio should leave no trace in storage or the database.
+     */
+    @Override
+    public TtsPreview previewVoiceTagTts(String text, String languageCode, String voiceName) {
+        assertVoiceAvailable(languageCode, voiceName);
+
+        TtsResult result = textToSpeechPort.synthesize(new TtsRequest(text, languageCode, voiceName));
+        log.debug("TTS preview synthesised: language={}, voice={}, bytes={}",
+                languageCode, voiceName, result.audioBytes().length);
+
+        return new TtsPreview(result.audioBytes(), result.contentType(), result.durationSeconds());
+    }
+
+    @Override
+    public List<TtsVoice> listAvailableVoices() {
+        return textToSpeechPort.availableVoices();
     }
 
     @Override
@@ -130,8 +156,25 @@ public class VoiceTagUseCaseImpl implements VoiceTagUseCase {
                 .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.VOICE_TAG_NOT_FOUND));
     }
 
-    private TtsSynthesisOutcome synthesizeAndUploadTts(UUID userId, String name, String text, String languageCode) {
-        TtsResult ttsResult = textToSpeechPort.synthesize(new TtsRequest(text, languageCode, null));
+    /**
+     * A voice belongs to exactly one language, so accepting one that does not match would either fail at
+     * the provider or quietly produce audio in the wrong language. Null means "use the provider default".
+     */
+    private void assertVoiceAvailable(String languageCode, String voiceName) {
+        if (voiceName == null || voiceName.isBlank()) {
+            return;
+        }
+        boolean offered = textToSpeechPort.availableVoices(languageCode).stream()
+                .anyMatch(voice -> voice.name().equals(voiceName));
+        if (!offered) {
+            log.warn("Rejected unsupported TTS voice: language={}, voice={}", languageCode, voiceName);
+            throw new AudioBusinessException(AudioErrorCode.TTS_VOICE_NOT_SUPPORTED);
+        }
+    }
+
+    private TtsSynthesisOutcome synthesizeAndUploadTts(
+            UUID userId, String name, String text, String languageCode, String voiceName) {
+        TtsResult ttsResult = textToSpeechPort.synthesize(new TtsRequest(text, languageCode, voiceName));
         String s3Key = buildTtsKey(userId, name);
 
         String uploadedKey;
@@ -156,6 +199,7 @@ public class VoiceTagUseCaseImpl implements VoiceTagUseCase {
                 voiceTag.getTagType(),
                 voiceTag.getSourceText(),
                 voiceTag.getLanguageCode(),
+                voiceTag.getVoiceName(),
                 voiceTag.getDurationSeconds(),
                 voiceTag.getFileSizeBytes(),
                 voiceTag.isDefault(),

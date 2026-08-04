@@ -1,5 +1,6 @@
 package com.pwb.audio.infrastructure.persistence.adapter;
 
+import com.pwb.audio.domain.enums.SongStatus;
 import com.pwb.audio.domain.model.Song;
 import com.pwb.audio.domain.repository.SongRepository;
 import com.pwb.audio.infrastructure.persistence.entity.SongJpaEntity;
@@ -45,6 +46,12 @@ public class SongRepositoryImpl implements SongRepository {
     @Override
     public Page<Song> findAllByUserId(UUID userId, Pageable pageable) {
         return songJpaRepository.findAllByUserId(userId, pageable)
+                .map(songMapper::toDomain);
+    }
+
+    @Override
+    public Page<Song> findAllByUserIdAndStatus(UUID userId, SongStatus status, Pageable pageable) {
+        return songJpaRepository.findAllByUserIdAndStatus(userId, status, pageable)
                 .map(songMapper::toDomain);
     }
 

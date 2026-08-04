@@ -52,8 +52,13 @@ export function DashboardVoiceTagsTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-black">
-        {isLoading || isFetching ? (
+      <div
+        aria-busy={isFetching}
+        className={`rounded-xl border border-neutral-200 bg-white transition-opacity dark:border-neutral-800 dark:bg-black ${
+          isFetching && !isLoading ? "opacity-60" : ""
+        }`}
+      >
+        {isLoading ? (
           <div className="flex items-center justify-center gap-3 p-12 text-sm text-neutral-500">
             <Spinner size="md" />
             {tList("loading")}

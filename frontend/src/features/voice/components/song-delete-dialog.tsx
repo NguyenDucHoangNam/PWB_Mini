@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import {
@@ -22,24 +20,26 @@ interface SongDeleteDialogProps {
   song: Song | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Lets a detail page navigate away — the song it renders no longer exists. */
+  onSuccess?: () => void;
 }
 
-export function SongDeleteDialog({ song, open, onOpenChange }: SongDeleteDialogProps) {
+export function SongDeleteDialog({
+  song,
+  open,
+  onOpenChange,
+  onSuccess,
+}: SongDeleteDialogProps) {
   const t = useTranslations("voice.songs.delete");
   const tCommon = useTranslations("common");
   const tErrors = useTranslations("voice.errors");
-  const router = useRouter();
 
   const { mutate: deleteSong, isPending } = useDeleteSong({
     mutationConfig: {
-      onSuccess: (response) => {
-        if (response.success) {
-          toast.success(t("confirmButton"));
-          onOpenChange(false);
-          router.refresh();
-        } else {
-          toast.error(response.message || tCommon("error"));
-        }
+      onSuccess: () => {
+        toast.success(t("deleteSuccess"));
+        onOpenChange(false);
+        onSuccess?.();
       },
       onError: asApiError((err) => {
         toast.error(resolveVoiceErrorMessage(err, tErrors, tCommon));

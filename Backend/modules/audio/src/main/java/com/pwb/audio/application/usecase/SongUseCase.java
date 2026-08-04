@@ -9,10 +9,12 @@ import com.pwb.audio.application.view.SongTagConfigView;
 import com.pwb.audio.application.view.SongView;
 import com.pwb.audio.application.view.UploadUrlView;
 import com.pwb.audio.domain.enums.AudioVariant;
+import com.pwb.audio.domain.enums.SongStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface SongUseCase {
@@ -23,7 +25,14 @@ public interface SongUseCase {
 
     SongView getSong(UUID userId, UUID songId);
 
-    Page<SongView> listSongs(UUID userId, Pageable pageable);
+    /**
+     * @param status narrows the listing; {@code null} lists every status. Filtering happens in the query so
+     *               the page counts describe the filtered set rather than the whole library.
+     */
+    Page<SongView> listSongs(UUID userId, SongStatus status, Pageable pageable);
+
+    /** @return empty when the song has no voice tag configured yet — a normal state, not a failure. */
+    Optional<SongTagConfigView> getVoiceTagConfig(UUID userId, UUID songId);
 
     SongView updateSong(UpdateSongCommand command);
 

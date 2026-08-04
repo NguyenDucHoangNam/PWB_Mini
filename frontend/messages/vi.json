@@ -383,55 +383,6 @@
       "songs": "Quản lý các bài hát đã upload của bạn.",
       "voiceTags": "Quản lý các voice tag của bạn."
     },
-    "demosCardTitle": "Demo Library",
-    "demosCardDesc": "Upload audio files, monitor processing, manage encryption keys.",
-    "demosTotalLabel": "Total demos",
-    "demosActiveCount": "Active",
-    "demosProcessingCount": "Processing",
-    "demosErrorCount": "Failed",
-    "distributionsCardTitle": "Distributions",
-    "distributionsCardDesc": "Active share links and revocation history.",
-    "distributionsActiveCount": "Active links",
-    "distributionsRevokedCount": "Revoked",
-    "distributionsTotalLabel": "Total shares",
-    "openLibrary": "Open library",
-    "uploadDemo": "Upload Demo",
-    "shareDemo": "Share Demo",
-    "viewAll": "View all",
-    "emptyDemos": "No demos yet. Upload your first track to get started.",
-    "emptyDistributions": "No shares yet. Share a demo with a recipient.",
-    "hintsTitle": "Quick tips",
-    "hintsActive": "Only ACTIVE demos can be shared.",
-    "demos": {
-      "title": "Demo Library",
-      "subtitle": "All audio demos you have uploaded.",
-      "uploadBtn": "Upload Demo",
-      "filterAll": "All",
-      "filterActive": "Active",
-      "filterProcessing": "Processing",
-      "filterFailed": "Failed",
-      "colTitle": "Title",
-      "colStatus": "Status",
-      "colDuration": "Duration",
-      "colSize": "Size",
-      "colFormat": "Format",
-      "colCreatedAt": "Created at",
-      "colActions": "Actions",
-      "viewDetail": "View details",
-      "shareBtn": "Share",
-      "pageSizeLabel": "{size} per page",
-      "pageOf": "Page {page} of {total}",
-      "emptyTitle": "No demos yet",
-      "emptyDesc": "Upload your first audio file to get started.",
-      "emptyAction": "Upload Demo",
-      "prev": "Previous",
-      "next": "Next",
-      "statusProcessing": "Processing",
-      "statusActive": "Active",
-      "statusFailed": "Failed",
-      "statusRevoked": "Revoked",
-      "statusDeleted": "Deleted"
-    },
     "voiceLibrary": {
       "tabs": {
         "songs": "Bài hát",
@@ -439,118 +390,9 @@
       },
       "uploadBtn": "Upload bài hát",
       "createBtn": "Tạo Voice Tag"
-    },
-    "demoDetail": {
-      "back": "Back to library",
-      "waveformPlaceholder": "Waveform will appear here once processing is complete.",
-      "playerLabel": "Streaming player",
-      "rotateKey": "Rotate AES key",
-      "rotateKeyConfirmTitle": "Rotate AES key?",
-      "rotateKeyConfirmDesc": "All existing share links will need a new key. Active sessions will be invalidated.",
-      "rotateKeyConfirmBtn": "Rotate",
-      "metadataFileSize": "File size",
-      "metadataFormat": "Format",
-      "metadataSampleRate": "Sample rate",
-      "metadataDuration": "Duration",
-      "metadataCreatedAt": "Created at",
-      "metadataUpdatedAt": "Updated at",
-      "metadataErrorTitle": "Processing failed",
-      "loading": "Loading demo status...",
-      "notFound": "Demo not found",
-      "toastRotated": "AES key rotated",
-      "toastPolling": "Processing... checking again in {seconds}s"
-    },
-    "distributions": {
-      "title": "Distributions",
-      "subtitle": "All share links you have created across your demos.",
-      "colDemo": "Demo",
-      "colTotal": "Total shares",
-      "colActive": "Active",
-      "colRevoked": "Revoked",
-      "viewDetail": "View share links",
-      "emptyTitle": "No distributions yet",
-      "emptyDesc": "Share an ACTIVE demo to generate your first share link.",
-      "loadingTop": "Loading distribution summary...",
-      "detailTitle": "Share links",
-      "detailSubtitle": "Recipients who can stream your demo.",
-      "revokeAllBtn": "Revoke all",
-      "revokeAllConfirmTitle": "Revoke all share links?",
-      "revokeAllConfirmDesc": "All active share links for this demo will be invalidated. Recipients will lose access immediately.",
-      "revokeAllConfirmBtn": "Revoke all",
-      "colRecipient": "Recipient",
-      "colShareLink": "Share link",
-      "colPlayCount": "Plays",
-      "colCreatedAt": "Created",
-      "colStatus": "Status",
-      "colActions": "Actions",
-      "copyBtn": "Copy",
-      "copiedBtn": "Copied!",
-      "copyFailed": "Copy failed",
-      "revokeBtn": "Revoke",
-      "activeBadge": "Active",
-      "revokedBadge": "Revoked",
-      "includeRevoked": "Show revoked",
-      "shareAnotherBtn": "Share with another recipient",
-      "emptyRecipients": "No share links yet for this demo.",
-      "pageBack": "Back to distributions",
-      "newShareBtn": "New share",
-      "loading": "Loading...",
-      "cancel": "Cancel",
-      "prev": "Previous",
-      "next": "Next"
-    },
-    "modals": {
-      "uploadTitle": "Upload Demo",
-      "uploadDesc": "Choose an audio file to upload to your library.",
-      "uploadStepLabel": "Step {current} of {total}",
-      "uploadFileLabel": "Audio file",
-      "uploadFilePlaceholder": "Select an audio file (WAV, FLAC, MP3)",
-      "uploadTitleLabel": "Title",
-      "uploadWatermarkLabel": "Watermark interval (seconds, optional)",
-      "uploadNext": "Continue",
-      "uploadStart": "Start upload",
-      "uploadProgress": "Uploading... {percent}%",
-      "uploadRetry": "Retry upload",
-      "uploadCancel": "Cancel",
-      "uploadConfirmTitle": "Confirm upload",
-      "uploadConfirmDesc": "Click start to upload the file directly to object storage and submit for processing.",
-      "uploadSuccess": "Upload confirmed. The audio is being processed.",
-      "uploadErrorFile": "Please choose a supported audio file.",
-      "uploadErrorTitle": "Title must be 2 to 100 characters.",
-      "retry": "Retry",
-      "shareTitle": "Share Demo",
-      "shareDesc": "Create a secure share link for this demo.",
-      "shareEmailLabel": "Recipient email",
-      "shareEmailPlaceholder": "recipient@example.com",
-      "shareAllowDownload": "Allow download",
-      "shareSubmit": "Create link",
-      "shareSuccess": "Share link created",
-      "shareResultTitle": "Share link ready",
-      "shareResultCopy": "Copy link",
-      "shareResultCopied": "Copied!",
-      "shareResultRecentTitle": "Send to another recipient",
-      "closeBtn": "Close"
-    },
-    "common": {
-      "loading": "Loading...",
-      "error": "Something went wrong. Please try again.",
-      "back": "Back",
-      "copyLink": "Copy link",
-      "retry": "Retry"
     }
   },
   "errors": {
-    "common": {
-      "operationFailed": "Thao tác thất bại",
-      "rateLimited": "Quá nhiều yêu cầu. Vui lòng thử lại sau.",
-      "dataIntegrity": "Dữ liệu bị xung đột với ràng buộc hiện có.",
-      "notFound": "Không tìm thấy tài nguyên.",
-      "fileTooLarge": "Tệp tải lên vượt quá giới hạn cho phép.",
-      "serverError": "Hệ thống đang gặp sự cố. Vui lòng thử lại sau."
-    },
-    "auth": {
-      "generic": "Đăng nhập thất bại. Vui lòng thử lại."
-    },
     "401": {
       "title": "PHIÊN ĐĂNG NHẬP ĐÃ HẾT HẠN",
       "desc": "Phiên làm việc của bạn đã hết hạn hoặc bị thu hồi. Vui lòng đăng nhập lại để tiếp tục.",
@@ -571,6 +413,17 @@
       "desc": "Chúng tôi đang xử lý vấn đề này. Vui lòng thử lại sau ít phút hoặc liên hệ hỗ trợ.",
       "btn": "THỬ LẠI",
       "contact": "Liên hệ hỗ trợ"
+    },
+    "common": {
+      "operationFailed": "Thao tác thất bại",
+      "rateLimited": "Quá nhiều yêu cầu. Vui lòng thử lại sau.",
+      "dataIntegrity": "Dữ liệu bị xung đột với ràng buộc hiện có.",
+      "notFound": "Không tìm thấy tài nguyên.",
+      "fileTooLarge": "Tệp tải lên vượt quá giới hạn cho phép.",
+      "serverError": "Hệ thống đang gặp sự cố. Vui lòng thử lại sau."
+    },
+    "auth": {
+      "generic": "Đăng nhập thất bại. Vui lòng thử lại."
     }
   },
   "network": {
@@ -614,12 +467,21 @@
         "cancelButton": "Hủy",
         "fileLabel": "File âm thanh",
         "createSuccess": "Tạo voice tag thành công",
-        "uploadSuccess": "Upload voice tag thành công"
+        "uploadSuccess": "Upload voice tag thành công",
+        "voiceLabel": "Giọng đọc",
+        "voiceDefaultOption": "Giọng mặc định của hệ thống",
+        "voiceHint": "Mỗi ngôn ngữ có bộ giọng riêng. Đổi ngôn ngữ sẽ đặt lại lựa chọn này.",
+        "previewTitle": "Nghe thử trước khi lưu",
+        "previewHint": "Tạo bản đọc thử. Không có gì được lưu cho tới khi bạn bấm tạo voice tag.",
+        "previewButton": "Nghe thử",
+        "previewFailed": "Không tạo được bản nghe thử. Vui lòng thử lại.",
+        "previewRateLimited": "Bạn đã nghe thử quá nhiều lần. Thử lại sau {seconds} giây."
       },
       "delete": {
         "confirmTitle": "Xóa voice tag?",
         "confirmMessage": "Hành động này không thể hoàn tác.",
-        "confirmButton": "Xóa"
+        "confirmButton": "Xóa",
+        "deleteSuccess": "Đã xóa voice tag"
       },
       "wizard": {
         "selectMethod": "Chọn phương thức tạo voice tag",
@@ -635,6 +497,10 @@
         "vi-VN": "Tiếng Việt",
         "en-US": "Tiếng Anh (Mỹ)",
         "en-GB": "Tiếng Anh (Anh)"
+      },
+      "voiceGender": {
+        "FEMALE": "Nữ",
+        "MALE": "Nam"
       }
     },
     "songs": {
@@ -688,11 +554,26 @@
       "delete": {
         "confirmTitle": "Xóa bài hát?",
         "confirmMessage": "Bài hát và tất cả phiên bản đã xử lý sẽ bị xóa vĩnh viễn.",
-        "confirmButton": "Xóa"
+        "confirmButton": "Xóa",
+        "deleteSuccess": "Đã xóa bài hát"
       },
       "errorLoad": "Không thể tải danh sách bài hát. Vui lòng kiểm tra kết nối và thử lại.",
       "retry": "Thử lại",
-      "emptyHint": "Tải lên bài hát đầu tiên của bạn để bắt đầu gắn Voice Tag và bảo vệ bản quyền âm nhạc."
+      "emptyHint": "Tải lên bài hát đầu tiên của bạn để bắt đầu gắn Voice Tag và bảo vệ bản quyền âm nhạc.",
+      "detail": {
+        "processingBanner": "Đang xử lý bài hát. Trang sẽ tự cập nhật khi hoàn tất.",
+        "processingTriggered": "Đã đưa bài hát vào hàng đợi xử lý",
+        "triggerProcessing": "Bắt đầu xử lý",
+        "retryProcessing": "Xử lý lại",
+        "uploadedHint": "Bài hát chưa được xử lý. Nhấn \"Bắt đầu xử lý\" để chèn Voice Tag vào bản phát hành.",
+        "failedTitle": "Xử lý thất bại",
+        "failedUnknownReason": "Không rõ nguyên nhân. Vui lòng thử xử lý lại.",
+        "metadataFormat": "Định dạng",
+        "metadataDuration": "Thời lượng",
+        "metadataFileSize": "Dung lượng",
+        "metadataCreatedAt": "Ngày tạo",
+        "configSavedHint": "Đã lưu cấu hình. Bấm \"Xử lý lại\" để áp dụng vào bản phát hành."
+      }
     },
     "config": {
       "title": "Cấu hình Voice Tag",
@@ -712,7 +593,9 @@
       "saveButton": "Lưu cấu hình",
       "saveSuccess": "Đã lưu cấu hình",
       "removeButton": "Xóa cấu hình",
-      "removeSuccess": "Đã xóa cấu hình"
+      "removeSuccess": "Đã xóa cấu hình",
+      "noVoiceTags": "Bạn chưa có Voice Tag nào. Hãy tạo một cái ở mục Voice Tag trước.",
+      "saveHint": "Lưu cấu hình xong, bấm \"Xử lý lại\" ở đầu trang để render bản mới."
     },
     "processing": {
       "trigger": "Xử lý bài hát",

@@ -37,11 +37,13 @@ export function VoiceTagEditDialog({
 
   const [name, setName] = useState(currentName);
 
-  useEffect(() => {
-    if (open) {
-      setName(currentName);
-    }
-  }, [currentName, open]);
+  // Reset on the closed→open transition so a discarded edit does not survive into the next opening.
+  // Adjusting during render rather than in an effect avoids rendering the stale value first.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setName(currentName);
+  }
 
   const { mutate: updateTag, isPending } = useUpdateVoiceTag({
     mutationConfig: {

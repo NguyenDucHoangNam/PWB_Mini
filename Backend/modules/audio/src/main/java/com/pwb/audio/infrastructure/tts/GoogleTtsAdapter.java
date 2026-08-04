@@ -11,9 +11,11 @@ import com.google.cloud.texttospeech.v1.TextToSpeechSettings;
 import com.google.cloud.texttospeech.v1.VoiceSelectionParams;
 import com.pwb.audio.application.exception.AudioBusinessException;
 import com.pwb.audio.application.exception.AudioErrorCode;
+import com.pwb.audio.domain.enums.TtsVoiceGender;
 import com.pwb.audio.domain.service.TextToSpeechPort;
 import com.pwb.audio.domain.service.TtsRequest;
 import com.pwb.audio.domain.service.TtsResult;
+import com.pwb.audio.domain.service.TtsVoice;
 import com.pwb.audio.infrastructure.audio.AudioProbeService;
 import com.pwb.audio.infrastructure.tts.properties.GoogleTtsProperties;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +29,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
@@ -36,6 +40,29 @@ import java.util.Optional;
 public class GoogleTtsAdapter implements TextToSpeechPort {
 
     private static final String CLASSPATH_PREFIX = "classpath:";
+
+    private static final Map<String, List<TtsVoice>> VOICE_CATALOG = Map.of(
+            "vi-VN", List.of(
+                    new TtsVoice("vi-VN-Wavenet-A", "vi-VN", TtsVoiceGender.FEMALE),
+                    new TtsVoice("vi-VN-Wavenet-B", "vi-VN", TtsVoiceGender.MALE),
+                    new TtsVoice("vi-VN-Wavenet-C", "vi-VN", TtsVoiceGender.FEMALE),
+                    new TtsVoice("vi-VN-Wavenet-D", "vi-VN", TtsVoiceGender.MALE)
+            ),
+            "en-US", List.of(
+                    new TtsVoice("en-US-Neural2-C", "en-US", TtsVoiceGender.FEMALE),
+                    new TtsVoice("en-US-Neural2-D", "en-US", TtsVoiceGender.MALE),
+                    new TtsVoice("en-US-Wavenet-F", "en-US", TtsVoiceGender.FEMALE),
+                    new TtsVoice("en-US-Wavenet-B", "en-US", TtsVoiceGender.MALE)
+            ),
+            "en-GB", List.of(
+                    new TtsVoice("en-GB-Neural2-A", "en-GB", TtsVoiceGender.FEMALE),
+                    new TtsVoice("en-GB-Neural2-B", "en-GB", TtsVoiceGender.MALE),
+                    new TtsVoice("en-GB-Wavenet-A", "en-GB", TtsVoiceGender.FEMALE),
+                    new TtsVoice("en-GB-Wavenet-B", "en-GB", TtsVoiceGender.MALE)
+            )
+    );
+
+    private static final List<String> CATALOG_LANGUAGE_ORDER = List.of("vi-VN", "en-US", "en-GB");
 
     private final GoogleTtsProperties properties;
     private final ObjectProvider<AudioProbeService> audioProbe;
@@ -56,25 +83,44 @@ public class GoogleTtsAdapter implements TextToSpeechPort {
             throw new AudioBusinessException(AudioErrorCode.TTS_TEXT_BLANK);
         }
 
-        String encoding = properties.getAudioEncoding().toLowerCase();
+        AudioEncoding encoding = parseEncoding(properties.getAudioEncoding());
         try {
             SynthesizeSpeechResponse response = client.synthesizeSpeech(SynthesizeSpeechRequest.newBuilder()
                     .setInput(SynthesisInput.newBuilder().setText(request.text()).build())
                     .setVoice(resolveVoice(request))
-                    .setAudioConfig(resolveAudioConfig())
+                    .setAudioConfig(resolveAudioConfig(encoding))
                     .build());
 
             byte[] audioBytes = response.getAudioContent().toByteArray();
             log.info("TTS synthesized: bytes={}, language={}, voice={}",
                     audioBytes.length, request.languageCode(), request.voiceName());
 
-            return new TtsResult(audioBytes, probeDuration(audioBytes, encoding), encoding);
+            return new TtsResult(
+                    audioBytes,
+                    probeDuration(audioBytes, fileSuffix(encoding)),
+                    contentType(encoding)
+            );
         } catch (AudioBusinessException ex) {
             throw ex;
         } catch (Exception ex) {
             log.error("Google TTS synthesis failed", ex);
             throw new AudioBusinessException(AudioErrorCode.TTS_ERROR, ex);
         }
+    }
+
+    @Override
+    public List<TtsVoice> availableVoices(String languageCode) {
+        if (languageCode == null || languageCode.isBlank()) {
+            return List.of();
+        }
+        return VOICE_CATALOG.getOrDefault(languageCode, List.of());
+    }
+
+    @Override
+    public List<TtsVoice> availableVoices() {
+        return CATALOG_LANGUAGE_ORDER.stream()
+                .flatMap(language -> VOICE_CATALOG.getOrDefault(language, List.<TtsVoice>of()).stream())
+                .toList();
     }
 
     private VoiceSelectionParams resolveVoice(TtsRequest request) {
@@ -96,21 +142,42 @@ public class GoogleTtsAdapter implements TextToSpeechPort {
         return builder.build();
     }
 
-    private AudioConfig resolveAudioConfig() {
+    private AudioConfig resolveAudioConfig(AudioEncoding encoding) {
         return AudioConfig.newBuilder()
-                .setAudioEncoding(parseEncoding(properties.getAudioEncoding()))
+                .setAudioEncoding(encoding)
                 .setSpeakingRate(properties.getSpeakingRate())
                 .setPitch(properties.getPitch())
                 .build();
     }
 
-    private Integer probeDuration(byte[] audioBytes, String encoding) {
+    /**
+     * Suffix for the temp file ffprobe reads, and MIME type stored alongside the object. They are derived
+     * separately on purpose: an earlier version reused the lowercased encoding name for both, which stored
+     * every voice tag as {@code Content-Type: mp3} — not a media type any client understands.
+     */
+    private static String fileSuffix(AudioEncoding encoding) {
+        return switch (encoding) {
+            case OGG_OPUS -> ".ogg";
+            case LINEAR16, MULAW, ALAW -> ".wav";
+            default -> ".mp3";
+        };
+    }
+
+    private static String contentType(AudioEncoding encoding) {
+        return switch (encoding) {
+            case OGG_OPUS -> "audio/ogg";
+            case LINEAR16, MULAW, ALAW -> "audio/wav";
+            default -> "audio/mpeg";
+        };
+    }
+
+    private Integer probeDuration(byte[] audioBytes, String fileSuffix) {
         AudioProbeService probe = audioProbe.getIfAvailable();
         if (probe == null) {
             return null;
         }
         try {
-            return probe.probeDurationFromBytes(audioBytes, "." + encoding);
+            return probe.probeDurationFromBytes(audioBytes, fileSuffix);
         } catch (Exception ex) {
             log.warn("Could not determine TTS audio duration: {}", ex.getMessage());
             return null;

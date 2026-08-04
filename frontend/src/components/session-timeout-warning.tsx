@@ -27,11 +27,8 @@ export function SessionTimeoutWarning({ onSessionExpired, onRefreshSuccess }: Se
       onRefreshSuccess?.();
     },
   });
-  const [countdown, setCountdown] = useState(0);
-
-  useEffect(() => {
-    setCountdown(Math.ceil(remainingMs / 1000));
-  }, [remainingMs]);
+  // Straight derivation of a prop-like value; mirroring it into state only added a render behind.
+  const countdown = Math.ceil(remainingMs / 1000);
 
   if (!accessTokenExpiresAt) return null;
 

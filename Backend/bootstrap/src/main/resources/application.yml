@@ -41,6 +41,15 @@ pwb:
   cors:
     allowed-origins:
       - http://localhost:3000
+  rate-limit:
+    endpoint-limits:
+      # Every preview is a billed Google TTS synthesis, so it gets a much tighter cap than the
+      # global default that covers ordinary reads and writes.
+      tts-preview:
+        pattern: /api/v1/voice-tags/tts/preview
+        methods: [POST]
+        limit: 20
+        window-seconds: 60
   outbox:
     enabled: true
     relay:

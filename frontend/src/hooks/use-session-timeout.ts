@@ -47,7 +47,12 @@ export function useSessionTimeout(options: UseSessionTimeoutOptions = {}): Sessi
 
   const stateRef = useRef<InternalState>({ ...EMPTY_INTERNAL });
   const optionsRef = useRef(options);
-  optionsRef.current = options;
+
+  // Kept current through an effect rather than assigned during render: writing to a ref while rendering
+  // is a side effect, and callers pass fresh inline callbacks on every render.
+  useEffect(() => {
+    optionsRef.current = options;
+  });
 
   const clearRetryTimeout = useCallback(() => {
     if (stateRef.current.retryTimeoutId) {
@@ -70,6 +75,10 @@ export function useSessionTimeout(options: UseSessionTimeoutOptions = {}): Sessi
     optionsRef.current.onSessionExpired?.();
   }, []);
 
+  // The retry is a self-call. Going through a ref keeps the callback from closing over the binding it is
+  // still defining, which is what the recursion needed and nothing more.
+  const attemptRefreshRef = useRef<() => Promise<void>>(() => Promise.resolve());
+
   const attemptRefresh = useCallback(async (): Promise<void> => {
     if (stateRef.current.isRefreshing) return;
     stateRef.current.isRefreshing = true;
@@ -83,7 +92,7 @@ export function useSessionTimeout(options: UseSessionTimeoutOptions = {}): Sessi
       if (stateRef.current.retryCount < MAX_RETRY_ATTEMPTS) {
         clearRetryTimeout();
         stateRef.current.retryTimeoutId = setTimeout(() => {
-          void attemptRefresh();
+          void attemptRefreshRef.current();
         }, RETRY_DELAY_MS);
       } else {
         setRefreshFailed(true);
@@ -94,6 +103,10 @@ export function useSessionTimeout(options: UseSessionTimeoutOptions = {}): Sessi
       setIsRefreshing(false);
     }
   }, [handleRefreshSuccess, handleSessionExpired, clearRetryTimeout]);
+
+  useEffect(() => {
+    attemptRefreshRef.current = attemptRefresh;
+  });
 
   useEffect(() => {
     const handleAuthChange = () => {

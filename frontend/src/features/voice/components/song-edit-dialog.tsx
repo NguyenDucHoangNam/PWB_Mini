@@ -37,11 +37,13 @@ export function SongEditDialog({
 
   const [title, setTitle] = useState(currentTitle);
 
-  useEffect(() => {
-    if (open) {
-      setTitle(currentTitle);
-    }
-  }, [currentTitle, open]);
+  // Reset on the closed→open transition so a discarded edit does not survive into the next opening.
+  // Adjusting during render rather than in an effect avoids rendering the stale value first.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setTitle(currentTitle);
+  }
 
   const { mutate: updateSong, isPending } = useUpdateSong({
     mutationConfig: {

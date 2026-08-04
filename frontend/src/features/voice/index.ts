@@ -48,6 +48,7 @@ export { VoiceTagCard } from "./components/voice-tag-card";
 export { VoiceTagDeleteDialog } from "./components/voice-tag-delete-dialog";
 export { VoiceTagPreview } from "./components/voice-tag-preview";
 export { SongCard } from "./components/song-card";
+export { SongStatusBadge } from "./components/song-status-badge";
 export { SongEditDialog } from "./components/song-edit-dialog";
 export { SongDeleteDialog } from "./components/song-delete-dialog";
 export { AudioPlayer } from "./components/audio-player";

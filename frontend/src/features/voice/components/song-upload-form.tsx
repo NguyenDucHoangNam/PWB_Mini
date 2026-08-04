@@ -2,6 +2,7 @@
 
 import { useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useForm, useWatch } from "react-hook-form";
 import { standardSchemaResolver as zodResolver } from "@hookform/resolvers/standard-schema";
 import { useTranslations } from "next-intl";
@@ -12,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { asApiError } from "@/lib/api-client";
 import { resolveVoiceErrorMessage } from "../lib/resolve-voice-error-message";
-import { getPresignedUploadUrl, createSong } from "../api/songs";
+import { getPresignedUploadUrl, createSong, SONGS_KEY } from "../api/songs";
 import { useListVoiceTags } from "../api/voice-tags";
 import { useFileValidation } from "../hooks/use-file-validation";
 import { uploadSongFormSchema, type UploadSongFormValues, type UploadSongFormInput } from "../schemas/song-schema";
@@ -25,7 +26,11 @@ interface SongUploadFormProps {
   onSuccess?: () => void;
 }
 
-async function readAudioDuration(file: File): Promise<number> {
+/**
+ * Exact, but decodes the entire file into memory as PCM — a 100 MB MP3 can balloon past a gigabyte.
+ * Only worth paying when the cheap path below could not read the duration at all.
+ */
+async function decodeAudioDuration(file: File): Promise<number> {
   try {
     const arrayBuffer = await file.arrayBuffer();
     const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -40,7 +45,11 @@ async function readAudioDuration(file: File): Promise<number> {
     }
   } catch {
   }
+  return 0;
+}
 
+/** Reads the container header only: no full decode, so memory stays flat regardless of file size. */
+function readDurationFromMetadata(file: File): Promise<number> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);
     const audio = new Audio();
@@ -78,6 +87,16 @@ async function readAudioDuration(file: File): Promise<number> {
   });
 }
 
+async function readAudioDuration(file: File): Promise<number> {
+  const fromMetadata = await readDurationFromMetadata(file);
+  if (fromMetadata > 0) {
+    return fromMetadata;
+  }
+  // Some VBR MP3s and exotic containers report no usable duration in the header; decoding is the only
+  // way left to find out.
+  return decodeAudioDuration(file);
+}
+
 export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
   const t = useTranslations("voice.songs.form");
   const tActions = useTranslations("voice.actions");
@@ -93,6 +112,7 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
   const [uploadStep, setUploadStep] = useState<UploadStep>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const { validateAudioFile } = useFileValidation();
   const { data: voiceTagsRes } = useListVoiceTags({ page: 0, size: 50 });
@@ -241,7 +261,7 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
     });
   };
 
-  const onSubmit = handleSubmit(async (values) => {
+  const submitSong = async (values: UploadSongFormValues) => {
     if (!file) {
       setClientError(tErrors("fileRequired"));
       return;
@@ -295,6 +315,9 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
       const response = await createSong(uploadPayload);
 
       if (response.success) {
+        // This flow posts directly rather than through useCreateSong, so nothing else would tell the
+        // list its cache is out of date.
+        queryClient.invalidateQueries({ queryKey: [SONGS_KEY] });
         toast.success(t("uploadSuccess"));
         onSuccess?.();
         router.push("/dashboard/songs");
@@ -318,13 +341,18 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
       setUploadProgress(0);
       xhrRef.current = null;
     }
-  });
+  };
 
   const fileSizeMB = file ? (file.size / 1024 / 1024).toFixed(2) : "0";
   const loadedMB = file ? ((uploadProgress / 100) * file.size / 1024 / 1024).toFixed(2) : "0";
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-5">
+    <form
+      // handleSubmit runs inside the event, not during render: the upload path reads xhrRef, and
+      // building the handler while rendering made that look like a ref access mid-render.
+      onSubmit={(event) => void handleSubmit(submitSong)(event)}
+      className="flex flex-col gap-5"
+    >
       <div className="flex flex-col gap-2">
         <Label htmlFor="song-file" className="font-semibold text-sm">
           {t("fileLabel")} <span className="text-destructive">*</span>
@@ -418,9 +446,8 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
 
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
-                  {uploadStep !== "idle" && (
-                    <Loader2 className="size-3 animate-spin" aria-hidden="true" />
-                  )}
+                  {/* This block only renders while busy, so the spinner always belongs here. */}
+                  <Loader2 className="size-3 animate-spin" aria-hidden="true" />
                   {uploadStep === "preparing" && t("uploadPreparing")}
                   {uploadStep === "uploading" && t("uploadProgress", { percent: uploadProgress })}
                   {uploadStep === "creating" && t("uploadCreating")}
