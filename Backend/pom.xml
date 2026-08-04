@@ -26,6 +26,7 @@
         <module>shared/shared-infrastructure</module>
         <module>modules/iam</module>
         <module>modules/audio</module>
+        <module>modules/liveroom</module>
     </modules>
 
     <properties>

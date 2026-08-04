@@ -29,6 +29,11 @@
         </dependency>
         <dependency>
             <groupId>com.pwb</groupId>
+            <artifactId>pwb-liveroom</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.pwb</groupId>
             <artifactId>pwb-shared-infrastructure</artifactId>
             <version>${project.version}</version>
         </dependency>
