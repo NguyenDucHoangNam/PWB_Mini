@@ -417,6 +417,54 @@ Probe cũng lộ hai thứ nữa, đã tính vào code:
 
 ---
 
+## 6.4 Lượt vá trước khi deploy 1 VPS (2026-08-05)
+
+Bốn thứ chỉ vỡ khi rời localhost. Kèm quyết định bỏ MinIO.
+
+### 6.4.1 Giới hạn bitrate cho sender
+
+Mesh nghĩa là mỗi client **upload N bản sao** luồng của mình, mà trước đó không có `setParameters` ở đâu cả — `VIDEO_CONSTRAINTS` cho tới 720p. Phòng 5 người là 4 luồng đồng thời, cần 6–10 Mbps đường lên; nghẽn thì **cả phòng** giật chứ không riêng người yếu mạng. Localhost không bao giờ lộ vì loopback coi như vô hạn băng thông.
+
+`rebalanceEncodings()` chia ngân sách `VIDEO_BUDGET_BPS` (1.2 Mbps) cho số peer, kẹp trong [120k, 600k], và hạ `scaleResolutionDownBy` khi bitrate xuống thấp. Gọi lại mỗi khi số peer đổi.
+
+Đo bằng probe (canvas nhiễu ngẫu nhiên — trường hợp xấu nhất cho encoder): đặt cap 100 kbps → đo 91; nới 1.5 Mbps → 409; siết 150 kbps + scale 2 → 119 kbps và độ phân giải tự tụt 320×180 → 160×90.
+
+**Bẫy đã dính:** đặt `setParameters` **trước** `setLocalDescription()` ở bên trả lời thì Chrome từ chối im lặng (transceiver do `setRemoteDescription` tạo ra chưa có encoding), và `.catch()` nuốt mất. Probe cho thấy bên trả lời không nhận cap nào trong khi bên gọi thì có. Phải gọi `rebalanceEncodings()` **sau** `setLocalDescription()` / `setRemoteDescription(answer)`, cộng thêm một lần khi `connectionState === "connected"`. Sau khi sửa: tổng video của host với 2 peer là 951 kbps, trước đó 1632.
+
+### 6.4.2 Rate limit cho STOMP
+
+`HttpRateLimitFilter` là servlet filter, **không chạm WebSocket**. Chat gửi qua STOMP đi thẳng vào DB không qua hạn mức nào — deploy public là mở sẵn cửa spam.
+
+`StompRateLimitInterceptor` chia ba rổ theo destination vì lưu lượng khác nhau hẳn: `rtc` 400 frame/10s (ICE candidate vốn bùng nổ, nhất là khi có TURN), `chat` 15, còn lại 60. Hai lựa chọn thiết kế:
+
+- **Thả frame (`return null`) chứ không ném exception.** `StompSubscriptionScopeInterceptor` ném `MessageDeliveryException` và việc đó **đóng luôn kết nối** — đúng với vi phạm phân quyền, nhưng quá tay với rate limit: một cú bùng phát hợp lệ sẽ đá người dùng ra khỏi phòng.
+- **Cảnh báo tối đa một lần mỗi cửa sổ.** Báo cho từng frame bị thả sẽ tự khuếch đại thành chính cái spam mình đang chặn.
+
+Dọn theo `SessionDisconnectEvent`, nếu không map rò theo từng phiên.
+
+### 6.4.3 Cache membership cho relay RTC
+
+`RelayRtcSignalUseCaseImpl` mở transaction + 3 query cho **mỗi** ICE candidate. Localhost chỉ có host candidate nên vài cái; có STUN/TURN thật thì mỗi peer sinh host + srflx + relay cho từng interface, phòng 5 người vào cùng lúc là hàng trăm transaction dồn trong vài giây.
+
+`RtcRelayGuard` cache **kết luận** theo bộ ba `(roomId, actor, target)` với TTL 5s — đúng bằng thứ mà mọi candidate trong một đợt bùng phát kiểm tra đi kiểm tra lại. Một cặp peer chỉ còn 1–2 lần chạm DB thay vì vài trăm.
+
+Hai điểm phải để ý:
+
+- **`@Transactional` phải nằm ở đường trượt cache, không nằm ở usecase.** Để nguyên `@Transactional` trên usecase thì transaction vẫn mở mỗi frame kể cả khi cache trúng — mất sạch ý nghĩa. Nên usecase bỏ `@Transactional`, còn `RoomSessions.requireRelayAllowed` mới mang nó (bean khác nên proxy mới ăn).
+- **Không cần hook eviction.** Người bị kick bị `RealtimeSessionEvictor` đóng phiên nên không gửi được nữa; còn tín hiệu lỡ relay tới người vừa rời trong 5s thì bên nhận không có peer, `handleIce` xếp vào hàng đợi mồ côi (giới hạn 30) rồi thôi. Đổi lấy sự đơn giản.
+
+Bỏ `@Transactional` khỏi usecase còn có lợi phụ: `StompLiveroomEventPublisherAdapter.afterCommit` thấy không có transaction thì gửi ngay, không phải chờ commit.
+
+### 6.4.4 Bỏ MinIO, dùng AWS S3 thật
+
+Hoá ra `Backend/.env` đã để `STORAGE_S3_ENDPOINT=` rỗng từ trước — tức đang trỏ AWS thật rồi, container MinIO chạy không mà không ai dùng. Lớp storage vốn dựng trên AWS SDK, MinIO chỉ là `endpointOverride`. Nên chỉ là dọn: gỡ service + volume khỏi compose, xoá `MINIO_ROOT_*` khỏi hai file `.env`, sửa ghi chú ở `shared-development-standards.md` và comment trong `next.config.ts`.
+
+Frontend không phải đụng: `next.config.ts` đã tự dựng origin `https://{bucket}.s3.{region}.amazonaws.com` cho `connect-src`/`media-src` từ `NEXT_PUBLIC_STORAGE_BUCKET_NAME` + `NEXT_PUBLIC_STORAGE_REGION`.
+
+**Còn sót có chủ ý:** `docs/test/SHARED_TEST_PLAN.md` và `TEST_GENERATION_RULES.md` vẫn đề xuất Testcontainers MinIO cho integration test. Đó là S3 giả dùng trong test chứ không phải hạ tầng phải dựng, và các test đó **chưa tồn tại** — nên chưa sửa, để quyết khi nào thật sự viết test.
+
+---
+
 ## 7. Bắt đầu một phiên mới thế nào
 
 Backend đã xong hết và đã qua một lượt vá (mục 6); còn lại là Phase 9 (frontend, mục 4). Trước khi viết code nên:

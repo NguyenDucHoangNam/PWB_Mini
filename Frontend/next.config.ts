@@ -91,8 +91,9 @@ const scriptSrc =
  * - `NEXT_PUBLIC_STORAGE_PUBLIC_URL_PREFIX` (preferred in prod — usually a
  *   CloudFront/CDN domain).
  * - The S3 regional bucket URL built from `NEXT_PUBLIC_STORAGE_BUCKET_NAME`
- *   and `NEXT_PUBLIC_STORAGE_REGION`, so dev can hit a local MinIO or
- *   real AWS without extra config.
+ *   and `NEXT_PUBLIC_STORAGE_REGION`. Every environment talks to real AWS S3,
+ *   so these two are enough; `NEXT_PUBLIC_STORAGE_ENDPOINT` stays only as an
+ *   escape hatch for an S3-compatible gateway.
  *
  * Public prefixes that look host-like (contain a dot) are kept; otherwise we
  * skip them to avoid polluting the directive with `https:` or garbage.

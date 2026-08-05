@@ -100,21 +100,6 @@ services:
       timeout: 10s
       retries: 5
 
-  minio:
-    image: minio/minio:RELEASE.2024-01-28T22-35-53Z
-    container_name: pwb-minio
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    environment:
-      MINIO_ROOT_USER: minio_admin
-      MINIO_ROOT_PASSWORD: minio_password
-    volumes:
-      - minio_data:/data
-    command: server /data --console-address ":9001"
-    networks:
-      - pwb-network
-
 volumes:
   postgres_data:
     driver: local
@@ -125,8 +110,6 @@ volumes:
   kafka_data:
     driver: local
   elasticsearch_data:
-    driver: local
-  minio_data:
     driver: local
 
 networks:

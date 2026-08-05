@@ -25,7 +25,7 @@ import java.util.Map;
 public class LiveroomStompExceptionHandler {
 
 
-    static final String ERROR_QUEUE = "/queue/liveroom/errors";
+    public static final String ERROR_QUEUE = "/queue/liveroom/errors";
 
     private final MessageSource messageSource;
 

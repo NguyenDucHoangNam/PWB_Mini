@@ -7,26 +7,23 @@ import com.pwb.liveroom.application.event.RoomEvent;
 import com.pwb.liveroom.application.event.RoomEvents;
 import com.pwb.liveroom.application.exception.LiveroomBusinessException;
 import com.pwb.liveroom.application.exception.LiveroomErrorCode;
-import com.pwb.liveroom.application.support.RoomSessions;
+import com.pwb.liveroom.application.support.RtcRelayGuard;
 import com.pwb.liveroom.application.usecase.RelayRtcSignalUseCase;
-import com.pwb.liveroom.domain.model.LiveRoom;
 import com.pwb.liveroom.infrastructure.config.properties.LiveroomConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class RelayRtcSignalUseCaseImpl implements RelayRtcSignalUseCase {
 
-    private final RoomSessions roomSessions;
+    private final RtcRelayGuard relayGuard;
     private final LiveroomEventPublisher eventPublisher;
     private final LiveroomConfig config;
 
     @Override
-    @Transactional(readOnly = true)
     public void execute(RelayRtcSignalCommand command) {
         if (command.targetUserId() == null) {
             throw new LiveroomBusinessException(LiveroomErrorCode.RTC_PAYLOAD_INVALID);
@@ -35,9 +32,7 @@ public class RelayRtcSignalUseCaseImpl implements RelayRtcSignalUseCase {
             throw new LiveroomBusinessException(LiveroomErrorCode.RTC_SELF_SIGNALING);
         }
 
-        LiveRoom room = roomSessions.requireActiveRoom(command.roomId());
-        roomSessions.requireInRoom(room, command.actorId());
-        roomSessions.requireTargetInRoom(room, command.targetUserId());
+        relayGuard.verify(command.roomId(), command.actorId(), command.targetUserId());
 
         RoomEvent event = command.type().isDescription()
                 ? describe(command)

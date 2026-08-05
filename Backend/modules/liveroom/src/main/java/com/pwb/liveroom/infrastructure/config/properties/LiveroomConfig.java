@@ -22,6 +22,7 @@ public class LiveroomConfig {
     private Chat chat = new Chat();
     private Music music = new Music();
     private Rtc rtc = new Rtc();
+    private Realtime realtime = new Realtime();
 
     @Getter
     @Setter
@@ -90,6 +91,21 @@ public class LiveroomConfig {
         private int maxSdpLength = 16384;
 
         private int maxCandidateLength = 1024;
+    }
+
+    @Getter
+    @Setter
+    public static class Realtime {
+
+        private Duration rateLimitWindow = Duration.ofSeconds(10);
+
+        private int chatFramesPerWindow = 15;
+
+        private int rtcFramesPerWindow = 400;
+
+        private int defaultFramesPerWindow = 60;
+
+        private Duration relayVerifyTtl = Duration.ofSeconds(5);
     }
 
     @Getter

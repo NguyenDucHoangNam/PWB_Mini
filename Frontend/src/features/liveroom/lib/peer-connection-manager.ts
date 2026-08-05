@@ -28,6 +28,11 @@ const MAX_ORPHAN_ICE = 30;
 const MAX_RECALLS = 3;
 const MEDIA_KINDS = ["audio", "video"] as const;
 
+const VIDEO_BUDGET_BPS = 1_200_000;
+const VIDEO_MIN_BPS = 120_000;
+const VIDEO_MAX_BPS = 600_000;
+const AUDIO_MAX_BPS = 48_000;
+
 function isStopped(transceiver: RTCRtpTransceiver): boolean {
   return transceiver.direction === "stopped" || transceiver.currentDirection === "stopped";
 }
@@ -95,6 +100,7 @@ export class PeerConnectionManager {
       await this.flushIce(peer);
       this.applyLocalTracks(peer.pc, false);
       await peer.pc.setLocalDescription();
+      this.rebalanceEncodings();
     } catch {
       return;
     }
@@ -111,6 +117,7 @@ export class PeerConnectionManager {
     try {
       await peer.pc.setRemoteDescription({ type: "answer", sdp });
       await this.flushIce(peer);
+      this.rebalanceEncodings();
     } catch {
 
     }
@@ -155,6 +162,7 @@ export class PeerConnectionManager {
 
     }
     this.peers.delete(userId);
+    this.rebalanceEncodings();
     this.options.onRemoteStream(userId, null);
   }
 
@@ -211,16 +219,58 @@ export class PeerConnectionManager {
     pc.onconnectionstatechange = () => {
       if (peer.closed) return;
       this.options.onPeerState(userId, pc.connectionState);
-      if (pc.connectionState === "connected") this.recalls.delete(userId);
+      if (pc.connectionState === "connected") {
+        this.recalls.delete(userId);
+        this.rebalanceEncodings();
+      }
       if (pc.connectionState === "failed") this.recover(userId, peer);
     };
 
     if (initiator) this.applyLocalTracks(pc, true);
 
     this.peers.set(userId, peer);
+    this.rebalanceEncodings();
     this.options.onPeerState(userId, pc.connectionState);
     void this.flushOrphanIce(userId, peer);
     return peer;
+  }
+
+  private rebalanceEncodings(): void {
+    const share = Math.floor(VIDEO_BUDGET_BPS / Math.max(1, this.peers.size));
+    const videoBitrate = Math.min(VIDEO_MAX_BPS, Math.max(VIDEO_MIN_BPS, share));
+    const scaleDown = videoBitrate >= 400_000 ? 1 : videoBitrate >= 250_000 ? 1.5 : 2;
+
+    this.peers.forEach((peer) => {
+      if (peer.closed) return;
+      peer.pc.getTransceivers().forEach((transceiver) => {
+        if (isStopped(transceiver)) return;
+        const audio = transceiver.receiver.track.kind === "audio";
+        this.limitSender(
+          transceiver.sender,
+          audio ? AUDIO_MAX_BPS : videoBitrate,
+          audio ? undefined : scaleDown,
+        );
+      });
+    });
+  }
+
+  private limitSender(
+    sender: RTCRtpSender,
+    maxBitrate: number,
+    scaleResolutionDownBy?: number,
+  ): void {
+    const params = sender.getParameters();
+    const encodings = params.encodings?.length ? params.encodings : [{}];
+    const current = encodings[0];
+    if (
+      current.maxBitrate === maxBitrate &&
+      current.scaleResolutionDownBy === scaleResolutionDownBy
+    ) {
+      return;
+    }
+
+    encodings[0] = { ...current, maxBitrate, scaleResolutionDownBy };
+    void sender.setParameters({ ...params, encodings }).catch(() => undefined);
   }
 
   private applyLocalTracks(pc: RTCPeerConnection, create: boolean): void {

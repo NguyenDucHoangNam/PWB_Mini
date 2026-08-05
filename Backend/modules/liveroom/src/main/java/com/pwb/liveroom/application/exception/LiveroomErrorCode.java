@@ -50,6 +50,7 @@ public enum LiveroomErrorCode implements ErrorCode {
     MUSIC_SONG_LOAD_FAILED       (ErrorCategory.INTERNAL,          "LR_077", "Failed to load the audio file."),
 
     WS_UNAUTHORIZED              (ErrorCategory.FORBIDDEN,         "LR_080", "You are not allowed to subscribe to this room."),
+    WS_RATE_LIMITED              (ErrorCategory.TOO_MANY_REQUESTS, "LR_081", "You are sending too fast. Please slow down."),
 
     RTC_SELF_SIGNALING           (ErrorCategory.VALIDATION,        "LR_090", "You cannot send a signal to yourself."),
     RTC_PAYLOAD_TOO_LARGE        (ErrorCategory.VALIDATION,        "LR_091", "Signaling payload is too large."),

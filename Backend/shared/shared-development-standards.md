@@ -314,7 +314,7 @@ public interface StorageService {
 public class S3StorageServiceImpl implements StorageService { }
 ```
 
-**Lưu ý**: Project hiện chỉ hỗ trợ S3 — không còn LocalStorage. Mọi môi trường (dev/prod) đều dùng S3 (MinIO local cho dev, AWS S3 thật cho prod).
+**Lưu ý**: Project hiện chỉ hỗ trợ S3 — không còn LocalStorage. Mọi môi trường (dev/prod) đều dùng **AWS S3 thật**; không chạy MinIO. Để `STORAGE_S3_ENDPOINT` rỗng và `STORAGE_S3_PATH_STYLE=false` để SDK tự trỏ endpoint AWS theo region. Bỏ trống access-key/secret-key thì `DefaultCredentialsProvider` sẽ đọc `~/.aws/credentials` hoặc biến môi trường AWS chuẩn.
 
 ### 5.5 Outbox Pattern
 

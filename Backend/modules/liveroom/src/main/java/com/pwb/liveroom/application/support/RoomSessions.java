@@ -8,6 +8,7 @@ import com.pwb.liveroom.domain.repository.LiveRoomRepository;
 import com.pwb.liveroom.domain.repository.ParticipantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -30,6 +31,13 @@ public class RoomSessions {
     public Participant requireInRoom(LiveRoom room, UUID actorId) {
         return findInRoom(room, actorId)
                 .orElseThrow(() -> new LiveroomBusinessException(LiveroomErrorCode.NOT_IN_SESSION));
+    }
+
+    @Transactional(readOnly = true)
+    public void requireRelayAllowed(UUID roomId, UUID actorId, UUID targetUserId) {
+        LiveRoom room = requireActiveRoom(roomId);
+        requireInRoom(room, actorId);
+        requireTargetInRoom(room, targetUserId);
     }
 
     public Participant requireTargetInRoom(LiveRoom room, UUID targetUserId) {

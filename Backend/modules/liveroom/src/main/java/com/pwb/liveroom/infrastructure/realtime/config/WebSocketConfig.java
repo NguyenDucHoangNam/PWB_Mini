@@ -1,6 +1,7 @@
 package com.pwb.liveroom.infrastructure.realtime.config;
 
 import com.pwb.liveroom.infrastructure.realtime.StompAuthChannelInterceptor;
+import com.pwb.liveroom.infrastructure.realtime.StompRateLimitInterceptor;
 import com.pwb.liveroom.infrastructure.realtime.StompSessionRegistryAdapter;
 import com.pwb.liveroom.infrastructure.realtime.StompSubscriptionScopeInterceptor;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ import java.util.List;
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final StompAuthChannelInterceptor authInterceptor;
+    private final StompRateLimitInterceptor rateLimitInterceptor;
     private final StompSubscriptionScopeInterceptor subscriptionScopeInterceptor;
     private final StompSessionRegistryAdapter sessionRegistry;
 
@@ -49,7 +51,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
-        registration.interceptors(authInterceptor, subscriptionScopeInterceptor);
+        registration.interceptors(authInterceptor, rateLimitInterceptor, subscriptionScopeInterceptor);
     }
 
 
