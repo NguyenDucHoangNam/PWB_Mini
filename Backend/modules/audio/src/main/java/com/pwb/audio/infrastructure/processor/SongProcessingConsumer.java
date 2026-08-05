@@ -18,10 +18,21 @@ public class SongProcessingConsumer {
     private final SongProcessorWorker songProcessorWorker;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Merging a watermark holds this thread for as long as FFmpeg runs, which for a long track is minutes.
+     * Kafka reads a listener that has not polled within {@code max.poll.interval.ms} as dead and hands the
+     * partition to somebody else — the song would then be merged twice, and the second run would fight the
+     * first for CPU. The window is widened past the processor's own timeout, and a poll brings back a single
+     * record so the clock covers one merge rather than a whole batch of them.
+     */
     @KafkaListener(
             topics = "${pwb.audio.processor.kafka.topic:voice.processing.v1}",
             groupId = "${pwb.audio.processor.kafka.group-id:audio-song-processor}",
-            containerFactory = "kafkaListenerContainerFactory"
+            containerFactory = "kafkaListenerContainerFactory",
+            properties = {
+                    "max.poll.records=1",
+                    "max.poll.interval.ms=${pwb.audio.processor.kafka.max-poll-interval-ms:1800000}"
+            }
     )
     public void onSongProcessingRequested(ConsumerRecord<String, String> record) {
         try {

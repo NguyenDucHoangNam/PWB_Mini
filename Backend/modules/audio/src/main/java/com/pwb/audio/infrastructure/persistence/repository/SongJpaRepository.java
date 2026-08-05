@@ -5,6 +5,7 @@ import com.pwb.audio.infrastructure.persistence.entity.SongJpaEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,5 +18,5 @@ public interface SongJpaRepository extends AudioJpaRepository<SongJpaEntity> {
 
     Page<SongJpaEntity> findAllByUserId(UUID userId, Pageable pageable);
 
-    Page<SongJpaEntity> findAllByUserIdAndStatus(UUID userId, SongStatus status, Pageable pageable);
+    Page<SongJpaEntity> findAllByUserIdAndStatusIn(UUID userId, Collection<SongStatus> statuses, Pageable pageable);
 }

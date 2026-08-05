@@ -26,9 +26,8 @@ public class ListPendingJoinRequestsUseCaseImpl implements ListPendingJoinReques
     @Transactional(readOnly = true)
     public List<JoinRequestView> execute(UUID actorId, UUID roomId) {
         roomLoader.requireOwned(roomId, actorId);
-        return joinRequestRepository.findPendingByRoomId(roomId).stream()
-                .map(request -> viewFactory.toView(
-                        request, roomMembers.loadOrCreate(roomId, request.getUserId())))
-                .toList();
+        return viewFactory.toViews(
+                joinRequestRepository.findPendingByRoomId(roomId),
+                request -> roomMembers.loadOrCreate(roomId, request.getUserId()));
     }
 }

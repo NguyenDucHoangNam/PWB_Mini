@@ -2,9 +2,12 @@ package com.pwb.audio.application.usecase.impl;
 
 import com.pwb.audio.application.exception.AudioBusinessException;
 import com.pwb.audio.application.exception.AudioErrorCode;
+import com.pwb.audio.application.command.VoiceTagAudioUpload;
 import com.pwb.audio.application.support.StorageCleaner;
 import com.pwb.audio.application.view.TtsPreview;
+import com.pwb.audio.application.view.VoiceTagView;
 import com.pwb.audio.domain.enums.TtsVoiceGender;
+import com.pwb.audio.domain.enums.VoiceTagType;
 import com.pwb.audio.domain.repository.SongTagConfigRepository;
 import com.pwb.audio.domain.repository.VoiceTagRepository;
 import com.pwb.audio.domain.service.StoragePort;
@@ -12,6 +15,8 @@ import com.pwb.audio.domain.service.TextToSpeechPort;
 import com.pwb.audio.domain.service.TtsRequest;
 import com.pwb.audio.domain.service.TtsResult;
 import com.pwb.audio.domain.service.TtsVoice;
+import com.pwb.audio.infrastructure.audio.AudioProbeService;
+import com.pwb.audio.infrastructure.audio.properties.VoiceTagUploadProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -19,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -35,10 +41,12 @@ class VoiceTagUseCaseImplTest {
     private static final String VI = "vi-VN";
     private static final TtsVoice VI_FEMALE = new TtsVoice("vi-VN-Wavenet-A", VI, TtsVoiceGender.FEMALE);
     private static final byte[] AUDIO = {1, 2, 3, 4};
+    private static final UUID USER_ID = UUID.randomUUID();
 
     private TextToSpeechPort textToSpeechPort;
     private VoiceTagRepository voiceTagRepository;
     private StoragePort storagePort;
+    private AudioProbeService audioProbe;
     private VoiceTagUseCaseImpl useCase;
 
     @BeforeEach
@@ -46,13 +54,16 @@ class VoiceTagUseCaseImplTest {
         textToSpeechPort = mock(TextToSpeechPort.class);
         voiceTagRepository = mock(VoiceTagRepository.class);
         storagePort = mock(StoragePort.class);
+        audioProbe = mock(AudioProbeService.class);
 
         useCase = new VoiceTagUseCaseImpl(
                 voiceTagRepository,
                 mock(SongTagConfigRepository.class),
                 storagePort,
                 mock(StorageCleaner.class),
-                textToSpeechPort
+                textToSpeechPort,
+                audioProbe,
+                new VoiceTagUploadProperties()
         );
 
         when(textToSpeechPort.availableVoices(VI)).thenReturn(List.of(VI_FEMALE));
@@ -118,6 +129,76 @@ class VoiceTagUseCaseImplTest {
 
             verifyNoInteractions(storagePort);
             verifyNoInteractions(voiceTagRepository);
+        }
+    }
+
+    @Nested
+    @DisplayName("how long an uploaded clip may be")
+    class UploadedClipLength {
+
+        private VoiceTagAudioUpload clip() {
+            return new VoiceTagAudioUpload("tag.mp3", "audio/mpeg", AUDIO);
+        }
+
+        private void probeReturns(double seconds) {
+            when(audioProbe.probeExactDurationFromBytes(any(), any())).thenReturn(seconds);
+        }
+
+        @Test
+        @DisplayName("rejects a clip past the limit before anything is stored")
+        void rejectsOverLongClip() {
+            probeReturns(12.5);
+
+            assertThatThrownBy(() -> useCase.createVoiceTagUpload(USER_ID, "my tag", clip()))
+                    .isInstanceOf(AudioBusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", AudioErrorCode.VOICE_TAG_TOO_LONG);
+
+            verifyNoInteractions(storagePort);
+            verify(voiceTagRepository, never()).save(any());
+        }
+
+        /**
+         * The duration column holds whole seconds. Truncating instead would let a clip a shade over the
+         * limit through, which is the whole reason the probe reports an unrounded value.
+         */
+        @Test
+        @DisplayName("a clip a shade over the limit is still over the limit")
+        void rejectsFractionallyOverLongClip() {
+            probeReturns(10.4);
+
+            assertThatThrownBy(() -> useCase.createVoiceTagUpload(USER_ID, "my tag", clip()))
+                    .isInstanceOf(AudioBusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", AudioErrorCode.VOICE_TAG_TOO_LONG);
+        }
+
+        @Test
+        @DisplayName("stores a clip inside the limit, rounding its length up")
+        void acceptsClipWithinLimit() {
+            probeReturns(6.2);
+            when(voiceTagRepository.existsByUserIdAndName(USER_ID, "my tag")).thenReturn(false);
+            when(storagePort.uploadBytes(any(), any(), any())).thenAnswer(call -> call.getArgument(0));
+            when(voiceTagRepository.save(any())).thenAnswer(call -> call.getArgument(0));
+
+            VoiceTagView view = useCase.createVoiceTagUpload(USER_ID, "my tag", clip());
+
+            assertThat(view.tagType()).isEqualTo(VoiceTagType.UPLOADED);
+            assertThat(view.durationSeconds()).isEqualTo(7);
+            // Nothing was synthesised, so there is no source text or language to carry.
+            assertThat(view.sourceText()).isNull();
+            assertThat(view.languageCode()).isNull();
+        }
+
+        @Test
+        @DisplayName("refuses a file whose extension is not an audio format we accept")
+        void rejectsUnsupportedExtension() {
+            VoiceTagAudioUpload notAudio = new VoiceTagAudioUpload("tag.txt", "text/plain", AUDIO);
+
+            assertThatThrownBy(() -> useCase.createVoiceTagUpload(USER_ID, "my tag", notAudio))
+                    .isInstanceOf(AudioBusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", AudioErrorCode.UNSUPPORTED_FORMAT);
+
+            verifyNoInteractions(audioProbe);
+            verifyNoInteractions(storagePort);
         }
     }
 }

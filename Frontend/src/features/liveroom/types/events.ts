@@ -58,7 +58,13 @@ export interface MusicStateData {
 
 export type ParticipantJoinedEvent = Envelope<
   "PARTICIPANT_JOINED",
-  { userId: string; userEmail: string; roomRole: ParticipantRole; joinedAt: string }
+  {
+    userId: string;
+    userEmail: string;
+    avatarUrl: string | null;
+    roomRole: ParticipantRole;
+    joinedAt: string;
+  }
 >;
 
 export type ParticipantLeftEvent = Envelope<
@@ -119,7 +125,13 @@ export type CapacityReachedEvent = Envelope<
 
 export type JoinRequestCreatedEvent = Envelope<
   "JOIN_REQUEST_CREATED",
-  { requestId: string; userId: string; userEmail: string; createdAt: string }
+  {
+    requestId: string;
+    userId: string;
+    userEmail: string;
+    avatarUrl: string | null;
+    createdAt: string;
+  }
 >;
 
 export type JoinRequestCancelledEvent = Envelope<

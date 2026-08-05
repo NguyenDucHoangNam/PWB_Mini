@@ -153,6 +153,7 @@ function synthesizeParticipant(
     id: existing?.id ?? patch.userId,
     userId: patch.userId,
     userEmail: patch.userEmail ?? existing?.userEmail ?? "",
+    avatarUrl: patch.avatarUrl ?? existing?.avatarUrl ?? null,
     roomRole: patch.roomRole ?? existing?.roomRole ?? "PARTICIPANT",
     state: patch.state ?? existing?.state ?? "ACTIVE",
     joinedAt: patch.joinedAt ?? existing?.joinedAt ?? new Date().toISOString(),
@@ -366,6 +367,7 @@ function reduce(state: LiveroomState, event: LiveroomEvent): Partial<LiveroomSta
           [userId]: synthesizeParticipant(state.participants[userId], {
             userId,
             userEmail: event.data.userEmail,
+            avatarUrl: event.data.avatarUrl,
             roomRole: event.data.roomRole,
             joinedAt: event.data.joinedAt,
             state: "ACTIVE",
@@ -486,6 +488,7 @@ function reduce(state: LiveroomState, event: LiveroomEvent): Partial<LiveroomSta
             roomId: event.roomId,
             userId: event.data.userId,
             userEmail: event.data.userEmail,
+            avatarUrl: event.data.avatarUrl,
             state: "PENDING",
             rejectionReason: null,
             createdAt: event.data.createdAt,

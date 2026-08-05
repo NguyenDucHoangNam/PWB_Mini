@@ -3,7 +3,8 @@
 import { useTranslations } from "next-intl";
 import { Camera, CameraOff, Mic, MicOff, ShieldOff, UserMinus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AvatarInitials } from "../ui/avatar-initials";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { UserAvatar } from "../ui/user-avatar";
 import { displayName } from "../../utils/participant-sort";
 import type { Participant } from "../../types";
 
@@ -30,8 +31,9 @@ export function ParticipantRow({
 
   return (
     <li className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-900">
-      <AvatarInitials
+      <UserAvatar
         email={participant.userEmail}
+        avatarUrl={participant.avatarUrl}
         seed={participant.userId}
         className="size-9 text-xs"
       />
@@ -75,25 +77,39 @@ export function ParticipantRow({
 
       {canModerate && !isMe ? (
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-11 md:size-8"
-            aria-label={t("mute")}
-            disabled={muting || mutedByOwner}
-            onClick={() => onMute(participant)}
-          >
-            <ShieldOff className="size-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-11 text-red-600 md:size-8 dark:text-red-400"
-            aria-label={t("kick")}
-            onClick={() => onKick(participant)}
-          >
-            <UserMinus className="size-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-11 md:size-8"
+                  aria-label={t("mute")}
+                  disabled={muting || mutedByOwner}
+                  onClick={() => onMute(participant)}
+                />
+              }
+            >
+              <ShieldOff className="size-4" />
+            </TooltipTrigger>
+            <TooltipContent>{t("mute")}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-11 text-red-600 md:size-8 dark:text-red-400"
+                  aria-label={t("kick")}
+                  onClick={() => onKick(participant)}
+                />
+              }
+            >
+              <UserMinus className="size-4" />
+            </TooltipTrigger>
+            <TooltipContent>{t("kick")}</TooltipContent>
+          </Tooltip>
         </div>
       ) : null}
     </li>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -28,26 +28,38 @@ export function DashboardVoiceTagsTab() {
 
   const page = useMemo(() => parsePage(searchParams.get("page")), [searchParams]);
 
-  const updateQuery = (next: Record<string, string | null>) => {
-    const params = new URLSearchParams(searchParams.toString());
-    for (const [key, value] of Object.entries(next)) {
-      if (value === null || value === "") params.delete(key);
-      else params.set(key, value);
-    }
-    const query = params.toString();
-    router.push(query ? `${pathname}?${query}` : pathname);
-  };
+  const buildHref = useCallback(
+    (nextPage: number) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (nextPage <= 0) params.delete("page");
+      else params.set("page", String(nextPage));
+      const query = params.toString();
+      return query ? `${pathname}?${query}` : pathname;
+    },
+    [pathname, searchParams],
+  );
 
   const { data, isLoading, isFetching, isError, refetch } = useListVoiceTags({
     page,
     size: DEFAULT_PAGE_SIZE,
   });
 
-  const items = data?.success && data.data ? data.data.content : [];
-  const totalPages = data?.success && data.data ? data.data.totalPages : 0;
+  const pageData = data?.success && data.data ? data.data : null;
+  const items = pageData ? pageData.content : [];
+  const totalPages = pageData ? pageData.totalPages : 0;
+
+  /**
+   * Deleting the last tag on the last page leaves the URL pointing past the end, where the list renders
+   * the "no voice tags yet" state and the pager hides itself — nothing is left to click back with. The
+   * response echoes the page it describes, so a stale keepPreviousData payload cannot trigger this.
+   */
+  useEffect(() => {
+    if (!pageData || pageData.page !== page || page === 0 || page < totalPages) return;
+    router.replace(buildHref(totalPages - 1));
+  }, [pageData, page, totalPages, router, buildHref]);
 
   const setPage = (newPage: number) => {
-    updateQuery({ page: newPage === 0 ? null : String(newPage) });
+    router.push(buildHref(newPage));
   };
 
   return (

@@ -1,6 +1,5 @@
 package com.pwb.audio.api.controller;
 
-import com.pwb.audio.api.dto.request.ConfigureVoiceTagRequest;
 import com.pwb.audio.api.dto.request.CreateSongRequest;
 import com.pwb.audio.api.dto.request.UpdateSongRequest;
 import com.pwb.audio.api.dto.request.UploadUrlRequest;
@@ -8,15 +7,12 @@ import com.pwb.audio.api.dto.response.AudioUrlResponse;
 import com.pwb.audio.api.dto.response.SongResponse;
 import com.pwb.audio.api.dto.response.SongTagConfigResponse;
 import com.pwb.audio.api.dto.response.UploadUrlResponse;
-import com.pwb.audio.application.command.ConfigureVoiceTagCommand;
 import com.pwb.audio.application.command.DeleteSongCommand;
 import com.pwb.audio.application.command.UpdateSongCommand;
 import com.pwb.audio.application.usecase.SongUseCase;
 import com.pwb.audio.application.view.AudioUrlView;
-import com.pwb.audio.application.view.SongTagConfigView;
 import com.pwb.audio.application.view.SongView;
 import com.pwb.audio.application.view.UploadUrlView;
-import com.pwb.audio.domain.enums.AudioVariant;
 import com.pwb.audio.domain.enums.SongStatus;
 import com.pwb.shared.dto.ApiResponse;
 import com.pwb.shared.dto.PageResponse;
@@ -39,13 +35,13 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -62,7 +58,6 @@ public class SongController {
     private static final String MSG_SONG_RETRIEVED = "AUDIO_SONG_RETRIEVED";
     private static final String MSG_PROCESSING_TRIGGERED = "AUDIO_PROCESSING_TRIGGERED";
     private static final String MSG_PRESIGNED_URL = "AUDIO_PRESIGNED_URL_GENERATED";
-    private static final String MSG_TAG_CONFIGURED = "AUDIO_TAG_CONFIGURED";
 
     private static final String DEFAULT_EXPIRES_IN_SECONDS = "3600";
     private static final long MIN_EXPIRES_IN_SECONDS = 60L;
@@ -106,13 +101,17 @@ public class SongController {
     }
 
     /**
-     * @param status optional; filtering runs in the query so the returned page counts describe the
-     *               filtered set rather than the caller's whole library
+     * Filtering runs in the query, so the returned page counts describe the filtered set rather than the
+     * caller's whole library.
+     *
+     * @param status repeatable; several job states can sit behind one user-facing filter, so
+     *               {@code ?status=UPLOADED&status=PROCESSED} is the shape the listing UI sends. Omit it
+     *               to list everything.
      */
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<SongResponse>>> listSongs(
             @CurrentUser UUID userId,
-            @RequestParam(required = false) SongStatus status,
+            @RequestParam(required = false) List<SongStatus> status,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Page<SongView> page = songUseCase.listSongs(userId, status, pageable);
@@ -141,8 +140,8 @@ public class SongController {
     }
 
     /**
-     * @return the configuration, or a {@code null} payload when the song has none yet — not having one is
-     *         an ordinary state for a freshly uploaded song, so it is not reported as an error
+     * @return the configuration the song was uploaded with, or a {@code null} payload for a song uploaded
+     *         without a voice tag. Read-only: the configuration is fixed at upload and never changes.
      */
     @GetMapping("/{songId}/voice-tag-config")
     public ResponseEntity<ApiResponse<SongTagConfigResponse>> getVoiceTagConfig(
@@ -156,46 +155,32 @@ public class SongController {
     }
 
     /**
-     * Replaces the song's voice tag configuration. Does not re-render the audio — call
-     * {@code trigger-processing} once the settings are right.
+     * Re-runs a merge that failed. Any other status is rejected — a song that finished merging is final.
      */
-    @PutMapping("/{songId}/voice-tag-config")
-    public ResponseEntity<ApiResponse<SongTagConfigResponse>> configureVoiceTag(
-            @CurrentUser UUID userId,
-            @PathVariable UUID songId,
-            @Valid @RequestBody ConfigureVoiceTagRequest request
-    ) {
-        SongTagConfigView view = songUseCase.configureVoiceTag(
-                new ConfigureVoiceTagCommand(userId, songId, request.toSettings()));
-        SongTagConfigResponse body = SongTagConfigResponse.from(view);
-        return ResponseEntity.ok(ApiResponse.success(messageResolver.get(MSG_TAG_CONFIGURED), body));
-    }
-
-    @PostMapping("/{songId}/trigger-processing")
-    public ResponseEntity<ApiResponse<SongResponse>> triggerProcessing(
+    @PostMapping("/{songId}/retry-processing")
+    public ResponseEntity<ApiResponse<SongResponse>> retryProcessing(
             @CurrentUser UUID userId,
             @PathVariable UUID songId
     ) {
-        SongView view = songUseCase.triggerProcessing(userId, songId);
+        SongView view = songUseCase.retryProcessing(userId, songId);
         SongResponse body = SongResponse.from(view);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(ApiResponse.success(messageResolver.get(MSG_PROCESSING_TRIGGERED), body));
     }
 
     /**
-     * @param variant which rendition to serve; asking for {@code PROCESSED} before processing has finished
-     *                falls back to {@code ORIGINAL}, and the response reports what was actually served.
+     * The song's single playable rendition: merged with its voice tag when it has one, the plain upload
+     * otherwise. Callers do not choose — a song is whatever its owner uploaded it to be.
      */
     @GetMapping("/{songId}/audio-url")
     public ResponseEntity<ApiResponse<AudioUrlResponse>> getAudioUrl(
             @CurrentUser UUID userId,
             @PathVariable UUID songId,
-            @RequestParam(defaultValue = "PROCESSED") AudioVariant variant,
             @RequestParam(defaultValue = DEFAULT_EXPIRES_IN_SECONDS)
             @Min(MIN_EXPIRES_IN_SECONDS)
             @Max(MAX_EXPIRES_IN_SECONDS) long expiresIn
     ) {
-        AudioUrlView view = songUseCase.getAudioUrl(userId, songId, variant, Duration.ofSeconds(expiresIn));
+        AudioUrlView view = songUseCase.getAudioUrl(userId, songId, Duration.ofSeconds(expiresIn));
         AudioUrlResponse body = AudioUrlResponse.from(view);
         return ResponseEntity.ok(ApiResponse.success(messageResolver.get(MSG_PRESIGNED_URL), body));
     }

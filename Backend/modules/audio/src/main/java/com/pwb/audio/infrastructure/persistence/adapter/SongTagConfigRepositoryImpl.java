@@ -8,6 +8,8 @@ import com.pwb.audio.infrastructure.persistence.repository.SongTagConfigJpaRepos
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -36,6 +38,16 @@ public class SongTagConfigRepositoryImpl implements SongTagConfigRepository {
     public Optional<SongTagConfig> findBySongId(UUID songId) {
         return songTagConfigJpaRepository.findBySongId(songId)
                 .map(songTagConfigMapper::toDomain);
+    }
+
+    @Override
+    public List<SongTagConfig> findAllBySongIdIn(Collection<UUID> songIds) {
+        if (songIds.isEmpty()) {
+            return List.of();
+        }
+        return songTagConfigJpaRepository.findAllBySongIdIn(songIds).stream()
+                .map(songTagConfigMapper::toDomain)
+                .toList();
     }
 
     @Override

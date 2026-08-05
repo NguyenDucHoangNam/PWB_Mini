@@ -19,5 +19,17 @@ public class AudioProcessorProperties {
 
     private Integer orphanRetentionHours = 6;
 
+    /**
+     * How long a single FFmpeg render may run before it is killed and the song marked failed. Keep it below
+     * the consumer's {@code max.poll.interval.ms}, or Kafka will declare the listener dead and hand the same
+     * song to another instance while this one is still working on it.
+     */
     private Integer timeoutMinutes = 15;
+
+    /**
+     * Bitrate of the merged rendition. Without it FFmpeg falls back to its own MP3 default of 128k, which
+     * quietly downgrades every upload that came in above that — and the merged file is the one the user
+     * releases. Raising it costs encoding time and upload bytes, so it is a knob rather than a constant.
+     */
+    private String outputBitrate = "192k";
 }

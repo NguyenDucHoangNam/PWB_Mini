@@ -144,7 +144,9 @@ const csp = [
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
   `connect-src ${connectSrc}${storageOrigins.length ? " " + storageOrigins.join(" ") : ""}`,
-  `media-src 'self'${storageOrigins.length ? " " + storageOrigins.join(" ") : ""}`,
+  // `blob:` is required by the TTS preview: nothing is stored server-side, so the response arrives as
+  // raw audio the client turns into an object URL. `'self'` does not cover blob: URLs.
+  `media-src 'self' blob:${storageOrigins.length ? " " + storageOrigins.join(" ") : ""}`,
   "frame-src https://accounts.google.com https://challenges.cloudflare.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",

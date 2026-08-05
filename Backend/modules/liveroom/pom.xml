@@ -41,6 +41,14 @@
             <artifactId>pwb-audio</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- Room tiles show a member's profile picture, which only IAM knows about. Same one-way
+             shape as the audio dependency: IAM knows nothing about rooms, and the coupling is
+             confined to UserDirectoryPort. -->
+        <dependency>
+            <groupId>com.pwb</groupId>
+            <artifactId>pwb-iam</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

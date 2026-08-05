@@ -36,7 +36,7 @@ public class VoiceTagMapper {
         if (entity == null) {
             return null;
         }
-        return VoiceTag.rehydrate(
+        VoiceTag domain = VoiceTag.rehydrate(
                 entity.getId(),
                 entity.getUserId(),
                 entity.getName(),
@@ -49,5 +49,7 @@ public class VoiceTagMapper {
                 entity.getFileSizeBytes(),
                 entity.isDefault()
         );
+        domain.restoreAuditTimestamps(entity.getCreatedAt(), entity.getUpdatedAt());
+        return domain;
     }
 }

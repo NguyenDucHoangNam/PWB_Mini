@@ -17,6 +17,7 @@ import com.pwb.liveroom.domain.model.LiveRoom;
 import com.pwb.liveroom.domain.model.Participant;
 import com.pwb.liveroom.domain.model.RoomMember;
 import com.pwb.liveroom.domain.repository.LiveRoomRepository;
+import com.pwb.liveroom.domain.service.UserDirectoryPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,6 +41,7 @@ public class JoinRoomUseCaseImpl implements JoinRoomUseCase {
     private final OwnerPresenceAnnouncer ownerPresenceAnnouncer;
     private final Playbacks playbacks;
     private final ParticipationViewFactory viewFactory;
+    private final UserDirectoryPort userDirectory;
 
     @Override
     @Transactional
@@ -86,7 +88,8 @@ public class JoinRoomUseCaseImpl implements JoinRoomUseCase {
 
             ownerPresenceAnnouncer.ownerReturned(room, now);
         }
-        eventPublisher.broadcastToRoom(RoomEvents.participantJoined(room, participant));
+        String avatarUrl = userDirectory.avatarUrlOf(actor.userId());
+        eventPublisher.broadcastToRoom(RoomEvents.participantJoined(room, participant, avatarUrl));
 
 
 
@@ -99,6 +102,6 @@ public class JoinRoomUseCaseImpl implements JoinRoomUseCase {
         log.info("User joined room: roomId={} userId={} owner={} count={}/{}",
                 roomId, actor.userId(), isOwner,
                 room.getCurrentParticipantCount(), room.effectiveMaxParticipants());
-        return viewFactory.toView(participant, false, false);
+        return viewFactory.toView(participant, false, false, avatarUrl);
     }
 }

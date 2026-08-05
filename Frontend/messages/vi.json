@@ -46,7 +46,58 @@
     "rights": "All rights reserved."
   },
   "landing": {
-    "hoverHint": "Di chuột để phát nhạc"
+    "hoverHint": "Di chuột để phát nhạc",
+    "tagline": {
+      "headline": "Không gian làm việc toàn diện cho nhà sản xuất âm nhạc",
+      "subheadline": "Quản lý beat, chia sẻ demo và cộng tác thời gian thực — tất cả trong một nơi."
+    },
+    "features": {
+      "sectionTitle": "Mọi thứ bạn cần",
+      "sectionSubtitle": "Được xây dựng cho những producer nghiêm túc với nghề.",
+      "playlist": {
+        "title": "Quản lý Playlist",
+        "description": "Upload, tổ chức và quản lý beat, demo với metadata, voice tag và artwork."
+      },
+      "voiceTags": {
+        "title": "Voice Tags",
+        "description": "Tạo và gắn producer tag riêng vào mỗi beat — xây dựng thương hiệu cá nhân."
+      },
+      "liveroom": {
+        "title": "LiveRoom",
+        "description": "Phòng nghe nhạc thời gian thực — chia sẻ demo trực tiếp với đối tác và nghệ sĩ."
+      }
+    },
+    "demo": {
+      "sectionTitle": "Xem thực tế",
+      "step1Label": "Upload",
+      "step1Description": "Đưa beat vào Playlist của bạn",
+      "step2Label": "Gắn tag",
+      "step2Description": "Thêm voice tag & metadata",
+      "step3Label": "Chia sẻ",
+      "step3Description": "Mở LiveRoom & mời cộng tác viên"
+    },
+    "howItWorks": {
+      "sectionTitle": "Cách hoạt động",
+      "sectionSubtitle": "Ba bước đơn giản để tối ưu quy trình sản xuất.",
+      "step1Title": "Đăng ký",
+      "step1Description": "Tạo tài khoản miễn phí chỉ trong vài giây.",
+      "step2Title": "Upload",
+      "step2Description": "Thêm beat, demo và voice tag vào không gian làm việc cá nhân.",
+      "step3Title": "Cộng tác",
+      "step3Description": "Mở LiveRoom và mời đội nhóm nghe trực tiếp thời gian thực."
+    },
+    "stats": {
+      "sectionTitle": "Cộng đồng đang phát triển",
+      "producers": "Producers",
+      "beats": "Beat đã upload",
+      "sessions": "Phiên LiveRoom"
+    },
+    "cta": {
+      "headline": "Sẵn sàng nâng tầm quy trình làm việc?",
+      "subheadline": "Tham gia thế hệ tiếp theo của các nhà sản xuất âm nhạc.",
+      "getStarted": "Bắt đầu miễn phí",
+      "exploreFeatures": "Khám phá tính năng"
+    }
   },
   "auth": {
     "layout": {
@@ -262,7 +313,7 @@
       "security": "Bảo mật"
     },
     "avatarTitle": "Ảnh đại diện",
-    "avatarHelp": "Kéo thả hoặc nhấn chọn file ảnh (.jpg, .jpeg, .png) tối đa 2MB",
+    "avatarHelp": "Kéo thả hoặc nhấn chọn file ảnh (.jpg, .jpeg, .png, .webp) tối đa 5MB",
     "email": "Email",
     "role": "Vai trò",
     "roleValue": {
@@ -279,8 +330,8 @@
     "saveError": "Cập nhật hồ sơ thất bại",
     "loadError": "Không thể tải hồ sơ. Vui lòng thử lại.",
     "retry": "Thử lại",
-    "avatarSizeError": "Ảnh đại diện không được vượt quá 2MB",
-    "avatarTypeError": "Chỉ chấp nhận các định dạng file .jpg, .jpeg, .png",
+    "avatarSizeError": "Ảnh đại diện không được vượt quá 5MB",
+    "avatarTypeError": "Chỉ chấp nhận các định dạng file .jpg, .jpeg, .png, .webp",
     "avatarSelected": "Đã chọn ảnh mới (sẽ được cập nhật khi lưu thay đổi)",
     "avatarDropped": "Đã thả ảnh đại diện mới thành công",
     "fullNameRequired": "Họ và tên là bắt buộc",
@@ -435,10 +486,13 @@
       "songs": "Bài hát"
     },
     "status": {
-      "uploaded": "Đã upload",
       "processing": "Đang xử lý",
-      "processed": "Đã xử lý",
-      "failed": "Lỗi"
+      "failed": "Lỗi",
+      "ready": "Sẵn sàng",
+      "plainMusic": "Nhạc gốc",
+      "plainMusicHint": "Bài hát này không kèm voice tag",
+      "hasVoiceTag": "Voice Tag",
+      "hasVoiceTagHint": "Bài hát này đã được chèn voice tag"
     },
     "list": {
       "prev": "Trước",
@@ -501,6 +555,26 @@
       "voiceGender": {
         "FEMALE": "Nữ",
         "MALE": "Nam"
+      },
+      "create": {
+        "prompt": "Chọn cách bạn muốn tạo voice tag.",
+        "ttsTitle": "Tạo bằng AI (TTS)",
+        "ttsDescription": "Nhập văn bản, chọn giọng đọc và ngôn ngữ. Nghe thử trước khi lưu.",
+        "uploadTitle": "Tải lên âm thanh của bạn",
+        "uploadDescription": "Dùng đoạn thu sẵn của chính bạn. Tối đa 10 giây, định dạng MP3, WAV hoặc FLAC.",
+        "backToList": "Quay lại danh sách"
+      },
+      "upload": {
+        "nameLabel": "Tên voice tag",
+        "fileLabel": "Tệp âm thanh",
+        "dropzoneTitle": "Kéo thả tệp vào đây hoặc bấm để chọn",
+        "dropzoneHint": "MP3, WAV hoặc FLAC — tối đa {max} giây",
+        "readingDuration": "Đang đọc thời lượng...",
+        "durationOf": "Thời lượng {duration} / tối đa {max}s",
+        "durationUnknown": "Không đọc được thời lượng của tệp này",
+        "tooLong": "Đoạn âm thanh dài quá {max} giây. Hãy cắt ngắn rồi thử lại.",
+        "submitButton": "Tạo voice tag",
+        "createSuccess": "Đã tạo voice tag từ tệp âm thanh"
       }
     },
     "songs": {
@@ -522,6 +596,7 @@
         "fileRequired": "Vui lòng chọn file âm thanh",
         "uploadingProgress": "Đang upload...",
         "uploadSuccess": "Upload bài hát thành công",
+        "uploadQueued": "Đã tải file lên. Đang ghép Voice Tag...",
         "dropzoneTitle": "Kéo & thả file âm thanh vào đây, hoặc nhấp để chọn",
         "dropzoneHint": "Hỗ trợ định dạng MP3, WAV, FLAC (dung lượng tối đa 100MB)",
         "changeFile": "Đổi file khác",
@@ -544,10 +619,6 @@
         "duckingTooltip": "Ducking là kỹ thuật tự động hạ nhỏ âm lượng của nhạc nền mỗi khi Voice Tag cất lên, giúp chữ ký âm thanh của bạn nghe rõ ràng mà không bị tiếng nhạc đè lấp.",
         "startOffsetSeconds": "Thời gian chờ đầu bài (giây)",
         "startOffsetHint": "Số giây bỏ qua ở đầu bài hát trước khi chèn Voice Tag lần đầu tiên",
-        "uploadProgress": "Đang tải lên... {percent}%",
-        "uploadProgressDetail": "{loaded} / {total} MB",
-        "uploadPreparing": "Đang chuẩn bị...",
-        "uploadCreating": "Đang tạo bài hát...",
         "cancelUpload": "Hủy upload",
         "uploadCancelled": "Đã hủy upload"
       },
@@ -561,41 +632,28 @@
       "retry": "Thử lại",
       "emptyHint": "Tải lên bài hát đầu tiên của bạn để bắt đầu gắn Voice Tag và bảo vệ bản quyền âm nhạc.",
       "detail": {
-        "processingBanner": "Đang xử lý bài hát. Trang sẽ tự cập nhật khi hoàn tất.",
-        "processingTriggered": "Đã đưa bài hát vào hàng đợi xử lý",
-        "triggerProcessing": "Bắt đầu xử lý",
+        "processingBanner": "Đang ghép Voice Tag vào bài hát. Trang sẽ tự cập nhật khi hoàn tất.",
+        "processingTriggered": "Đã đưa bài hát vào hàng đợi xử lý lại",
+        "processingCompleted": "Ghép Voice Tag hoàn tất. Bài hát đã sẵn sàng.",
+        "processingFailedToast": "Ghép Voice Tag thất bại. Bạn có thể bấm \"Xử lý lại\".",
         "retryProcessing": "Xử lý lại",
-        "uploadedHint": "Bài hát chưa được xử lý. Nhấn \"Bắt đầu xử lý\" để chèn Voice Tag vào bản phát hành.",
         "failedTitle": "Xử lý thất bại",
-        "failedUnknownReason": "Không rõ nguyên nhân. Vui lòng thử xử lý lại.",
+        "failedUnknownReason": "Không rõ nguyên nhân. Bạn có thể bấm \"Xử lý lại\".",
         "metadataFormat": "Định dạng",
         "metadataDuration": "Thời lượng",
         "metadataFileSize": "Dung lượng",
         "metadataCreatedAt": "Ngày tạo",
-        "configSavedHint": "Đã lưu cấu hình. Bấm \"Xử lý lại\" để áp dụng vào bản phát hành."
+        "noVoiceTagHint": "Bài hát này được tải lên không kèm voice tag, nên phát ở dạng nhạc gốc.",
+        "configLockedHint": "Voice tag đã được ghép cố định vào bản phát hành lúc tải lên và không thể chỉnh sửa."
       }
     },
     "config": {
       "title": "Cấu hình Voice Tag",
-      "noConfig": "Chưa cấu hình voice tag",
-      "selectVoiceTag": "Chọn voice tag",
-      "selectVoiceTagPlaceholder": "Chọn một voice tag",
       "voiceTag": "Voice tag",
       "intervalSeconds": "Khoảng cách (giây)",
-      "intervalHint": "Chèn voice tag mỗi N giây",
       "volumePercentage": "Âm lượng",
-      "volumeHint": "Voice tag phát to thế nào (0-100%)",
       "duckingPercentage": "Hạ nhạc nền (Ducking)",
-      "duckingHint": "Âm lượng nhạc nền giữ lại khi Voice Tag phát (0-100%)",
-      "startOffsetSeconds": "Bỏ qua đầu (giây)",
-      "startOffsetHint": "Bỏ qua N giây đầu trước khi chèn lần đầu",
-      "enabled": "Kích hoạt",
-      "saveButton": "Lưu cấu hình",
-      "saveSuccess": "Đã lưu cấu hình",
-      "removeButton": "Xóa cấu hình",
-      "removeSuccess": "Đã xóa cấu hình",
-      "noVoiceTags": "Bạn chưa có Voice Tag nào. Hãy tạo một cái ở mục Voice Tag trước.",
-      "saveHint": "Lưu cấu hình xong, bấm \"Xử lý lại\" ở đầu trang để render bản mới."
+      "startOffsetSeconds": "Bỏ qua đầu (giây)"
     },
     "processing": {
       "trigger": "Xử lý bài hát",
@@ -612,9 +670,7 @@
     "player": {
       "expiryWarning": "URL âm thanh sắp hết hạn, đang làm mới...",
       "loadError": "Không thể tải âm thanh",
-      "originalLabel": "Bản gốc",
-      "processedLabel": "Bản đã mix voice tag",
-      "notReady": "Chưa có bản đã xử lý"
+      "songLabel": "Bài hát"
     },
     "errors": {
       "fileTooLarge": "File vượt quá giới hạn 100MB",
@@ -668,6 +724,7 @@
       "participants": "{count}/{max} người",
       "openRoom": "Vào phòng",
       "reopen": "Mở lại",
+      "reopenedToast": "Phòng đã được mở lại",
       "end": "Kết thúc",
       "endedAt": "Kết thúc lúc {date}",
       "endedReason": "Lý do: {reason}",
@@ -759,6 +816,8 @@
         "end": "Kết thúc phòng",
         "endConfirmTitle": "Kết thúc phòng cho tất cả mọi người?",
         "endConfirmBody": "Mọi người sẽ bị ngắt kết nối. Bạn có vài giây để hoàn tác.",
+        "endedToast": "Phòng đã kết thúc",
+        "revivedToast": "Phòng đã được mở lại",
         "undo": "Hoàn tác",
         "undoWindow": "Hoàn tác được trong {seconds}s"
       },
@@ -778,7 +837,9 @@
         "chat": "Trò chuyện",
         "participants": "Thành viên",
         "music": "Nhạc",
-        "leave": "Rời phòng"
+        "leave": "Rời phòng",
+        "waitingCount": "{count} người đang chờ vào",
+        "hidePanel": "Ẩn bảng bên"
       },
       "participants": {
         "title": "Thành viên",
@@ -792,6 +853,7 @@
         "kick": "Mời ra",
         "kickConfirmTitle": "Mời {name} ra khỏi phòng?",
         "kickConfirmBody": "Người này không vào lại được trong vài phút.",
+        "kickedToast": "Đã mời {name} ra khỏi phòng",
         "mute": "Tắt micro",
         "muteConfirm": "Tắt micro của {name}?",
         "muteCooldown": "Bật lại được sau {seconds}s",
@@ -881,8 +943,12 @@
       "roomEnded": "Phòng đã kết thúc",
       "roomNameDuplicate": "Bạn đã có một phòng trùng tên này",
       "roomNameInvalid": "Tên phòng không hợp lệ",
+      "codeGenerationFailed": "Không tạo được mã phòng. Vui lòng thử lại.",
       "codeThrottled": "Bạn đã thử quá nhiều mã. Vui lòng thử lại sau {seconds}s.",
+      "cannotReopen": "Chỉ phòng đã kết thúc mới mở lại được",
+      "undoWindowExpired": "Đã quá thời gian hoàn tác",
       "graceInvalid": "Thời gian chờ phải từ 30 đến 1800 giây",
+      "forceEndedRoleChange": "Phòng đã kết thúc do chủ phòng mất quyền truy cập",
       "notOwner": "Chỉ chủ phòng mới làm được việc này",
       "proRequired": "Chỉ tài khoản PRO mới tạo được phòng",
       "selfJoin": "Bạn là chủ phòng này — vào thẳng phòng",
@@ -910,6 +976,7 @@
       "musicOwnerAbsent": "Chủ phòng đã rời — nhạc đang tạm dừng",
       "musicLoadFailed": "Không tải được file nhạc",
       "wsUnauthorized": "Bạn không có quyền theo dõi phòng này",
+      "rateLimited": "Bạn đang thao tác quá nhanh. Vui lòng chậm lại.",
       "rtcSelfSignaling": "Yêu cầu kết nối không hợp lệ",
       "rtcPayloadTooLarge": "Dữ liệu kết nối quá lớn",
       "rtcPayloadInvalid": "Dữ liệu kết nối không hợp lệ",
@@ -971,5 +1038,11 @@
       "positive": "Thời lượng bài hát phải lớn hơn 0",
       "required": "Thời lượng bài hát không được để trống"
     }
+  },
+  "upload": {
+    "preparing": "Đang chuẩn bị...",
+    "sending": "Đang tải lên {percent}%",
+    "finalizing": "Đang hoàn tất...",
+    "sizeDetail": "{loaded} / {total} MB"
   }
 }

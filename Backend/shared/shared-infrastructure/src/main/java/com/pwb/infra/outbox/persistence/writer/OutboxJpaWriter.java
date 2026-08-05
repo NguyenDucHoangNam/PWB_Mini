@@ -5,6 +5,7 @@ import com.pwb.infra.outbox.api.OutboxWriter;
 import com.pwb.infra.outbox.core.OutboxStatus;
 import com.pwb.infra.outbox.persistence.entity.OutboxEventJpaEntity;
 import com.pwb.infra.outbox.persistence.repository.OutboxEventJpaRepository;
+import com.pwb.infra.outbox.scheduler.OutboxRelayTrigger;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -20,6 +21,7 @@ import java.util.UUID;
 public class OutboxJpaWriter implements OutboxWriter {
 
     private final OutboxEventJpaRepository repository;
+    private final OutboxRelayTrigger relayTrigger;
 
     @Override
     public void enqueue(OutboxEnqueueRequested request) {
@@ -39,6 +41,7 @@ public class OutboxJpaWriter implements OutboxWriter {
                 .nextAttemptAt(Instant.now())
                 .build();
         repository.save(entity);
+        relayTrigger.requestPublish();
         log.debug("OUTBOX.persisted: eventType={} topic={} key={} id={}",
                 request.eventType(), request.topic(), request.payloadKey(), entity.getId());
     }

@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -50,8 +51,8 @@ public class SongRepositoryImpl implements SongRepository {
     }
 
     @Override
-    public Page<Song> findAllByUserIdAndStatus(UUID userId, SongStatus status, Pageable pageable) {
-        return songJpaRepository.findAllByUserIdAndStatus(userId, status, pageable)
+    public Page<Song> findAllByUserIdAndStatusIn(UUID userId, Collection<SongStatus> statuses, Pageable pageable) {
+        return songJpaRepository.findAllByUserIdAndStatusIn(userId, statuses, pageable)
                 .map(songMapper::toDomain);
     }
 

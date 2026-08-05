@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, onUploadProgress, type UploadProgressHandler } from "@/lib/api-client";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import type { MutationConfig } from "@/lib/react-query";
 import type { ApiResponse } from "@/types/api";
@@ -23,12 +23,20 @@ export const updateProfile = ({
   return apiClient.put("/profile", data).then((res) => res.data);
 };
 
-export const uploadAvatar = (file: File): Promise<ApiResponse<AvatarUploadResponse>> => {
+export const uploadAvatar = ({
+  file,
+  onProgress,
+}: {
+  file: File;
+  onProgress?: UploadProgressHandler;
+}): Promise<ApiResponse<AvatarUploadResponse>> => {
   const formData = new FormData();
   formData.append("file", file);
-  // No explicit Content-Type: axios unsets it for FormData so the browser can add the
-  // multipart boundary. Setting it by hand here would be at best redundant, at worst boundary-less.
-  return apiClient.post("/profile/avatar", formData).then((res) => res.data);
+  // No explicit Content-Type: the request interceptor unsets it for FormData so the browser can add
+  // the multipart boundary. Setting it by hand here would be at best redundant, at worst boundary-less.
+  return apiClient
+    .post("/profile/avatar", formData, { onUploadProgress: onUploadProgress(onProgress) })
+    .then((res) => res.data);
 };
 
 type UseProfileOptions = {

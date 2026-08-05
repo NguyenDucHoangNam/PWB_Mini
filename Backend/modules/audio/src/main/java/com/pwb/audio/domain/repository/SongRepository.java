@@ -5,6 +5,7 @@ import com.pwb.audio.domain.model.Song;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -18,8 +19,11 @@ public interface SongRepository {
 
     Page<Song> findAllByUserId(UUID userId, Pageable pageable);
 
-    /** Same listing narrowed to one status; paging is applied after the filter, not before it. */
-    Page<Song> findAllByUserIdAndStatus(UUID userId, SongStatus status, Pageable pageable);
+    /**
+     * Same listing narrowed to a set of statuses; paging is applied after the filter, not before it. A set
+     * rather than one value because the UI groups several job states into a single user-facing filter.
+     */
+    Page<Song> findAllByUserIdAndStatusIn(UUID userId, Collection<SongStatus> statuses, Pageable pageable);
 
     /** Hard delete: songs carry no soft-delete state, removal is permanent. */
     void deleteById(UUID id);

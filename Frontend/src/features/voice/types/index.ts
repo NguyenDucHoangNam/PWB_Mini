@@ -1,5 +1,12 @@
 export type VoiceTagType = "TTS" | "UPLOADED";
 
+/**
+ * Mirrors `pwb.audio.voice-tag.max-duration-seconds`. A tag is stamped over a song at an interval, so it
+ * has to stay short — the server measures the real duration with ffprobe and is the authority; this only
+ * spares the user an upload that was always going to be refused.
+ */
+export const VOICE_TAG_MAX_DURATION_SECONDS = 10;
+
 export type SongStatus = "UPLOADED" | "PROCESSING" | "PROCESSED" | "FAILED";
 
 export type TtsVoiceGender = "FEMALE" | "MALE";
@@ -26,6 +33,7 @@ export interface VoiceTag {
   updatedAt: string;
 }
 
+/** Fixed at upload and never edited afterwards — the API exposes it read-only. */
 export interface VoiceTagConfig {
   id: string;
   songId: string;
@@ -51,6 +59,8 @@ export interface Song {
   fileSizeBytes: number | null;
   durationSeconds: number | null;
   processed: boolean;
+  /** Whether a voice tag was merged into this song; which one is not part of a listing. */
+  hasVoiceTag: boolean;
   thumbnailUrl: string | null;
   lastError: string | null;
   createdAt: string;
@@ -67,13 +77,9 @@ export interface ProcessingStatus {
   updatedAt: string | null;
 }
 
-export type AudioVariant = "ORIGINAL" | "PROCESSED";
-
 export interface AudioUrl {
   url: string;
   expiresAt: string;
-  /** Which rendition was actually served; can differ from the one requested. */
-  variant?: AudioVariant | null;
 }
 
 export interface UploadUrlResponse {
@@ -126,9 +132,23 @@ export interface ListVoiceTagsParams {
   size: number;
 }
 
+/**
+ * What a listener actually cares about. `READY` deliberately covers both `UPLOADED` and `PROCESSED`:
+ * a plain upload and a finished merge are equally playable, and the difference between them is a
+ * detail of the merge job rather than something worth putting in a filter.
+ */
+export type SongView = "ALL" | "READY" | "PROCESSING" | "FAILED";
+
+export const SONG_VIEW_STATUSES: Record<SongView, SongStatus[]> = {
+  ALL: [],
+  READY: ["UPLOADED", "PROCESSED"],
+  PROCESSING: ["PROCESSING"],
+  FAILED: ["FAILED"],
+};
+
 export interface ListSongsParams {
   page: number;
   size: number;
-  /** Omit to list every status. Filtering happens server-side so paging stays correct. */
-  status?: SongStatus | null;
+  /** Omit or pass an empty list to include every status. Filtering is server-side so paging stays correct. */
+  status?: SongStatus[] | null;
 }

@@ -2,7 +2,6 @@ package com.pwb.audio.application.usecase.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.pwb.audio.application.command.ConfigureVoiceTagCommand;
 import com.pwb.audio.application.command.CreateSongCommand;
 import com.pwb.audio.application.command.DeleteSongCommand;
 import com.pwb.audio.application.command.UpdateSongCommand;
@@ -15,7 +14,6 @@ import com.pwb.audio.application.view.AudioUrlView;
 import com.pwb.audio.application.view.SongTagConfigView;
 import com.pwb.audio.application.view.SongView;
 import com.pwb.audio.application.view.UploadUrlView;
-import com.pwb.audio.domain.enums.AudioVariant;
 import com.pwb.audio.domain.enums.SongStatus;
 import com.pwb.audio.domain.model.Song;
 import com.pwb.audio.domain.model.SongTagConfig;
@@ -40,8 +38,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -97,7 +99,7 @@ public class SongUseCaseImpl implements SongUseCase {
         if (command.voiceTagConfig() != null) {
             voiceTag = voiceTagRepository.findByIdAndUserId(command.voiceTagConfig().voiceTagId(), command.userId())
                     .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.VOICE_TAG_NOT_FOUND));
-            song.triggerProcessing();
+            song.startProcessing();
         }
 
         Song saved = songRepository.save(song);
@@ -111,22 +113,39 @@ public class SongUseCaseImpl implements SongUseCase {
             log.info("Song created: songId={}", saved.getId());
         }
 
-        return toSongView(saved);
+        return toSongView(saved, voiceTag != null);
     }
 
     @Override
     @Transactional(readOnly = true)
     public SongView getSong(UUID userId, UUID songId) {
-        return toSongView(requireOwnedSong(userId, songId));
+        Song song = requireOwnedSong(userId, songId);
+        return toSongView(song, resolveTaggedSongIds(List.of(song)).contains(song.getId()));
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<SongView> listSongs(UUID userId, SongStatus status, Pageable pageable) {
-        Page<Song> page = status == null
+    public Page<SongView> listSongs(UUID userId, Collection<SongStatus> statuses, Pageable pageable) {
+        Page<Song> page = (statuses == null || statuses.isEmpty())
                 ? songRepository.findAllByUserId(userId, pageable)
-                : songRepository.findAllByUserIdAndStatus(userId, status, pageable);
-        return page.map(this::toSongView);
+                : songRepository.findAllByUserIdAndStatusIn(userId, statuses, pageable);
+
+        Set<UUID> taggedSongIds = resolveTaggedSongIds(page.getContent());
+        return page.map(song -> toSongView(song, taggedSongIds.contains(song.getId())));
+    }
+
+    /**
+     * One query for the whole page rather than one per row. Only the existence of a configuration is
+     * needed — a listing says that a song carries a voice tag, not which one.
+     */
+    private Set<UUID> resolveTaggedSongIds(Collection<Song> songs) {
+        if (songs.isEmpty()) {
+            return Set.of();
+        }
+        return songTagConfigRepository.findAllBySongIdIn(songs.stream().map(Song::getId).toList())
+                .stream()
+                .map(SongTagConfig::getSongId)
+                .collect(Collectors.toSet());
     }
 
     @Override
@@ -146,7 +165,7 @@ public class SongUseCaseImpl implements SongUseCase {
         Song saved = songRepository.save(song);
 
         log.info("Song updated: songId={}", saved.getId());
-        return toSongView(saved);
+        return toSongView(saved, resolveTaggedSongIds(List.of(saved)).contains(saved.getId()));
     }
 
     @Override
@@ -162,62 +181,40 @@ public class SongUseCaseImpl implements SongUseCase {
     }
 
     /**
-     * Replaces the whole configuration for a song — there is at most one per song, and every field is
-     * supplied, so this is a put rather than a patch. The song's audio is left alone: the caller decides
-     * when to re-run processing with the new settings.
+     * A failed merge produced no audio, so there is nothing to supersede and nothing to clean up — this
+     * re-runs the first render rather than replacing a finished one.
      */
     @Override
     @Transactional
-    public SongTagConfigView configureVoiceTag(ConfigureVoiceTagCommand command) {
-        Song song = requireOwnedSong(command.userId(), command.songId());
-        VoiceTagSettings settings = command.settings();
-
-        VoiceTag voiceTag = voiceTagRepository.findByIdAndUserId(settings.voiceTagId(), command.userId())
-                .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.VOICE_TAG_NOT_FOUND));
-
-        SongTagConfig saved = songTagConfigRepository.save(
-                toTagConfig(song.getId(), voiceTag.getId(), settings));
-
-        log.info("Voice tag configured: songId={}, voiceTagId={}", song.getId(), voiceTag.getId());
-        // The tag was just loaded to authorise this call, so there is no reason to look it up again.
-        return toSongTagConfigView(saved, voiceTag.getName());
-    }
-
-    @Override
-    @Transactional
-    public SongView triggerProcessing(UUID userId, UUID songId) {
+    public SongView retryProcessing(UUID userId, UUID songId) {
         Song song = requireOwnedSong(userId, songId);
-        String supersededKey = song.getProcessedS3Key();
 
         try {
-            song.triggerProcessing();
+            song.retryProcessing();
         } catch (Song.ProcessingStateException ex) {
-            throw new AudioBusinessException(AudioErrorCode.PROCESSING_ALREADY_STARTED);
+            throw new AudioBusinessException(AudioErrorCode.RETRY_NOT_ALLOWED);
         }
 
         Song saved = songRepository.save(song);
-        // Re-running replaces the previous render; without this its object would linger unreferenced.
-        storageCleaner.deleteAfterCommit(supersededKey);
         publishSongProcessingRequested(saved.getId(), userId);
 
-        log.info("Processing triggered: songId={}", saved.getId());
-        return toSongView(saved);
+        log.info("Processing retried: songId={}", saved.getId());
+        return toSongView(saved, resolveTaggedSongIds(List.of(saved)).contains(saved.getId()));
     }
 
     @Override
     @Transactional(readOnly = true)
-    public AudioUrlView getAudioUrl(UUID userId, UUID songId, AudioVariant variant, Duration expiration) {
+    public AudioUrlView getAudioUrl(UUID userId, UUID songId, Duration expiration) {
         assertExpirationInRange(expiration);
         Song song = requireOwnedSong(userId, songId);
 
-        AudioVariant served = song.resolveVariant(variant);
-        String storageKey = song.storageKeyFor(served);
+        String storageKey = song.playbackKey();
         if (storageKey == null || storageKey.isBlank()) {
             throw new AudioBusinessException(AudioErrorCode.SONG_NOT_UPLOADED);
         }
 
         PresignedUrl presigned = storagePort.presignDownload(storageKey, expiration);
-        return new AudioUrlView(presigned.url(), presigned.expiresAt(), served);
+        return new AudioUrlView(presigned.url(), presigned.expiresAt());
     }
 
     private Song requireOwnedSong(UUID userId, UUID songId) {
@@ -332,7 +329,7 @@ public class SongUseCaseImpl implements SongUseCase {
         }
     }
 
-    private SongView toSongView(Song song) {
+    private SongView toSongView(Song song, boolean hasVoiceTag) {
         return new SongView(
                 song.getId(),
                 song.getUserId(),
@@ -348,6 +345,7 @@ public class SongUseCaseImpl implements SongUseCase {
                 song.getThumbnailUrl(),
                 song.getLastError(),
                 song.isProcessed(),
+                hasVoiceTag,
                 song.getCreatedAt(),
                 song.getUpdatedAt()
         );

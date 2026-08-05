@@ -2,6 +2,8 @@ package com.pwb.audio.infrastructure.persistence.repository;
 
 import com.pwb.audio.infrastructure.persistence.entity.SongTagConfigJpaEntity;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -11,6 +13,8 @@ import java.util.UUID;
 public interface SongTagConfigJpaRepository extends AudioJpaRepository<SongTagConfigJpaEntity> {
 
     Optional<SongTagConfigJpaEntity> findBySongId(UUID songId);
+
+    List<SongTagConfigJpaEntity> findAllBySongIdIn(Collection<UUID> songIds);
 
     boolean existsByVoiceTagId(UUID voiceTagId);
 

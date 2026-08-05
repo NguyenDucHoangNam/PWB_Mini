@@ -18,6 +18,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -40,6 +42,17 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public Optional<User> findById(UUID id) {
         return userJpaRepository.findByIdAndDeletedFalse(id).map(userMapper::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<User> findAllById(Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return userJpaRepository.findByIdInAndDeletedFalse(ids).stream()
+                .map(userMapper::toDomain)
+                .toList();
     }
 
     @Override

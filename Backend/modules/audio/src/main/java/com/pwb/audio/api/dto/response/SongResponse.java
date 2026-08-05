@@ -23,6 +23,11 @@ public record SongResponse(
         String thumbnailUrl,
         String lastError,
         boolean processed,
+        /**
+         * Whether a voice tag was merged into this song. Carried on the song itself so a listing can
+         * label every row without a request per row; which tag it was is not something a listing shows.
+         */
+        boolean hasVoiceTag,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -41,6 +46,7 @@ public record SongResponse(
                 view.thumbnailUrl(),
                 view.lastError(),
                 view.processed(),
+                view.hasVoiceTag(),
                 view.createdAt(),
                 view.updatedAt()
         );

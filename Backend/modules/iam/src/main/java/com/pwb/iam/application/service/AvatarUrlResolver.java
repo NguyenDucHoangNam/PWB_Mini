@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -27,12 +29,21 @@ public class AvatarUrlResolver {
     }
 
     public String resolve(String storedReference) {
+        return resolve(storedReference, avatarPolicy.urlTtl());
+    }
+
+    /**
+     * Presigns with a caller-chosen lifetime. The policy TTL is tuned for a page that can refetch
+     * the profile at will; a long-lived screen that receives an avatar once needs a URL that
+     * outlives the screen instead.
+     */
+    public String resolve(String storedReference, Duration ttl) {
         if (storedReference == null || storedReference.isBlank() || isAbsoluteUrl(storedReference)) {
             return storedReference;
         }
         try {
             return storageService
-                    .generatePresignedUrl(storedReference, avatarPolicy.urlTtl())
+                    .generatePresignedUrl(storedReference, ttl)
                     .getUrl()
                     .toString();
         } catch (StorageException ex) {

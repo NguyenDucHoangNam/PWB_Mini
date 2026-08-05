@@ -8,8 +8,6 @@ import { apiClient } from "@/lib/api-client";
 import type { QueryConfig, MutationConfig } from "@/lib/react-query";
 import type { ApiResponse, PaginatedResponse } from "@/types/api";
 import type {
-  AudioUrl,
-  ConfigureVoiceTagRequest,
   CreateSongRequest,
   ListSongsParams,
   Song,
@@ -37,13 +35,20 @@ export const createSong = (
 ): Promise<ApiResponse<Song>> =>
   apiClient.post("/songs", data).then((res) => res.data);
 
+/**
+ * `status` goes out as a repeated param (`?status=UPLOADED&status=PROCESSED`) because one user-facing
+ * filter can cover several job states. Axios's default serializer would otherwise send `status[]=`.
+ */
 export const listSongs = ({
   page,
   size,
   status,
 }: ListSongsParams): Promise<ApiResponse<PaginatedResponse<Song>>> =>
   apiClient
-    .get("/songs", { params: { page, size, status: status || undefined } })
+    .get("/songs", {
+      params: { page, size, status: status?.length ? status : undefined },
+      paramsSerializer: { indexes: null },
+    })
     .then((res) => res.data);
 
 export const getSong = ({
@@ -77,21 +82,13 @@ export const getVoiceTagConfig = ({
 }): Promise<ApiResponse<VoiceTagConfig | null>> =>
   apiClient.get(`/songs/${songId}/voice-tag-config`).then((res) => res.data);
 
-export const configureVoiceTag = ({
-  songId,
-  data,
-}: {
-  songId: string;
-  data: ConfigureVoiceTagRequest;
-}): Promise<ApiResponse<VoiceTagConfig>> =>
-  apiClient.put(`/songs/${songId}/voice-tag-config`, data).then((res) => res.data);
-
-export const triggerProcessing = ({
+/** Only accepted for a song whose merge failed; the server rejects every other status. */
+export const retryProcessing = ({
   songId,
 }: {
   songId: string;
 }): Promise<ApiResponse<Song>> =>
-  apiClient.post(`/songs/${songId}/trigger-processing`).then((res) => res.data);
+  apiClient.post(`/songs/${songId}/retry-processing`).then((res) => res.data);
 
 export const songVoiceTagConfigKey = (songId: string) =>
   ["voice-songs", songId, "voice-tag-config"] as const;
@@ -213,37 +210,13 @@ export const useDeleteSong = ({
   });
 };
 
-type UseConfigureVoiceTagOptions = {
-  mutationConfig?: MutationConfig<typeof configureVoiceTag>;
+type UseRetryProcessingOptions = {
+  mutationConfig?: MutationConfig<typeof retryProcessing>;
 };
 
-export const useConfigureVoiceTag = ({
+export const useRetryProcessing = ({
   mutationConfig,
-}: UseConfigureVoiceTagOptions = {}) => {
-  const queryClient = useQueryClient();
-  const { onSuccess, ...restMutationConfig } = mutationConfig ?? {};
-  return useMutation({
-    ...restMutationConfig,
-    onSuccess: (response, variables, onMutateResult, context) => {
-      if (response.success) {
-        queryClient.invalidateQueries({ queryKey: songKey(variables.songId) });
-        queryClient.invalidateQueries({
-          queryKey: songVoiceTagConfigKey(variables.songId),
-        });
-      }
-      return onSuccess?.(response, variables, onMutateResult, context);
-    },
-    mutationFn: configureVoiceTag,
-  });
-};
-
-type UseTriggerProcessingOptions = {
-  mutationConfig?: MutationConfig<typeof triggerProcessing>;
-};
-
-export const useTriggerProcessing = ({
-  mutationConfig,
-}: UseTriggerProcessingOptions = {}) => {
+}: UseRetryProcessingOptions = {}) => {
   const queryClient = useQueryClient();
   const { onSuccess, ...restMutationConfig } = mutationConfig ?? {};
   return useMutation({
@@ -255,7 +228,7 @@ export const useTriggerProcessing = ({
       }
       return onSuccess?.(response, variables, onMutateResult, context);
     },
-    mutationFn: triggerProcessing,
+    mutationFn: retryProcessing,
   });
 };
 

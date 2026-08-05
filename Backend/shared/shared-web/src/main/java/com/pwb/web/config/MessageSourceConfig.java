@@ -16,6 +16,7 @@ public class MessageSourceConfig {
     private static final String SHARED_WEB_BUNDLE = "classpath:messages/messages";
     private static final String IAM_BUNDLE = "classpath:iam/messages";
     private static final String AUDIO_BUNDLE = "classpath:audio/messages";
+    private static final String LIVEROOM_BUNDLE = "classpath:liveroom/messages";
     private static final String SHARED_INFRA_BUNDLE = "classpath:infra/messages";
 
     @Bean
@@ -25,6 +26,7 @@ public class MessageSourceConfig {
                 SHARED_WEB_BUNDLE,
                 IAM_BUNDLE,
                 AUDIO_BUNDLE,
+                LIVEROOM_BUNDLE,
                 SHARED_INFRA_BUNDLE
         );
         source.setDefaultEncoding(StandardCharsets.UTF_8.name());

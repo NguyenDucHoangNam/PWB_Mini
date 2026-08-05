@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { MobileDrawer } from "./mobile-drawer";
 import { UserDropdown, LogOut } from "./user-dropdown";
 import { LocaleSwitcher } from "./locale-switcher";
-import { KeyRound, User as UserIcon, Video } from "lucide-react";
+import { User as UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useProGuard } from "@/features/auth/hooks/use-pro-guard";
@@ -103,20 +103,6 @@ export function SiteHeaderClient() {
   ];
 
   const dropdownItems: Array<import("@/hooks/use-dropdown-menu").DropdownItem> = [
-    ...(isPro
-      ? [
-          {
-            label: tLiveroom("liveroom"),
-            href: "/dashboard/liveroom",
-            icon: <Video aria-hidden="true" />,
-          },
-        ]
-      : []),
-    {
-      label: tLiveroom("joinRoom"),
-      href: "/dashboard/liveroom/join",
-      icon: <KeyRound aria-hidden="true" />,
-    },
     {
       label: t("profile"),
       href: "/dashboard/profile",
@@ -148,10 +134,15 @@ export function SiteHeaderClient() {
 
         <div className="flex shrink-0 items-center gap-3 sm:gap-6">
           <div className="hidden items-center gap-4 sm:gap-6 xl:flex">
-            {isMounted && isLoggedIn && isPro && (
+            {isMounted && isLoggedIn && (
               <nav className="flex items-center gap-6 mr-4">
                 <DesktopNav
-                  items={[{ label: t("dashboard"), href: "/dashboard/songs" }]}
+                  items={[
+                    ...(isPro
+                      ? [{ label: t("dashboard"), href: "/dashboard/songs" }]
+                      : []),
+                    { label: tLiveroom("liveroom"), href: "/dashboard/liveroom" },
+                  ]}
                   pathname={pathname}
                 />
               </nav>
@@ -220,7 +211,6 @@ export function SiteHeaderClient() {
                   logout: t("logout"),
                   account: t("account"),
                   liveroom: tLiveroom("liveroom"),
-                  joinRoom: tLiveroom("joinRoom"),
                 }}
                 onLogout={handleLogout}
                 onNavigate={() => setIsOpen(false)}
@@ -308,7 +298,6 @@ interface MobileMenuLabels {
   logout: string;
   account: string;
   liveroom: string;
-  joinRoom: string;
 }
 
 function MobileAuthenticated({
@@ -339,13 +328,8 @@ function MobileAuthenticated({
           {labels.dashboard}
         </Link>
       )}
-      {isPro && (
-        <Link href="/dashboard/liveroom" onClick={onNavigate} className={linkClass}>
-          {labels.liveroom}
-        </Link>
-      )}
-      <Link href="/dashboard/liveroom/join" onClick={onNavigate} className={linkClass}>
-        {labels.joinRoom}
+      <Link href="/dashboard/liveroom" onClick={onNavigate} className={linkClass}>
+        {labels.liveroom}
       </Link>
       <Link href="/dashboard/profile" onClick={onNavigate} className={linkClass}>
         {labels.profile}

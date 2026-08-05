@@ -38,7 +38,7 @@ public class SongMapper {
         if (entity == null) {
             return null;
         }
-        return Song.rehydrate(
+        Song domain = Song.rehydrate(
                 entity.getId(),
                 entity.getUserId(),
                 entity.getTitle(),
@@ -53,5 +53,7 @@ public class SongMapper {
                 entity.getThumbnailUrl(),
                 entity.getLastError()
         );
+        domain.restoreAuditTimestamps(entity.getCreatedAt(), entity.getUpdatedAt());
+        return domain;
     }
 }

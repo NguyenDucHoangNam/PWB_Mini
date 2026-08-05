@@ -86,6 +86,7 @@ export interface Participant {
   id: string;
   userId: string;
   userEmail: string;
+  avatarUrl: string | null;
   roomRole: ParticipantRole;
   state: ParticipantState;
   joinedAt: string;
@@ -104,6 +105,7 @@ export interface JoinRequest {
   roomId: string;
   userId: string;
   userEmail: string;
+  avatarUrl: string | null;
   state: JoinRequestState;
   rejectionReason: RejectionReason | null;
   createdAt: string;

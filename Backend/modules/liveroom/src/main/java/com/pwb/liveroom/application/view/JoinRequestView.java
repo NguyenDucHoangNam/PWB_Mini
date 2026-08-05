@@ -12,6 +12,7 @@ public record JoinRequestView(
         UUID roomId,
         UUID userId,
         String userEmail,
+        String avatarUrl,
         JoinRequestState state,
         RejectionReason rejectionReason,
         Instant createdAt,

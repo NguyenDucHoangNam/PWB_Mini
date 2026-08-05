@@ -32,7 +32,7 @@ export function ReopenRoomDialog({ room, open, onOpenChange }: ReopenRoomDialogP
   const { mutate: reopen, isPending } = useReopenRoom({
     mutationConfig: {
       onSuccess: (response) => {
-        toast.success(response.message);
+        toast.success(t("reopenedToast"));
         onOpenChange(false);
         if (response.data) router.push(`/liveroom/${response.data.id}`);
       },

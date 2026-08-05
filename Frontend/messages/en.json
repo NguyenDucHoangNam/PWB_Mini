@@ -46,7 +46,58 @@
     "rights": "All rights reserved."
   },
   "landing": {
-    "hoverHint": "Hover to play notes"
+    "hoverHint": "Hover to play notes",
+    "tagline": {
+      "headline": "The all-in-one workspace for music producers",
+      "subheadline": "Manage beats, share demos, and collaborate in real-time — all in one place."
+    },
+    "features": {
+      "sectionTitle": "Everything you need",
+      "sectionSubtitle": "Built for producers who take their craft seriously.",
+      "playlist": {
+        "title": "Playlist Management",
+        "description": "Upload, organize and manage your beats and demos with metadata, voice tags, and artwork."
+      },
+      "voiceTags": {
+        "title": "Voice Tags",
+        "description": "Create and attach your unique producer tag to every beat — build your brand identity."
+      },
+      "liveroom": {
+        "title": "LiveRoom",
+        "description": "Real-time listening room — share demos live with partners, artists and collaborators."
+      }
+    },
+    "demo": {
+      "sectionTitle": "See it in action",
+      "step1Label": "Upload",
+      "step1Description": "Drop your beats into the Playlist",
+      "step2Label": "Tag",
+      "step2Description": "Attach your voice tag & metadata",
+      "step3Label": "Share",
+      "step3Description": "Open a LiveRoom & invite collaborators"
+    },
+    "howItWorks": {
+      "sectionTitle": "How it works",
+      "sectionSubtitle": "Three steps to streamline your production workflow.",
+      "step1Title": "Sign Up",
+      "step1Description": "Create your free account in seconds.",
+      "step2Title": "Upload",
+      "step2Description": "Add your beats, demos and voice tags to your personal workspace.",
+      "step3Title": "Collaborate",
+      "step3Description": "Open a LiveRoom and invite your team to listen in real-time."
+    },
+    "stats": {
+      "sectionTitle": "Growing community",
+      "producers": "Producers",
+      "beats": "Beats Uploaded",
+      "sessions": "LiveRoom Sessions"
+    },
+    "cta": {
+      "headline": "Ready to level up your workflow?",
+      "subheadline": "Join the next generation of music producers.",
+      "getStarted": "Get Started Free",
+      "exploreFeatures": "Explore Features"
+    }
   },
   "auth": {
     "layout": {
@@ -262,7 +313,7 @@
       "security": "Security"
     },
     "avatarTitle": "Avatar image",
-    "avatarHelp": "Drag & drop or click to choose a picture (.jpg, .jpeg, .png) max 2MB",
+    "avatarHelp": "Drag & drop or click to choose a picture (.jpg, .jpeg, .png, .webp) max 5MB",
     "email": "Email",
     "role": "Role",
     "roleValue": {
@@ -279,8 +330,8 @@
     "saveError": "Failed to update profile",
     "loadError": "Could not load your profile. Please try again.",
     "retry": "Retry",
-    "avatarSizeError": "Avatar image size must not exceed 2MB",
-    "avatarTypeError": "Only accepts .jpg, .jpeg, .png image formats",
+    "avatarSizeError": "Avatar image size must not exceed 5MB",
+    "avatarTypeError": "Only accepts .jpg, .jpeg, .png, .webp image formats",
     "avatarSelected": "New avatar selected (will update when saving changes)",
     "avatarDropped": "Dropped new avatar successfully",
     "fullNameRequired": "Full Name is required",
@@ -435,10 +486,13 @@
       "songs": "Songs"
     },
     "status": {
-      "uploaded": "Ready",
       "processing": "Processing",
-      "processed": "Processed",
-      "failed": "Failed"
+      "failed": "Failed",
+      "ready": "Ready",
+      "plainMusic": "Plain music",
+      "plainMusicHint": "This song carries no voice tag",
+      "hasVoiceTag": "Voice Tag",
+      "hasVoiceTagHint": "This song has a voice tag merged in"
     },
     "list": {
       "prev": "Prev",
@@ -501,6 +555,26 @@
       "voiceGender": {
         "FEMALE": "Female",
         "MALE": "Male"
+      },
+      "create": {
+        "prompt": "Pick how you want to create the voice tag.",
+        "ttsTitle": "Generate with AI (TTS)",
+        "ttsDescription": "Type the text, pick a voice and language. Listen before you save.",
+        "uploadTitle": "Upload your own audio",
+        "uploadDescription": "Use a clip you recorded yourself. Up to 10 seconds, in MP3, WAV or FLAC.",
+        "backToList": "Back to the list"
+      },
+      "upload": {
+        "nameLabel": "Voice tag name",
+        "fileLabel": "Audio file",
+        "dropzoneTitle": "Drop a file here, or click to choose one",
+        "dropzoneHint": "MP3, WAV or FLAC — up to {max} seconds",
+        "readingDuration": "Reading the duration...",
+        "durationOf": "Duration {duration} / {max}s allowed",
+        "durationUnknown": "Could not read the duration of this file",
+        "tooLong": "This clip is longer than {max} seconds. Trim it and try again.",
+        "submitButton": "Create voice tag",
+        "createSuccess": "Voice tag created from the uploaded clip"
       }
     },
     "songs": {
@@ -522,6 +596,7 @@
         "fileRequired": "Please select an audio file",
         "uploadingProgress": "Uploading...",
         "uploadSuccess": "Song uploaded successfully",
+        "uploadQueued": "File uploaded. Merging the voice tag...",
         "dropzoneTitle": "Drag & drop your audio file here, or click to browse",
         "dropzoneHint": "Supports MP3, WAV, FLAC (max size 100MB)",
         "changeFile": "Change file",
@@ -544,10 +619,6 @@
         "duckingTooltip": "Audio Ducking automatically lowers the background music whenever the Voice Tag plays, ensuring your voice watermark is clearly audible without being drowned out.",
         "startOffsetSeconds": "Start Offset (seconds)",
         "startOffsetHint": "Initial delay in seconds before playing the first Voice Tag",
-        "uploadProgress": "Uploading... {percent}%",
-        "uploadProgressDetail": "{loaded} / {total} MB",
-        "uploadPreparing": "Preparing upload...",
-        "uploadCreating": "Creating song...",
         "cancelUpload": "Cancel upload",
         "uploadCancelled": "Upload cancelled"
       },
@@ -561,41 +632,28 @@
       "retry": "Retry",
       "emptyHint": "Upload your first song to start adding Voice Tags and protect your music copyright.",
       "detail": {
-        "processingBanner": "Processing this song. The page updates itself once it finishes.",
-        "processingTriggered": "Song queued for processing",
-        "triggerProcessing": "Start processing",
+        "processingBanner": "Merging the voice tag into this song. The page updates itself once it finishes.",
+        "processingTriggered": "The song has been queued for reprocessing",
+        "processingCompleted": "Voice tag merged. The song is ready.",
+        "processingFailedToast": "The voice tag merge failed. You can hit \"Retry\".",
         "retryProcessing": "Retry processing",
-        "uploadedHint": "This song has not been processed yet. Hit \"Start processing\" to mix your voice tag in.",
         "failedTitle": "Processing failed",
-        "failedUnknownReason": "No reason was reported. Try processing it again.",
+        "failedUnknownReason": "Unknown reason. You can hit \"Retry processing\".",
         "metadataFormat": "Format",
         "metadataDuration": "Duration",
         "metadataFileSize": "File size",
         "metadataCreatedAt": "Created at",
-        "configSavedHint": "Configuration saved. Hit \"Retry processing\" to apply it."
+        "noVoiceTagHint": "This song was uploaded without a voice tag, so it plays as plain music.",
+        "configLockedHint": "The voice tag was merged into the release at upload and cannot be changed."
       }
     },
     "config": {
       "title": "Voice Tag Configuration",
-      "noConfig": "No voice tag configured",
-      "selectVoiceTag": "Select voice tag",
-      "selectVoiceTagPlaceholder": "Select a voice tag",
       "voiceTag": "Voice tag",
       "intervalSeconds": "Interval (seconds)",
-      "intervalHint": "Insert voice tag every N seconds",
       "volumePercentage": "Volume",
-      "volumeHint": "How loud the voice tag plays (0-100%)",
       "duckingPercentage": "Background Ducking",
-      "duckingHint": "Background music volume level during Voice Tag play (0-100%)",
-      "startOffsetSeconds": "Start offset (seconds)",
-      "startOffsetHint": "Skip this many seconds before first insertion",
-      "enabled": "Enabled",
-      "saveButton": "Save configuration",
-      "saveSuccess": "Configuration saved successfully",
-      "removeButton": "Remove configuration",
-      "removeSuccess": "Configuration removed successfully",
-      "noVoiceTags": "You have no voice tags yet. Create one under Voice Tags first.",
-      "saveHint": "After saving, hit \"Retry processing\" at the top to render a new version."
+      "startOffsetSeconds": "Start offset (seconds)"
     },
     "processing": {
       "trigger": "Process song",
@@ -612,9 +670,7 @@
     "player": {
       "expiryWarning": "Audio URL expires soon, refreshing...",
       "loadError": "Failed to load audio",
-      "originalLabel": "Original version",
-      "processedLabel": "Voice tag mixed version",
-      "notReady": "Processed version not available yet"
+      "songLabel": "Song"
     },
     "errors": {
       "fileTooLarge": "File exceeds 100MB limit",
@@ -668,6 +724,7 @@
       "participants": "{count} of {max} people",
       "openRoom": "Enter room",
       "reopen": "Reopen",
+      "reopenedToast": "Room reopened",
       "end": "End room",
       "endedAt": "Ended {date}",
       "endedReason": "Reason: {reason}",
@@ -759,6 +816,8 @@
         "end": "End room",
         "endConfirmTitle": "End this room for everyone?",
         "endConfirmBody": "Everyone will be disconnected. You have a few seconds to undo.",
+        "endedToast": "Room ended",
+        "revivedToast": "Room is back",
         "undo": "Undo",
         "undoWindow": "Undo available for {seconds}s"
       },
@@ -778,7 +837,9 @@
         "chat": "Chat",
         "participants": "People",
         "music": "Music",
-        "leave": "Leave"
+        "leave": "Leave",
+        "waitingCount": "{count} waiting to join",
+        "hidePanel": "Hide panel"
       },
       "participants": {
         "title": "People",
@@ -792,6 +853,7 @@
         "kick": "Remove",
         "kickConfirmTitle": "Remove {name}?",
         "kickConfirmBody": "They cannot rejoin for a few minutes.",
+        "kickedToast": "{name} was removed from the room",
         "mute": "Mute",
         "muteConfirm": "Mute {name}?",
         "muteCooldown": "Can unmute in {seconds}s",
@@ -881,8 +943,12 @@
       "roomEnded": "This room has ended",
       "roomNameDuplicate": "You already have a room with this name",
       "roomNameInvalid": "That room name is not valid",
+      "codeGenerationFailed": "Could not create a room code. Please try again.",
       "codeThrottled": "Too many code attempts. Try again in {seconds}s.",
+      "cannotReopen": "Only ended rooms can be reopened",
+      "undoWindowExpired": "The undo window has passed",
       "graceInvalid": "The grace period must be between 30 and 1800 seconds",
+      "forceEndedRoleChange": "The room ended because the host lost access",
       "notOwner": "Only the host can do that",
       "proRequired": "Only PRO accounts can create rooms",
       "selfJoin": "You own this room — just open it",
@@ -910,6 +976,7 @@
       "musicOwnerAbsent": "The host left — music stays paused",
       "musicLoadFailed": "Could not load the audio file",
       "wsUnauthorized": "You are not allowed to follow this room",
+      "rateLimited": "You are going too fast. Please slow down.",
       "rtcSelfSignaling": "Invalid connection request",
       "rtcPayloadTooLarge": "Connection data too large",
       "rtcPayloadInvalid": "Connection data was malformed",
@@ -971,5 +1038,11 @@
       "positive": "Song duration must be greater than 0",
       "required": "Song duration must not be empty"
     }
+  },
+  "upload": {
+    "preparing": "Preparing...",
+    "sending": "Uploading {percent}%",
+    "finalizing": "Finishing up...",
+    "sizeDetail": "{loaded} / {total} MB"
   }
 }

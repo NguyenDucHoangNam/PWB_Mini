@@ -26,7 +26,16 @@ public class AudioProbeService {
 
     private final FfmpegBinaries binaries;
 
+    /** Truncated to whole seconds — what the metadata columns store. */
     public Integer probeDuration(Path file) {
+        return probeExactDuration(file).intValue();
+    }
+
+    /**
+     * The unrounded duration. Enforcing a short-clip limit needs this: truncating first would let a 10.9s
+     * file pass a "no longer than 10 seconds" check.
+     */
+    public Double probeExactDuration(Path file) {
         try {
             // Without setShowStreams, ffprobe reports nothing about streams and getStreams() comes back null.
             FFprobeResult result = binaries.ffprobe()
@@ -41,7 +50,7 @@ public class AudioProbeService {
                     .filter(stream -> stream.getCodecType() == StreamType.AUDIO)
                     .map(Stream::getDuration)
                     .filter(Objects::nonNull)
-                    .map(Float::intValue)
+                    .map(Float::doubleValue)
                     .findFirst()
                     .orElseThrow(() -> new AudioBusinessException(AudioErrorCode.AUDIO_PROBE_FAILED,
                             "No audio stream found"));
@@ -54,11 +63,15 @@ public class AudioProbeService {
     }
 
     public Integer probeDurationFromBytes(byte[] content, String suffix) {
+        return probeExactDurationFromBytes(content, suffix).intValue();
+    }
+
+    public Double probeExactDurationFromBytes(byte[] content, String suffix) {
         Path tmp = null;
         try {
             tmp = Files.createTempFile("pwb-probe-", suffix == null ? ".audio" : sanitize(suffix));
             Files.write(tmp, content);
-            return probeDuration(tmp);
+            return probeExactDuration(tmp);
         } catch (IOException ex) {
             throw new AudioBusinessException(AudioErrorCode.AUDIO_PROBE_FAILED, ex);
         } finally {

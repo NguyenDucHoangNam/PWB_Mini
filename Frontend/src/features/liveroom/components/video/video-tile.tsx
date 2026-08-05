@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, MicOff, ShieldOff, WifiOff } from "lucide-react";
-import { AvatarInitials } from "../ui/avatar-initials";
+import { UserAvatar } from "../ui/user-avatar";
 import { useAudioLevel } from "../../hooks/use-audio-level";
 import { displayName } from "../../utils/participant-sort";
 import type { Participant } from "../../types";
@@ -83,10 +83,15 @@ export function VideoTile({
 
       {!showVideo ? (
         <div className="flex size-full items-center justify-center">
-          <AvatarInitials
+          <UserAvatar
             email={participant.userEmail}
+            avatarUrl={participant.avatarUrl}
             seed={participant.userId}
-            className="size-14 text-lg md:size-16 md:text-xl"
+            className={
+              featured
+                ? "size-24 text-3xl md:size-28 md:text-4xl"
+                : "size-16 text-xl md:size-20 md:text-2xl"
+            }
           />
         </div>
       ) : null}

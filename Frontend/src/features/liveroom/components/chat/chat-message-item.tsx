@@ -1,7 +1,8 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { AvatarInitials } from "../ui/avatar-initials";
+import { UserAvatar } from "../ui/user-avatar";
+import { useLiveroomStore } from "../../stores/use-liveroom-store";
 import { linkifyChat } from "../../utils/linkify-chat";
 import { displayName } from "../../utils/participant-sort";
 import type { ChatMessage } from "../../types";
@@ -27,11 +28,15 @@ export function ChatMessageItem({
 }) {
   const t = useTranslations("liveroom.room.chat");
   const tParticipants = useTranslations("liveroom.room.participants");
+  const avatarUrl = useLiveroomStore(
+    (state) => state.participants[message.userId]?.avatarUrl ?? null,
+  );
 
   return (
     <li className={`flex gap-2 px-3 py-1.5 ${pending ? "opacity-60" : ""}`}>
-      <AvatarInitials
+      <UserAvatar
         email={message.userEmail}
+        avatarUrl={avatarUrl}
         seed={message.userId}
         className="mt-0.5 size-7 text-[10px]"
       />

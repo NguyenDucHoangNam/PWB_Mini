@@ -32,7 +32,7 @@ public class SongTagConfigMapper {
         if (entity == null) {
             return null;
         }
-        return SongTagConfig.rehydrate(
+        SongTagConfig domain = SongTagConfig.rehydrate(
                 entity.getId(),
                 entity.getSongId(),
                 entity.getVoiceTagId(),
@@ -42,5 +42,7 @@ public class SongTagConfigMapper {
                 entity.getStartOffsetSeconds(),
                 entity.isEnabled()
         );
+        domain.restoreAuditTimestamps(entity.getCreatedAt(), entity.getUpdatedAt());
+        return domain;
     }
 }

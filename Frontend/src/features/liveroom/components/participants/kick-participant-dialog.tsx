@@ -36,8 +36,10 @@ export function KickParticipantDialog({
 
   const { mutate: kick, isPending } = useKickParticipant({
     mutationConfig: {
-      onSuccess: (response) => {
-        toast.success(response.message);
+      onSuccess: () => {
+        if (participant) {
+          toast.success(t("kickedToast", { name: displayName(participant) }));
+        }
         onOpenChange(false);
       },
       onError: asApiError((err) => {

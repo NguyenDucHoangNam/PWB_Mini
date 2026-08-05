@@ -1,4 +1,8 @@
-import axios, { AxiosHeaders, type AxiosRequestConfig } from "axios";
+import axios, {
+  AxiosHeaders,
+  type AxiosProgressEvent,
+  type AxiosRequestConfig,
+} from "axios";
 import type { ApiResponse } from "@/types/api";
 import { API_BASE_URL } from "@/lib/constants";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
@@ -41,6 +45,28 @@ function ensureHeaders(config: AxiosRequestConfig): AxiosHeaders {
   }
   config.headers = next;
   return next;
+}
+
+/**
+ * How long a file upload may take before the client gives up. Generous on purpose: the cost of being
+ * too patient is a spinner, while the cost of being too eager is reporting a failure for work the
+ * server actually completed.
+ */
+const UPLOAD_TIMEOUT_MS = 5 * 60 * 1000;
+
+/** Reports upload progress as a whole percentage. */
+export type UploadProgressHandler = (percent: number) => void;
+
+/**
+ * Adapts axios's byte counts for an {@link UploadProgressHandler}. A request whose total size the
+ * browser cannot determine reports nothing rather than a made-up number.
+ */
+export function onUploadProgress(handler: UploadProgressHandler | undefined) {
+  if (!handler) return undefined;
+  return (event: AxiosProgressEvent) => {
+    if (!event.total) return;
+    handler(Math.min(100, Math.round((event.loaded * 100) / event.total)));
+  };
 }
 
 export class ApiError<T = unknown> extends Error {
@@ -119,6 +145,18 @@ apiClient.interceptors.request.use((config) => {
     headers.set("Authorization", `Bearer ${token}`);
   }
   headers.set("Accept-Language", getCookie("locale") || "vi");
+  if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+    // The client-wide JSON content type is wrong for a multipart body, and leaving it in place does
+    // more than mislabel the request: axios serialises FormData to JSON when it sees a JSON content
+    // type, so the file would silently never be sent. Dropping it lets the browser set the boundary.
+    headers.delete("Content-Type");
+
+    // The default timeout is sized for JSON calls. A file upload is not one: it carries megabytes over
+    // the user's uplink and the server then forwards it to object storage. Leaving the short timeout in
+    // place aborts the request client-side while the server goes on to finish successfully — the user
+    // is told it failed and then watches the change take effect anyway.
+    config.timeout = UPLOAD_TIMEOUT_MS;
+  }
   return config;
 });
 

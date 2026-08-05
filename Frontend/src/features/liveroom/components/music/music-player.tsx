@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Music2, Pause, Play, Volume2 } from "lucide-react";
+import { ListMusic, Music2, Pause, Play, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getRoomAudioUrl } from "../../api/music";
 import { appDestinations } from "../../lib/liveroom-destinations";
 import { liveroomSocket } from "../../lib/liveroom-socket";
@@ -112,86 +113,108 @@ export function MusicPlayer({ roomId }: { roomId: string }) {
   const shown = scrubbing ?? position;
 
   return (
-    <section className="flex shrink-0 flex-col gap-2 border-t border-neutral-200 p-3 dark:border-neutral-800">
-      <div className="flex items-center gap-2">
-        <Music2 className="size-4 shrink-0 text-neutral-400" aria-hidden />
-        <div className="min-w-0 flex-1">
-          {music?.songTitle ? (
-            <>
-              <p className="truncate text-sm font-medium text-black dark:text-white">
-                {music.songTitle}
-              </p>
-              {music.songArtist ? (
-                <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">
-                  {t("by", { artist: music.songArtist })}
+    <section className="flex shrink-0 flex-col gap-2 border-t border-neutral-200 bg-neutral-50 px-3 py-2 dark:border-neutral-800 dark:bg-neutral-950">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                size="icon"
+                className="size-11 shrink-0 md:size-10"
+                aria-label={music?.status === "PLAYING" ? t("pause") : t("play")}
+                disabled={!music?.songId || (music?.status !== "PLAYING" && playBlocked)}
+                onClick={() => {
+                  if (music?.status === "PLAYING") publish(appDestinations.musicPause(roomId));
+                  else publish(appDestinations.musicPlay(roomId), {});
+                }}
+              />
+            }
+          >
+            {music?.status === "PLAYING" ? (
+              <Pause className="size-5 md:size-4" />
+            ) : (
+              <Play className="size-5 md:size-4" />
+            )}
+          </TooltipTrigger>
+          <TooltipContent>
+            {playBlocked
+              ? t("ownerAbsentHint")
+              : music?.status === "PLAYING"
+                ? t("pause")
+                : t("play")}
+          </TooltipContent>
+        </Tooltip>
+
+        <div className="flex min-w-0 basis-40 items-center gap-2 md:basis-56">
+          <Music2 className="size-4 shrink-0 text-neutral-400" aria-hidden />
+          <div className="min-w-0">
+            {music?.songTitle ? (
+              <>
+                <p className="truncate text-sm font-medium text-black dark:text-white">
+                  {music.songTitle}
                 </p>
-              ) : null}
-            </>
-          ) : (
-            <p className="truncate text-sm text-neutral-500 dark:text-neutral-400">
-              {t("title")}
-            </p>
-          )}
+                {music.songArtist ? (
+                  <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">
+                    {t("by", { artist: music.songArtist })}
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <p className="truncate text-sm text-neutral-500 dark:text-neutral-400">
+                {t("title")}
+              </p>
+            )}
+          </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-11 shrink-0 md:h-8"
-          onClick={() => setPickerOpen(true)}
-        >
-          {t("pickSong")}
-        </Button>
-      </div>
 
-      <div className="flex items-center gap-2">
-        <Button
-          size="icon"
-          className="size-11 shrink-0 md:size-9"
-          aria-label={music?.status === "PLAYING" ? t("pause") : t("play")}
-          title={playBlocked ? t("ownerAbsentHint") : undefined}
-          disabled={!music?.songId || (music?.status !== "PLAYING" && playBlocked)}
-          onClick={() => {
-            if (music?.status === "PLAYING") publish(appDestinations.musicPause(roomId));
-            else publish(appDestinations.musicPlay(roomId), {});
-          }}
-        >
-          {music?.status === "PLAYING" ? (
-            <Pause className="size-4" />
-          ) : (
-            <Play className="size-4" />
-          )}
-        </Button>
+        <div className="flex min-w-[200px] flex-1 items-center gap-2">
+          <span className="shrink-0 text-xs tabular-nums text-neutral-500 dark:text-neutral-400">
+            {formatClock(shown)}
+          </span>
+          <RangeSlider
+            value={shown}
+            max={duration}
+            ariaLabel={t("seek")}
+            disabled={!music?.songId}
+            onChange={setScrubbing}
+            onCommit={(value) => {
+              setScrubbing(null);
+              publish(appDestinations.musicSeek(roomId), { positionSeconds: value });
+            }}
+          />
+          <span className="shrink-0 text-xs tabular-nums text-neutral-500 dark:text-neutral-400">
+            {formatClock(duration)}
+          </span>
+        </div>
 
-        <span className="shrink-0 text-xs tabular-nums text-neutral-500 dark:text-neutral-400">
-          {formatClock(shown)}
-        </span>
-        <RangeSlider
-          value={shown}
-          max={duration}
-          ariaLabel={t("seek")}
-          disabled={!music?.songId}
-          onChange={setScrubbing}
-          onCommit={(value) => {
-            setScrubbing(null);
-            publish(appDestinations.musicSeek(roomId), { positionSeconds: value });
-          }}
-        />
-        <span className="shrink-0 text-xs tabular-nums text-neutral-500 dark:text-neutral-400">
-          {formatClock(duration)}
-        </span>
-      </div>
+        <div className="flex w-32 shrink-0 items-center gap-2">
+          <Volume2 className="size-4 shrink-0 text-neutral-400" aria-hidden />
+          <RangeSlider
+            value={music?.volumePercent ?? 100}
+            max={100}
+            ariaLabel={t("volume")}
+            disabled={!music?.songId}
+            onCommit={(value) =>
+              publish(appDestinations.musicVolume(roomId), { volumePercent: Math.round(value) })
+            }
+          />
+        </div>
 
-      <div className="flex items-center gap-2">
-        <Volume2 className="size-4 shrink-0 text-neutral-400" aria-hidden />
-        <RangeSlider
-          value={music?.volumePercent ?? 100}
-          max={100}
-          ariaLabel={t("volume")}
-          disabled={!music?.songId}
-          onCommit={(value) =>
-            publish(appDestinations.musicVolume(roomId), { volumePercent: Math.round(value) })
-          }
-        />
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="outline"
+                className="h-11 shrink-0 md:h-10"
+                onClick={() => setPickerOpen(true)}
+              />
+            }
+          >
+            <ListMusic className="size-4" />
+            <span className="hidden sm:inline">{t("pickSong")}</span>
+          </TooltipTrigger>
+          <TooltipContent>{t("pickSong")}</TooltipContent>
+        </Tooltip>
       </div>
 
       {playBlocked ? (

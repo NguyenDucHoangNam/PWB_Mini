@@ -75,7 +75,7 @@ public final class StubTokenManagerService implements TokenManagerService {
         return false;
     }
 
-    @Override
+    /** No longer on {@code TokenManagerService}; kept because the adapter's own IT still exercises it. */
     public boolean isRefreshTokenRevoked(String rawToken) {
         return false;
     }

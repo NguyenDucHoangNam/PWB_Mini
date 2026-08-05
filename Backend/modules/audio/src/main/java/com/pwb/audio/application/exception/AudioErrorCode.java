@@ -13,7 +13,6 @@ public enum AudioErrorCode implements ErrorCode {
     DUPLICATE_VOICE_TAG_NAME  (ErrorCategory.CONFLICT,          "AUDIO_006", "Voice tag name already exists."),
     VOICE_TAG_IN_USE           (ErrorCategory.CONFLICT,          "AUDIO_007", "Voice tag is currently in use by a song configuration."),
     SONG_NOT_UPLOADED         (ErrorCategory.BUSINESS,          "AUDIO_008", "Song must be uploaded before processing."),
-    PROCESSING_ALREADY_STARTED(ErrorCategory.BUSINESS,          "AUDIO_009", "Song processing has already been started."),
     STORAGE_ERROR             (ErrorCategory.INTERNAL,          "AUDIO_010", "Failed to interact with storage service."),
     TTS_ERROR                 (ErrorCategory.INTERNAL,          "AUDIO_011", "Text-to-speech synthesis failed."),
     PROCESSING_FAILED         (ErrorCategory.INTERNAL,          "AUDIO_013", "Audio processing failed."),
@@ -29,7 +28,10 @@ public enum AudioErrorCode implements ErrorCode {
     INVALID_TAG_INTERVAL      (ErrorCategory.VALIDATION,        "AUDIO_022", "Interval must be longer than the voice tag itself."),
     INSUFFICIENT_DISK_SPACE   (ErrorCategory.INTERNAL,          "AUDIO_023", "Not enough disk space to process this song."),
     UPLOAD_NOT_FOUND          (ErrorCategory.VALIDATION,        "AUDIO_024", "No uploaded file was found for the given storage key."),
-    TTS_VOICE_NOT_SUPPORTED   (ErrorCategory.VALIDATION,        "AUDIO_025", "The requested voice is not available for this language.");
+    TTS_VOICE_NOT_SUPPORTED   (ErrorCategory.VALIDATION,        "AUDIO_025", "The requested voice is not available for this language."),
+    RETRY_NOT_ALLOWED         (ErrorCategory.BUSINESS,          "AUDIO_026", "Only a song whose processing failed can be reprocessed."),
+    VOICE_TAG_TOO_LONG        (ErrorCategory.VALIDATION,        "AUDIO_027", "The voice tag clip is longer than the allowed limit."),
+    PROCESSING_TIMED_OUT      (ErrorCategory.INTERNAL,          "AUDIO_028", "Audio processing took longer than allowed and was stopped.");
 
     AudioErrorCode(ErrorCategory category, String code, String defaultMessage) {
         this.category = category;

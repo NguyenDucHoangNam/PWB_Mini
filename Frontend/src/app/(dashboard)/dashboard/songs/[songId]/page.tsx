@@ -5,18 +5,18 @@ import { useParams, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { Loader2, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { asApiError } from "@/lib/api-client";
 import { useProGuard } from "@/features/auth/hooks/use-pro-guard";
 import { ProUpgradePrompt } from "@/features/voice/components/pro-upgrade-prompt";
 import { SongDeleteDialog } from "@/features/voice/components/song-delete-dialog";
-import { SongStatusBadge } from "@/features/voice/components/song-status-badge";
-import { SongVoiceTagConfig } from "@/features/voice/components/song-voice-tag-config";
+import { SongStatusBadge, SongVoiceTagBadge } from "@/features/voice/components/song-status-badge";
 import { AudioPlayer } from "@/features/voice/components/audio-player";
-import { useSong, useTriggerProcessing } from "@/features/voice/api/songs";
+import { useSong, useRetryProcessing, useVoiceTagConfig } from "@/features/voice/api/songs";
 import { SONG_STREAM_KEY } from "@/features/voice/api/song-stream";
+import { clearMergePending, isMergePending } from "@/features/voice/lib/pending-merge";
 import { resolveVoiceErrorMessage } from "@/features/voice/lib/resolve-voice-error-message";
 import type { SongStatus } from "@/features/voice/types";
 
@@ -56,6 +56,7 @@ export default function SongDetailPage() {
   const songId = (params?.songId as string) ?? "";
   const { isPro } = useProGuard();
   const t = useTranslations("voice.songs.detail");
+  const tConfig = useTranslations("voice.config");
   const tActions = useTranslations("voice.actions");
   const tCommon = useTranslations("common");
   const tErrors = useTranslations("voice.errors");
@@ -69,19 +70,37 @@ export default function SongDetailPage() {
     },
   });
 
+  const { data: configRes } = useVoiceTagConfig({ songId });
+  const voiceTagConfig = configRes?.data ?? null;
+
   const status = songRes?.data?.status;
 
-  // The presigned URL cached while the song was still rendering points at the ORIGINAL fallback. Once
-  // the processed rendition exists that cache entry is stale, and nothing else would evict it.
+  // The upload form deliberately stays quiet about a queued merge, so this is where the outcome is
+  // announced. It also evicts the stream cache: while the merge ran the presigned URL pointed at the
+  // plain upload, and once the merged rendition exists nothing else would consider that entry stale.
   const previousStatus = useRef<SongStatus | undefined>(undefined);
   useEffect(() => {
-    if (previousStatus.current === "PROCESSING" && status === "PROCESSED") {
-      queryClient.invalidateQueries({ queryKey: [SONG_STREAM_KEY, songId] });
-    }
-    previousStatus.current = status;
-  }, [status, songId, queryClient]);
+    if (!songId || !status) return;
 
-  const { mutate: triggerProcessing, isPending: isTriggering } = useTriggerProcessing({
+    // Watching the status change only catches a merge that outlives this page's first load. The flag
+    // covers the rest: a short song can be done before the page even mounts.
+    const awaitingMerge =
+      previousStatus.current === "PROCESSING" || isMergePending(songId);
+    previousStatus.current = status;
+
+    if (!awaitingMerge) return;
+
+    if (status === "PROCESSED") {
+      clearMergePending(songId);
+      queryClient.invalidateQueries({ queryKey: [SONG_STREAM_KEY, songId] });
+      toast.success(t("processingCompleted"));
+    } else if (status === "FAILED") {
+      clearMergePending(songId);
+      toast.error(t("processingFailedToast"));
+    }
+  }, [status, songId, queryClient, t]);
+
+  const { mutate: retryProcessing, isPending: isRetrying } = useRetryProcessing({
     mutationConfig: {
       onSuccess: (response) => {
         if (response.success) {
@@ -132,21 +151,19 @@ export default function SongDetailPage() {
             <SongStatusBadge status={song.status} />
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
+            <SongVoiceTagBadge hasVoiceTag={song.hasVoiceTag} />
             {song.format && <span>{song.format.toUpperCase()}</span>}
             {song.fileSizeBytes !== null && <span>{formatBytes(song.fileSizeBytes)}</span>}
             {song.durationSeconds !== null && <span>{formatDuration(song.durationSeconds)}</span>}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {/* Also offered once processed: changing the tag settings is only meaningful if the song can
-              be re-rendered with them. */}
-          {song.status !== "PROCESSING" && (
-            <Button
-              disabled={isTriggering}
-              onClick={() => triggerProcessing({ songId: song.id })}
-            >
-              {isTriggering && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />}
-              {song.status === "UPLOADED" ? t("triggerProcessing") : t("retryProcessing")}
+          {/* The only reprocessing the app offers. A merge that succeeded is final, so there is nothing
+              to re-run for any other status. */}
+          {song.status === "FAILED" && (
+            <Button disabled={isRetrying} onClick={() => retryProcessing({ songId: song.id })}>
+              {isRetrying && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />}
+              {t("retryProcessing")}
             </Button>
           )}
           <Button variant="outline" onClick={() => router.push("/dashboard/songs")}>
@@ -168,13 +185,6 @@ export default function SongDetailPage() {
         </div>
       )}
 
-      {song.status === "UPLOADED" && (
-        <div className="flex items-start gap-3 rounded-xl border border-blue-300 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
-          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-          <span>{t("uploadedHint")}</span>
-        </div>
-      )}
-
       {song.status === "FAILED" && (
         <div
           role="alert"
@@ -186,9 +196,8 @@ export default function SongDetailPage() {
       )}
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="grid gap-4 rounded-xl border border-neutral-200 bg-white p-4 md:grid-cols-2 lg:col-span-2 dark:border-neutral-800 dark:bg-black">
-          <AudioPlayer songId={song.id} variant="ORIGINAL" />
-          <AudioPlayer songId={song.id} variant="PROCESSED" />
+        <div className="flex flex-col justify-center rounded-xl border border-neutral-200 bg-white p-4 lg:col-span-2 dark:border-neutral-800 dark:bg-black">
+          <AudioPlayer songId={song.id} />
         </div>
 
         <aside className="flex flex-col rounded-xl border border-neutral-200 bg-white p-4 lg:col-start-3 dark:border-neutral-800 dark:bg-black">
@@ -208,7 +217,47 @@ export default function SongDetailPage() {
         </aside>
       </div>
 
-      <SongVoiceTagConfig songId={song.id} onSaved={() => toast.info(t("configSavedHint"))} />
+      {/* Read-only: the settings were baked into the audio at upload and cannot be changed afterwards. */}
+      <section className="flex flex-col gap-4 rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-black">
+        <div className="flex items-center gap-2.5">
+          <Mic className="size-4 text-neutral-500" aria-hidden="true" />
+          <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+            {tConfig("title")}
+          </h2>
+        </div>
+
+        {voiceTagConfig === null ? (
+          <p className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
+            {t("noVoiceTagHint")}
+          </p>
+        ) : (
+          <>
+            <div className="grid gap-x-6 sm:grid-cols-2">
+              <MetadataRow
+                label={tConfig("voiceTag")}
+                value={voiceTagConfig.voiceTagName ?? "-"}
+              />
+              <MetadataRow
+                label={tConfig("intervalSeconds")}
+                value={`${voiceTagConfig.intervalSeconds}s`}
+              />
+              <MetadataRow
+                label={tConfig("volumePercentage")}
+                value={`${voiceTagConfig.volumePercentage}%`}
+              />
+              <MetadataRow
+                label={tConfig("duckingPercentage")}
+                value={`${voiceTagConfig.duckingPercentage}%`}
+              />
+              <MetadataRow
+                label={tConfig("startOffsetSeconds")}
+                value={`${voiceTagConfig.startOffsetSeconds}s`}
+              />
+            </div>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400">{t("configLockedHint")}</p>
+          </>
+        )}
+      </section>
 
       <SongDeleteDialog
         song={song}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm, useWatch } from "react-hook-form";
@@ -11,8 +11,11 @@ import { Info, UploadCloud, FileAudio, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { UploadProgress } from "@/components/ui/upload-progress";
 import { asApiError } from "@/lib/api-client";
 import { resolveVoiceErrorMessage } from "../lib/resolve-voice-error-message";
+import { readAudioDuration } from "../lib/read-audio-duration";
+import { markMergePending } from "../lib/pending-merge";
 import { getPresignedUploadUrl, createSong, SONGS_KEY } from "../api/songs";
 import { useListVoiceTags } from "../api/voice-tags";
 import { useFileValidation } from "../hooks/use-file-validation";
@@ -26,83 +29,13 @@ interface SongUploadFormProps {
   onSuccess?: () => void;
 }
 
-/**
- * Exact, but decodes the entire file into memory as PCM — a 100 MB MP3 can balloon past a gigabyte.
- * Only worth paying when the cheap path below could not read the duration at all.
- */
-async function decodeAudioDuration(file: File): Promise<number> {
-  try {
-    const arrayBuffer = await file.arrayBuffer();
-    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (AudioCtx) {
-      const audioCtx = new AudioCtx();
-      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-      const duration = audioBuffer.duration;
-      await audioCtx.close();
-      if (Number.isFinite(duration) && duration > 0) {
-        return Math.round(duration);
-      }
-    }
-  } catch {
-  }
-  return 0;
-}
-
-/** Reads the container header only: no full decode, so memory stays flat regardless of file size. */
-function readDurationFromMetadata(file: File): Promise<number> {
-  return new Promise((resolve) => {
-    const url = URL.createObjectURL(file);
-    const audio = new Audio();
-    audio.preload = "metadata";
-
-    const timeoutId = setTimeout(() => {
-      URL.revokeObjectURL(url);
-      resolve(0);
-    }, 5000);
-
-    audio.addEventListener("loadedmetadata", () => {
-      clearTimeout(timeoutId);
-      let dur = audio.duration;
-      if (dur === Infinity || Number.isNaN(dur)) {
-        audio.currentTime = 1e101;
-        audio.ontimeupdate = () => {
-          audio.ontimeupdate = null;
-          dur = audio.duration;
-          URL.revokeObjectURL(url);
-          resolve(Number.isFinite(dur) && dur > 0 ? Math.round(dur) : 0);
-        };
-      } else {
-        URL.revokeObjectURL(url);
-        resolve(Number.isFinite(dur) && dur > 0 ? Math.round(dur) : 0);
-      }
-    });
-
-    audio.addEventListener("error", () => {
-      clearTimeout(timeoutId);
-      URL.revokeObjectURL(url);
-      resolve(0);
-    });
-
-    audio.src = url;
-  });
-}
-
-async function readAudioDuration(file: File): Promise<number> {
-  const fromMetadata = await readDurationFromMetadata(file);
-  if (fromMetadata > 0) {
-    return fromMetadata;
-  }
-  // Some VBR MP3s and exotic containers report no usable duration in the header; decoding is the only
-  // way left to find out.
-  return decodeAudioDuration(file);
-}
-
 export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
   const t = useTranslations("voice.songs.form");
   const tActions = useTranslations("voice.actions");
   const tCommon = useTranslations("common");
   const tErrors = useTranslations("voice.errors");
   const tValidation = useTranslations("validation");
+  const tUpload = useTranslations("upload");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const xhrRef = useRef<XMLHttpRequest | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -178,7 +111,7 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
     }
     setFile(selected);
 
-    const duration = await readAudioDuration(selected);
+    const duration = Math.round(await readAudioDuration(selected));
     setFileDuration(duration);
     if (duration <= 0) {
       setClientError(tErrors("invalidDuration"));
@@ -214,6 +147,14 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
       handleFileChange(droppedFile);
     }
   };
+
+  // A reload midway through discards the transfer with nothing to resume from, so make the browser ask.
+  useEffect(() => {
+    if (!isBusy) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [isBusy]);
 
   const cancelUpload = useCallback(() => {
     if (xhrRef.current) {
@@ -314,13 +255,23 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
 
       const response = await createSong(uploadPayload);
 
-      if (response.success) {
+      if (response.success && response.data) {
         // This flow posts directly rather than through useCreateSong, so nothing else would tell the
         // list its cache is out of date.
         queryClient.invalidateQueries({ queryKey: [SONGS_KEY] });
-        toast.success(t("uploadSuccess"));
+        // A song that carries a voice tag is not finished when its upload is — the merge is still
+        // queued. Calling that a success claims work that has not happened yet, so the announcement is
+        // left to the detail page, which is watching for the status to actually flip.
+        if (response.data.status === "PROCESSING") {
+          markMergePending(response.data.id);
+          toast.info(t("uploadQueued"));
+        } else {
+          toast.success(t("uploadSuccess"));
+        }
         onSuccess?.();
-        router.push("/dashboard/songs");
+        // Straight into the song rather than back to the list: it is the thing the user just made, and
+        // for a song with a voice tag it is also where the merge reports its progress.
+        router.push(`/dashboard/songs/${response.data.id}`);
       } else {
         toast.error(response.message || tCommon("error"));
       }
@@ -344,7 +295,6 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
   };
 
   const fileSizeMB = file ? (file.size / 1024 / 1024).toFixed(2) : "0";
-  const loadedMB = file ? ((uploadProgress / 100) * file.size / 1024 / 1024).toFixed(2) : "0";
 
   return (
     <form
@@ -431,34 +381,12 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
               )}
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-300 ease-out"
-                  style={{ width: `${uploadStep === "uploading" ? uploadProgress : uploadStep === "creating" ? 100 : 5}%` }}
-                />
-                {uploadStep === "uploading" && (
-                  <div className="absolute inset-0 overflow-hidden rounded-full">
-                    <div className="h-full w-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  {/* This block only renders while busy, so the spinner always belongs here. */}
-                  <Loader2 className="size-3 animate-spin" aria-hidden="true" />
-                  {uploadStep === "preparing" && t("uploadPreparing")}
-                  {uploadStep === "uploading" && t("uploadProgress", { percent: uploadProgress })}
-                  {uploadStep === "creating" && t("uploadCreating")}
-                </span>
-                {uploadStep === "uploading" && (
-                  <span className="font-medium tabular-nums">
-                    {t("uploadProgressDetail", { loaded: loadedMB, total: fileSizeMB })}
-                  </span>
-                )}
-              </div>
-            </div>
+            <UploadProgress
+              phase={uploadStep === "creating" ? "finalizing" : uploadStep}
+              percent={uploadProgress}
+              loadedBytes={(file.size * uploadProgress) / 100}
+              totalBytes={file.size}
+            />
           </div>
         ) : (
           <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
@@ -778,9 +706,9 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
             <>
               <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
               <span>
-                {uploadStep === "preparing" && t("uploadPreparing")}
-                {uploadStep === "uploading" && t("uploadProgress", { percent: uploadProgress })}
-                {uploadStep === "creating" && t("uploadCreating")}
+                {uploadStep === "preparing" && tUpload("preparing")}
+                {uploadStep === "uploading" && tUpload("sending", { percent: uploadProgress })}
+                {uploadStep === "creating" && tUpload("finalizing")}
               </span>
             </>
           ) : (

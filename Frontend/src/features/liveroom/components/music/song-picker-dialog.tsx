@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { useListSongs } from "@/features/voice/api/songs";
+import { SONG_VIEW_STATUSES } from "@/features/voice/types";
 
 interface SongPickerDialogProps {
   open: boolean;
@@ -22,7 +23,8 @@ export function SongPickerDialog({ open, onOpenChange, onPick }: SongPickerDialo
   const { data, isPending } = useListSongs({
     page: 0,
     size: 50,
-    status: "PROCESSED",
+
+    status: SONG_VIEW_STATUSES.READY,
     queryConfig: { enabled: open },
   });
 

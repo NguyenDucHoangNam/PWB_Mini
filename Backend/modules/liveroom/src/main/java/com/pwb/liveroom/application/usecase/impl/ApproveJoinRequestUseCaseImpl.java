@@ -16,6 +16,7 @@ import com.pwb.liveroom.domain.model.LiveRoom;
 import com.pwb.liveroom.domain.model.RoomMember;
 import com.pwb.liveroom.domain.repository.JoinRequestRepository;
 import com.pwb.liveroom.domain.repository.LiveRoomRepository;
+import com.pwb.liveroom.domain.service.UserDirectoryPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,6 +38,7 @@ public class ApproveJoinRequestUseCaseImpl implements ApproveJoinRequestUseCase 
     private final Playbacks playbacks;
     private final LiveroomEventPublisher eventPublisher;
     private final ParticipationViewFactory viewFactory;
+    private final UserDirectoryPort userDirectory;
 
     @Override
     @Transactional
@@ -59,6 +61,7 @@ public class ApproveJoinRequestUseCaseImpl implements ApproveJoinRequestUseCase 
 
         Instant now = Instant.now();
         RoomMember member = roomMembers.loadOrCreate(roomId, request.getUserId());
+        String avatarUrl = userDirectory.avatarUrlOf(request.getUserId());
 
 
 
@@ -72,7 +75,7 @@ public class ApproveJoinRequestUseCaseImpl implements ApproveJoinRequestUseCase 
                     RoomEvents.requestRejectedByCapacity(settled, member.getRejectCountByCapacity()));
             log.info("Join request rejected because the room was full: roomId={} requestId={}",
                     roomId, requestId);
-            return viewFactory.toView(settled, member);
+            return viewFactory.toView(settled, member, avatarUrl);
         }
 
         var participant = admissions.admit(
@@ -87,7 +90,7 @@ public class ApproveJoinRequestUseCaseImpl implements ApproveJoinRequestUseCase 
 
 
         playbacks.sendCurrentTo(approved.getUserId(), room, now);
-        eventPublisher.broadcastToRoom(RoomEvents.participantJoined(room, participant));
+        eventPublisher.broadcastToRoom(RoomEvents.participantJoined(room, participant, avatarUrl));
         eventPublisher.broadcastToRoom(RoomEvents.capacityChanged(room));
         if (!room.hasFreeSlot()) {
             eventPublisher.broadcastToRoom(RoomEvents.capacityReached(room));
@@ -96,6 +99,7 @@ public class ApproveJoinRequestUseCaseImpl implements ApproveJoinRequestUseCase 
         log.info("Join request approved and user admitted: roomId={} userId={} requestId={} count={}/{}",
                 roomId, request.getUserId(), requestId,
                 room.getCurrentParticipantCount(), room.effectiveMaxParticipants());
-        return viewFactory.toView(approved, roomMembers.loadOrCreate(roomId, request.getUserId()));
+        return viewFactory.toView(
+                approved, roomMembers.loadOrCreate(roomId, request.getUserId()), avatarUrl);
     }
 }

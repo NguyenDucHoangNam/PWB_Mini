@@ -19,7 +19,7 @@ public record CreateSongRequest(
         @NotBlank @Size(max = 512) String originalS3Key,
         @NotNull(message = "{validation.song.durationSeconds.notNull}") @Positive(message = "{validation.song.durationSeconds.positive}") Integer durationSeconds,
         @NotBlank @Size(max = 16) String format,
-        @Valid ConfigureVoiceTagRequest voiceTagConfig
+        @Valid SongVoiceTagRequest voiceTagConfig
 ) {
 
     public CreateSongCommand toCommand(UUID userId) {

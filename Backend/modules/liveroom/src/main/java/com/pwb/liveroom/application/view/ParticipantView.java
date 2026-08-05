@@ -12,6 +12,7 @@ public record ParticipantView(
         UUID id,
         UUID userId,
         String userEmail,
+        String avatarUrl,
         ParticipantRole roomRole,
         ParticipantState state,
         Instant joinedAt,

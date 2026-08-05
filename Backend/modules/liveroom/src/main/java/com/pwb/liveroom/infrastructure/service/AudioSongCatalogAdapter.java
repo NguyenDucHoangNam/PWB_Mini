@@ -1,6 +1,5 @@
 package com.pwb.liveroom.infrastructure.service;
 
-import com.pwb.audio.domain.enums.AudioVariant;
 import com.pwb.audio.domain.model.Song;
 import com.pwb.audio.domain.repository.SongRepository;
 import com.pwb.audio.domain.service.PresignedUrl;
@@ -34,7 +33,7 @@ public class AudioSongCatalogAdapter implements SongCatalogPort {
     @Transactional(readOnly = true)
     public Optional<PlayableSongAudio> presignPlayback(UUID songId, Duration expiration) {
         return songRepository.findById(songId)
-                .map(song -> song.storageKeyFor(song.resolveVariant(AudioVariant.PROCESSED)))
+                .map(Song::playbackKey)
                 .filter(storageKey -> storageKey != null && !storageKey.isBlank())
                 .map(storageKey -> toAudio(songId, storagePort.presignDownload(storageKey, expiration)));
     }
@@ -50,7 +49,9 @@ public class AudioSongCatalogAdapter implements SongCatalogPort {
                 song.getTitle(),
                 song.getArtist(),
                 song.getDurationSeconds(),
-                song.isProcessed()
+
+
+                song.isPlayable()
         );
     }
 }

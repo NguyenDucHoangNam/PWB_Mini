@@ -20,10 +20,11 @@ public final class RoomEvents {
     private RoomEvents() {
     }
 
-    public static RoomEvent participantJoined(LiveRoom room, Participant participant) {
+    public static RoomEvent participantJoined(LiveRoom room, Participant participant, String avatarUrl) {
         return event(LiveroomEventType.PARTICIPANT_JOINED, room.getId(), map(
                 "userId", participant.getUserId(),
                 "userEmail", participant.getUserEmail(),
+                "avatarUrl", avatarUrl,
                 "roomRole", participant.getRoomRole(),
                 "joinedAt", participant.getJoinedAt()
         ));
@@ -106,11 +107,12 @@ public final class RoomEvents {
         ));
     }
 
-    public static RoomEvent joinRequestCreated(JoinRequest request) {
+    public static RoomEvent joinRequestCreated(JoinRequest request, String avatarUrl) {
         return event(LiveroomEventType.JOIN_REQUEST_CREATED, request.getRoomId(), map(
                 "requestId", request.getId(),
                 "userId", request.getUserId(),
                 "userEmail", request.getUserEmail(),
+                "avatarUrl", avatarUrl,
                 "createdAt", request.getCreatedAt()
         ));
     }

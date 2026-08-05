@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -11,24 +11,15 @@ import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { SongCard } from "@/features/voice/components/song-card";
 import { SongDeleteDialog } from "@/features/voice/components/song-delete-dialog";
 import { useListSongs } from "@/features/voice/api/songs";
-import type { Song, SongStatus } from "@/features/voice/types";
-
-type StatusFilter = "ALL" | SongStatus;
+import { SONG_VIEW_STATUSES } from "@/features/voice/types";
+import type { Song, SongView } from "@/features/voice/types";
 
 const LIST_POLL_INTERVAL_MS = 5000;
 
-const ALLOWED_STATUSES: ReadonlySet<SongStatus> = new Set([
-  "UPLOADED",
-  "PROCESSING",
-  "PROCESSED",
-  "FAILED",
-]);
+const SONG_VIEWS = Object.keys(SONG_VIEW_STATUSES) as SongView[];
 
-function parseStatusFilter(value: string | null): StatusFilter {
-  if (value && ALLOWED_STATUSES.has(value as SongStatus)) {
-    return value as StatusFilter;
-  }
-  return "ALL";
+function parseView(value: string | null): SongView {
+  return SONG_VIEWS.includes(value as SongView) ? (value as SongView) : "ALL";
 }
 
 function parsePage(value: string | null): number {
@@ -45,10 +36,7 @@ export function DashboardSongsTab() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const filter = useMemo(
-    () => parseStatusFilter(searchParams.get("status")),
-    [searchParams],
-  );
+  const view = useMemo(() => parseView(searchParams.get("view")), [searchParams]);
   const page = useMemo(() => parsePage(searchParams.get("page")), [searchParams]);
 
   const updateQuery = (next: Record<string, string | null>) => {
@@ -61,10 +49,21 @@ export function DashboardSongsTab() {
     router.push(query ? `${pathname}?${query}` : pathname);
   };
 
+  const buildPageHref = useCallback(
+    (nextPage: number) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (nextPage <= 0) params.delete("page");
+      else params.set("page", String(nextPage));
+      const query = params.toString();
+      return query ? `${pathname}?${query}` : pathname;
+    },
+    [pathname, searchParams],
+  );
+
   const { data, isLoading, isFetching, isError, refetch } = useListSongs({
     page,
     size: DEFAULT_PAGE_SIZE,
-    status: filter === "ALL" ? null : filter,
+    status: SONG_VIEW_STATUSES[view],
     queryConfig: {
       // Songs land here straight from upload while still rendering; without this their badge would sit
       // on PROCESSING until the user reloaded by hand.
@@ -77,24 +76,35 @@ export function DashboardSongsTab() {
 
   // The server applies the status filter, so this page and the page count already describe the
   // filtered set. Filtering here as well would only re-hide rows the query never returned.
-  const items = data?.success && data.data ? data.data.content : [];
-  const totalPages = data?.success && data.data ? data.data.totalPages : 0;
+  const pageData = data?.success && data.data ? data.data : null;
+  const items = pageData ? pageData.content : [];
+  const totalPages = pageData ? pageData.totalPages : 0;
   const toDeleteId = searchParams.get("delete");
 
-  const filters: { value: StatusFilter; label: string }[] = [
+  /**
+   * Deleting the last song on the last page leaves the URL pointing past the end, where the list renders
+   * the "no songs yet" state and the pager hides itself — nothing is left to click back with. The
+   * response echoes the page it describes, so a stale keepPreviousData payload cannot trigger this.
+   */
+  useEffect(() => {
+    if (!pageData || pageData.page !== page || page === 0 || page < totalPages) return;
+    router.replace(buildPageHref(totalPages - 1));
+  }, [pageData, page, totalPages, router, buildPageHref]);
+
+  // Three groups, not four job states: a plain upload and a finished merge are both simply playable.
+  const filters: { value: SongView; label: string }[] = [
     { value: "ALL", label: tList("all") },
-    { value: "UPLOADED", label: tStatus("uploaded") },
+    { value: "READY", label: tStatus("ready") },
     { value: "PROCESSING", label: tStatus("processing") },
-    { value: "PROCESSED", label: tStatus("processed") },
     { value: "FAILED", label: tStatus("failed") },
   ];
 
-  const setFilter = (value: StatusFilter) => {
-    updateQuery({ status: value === "ALL" ? null : value, page: null });
+  const setView = (value: SongView) => {
+    updateQuery({ view: value === "ALL" ? null : value, page: null });
   };
 
   const setPage = (newPage: number) => {
-    updateQuery({ page: newPage === 0 ? null : String(newPage) });
+    router.push(buildPageHref(newPage));
   };
 
   const openDelete = (song: Song) => {
@@ -112,10 +122,10 @@ export function DashboardSongsTab() {
           <button
             key={opt.value}
             type="button"
-            onClick={() => setFilter(opt.value)}
-            aria-pressed={filter === opt.value}
+            onClick={() => setView(opt.value)}
+            aria-pressed={view === opt.value}
             className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-              filter === opt.value
+              view === opt.value
                 ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
                 : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-black dark:text-neutral-300 dark:hover:bg-neutral-900"
             }`}

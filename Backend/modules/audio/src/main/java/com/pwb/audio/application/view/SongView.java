@@ -20,6 +20,8 @@ public record SongView(
         String thumbnailUrl,
         String lastError,
         boolean processed,
+        /** Whether a voice tag was merged into this song. The tag's identity is not part of a listing. */
+        boolean hasVoiceTag,
         Instant createdAt,
         Instant updatedAt
 ) {

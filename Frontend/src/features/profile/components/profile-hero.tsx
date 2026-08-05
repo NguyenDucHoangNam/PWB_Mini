@@ -17,6 +17,8 @@ export interface ProfileHeroProps {
   onAvatarChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onClearAvatarError: () => void;
   isUploading: boolean;
+  /** 0-100 while bytes are in flight; 100 also covers the server-side wait after the last byte. */
+  uploadPercent: number;
   avatarError: string | null;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   changePasswordLabel: string;
@@ -33,6 +35,7 @@ export function ProfileHero({
   onAvatarChange,
   onClearAvatarError,
   isUploading,
+  uploadPercent,
   avatarError,
   fileInputRef,
   changePasswordLabel,
@@ -70,8 +73,22 @@ export function ProfileHero({
             )}
           </div>
           {isUploading && (
-            <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/55 backdrop-blur-sm">
-              <Loader2 className="size-7 animate-spin text-white" />
+            <div
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              // Indeterminate once the bytes are sent: the server-side wait has no honest number.
+              aria-valuenow={uploadPercent < 100 ? uploadPercent : undefined}
+              className="absolute inset-0 flex items-center justify-center rounded-full bg-black/55 backdrop-blur-sm"
+              style={{
+                backgroundImage: `conic-gradient(rgba(255,255,255,0.45) ${uploadPercent * 3.6}deg, transparent 0deg)`,
+              }}
+            >
+              {uploadPercent < 100 ? (
+                <span className="text-sm font-semibold tabular-nums text-white">{uploadPercent}%</span>
+              ) : (
+                <Loader2 className="size-7 animate-spin text-white" />
+              )}
             </div>
           )}
           <input

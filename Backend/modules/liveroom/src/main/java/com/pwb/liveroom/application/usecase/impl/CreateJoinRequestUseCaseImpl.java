@@ -14,6 +14,7 @@ import com.pwb.liveroom.domain.model.JoinRequest;
 import com.pwb.liveroom.domain.model.LiveRoom;
 import com.pwb.liveroom.domain.model.RoomMember;
 import com.pwb.liveroom.domain.repository.JoinRequestRepository;
+import com.pwb.liveroom.domain.service.UserDirectoryPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ public class CreateJoinRequestUseCaseImpl implements CreateJoinRequestUseCase {
     private final RoomMembers roomMembers;
     private final LiveroomEventPublisher eventPublisher;
     private final ParticipationViewFactory viewFactory;
+    private final UserDirectoryPort userDirectory;
 
     @Override
     @Transactional
@@ -85,10 +87,11 @@ public class CreateJoinRequestUseCaseImpl implements CreateJoinRequestUseCase {
                 command.idempotencyKey()
         ));
 
-        eventPublisher.broadcastToRoom(RoomEvents.joinRequestCreated(created));
+        String avatarUrl = userDirectory.avatarUrlOf(command.actor().userId());
+        eventPublisher.broadcastToRoom(RoomEvents.joinRequestCreated(created, avatarUrl));
 
         log.info("Join request raised: roomId={} userId={} requestId={}",
                 room.getId(), command.actor().userId(), created.getId());
-        return viewFactory.toView(created, member);
+        return viewFactory.toView(created, member, avatarUrl);
     }
 }

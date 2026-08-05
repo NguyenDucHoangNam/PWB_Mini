@@ -32,6 +32,9 @@ export function EndRoomDialog({ room, open, onOpenChange, onSuccess }: EndRoomDi
 
   const { mutate: undoEnd } = useUndoEndRoom({
     mutationConfig: {
+      onSuccess: () => {
+        toast.success(t("revivedToast"));
+      },
       onError: asApiError((err) => {
         toast.error(resolveLiveroomErrorMessage(err, tErrors, tCommon));
       }),
@@ -44,7 +47,7 @@ export function EndRoomDialog({ room, open, onOpenChange, onSuccess }: EndRoomDi
         onOpenChange(false);
         onSuccess?.();
         if (response.data?.canUndoEnd) {
-          toast.success(response.message, {
+          toast.success(t("endedToast"), {
             duration: UNDO_TOAST_MS,
             action: {
               label: t("undo"),
@@ -52,7 +55,7 @@ export function EndRoomDialog({ room, open, onOpenChange, onSuccess }: EndRoomDi
             },
           });
         } else {
-          toast.success(response.message);
+          toast.success(t("endedToast"));
         }
       },
       onError: asApiError((err) => {

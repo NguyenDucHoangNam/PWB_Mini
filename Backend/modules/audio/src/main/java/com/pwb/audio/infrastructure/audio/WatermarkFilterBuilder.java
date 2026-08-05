@@ -16,6 +16,19 @@ public final class WatermarkFilterBuilder {
     private static final int MAX_INSERTIONS = 500;
     private static final int NO_DUCKING = 100;
 
+    /**
+     * What one buffered sample costs FFmpeg to hold: stereo, 32-bit planar float. Only an estimate, but the
+     * budget below only needs to be the right order of magnitude.
+     */
+    private static final int LOOP_BUFFER_BYTES_PER_SAMPLE = 2 * Float.BYTES;
+
+    /**
+     * How much memory the looped tag period may occupy. Above this the graph falls back to one delayed copy
+     * per insertion, which costs CPU instead — a fair trade, because a period long enough to blow this
+     * budget only fits a handful of insertions in the first place.
+     */
+    private static final long MAX_LOOP_BUFFER_BYTES = 64L * 1024 * 1024;
+
     private WatermarkFilterBuilder() {
     }
 
@@ -50,6 +63,10 @@ public final class WatermarkFilterBuilder {
         if (insertions == 1) {
             return prepared + "," + delayOf(request, 0) + "[tagtrack]";
         }
+        if (fitsLoopBuffer(request.intervalSeconds())) {
+            return prepared + "," + repeatEveryInterval(request, insertions)
+                    + "," + delayOf(request, 0) + "[tagtrack]";
+        }
 
         String splitLabels = IntStream.range(0, insertions)
                 .mapToObj(i -> "[t" + i + "]")
@@ -64,6 +81,29 @@ public final class WatermarkFilterBuilder {
         return prepared + ",asplit=" + insertions + splitLabels
                 + ";" + delayed
                 + ";" + mixInputs + "amix=inputs=" + insertions + ":duration=longest:normalize=0[tagtrack]";
+    }
+
+    /**
+     * Builds the repeating tag track as a single stream: pad the tag out to one whole interval, then loop
+     * that period. The alternative — one delayed copy of the tag per insertion, all mixed together — makes
+     * FFmpeg carry a full song's worth of mostly-silent audio per insertion, so a five-minute track with a
+     * tag every twenty-five seconds costs twelve times what it should.
+     *
+     * <p>{@code aloop} repeats exactly {@code size} samples however long {@code apad} actually ran, so the
+     * period cannot drift across repeats; whatever padding overshoots the interval trails off the end as
+     * silence and is cut by the final mix.
+     */
+    private static String repeatEveryInterval(AudioProcessingRequest request, int insertions) {
+        return "apad=whole_dur=" + request.intervalSeconds()
+                + ",aloop=loop=" + (insertions - 1) + ":size=" + loopSamples(request.intervalSeconds());
+    }
+
+    private static long loopSamples(int intervalSeconds) {
+        return (long) intervalSeconds * SAMPLE_RATE;
+    }
+
+    private static boolean fitsLoopBuffer(int intervalSeconds) {
+        return loopSamples(intervalSeconds) * LOOP_BUFFER_BYTES_PER_SAMPLE <= MAX_LOOP_BUFFER_BYTES;
     }
 
     private static String delayOf(AudioProcessingRequest request, int index) {

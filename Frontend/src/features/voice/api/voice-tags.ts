@@ -4,7 +4,7 @@ import {
   useQueryClient,
   keepPreviousData,
 } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, onUploadProgress, type UploadProgressHandler } from "@/lib/api-client";
 import type { QueryConfig, MutationConfig } from "@/lib/react-query";
 import type { ApiResponse, PaginatedResponse } from "@/types/api";
 import type {
@@ -31,6 +31,28 @@ export const createTtsVoiceTag = ({
   data: CreateTtsVoiceTagRequest;
 }): Promise<ApiResponse<VoiceTag>> =>
   apiClient.post("/voice-tags/tts", data).then((res) => res.data);
+
+/**
+ * Multipart rather than a presigned upload: the clip is a few seconds long, and the server has to read
+ * the bytes anyway to measure the duration before it will accept them. The request interceptor strips
+ * the client-wide JSON content type for FormData bodies, so the browser sets the multipart boundary.
+ */
+export const createUploadedVoiceTag = ({
+  name,
+  file,
+  onProgress,
+}: {
+  name: string;
+  file: File;
+  onProgress?: UploadProgressHandler;
+}): Promise<ApiResponse<VoiceTag>> => {
+  const form = new FormData();
+  form.append("name", name);
+  form.append("file", file);
+  return apiClient
+    .post("/voice-tags/upload", form, { onUploadProgress: onUploadProgress(onProgress) })
+    .then((res) => res.data);
+};
 
 export const listVoiceTags = ({
   page,
@@ -115,6 +137,27 @@ export const useCreateTtsVoiceTag = ({
       return onSuccess?.(response, variables, onMutateResult, context);
     },
     mutationFn: createTtsVoiceTag,
+  });
+};
+
+type UseCreateUploadedVoiceTagOptions = {
+  mutationConfig?: MutationConfig<typeof createUploadedVoiceTag>;
+};
+
+export const useCreateUploadedVoiceTag = ({
+  mutationConfig,
+}: UseCreateUploadedVoiceTagOptions = {}) => {
+  const queryClient = useQueryClient();
+  const { onSuccess, ...restMutationConfig } = mutationConfig ?? {};
+  return useMutation({
+    ...restMutationConfig,
+    onSuccess: (response, variables, onMutateResult, context) => {
+      if (response.success) {
+        queryClient.invalidateQueries({ queryKey: [VOICE_TAGS_KEY] });
+      }
+      return onSuccess?.(response, variables, onMutateResult, context);
+    },
+    mutationFn: createUploadedVoiceTag,
   });
 };
 

@@ -18,10 +18,12 @@ import { RoomEndingOverlay } from "./room-ending-overlay";
 import { RoomHeader } from "./room-header";
 import { RoomSidePanel, type SidePanelTab } from "./room-side-panel";
 import { TabConflictScreen } from "./tab-conflict-screen";
+import { MusicPlayer } from "../music/music-player";
 import { VideoGrid } from "../video/video-grid";
 import { EndRoomDialog } from "../room-list/end-room-dialog";
 import { useLeaveRoom, useUpdateMediaState } from "../../api/participants";
 import { useAudioLevel } from "../../hooks/use-audio-level";
+import { useIsDesktop } from "../../hooks/use-is-desktop";
 import { useLocalMedia } from "../../hooks/use-local-media";
 import type { MediaErrorKind } from "../../lib/media-constraints";
 import { useLiveroomSocket } from "../../hooks/use-liveroom-socket";
@@ -79,10 +81,23 @@ export function RoomScreen({ roomId }: { roomId: string }) {
     myUserId ? state.participants[myUserId] : undefined,
   );
 
-  const [panelOpen, setPanelOpen] = useState(false);
+
+  const isDesktop = useIsDesktop();
+  const [panelOverride, setPanelOverride] = useState<boolean | null>(null);
+  const panelOpen = panelOverride ?? isDesktop;
   const [panelTab, setPanelTab] = useState<SidePanelTab>("participants");
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
+
+  const closePanel = useCallback(() => setPanelOverride(false), []);
+
+  const togglePanel = useCallback(
+    (target: SidePanelTab) => {
+      setPanelOverride(!(panelOpen && panelTab === target));
+      setPanelTab(target);
+    },
+    [panelOpen, panelTab],
+  );
 
   useEffect(() => {
     if (!kicked) return;
@@ -277,17 +292,20 @@ export function RoomScreen({ roomId }: { roomId: string }) {
       ) : null}
 
       <div className="flex min-h-0 flex-1">
-        <VideoGrid
-          localStream={media.stream}
-          localCameraOn={media.cameraOn}
-          localAudioLevel={localAudioLevel}
-        />
+        <div className="flex min-w-0 min-h-0 flex-1 flex-col">
+          <VideoGrid
+            localStream={media.stream}
+            localCameraOn={media.cameraOn}
+            localAudioLevel={localAudioLevel}
+          />
+          <MusicPlayer roomId={roomId} />
+        </div>
         <RoomSidePanel
           roomId={roomId}
           open={panelOpen}
           tab={panelTab}
           onTabChange={setPanelTab}
-          onClose={() => setPanelOpen(false)}
+          onClose={closePanel}
         />
       </div>
 
@@ -296,16 +314,12 @@ export function RoomScreen({ roomId }: { roomId: string }) {
         micOn={media.micOn}
         micBlocked={micBlocked}
         busy={media.requesting || patchingMedia}
+        participantsOpen={panelOpen && panelTab === "participants"}
+        chatOpen={panelOpen && panelTab === "chat"}
         onToggleCamera={() => void toggleCamera()}
         onToggleMic={() => void toggleMic()}
-        onOpenParticipants={() => {
-          setPanelTab("participants");
-          setPanelOpen(true);
-        }}
-        onOpenChat={() => {
-          setPanelTab("chat");
-          setPanelOpen(true);
-        }}
+        onToggleParticipants={() => togglePanel("participants")}
+        onToggleChat={() => togglePanel("chat")}
         onLeave={() => setLeaveOpen(true)}
         onEnd={() => setEndOpen(true)}
       />

@@ -44,15 +44,28 @@ class WatermarkFilterBuilderTest {
     class InsertionPlacement {
 
         @Test
-        void places_one_tag_per_interval_starting_at_the_offset() {
+        void loops_a_single_interval_long_period_once_per_insertion() {
             String filter = WatermarkFilterBuilder.build(request(60, 10, 30, 100), 200, 3);
 
-            assertThat(filter).contains("asplit=4");
-            assertThat(filter).contains("adelay=10000:all=1");
-            assertThat(filter).contains("adelay=70000:all=1");
-            assertThat(filter).contains("adelay=130000:all=1");
-            assertThat(filter).contains("adelay=190000:all=1");
-            assertThat(filter).contains("amix=inputs=4:duration=longest:normalize=0[tagtrack]");
+            // 4 insertions: the period is emitted once, then looped 3 more times.
+            assertThat(filter).contains("apad=whole_dur=60,aloop=loop=3:size=2646000");
+            assertThat(filter).contains("adelay=10000:all=1[tagtrack]");
+            assertThat(filter).doesNotContain("asplit");
+        }
+
+        /**
+         * A period this long cannot be buffered, so the graph falls back to one delayed copy per insertion.
+         */
+        @Test
+        void falls_back_to_one_delayed_copy_per_insertion_when_the_period_is_too_long_to_buffer() {
+            String filter = WatermarkFilterBuilder.build(request(200, 0, 30, 100), 1000, 3);
+
+            assertThat(filter).contains("asplit=6");
+            assertThat(filter).contains("adelay=0:all=1");
+            assertThat(filter).contains("adelay=200000:all=1");
+            assertThat(filter).contains("adelay=1000000:all=1");
+            assertThat(filter).contains("amix=inputs=6:duration=longest:normalize=0[tagtrack]");
+            assertThat(filter).doesNotContain("aloop");
         }
 
         @Test
@@ -60,6 +73,7 @@ class WatermarkFilterBuilderTest {
             String filter = WatermarkFilterBuilder.build(request(60, 5, 30, 100), 50, 3);
 
             assertThat(filter).doesNotContain("asplit");
+            assertThat(filter).doesNotContain("aloop");
             assertThat(filter).contains("adelay=5000:all=1");
             assertThat(filter).contains("[tagtrack]");
         }

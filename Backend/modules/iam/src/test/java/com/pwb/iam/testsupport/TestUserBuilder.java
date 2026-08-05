@@ -28,6 +28,9 @@ public final class TestUserBuilder {
                 UserStatus.ACTIVE,
                 RoleName.USER.name(),
                 OAuthProvider.LOCAL,
+                null,
+                null,
+                null,
                 null
         );
     }
@@ -43,6 +46,9 @@ public final class TestUserBuilder {
                 UserStatus.PENDING_VERIFICATION,
                 RoleName.USER.name(),
                 OAuthProvider.LOCAL,
+                null,
+                null,
+                null,
                 null
         );
     }
@@ -58,7 +64,10 @@ public final class TestUserBuilder {
                 UserStatus.ACTIVE,
                 RoleName.USER.name(),
                 OAuthProvider.GOOGLE,
-                "google-sub-123"
+                "google-sub-123",
+                null,
+                null,
+                null
         );
     }
 
@@ -73,6 +82,9 @@ public final class TestUserBuilder {
                 UserStatus.BANNED,
                 RoleName.USER.name(),
                 OAuthProvider.LOCAL,
+                null,
+                null,
+                null,
                 null
         );
     }
@@ -88,6 +100,9 @@ public final class TestUserBuilder {
                 UserStatus.DELETED,
                 RoleName.USER.name(),
                 OAuthProvider.LOCAL,
+                null,
+                null,
+                null,
                 null
         );
     }
@@ -103,6 +118,9 @@ public final class TestUserBuilder {
                 UserStatus.ACTIVE,
                 RoleName.USER.name(),
                 OAuthProvider.LOCAL,
+                null,
+                null,
+                null,
                 null
         );
     }
@@ -118,6 +136,9 @@ public final class TestUserBuilder {
                 UserStatus.ACTIVE,
                 RoleName.USER.name(),
                 OAuthProvider.LOCAL,
+                null,
+                null,
+                null,
                 null
         );
     }
@@ -133,6 +154,9 @@ public final class TestUserBuilder {
                 UserStatus.ACTIVE,
                 RoleName.USER.name(),
                 OAuthProvider.LOCAL,
+                null,
+                null,
+                null,
                 null
         );
     }

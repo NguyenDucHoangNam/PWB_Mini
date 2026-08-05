@@ -58,6 +58,7 @@ export function ProfilePage() {
   const [draftFullName, setDraftFullName] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [avatarPercent, setAvatarPercent] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -132,14 +133,10 @@ export function ProfilePage() {
       return;
     }
 
-    uploadAvatarMutation.mutate(file, {
-      onSuccess: () => {
-        toast.success(t("saveSuccess"));
-      },
-      onError: () => {
-        toast.error(t("saveError"));
-      },
-    });
+    setAvatarPercent(0);
+    // No handlers here: the mutation hook already toasts on both outcomes, and passing them again
+    // fires both sets — which is why every upload announced itself twice.
+    uploadAvatarMutation.mutate({ file, onProgress: setAvatarPercent });
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -234,6 +231,7 @@ export function ProfilePage() {
         role={profile.role}
         avatarTitle={t("avatarTitle")}
         isUploading={uploadAvatarMutation.isPending}
+        uploadPercent={avatarPercent}
         fileInputRef={fileInputRef}
         onAvatarChange={handleAvatarChange}
         avatarError={avatarError}

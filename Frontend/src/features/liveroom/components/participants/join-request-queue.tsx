@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { asApiError } from "@/lib/api-client";
-import { AvatarInitials } from "../ui/avatar-initials";
+import { UserAvatar } from "../ui/user-avatar";
 import { useApproveJoinRequest, useRejectJoinRequest } from "../../api/join-requests";
 import { resolveLiveroomErrorMessage } from "../../lib/resolve-liveroom-error-message";
 import { useLiveroomStore } from "../../stores/use-liveroom-store";
@@ -51,9 +51,13 @@ export function JoinRequestQueue({ roomId }: { roomId: string }) {
 
   return (
     <section className="flex flex-col gap-2 border-b border-neutral-200 px-3 py-3 dark:border-neutral-800">
-      <h3 className="text-xs font-semibold tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+      <h3 className="flex items-center gap-2 text-xs font-semibold tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
         {t("title")}
-        {pending.length > 0 ? ` (${pending.length})` : ""}
+        {pending.length > 0 ? (
+          <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] leading-none font-bold text-white tabular-nums">
+            {pending.length}
+          </span>
+        ) : null}
       </h3>
 
       {pending.length === 0 ? (
@@ -62,8 +66,9 @@ export function JoinRequestQueue({ roomId }: { roomId: string }) {
         <ul className="flex flex-col gap-2">
           {pending.map((request) => (
             <li key={request.id} className="flex items-center gap-2">
-              <AvatarInitials
+              <UserAvatar
                 email={request.userEmail}
+                avatarUrl={request.avatarUrl}
                 seed={request.userId}
                 className="size-8 text-xs"
               />

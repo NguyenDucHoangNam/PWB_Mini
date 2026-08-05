@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SongEditDialog } from "./song-edit-dialog";
-import { SongStatusBadge } from "./song-status-badge";
+import { SongStatusBadge, SongVoiceTagBadge } from "./song-status-badge";
 import type { Song } from "../types";
 
 interface SongCardProps {
@@ -44,7 +44,8 @@ export function SongCard({ song, onDelete }: SongCardProps) {
             </h3>
             <SongStatusBadge status={song.status} />
           </div>
-          <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
+            <SongVoiceTagBadge hasVoiceTag={song.hasVoiceTag} />
             <span>{(song.format ?? "").toUpperCase()}</span>
             {song.fileSizeBytes !== null && <span>{formatBytes(song.fileSizeBytes)}</span>}
             {song.durationSeconds !== null && <span>{formatDuration(song.durationSeconds)}</span>}

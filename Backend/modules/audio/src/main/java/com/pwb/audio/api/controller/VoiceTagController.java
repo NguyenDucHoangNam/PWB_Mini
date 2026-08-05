@@ -8,6 +8,9 @@ import com.pwb.audio.api.dto.response.TtsVoiceResponse;
 import com.pwb.audio.api.dto.response.VoiceTagResponse;
 import com.pwb.audio.application.command.DeleteVoiceTagCommand;
 import com.pwb.audio.application.command.UpdateVoiceTagCommand;
+import com.pwb.audio.application.command.VoiceTagAudioUpload;
+import com.pwb.audio.application.exception.AudioBusinessException;
+import com.pwb.audio.application.exception.AudioErrorCode;
 import com.pwb.audio.application.usecase.VoiceTagUseCase;
 import com.pwb.audio.application.view.AudioUrlView;
 import com.pwb.audio.application.view.TtsPreview;
@@ -18,6 +21,8 @@ import com.pwb.web.dto.PageResponses;
 import com.pwb.web.message.MessageResolver;
 import com.pwb.web.security.CurrentUser;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,6 +32,7 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -34,8 +40,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -46,10 +55,12 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/voice-tags")
 @RequiredArgsConstructor
+@Validated
 public class VoiceTagController {
 
     private static final String MSG_VOICE_TAG_UPDATED = "AUDIO_VOICE_TAG_UPDATED";
     private static final String MSG_TTS_VOICE_TAG_CREATED = "AUDIO_TTS_VOICE_TAG_CREATED";
+    private static final String MSG_UPLOADED_VOICE_TAG_CREATED = "AUDIO_UPLOADED_VOICE_TAG_CREATED";
 
     private static final Duration AUDIO_URL_EXPIRATION = Duration.ofHours(1);
 
@@ -73,6 +84,39 @@ public class VoiceTagController {
         VoiceTagResponse body = VoiceTagResponse.from(view);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(messageResolver.get(MSG_TTS_VOICE_TAG_CREATED), body));
+    }
+
+    /**
+     * Registers a clip the user recorded elsewhere. Multipart rather than the presigned-upload dance the
+     * songs use: the clip is a few seconds long, and the server has to read the bytes anyway to measure
+     * the duration before it will accept them.
+     */
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<VoiceTagResponse>> createVoiceTagUpload(
+            @CurrentUser UUID userId,
+            @RequestParam("name") @NotBlank @Size(max = 100) String name,
+            @RequestParam("file") MultipartFile file
+    ) {
+        VoiceTagView view = voiceTagUseCase.createVoiceTagUpload(userId, name, toUpload(file));
+        VoiceTagResponse body = VoiceTagResponse.from(view);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(messageResolver.get(MSG_UPLOADED_VOICE_TAG_CREATED), body));
+    }
+
+    /** Adapts Spring's multipart type into the framework-free record the application layer works with. */
+    private VoiceTagAudioUpload toUpload(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new AudioBusinessException(AudioErrorCode.FILE_EMPTY);
+        }
+        try {
+            return new VoiceTagAudioUpload(
+                    file.getOriginalFilename(),
+                    file.getContentType(),
+                    file.getBytes()
+            );
+        } catch (IOException ex) {
+            throw new AudioBusinessException(AudioErrorCode.INVALID_AUDIO_FILE, ex);
+        }
     }
 
     /**

@@ -167,6 +167,22 @@ Việc gì cần "phòng đang ACTIVE và người này đang ở trong đó" th
 
 190 file, không một dòng javadoc hay comment. Đây là lựa chọn có chủ đích, không phải sót — module `audio` và `iam` vẫn giữ comment của chúng. Lý do một quyết định được làm như vậy thì viết vào **mục 2 này**, không viết vào code.
 
+### 2.23 Ảnh đại diện lấy từ IAM qua `UserDirectoryPort`, presign **12 giờ**
+
+Ô khung hình khi tắt cam hiển thị ảnh đại diện thật, mà chỉ IAM biết ảnh đó. `pwb-liveroom` vì vậy phụ thuộc `pwb-iam` — cùng hình dạng một chiều như `pwb-audio` (IAM không biết gì về phòng, không thể thành vòng), và toàn bộ chỗ chạm nằm trong `domain/service/UserDirectoryPort` + `infrastructure/service/IamUserDirectoryAdapter`.
+
+TTL của `AvatarProperties` là 15 phút, hợp với trang hồ sơ vì trang đó refetch được bất cứ lúc nào. Một phòng họp thì **nhận URL đúng một lần** rồi ngồi đó hàng giờ, nên adapter gọi `AvatarUrlResolver.resolve(stored, Duration)` với 12 giờ thay vì TTL mặc định. Không làm vậy thì ảnh lặng lẽ hỏng giữa buổi và rơi về chữ cái đầu — trình duyệt không báo gì, chỉ `onError`.
+
+`avatarUrl` đi kèm cả `PARTICIPANT_JOINED` và `JOIN_REQUEST_CREATED`, không chỉ đi trong snapshot: client tự dựng participant từ event, thiếu trường này thì người vừa vào phòng hiện chữ cái đầu cho tới lần tải lại snapshot kế tiếp.
+
+### 2.24 Hai chỗ làm hỏng song ngữ (sửa 2026-08-06)
+
+**Chỗ 1 — bundle không được đăng ký.** `classpath:liveroom/messages` thiếu trong `MessageSourceConfig.setBasenames`. Hậu quả: mọi message thành công trả về **nguyên key** (`LIVEROOM_ROOM_ENDED` hiện thẳng lên toast), và mọi `LR_xxx` rơi về `defaultMessage()` tiếng Anh hard-code trong enum — bất kể `Accept-Language`. Không có log nào báo, response vẫn 200 và vẫn có trường `message`. **Module nào có bundle riêng thì phải thêm basename**, nếu không nó im lặng trả key.
+
+**Chỗ 2 — map lỗi phía client thiếu gần hết.** `Frontend/src/lib/error-code-to-i18n.ts` chỉ map **9 / ~40** mã `LR_xxx`, trong khi `liveroom.errors.*` đã có bản dịch cho gần đủ. Mã không được map thì `resolveLiveroomErrorMessage` rơi xuống `error.message` của server — cộng với chỗ 1 thành ra giao diện tiếng Việt hiện lỗi tiếng Anh. Đây cũng là lý do màn hình lỗi trong `RoomScreen` (gọi với `{ code }`, không có `message`) chỉ hiện "Có lỗi xảy ra" chung chung thay vì lý do thật.
+
+**Quy ước từ nay:** toast thành công trong liveroom dùng key i18n phía client (`endedToast`, `kickedToast`, `reopenedToast`, `revivedToast`), **không** dùng `response.message`. Cả tính năng đã dịch phía client rồi; trộn hai nguồn là cách bug song ngữ quay lại. Thêm `LR_xxx` mới thì thêm **cả** entry trong map lẫn key `liveroom.errors.*` ở hai file `messages/en.json` và `messages/vi.json`.
+
 ---
 
 ## 3. Build, chạy, kiểm chứng
