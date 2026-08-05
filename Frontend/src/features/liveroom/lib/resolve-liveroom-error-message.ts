@@ -27,8 +27,8 @@ export function resolveLiveroomErrorMessage(
     const key = resolveErrorI18nKey(apiErr);
     if (key && key.startsWith(LIVEROOM_ERRORS_PREFIX)) {
       const shortKey = key.slice(LIVEROOM_ERRORS_PREFIX.length);
-      const seconds = apiErr.retryAfterSeconds;
-      return tErrors(shortKey, seconds != null ? { seconds } : undefined);
+      const seconds = apiErr.retryAfterSeconds ?? 0;
+      return tErrors(shortKey, { seconds });
     }
   }
 

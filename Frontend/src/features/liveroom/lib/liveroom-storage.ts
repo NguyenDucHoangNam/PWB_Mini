@@ -3,10 +3,12 @@ import type { RoomLookup } from "../types";
 const IDEM_KEY_PREFIX = "liveroom:idemKey:";
 const KICKED_PREFIX = "liveroom:kicked:";
 const LOOKUP_PREFIX = "liveroom:lookup:";
+const MEDIA_INTENT_PREFIX = "liveroom:mediaIntent:";
 
 const IDEM_KEY_TTL_MS = 24 * 60 * 60 * 1000;
 const KICKED_TTL_MS = 60 * 60 * 1000;
 const LOOKUP_TTL_MS = 60 * 60 * 1000;
+const MEDIA_INTENT_TTL_MS = 6 * 60 * 60 * 1000;
 
 interface Envelope<T> {
   value: T;
@@ -92,6 +94,24 @@ export function writeKicked(roomId: string, record: KickedRecord): void {
 
 export function clearKicked(roomId: string): void {
   remove(KICKED_PREFIX + roomId);
+}
+
+
+export interface MediaIntent {
+  cameraOn: boolean;
+  micOn: boolean;
+}
+
+export function readMediaIntent(roomId: string): MediaIntent | null {
+  return read<MediaIntent>(MEDIA_INTENT_PREFIX + roomId, MEDIA_INTENT_TTL_MS, true);
+}
+
+export function writeMediaIntent(roomId: string, intent: MediaIntent): void {
+  write(MEDIA_INTENT_PREFIX + roomId, intent, true);
+}
+
+export function clearMediaIntent(roomId: string): void {
+  remove(MEDIA_INTENT_PREFIX + roomId, true);
 }
 
 

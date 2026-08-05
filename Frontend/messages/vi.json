@@ -842,7 +842,9 @@
         "noVideo": "Đã tắt camera",
         "connecting": "Đang kết nối…",
         "connectionLost": "Không kết nối được",
-        "permissionBanner": "Camera và micro đang bị chặn. Bạn vẫn thấy và nghe được người khác."
+        "permissionBanner": "Camera và micro đang bị chặn. Bạn vẫn thấy và nghe được người khác.",
+        "micLevel": "Mức âm micro",
+        "micSilent": "Micro đang bật nhưng không thu được âm thanh. Kiểm tra thiết bị đầu vào hoặc nút tắt tiếng trên máy."
       },
       "ended": {
         "manualTitle": "Chủ phòng đã kết thúc phòng này",

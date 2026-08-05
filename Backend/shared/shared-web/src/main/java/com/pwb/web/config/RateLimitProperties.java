@@ -13,7 +13,7 @@ import java.util.Map;
 public class RateLimitProperties {
 
     private boolean enabled = true;
-    private int globalLimitPerMinute = 100;
+    private int globalLimitPerMinute = 500;
     private List<String> publicPaths = List.of("/actuator/**", "/health/**");
     private Map<String, EndpointRule> endpointLimits = Map.of();
     private List<String> trustedProxies = List.of();

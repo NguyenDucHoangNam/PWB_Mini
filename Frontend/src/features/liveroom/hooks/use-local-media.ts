@@ -25,10 +25,14 @@ export interface LocalMediaState {
   stopAll: () => void;
 }
 
+function isLive(track: MediaStreamTrack | null): track is MediaStreamTrack {
+  return track !== null && track.readyState === "live";
+}
 
 export function useLocalMedia(): LocalMediaState {
   const streamRef = useRef<MediaStream | null>(null);
   const audioTrackRef = useRef<MediaStreamTrack | null>(null);
+  const videoTrackRef = useRef<MediaStreamTrack | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [audioTrack, setAudioTrack] = useState<MediaStreamTrack | null>(null);
   const [videoTrack, setVideoTrack] = useState<MediaStreamTrack | null>(null);
@@ -65,6 +69,7 @@ export function useLocalMedia(): LocalMediaState {
       setError("unsupported");
       return false;
     }
+    if (isLive(videoTrackRef.current)) return true;
     setRequesting(true);
     try {
       const media = await navigator.mediaDevices.getUserMedia({ video: VIDEO_CONSTRAINTS });
@@ -73,7 +78,8 @@ export function useLocalMedia(): LocalMediaState {
         track?.stop();
         return false;
       }
-      swapTrack(videoTrack, track);
+      swapTrack(videoTrackRef.current, track);
+      videoTrackRef.current = track;
       setVideoTrack(track);
       setError(null);
       return Boolean(track);
@@ -83,15 +89,19 @@ export function useLocalMedia(): LocalMediaState {
     } finally {
       if (mountedRef.current) setRequesting(false);
     }
-  }, [swapTrack, videoTrack]);
+  }, [swapTrack]);
 
   const disableCamera = useCallback(() => {
-    swapTrack(videoTrack, null);
+    swapTrack(videoTrackRef.current, null);
+    videoTrackRef.current = null;
     setVideoTrack(null);
-  }, [swapTrack, videoTrack]);
+  }, [swapTrack]);
 
-  const setMicEnabled = useCallback((enabled: boolean) => setMicOn(enabled), []);
-
+  const setMicEnabled = useCallback((enabled: boolean) => {
+    const track = audioTrackRef.current;
+    if (track) track.enabled = enabled;
+    setMicOn(enabled && isLive(track));
+  }, []);
 
   useEffect(() => {
     const track = audioTrackRef.current;
@@ -103,7 +113,7 @@ export function useLocalMedia(): LocalMediaState {
       setError("unsupported");
       return false;
     }
-    if (audioTrack) {
+    if (isLive(audioTrackRef.current)) {
       setMicEnabled(true);
       return true;
     }
@@ -115,8 +125,9 @@ export function useLocalMedia(): LocalMediaState {
         track?.stop();
         return false;
       }
-      swapTrack(null, track);
+      swapTrack(audioTrackRef.current, track);
       audioTrackRef.current = track;
+      if (track) track.enabled = true;
       setAudioTrack(track);
       setMicOn(Boolean(track));
       setError(null);
@@ -127,7 +138,7 @@ export function useLocalMedia(): LocalMediaState {
     } finally {
       if (mountedRef.current) setRequesting(false);
     }
-  }, [audioTrack, setMicEnabled, swapTrack]);
+  }, [setMicEnabled, swapTrack]);
 
   const disableMic = useCallback(() => setMicEnabled(false), [setMicEnabled]);
 
@@ -137,6 +148,7 @@ export function useLocalMedia(): LocalMediaState {
       streamRef.current?.removeTrack(track);
     });
     audioTrackRef.current = null;
+    videoTrackRef.current = null;
     setVideoTrack(null);
     setAudioTrack(null);
     setMicOn(false);

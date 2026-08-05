@@ -50,9 +50,9 @@ public class LiveroomConfig {
     @Setter
     public static class CodeLookup {
 
-        private int maxAttempts = 5;
+        private int maxAttempts = 20;
 
-        private Duration window = Duration.ofHours(1);
+        private Duration window = Duration.ofMinutes(15);
     }
 
     @Getter

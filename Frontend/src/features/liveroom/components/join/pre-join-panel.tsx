@@ -6,6 +6,7 @@ import { Camera, CameraOff, Loader2, Mic, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DevicePermissionNotice } from "./device-permission-notice";
 import { JoinStepIndicator } from "./join-step-indicator";
+import { useAudioLevel } from "../../hooks/use-audio-level";
 import type { LocalMediaState } from "../../hooks/use-local-media";
 
 interface PreJoinPanelProps {
@@ -18,6 +19,7 @@ interface PreJoinPanelProps {
 export function PreJoinPanel({ media, submitting, disabled, onSubmit }: PreJoinPanelProps) {
   const t = useTranslations("liveroom.prejoin");
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioLevel = useAudioLevel(media.micOn ? media.stream : null);
 
   useEffect(() => {
     const element = videoRef.current;
@@ -52,6 +54,26 @@ export function PreJoinPanel({ media, submitting, disabled, onSubmit }: PreJoinP
           </div>
         ) : null}
       </div>
+
+      {media.micOn ? (
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-neutral-500 dark:text-neutral-400">
+            {t("micPreview")}
+          </span>
+          <span className="flex flex-1 items-end gap-1" aria-hidden>
+            {[1, 2, 3, 4].map((bar) => (
+              <span
+                key={bar}
+                className={`h-2 flex-1 rounded-full transition-colors ${
+                  audioLevel >= bar
+                    ? "bg-emerald-500"
+                    : "bg-neutral-200 dark:bg-neutral-800"
+                }`}
+              />
+            ))}
+          </span>
+        </div>
+      ) : null}
 
       {media.error ? <DevicePermissionNotice kind={media.error} /> : null}
 

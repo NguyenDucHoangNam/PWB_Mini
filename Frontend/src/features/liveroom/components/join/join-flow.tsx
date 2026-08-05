@@ -19,6 +19,7 @@ import {
   getOrCreateIdempotencyKey,
   readLookup,
   writeLookup,
+  writeMediaIntent,
 } from "../../lib/liveroom-storage";
 import { resolveLiveroomErrorMessage } from "../../lib/resolve-liveroom-error-message";
 import type { JoinRequest, RoomLookup } from "../../types";
@@ -137,6 +138,7 @@ export function JoinFlow({ roomCode }: { roomCode: string }) {
           submitting={asking}
           disabled={unavailable}
           onSubmit={() => {
+            writeMediaIntent(roomId, { cameraOn: media.cameraOn, micOn: media.micOn });
             media.stopAll();
             askToJoin({
               roomId,

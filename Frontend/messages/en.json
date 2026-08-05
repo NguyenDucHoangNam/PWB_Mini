@@ -842,7 +842,9 @@
         "noVideo": "Camera off",
         "connecting": "Connecting…",
         "connectionLost": "Could not connect",
-        "permissionBanner": "Camera and microphone are blocked. You can still see and hear others."
+        "permissionBanner": "Camera and microphone are blocked. You can still see and hear others.",
+        "micLevel": "Microphone level",
+        "micSilent": "Your microphone is on but no sound is coming through. Check your input device or hardware mute switch."
       },
       "ended": {
         "manualTitle": "The host ended this room",

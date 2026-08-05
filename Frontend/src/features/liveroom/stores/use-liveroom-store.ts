@@ -42,6 +42,12 @@ interface RoomSlice {
   ownerId: string | null;
 }
 
+export interface PeerSlice {
+  state: RTCPeerConnectionState;
+  stream: MediaStream | null;
+  videoActive: boolean;
+}
+
 interface LiveroomState {
   roomId: string | null;
   myUserId: string | null;
@@ -76,7 +82,7 @@ interface LiveroomState {
 
   rtc: {
     config: RtcConfig | null;
-    peers: Record<string, { state: RTCPeerConnectionState; stream: MediaStream | null }>;
+    peers: Record<string, PeerSlice>;
   };
 
   lifecycle: {
@@ -111,6 +117,7 @@ interface LiveroomState {
   removePendingChat: (tempId: string) => void;
   setPeerState: (userId: string, state: RTCPeerConnectionState) => void;
   setPeerStream: (userId: string, stream: MediaStream | null) => void;
+  setPeerVideoActive: (userId: string, active: boolean) => void;
   removePeer: (userId: string) => void;
   clearEnding: () => void;
 }
@@ -131,6 +138,12 @@ const EMPTY_ROOM: RoomSlice = {
 };
 
 const ROOM_END_GRACE_MS = 5000;
+
+const EMPTY_PEER: PeerSlice = { state: "new", stream: null, videoActive: false };
+
+function peerSliceOf(existing: PeerSlice | undefined): PeerSlice {
+  return existing ?? EMPTY_PEER;
+}
 
 function synthesizeParticipant(
   existing: Participant | undefined,
@@ -301,7 +314,7 @@ export const useLiveroomStore = create<LiveroomState>((set, get) => ({
         ...state.rtc,
         peers: {
           ...state.rtc.peers,
-          [userId]: { state: peerState, stream: state.rtc.peers[userId]?.stream ?? null },
+          [userId]: { ...peerSliceOf(state.rtc.peers[userId]), state: peerState },
         },
       },
     })),
@@ -312,7 +325,22 @@ export const useLiveroomStore = create<LiveroomState>((set, get) => ({
         ...state.rtc,
         peers: {
           ...state.rtc.peers,
-          [userId]: { state: state.rtc.peers[userId]?.state ?? "new", stream },
+          [userId]: {
+            ...peerSliceOf(state.rtc.peers[userId]),
+            stream,
+            videoActive: stream ? (state.rtc.peers[userId]?.videoActive ?? false) : false,
+          },
+        },
+      },
+    })),
+
+  setPeerVideoActive: (userId, active) =>
+    set((state) => ({
+      rtc: {
+        ...state.rtc,
+        peers: {
+          ...state.rtc.peers,
+          [userId]: { ...peerSliceOf(state.rtc.peers[userId]), videoActive: active },
         },
       },
     })),

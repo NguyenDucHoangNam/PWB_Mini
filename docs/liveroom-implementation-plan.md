@@ -361,6 +361,62 @@ Lưu ý khi test: `-Dspring-boot.run.jvmArguments` **không truyền được** 
 
 ---
 
+## 6.3 Lượt vá WebRTC sau khi test hai máy (2026-08-05)
+
+Test nhanh 2 tài khoản lộ ra: (a) guest chọn bật cam/mic ở pre-join nhưng vào phòng thì tắt hết, (b) hai bên không thấy/nghe được nhau. Truy ra 5 nguyên nhân gốc, tất cả nằm ở frontend.
+
+1. **`ontrack` không bao giờ có stream.** `PeerConnectionManager` gắn track bằng `addTransceiver(kind)` rồi `replaceTrack()`. `replaceTrack` **không** gắn track vào MediaStream nào, nên SDP không có `msid` và `RTCTrackEvent.streams` rỗng ở đầu kia — `onRemoteStream` không bao giờ chạy. Đây là lỗi đủ để giết cả hình lẫn tiếng kể cả khi signaling chạy đúng. Giờ manager tự dựng một `MediaStream` cho mỗi peer và `addTrack(event.track)` vào đó.
+2. **Không ai gọi ai.** Người mới chỉ gọi những participant có `joinedAt` **muộn hơn** mình — với người mới thì tập đó luôn rỗng. Chiều còn lại (người đang ở trong phòng gọi người mới qua `PARTICIPANT_JOINED`) thì bắn offer ngay khi `joinRoom` trả về, tức là **trước** khi mesh của người mới kịp dựng (`phase === "ready"` phải chờ xong cả snapshot), nên offer rơi mất và không có gì phát lại. Đổi quy ước: **ai vào sau thì gọi** (so `joinedAt`, hoà thì so `userId`), và gọi từ snapshot của chính mình — lúc đó manager chắc chắn đã tồn tại. Bên vào trước chỉ ngồi chờ offer.
+3. **Không có đường hồi phục.** `restartIce()` được gọi nhưng không ai gửi offer mới nên ICE restart không bao giờ xảy ra. Giờ có `onnegotiationneeded` (chỉ bên chủ động mới bắn), perfect-negotiation cho glare, hàng đợi ICE cho candidate tới trước peer, và vòng heal 5s: peer nào đã gửi offer quá 8s mà chưa `connected` thì dựng lại, tối đa 3 lần.
+4. **Tiếng chỉ nằm trên thẻ `<video>` bị `hidden` khi tắt cam.** Mỗi tile giờ có thẻ `<audio>` riêng cho peer, kèm retry `play()` ở cú click tiếp theo phòng khi autoplay bị chặn.
+5. **Lựa chọn cam/mic ở pre-join bị vứt.** `JoinFlow` giữ `useLocalMedia` riêng, submit là `stopAll()`, rồi `RoomScreen` mount một `useLocalMedia` mới mặc định tắt. Giờ ghi ý định vào sessionStorage (`liveroom:mediaIntent:<roomId>`, xem `liveroom-storage.ts`) và `RoomScreen` áp dụng đúng một lần khi `phase === "ready"`, có PATCH lại media state cho phòng biết.
+
+Tiện thể: owner mute người khác thì trước đây chỉ **khoá nút** chứ track vẫn phát — `RoomScreen` giờ tắt mic thật khi `micState === "MUTED_BY_OWNER"`.
+
+Backend signaling không phải sửa gì: principal là `userId`, `/user/queue/liveroom/rtc` và `RelayRtcSignalUseCase` đều đúng.
+
+### 6.3.1 Nguyên nhân thứ 6 — bên trả lời không bao giờ gửi media (đo bằng probe)
+
+Sau lượt vá trên, test lại vẫn thấy: host hiện hình guest bình thường, guest chỉ thấy avatar của host, hai bên không nghe nhau, mà `connectionState` cả hai đều `connected`. Dựng hai `RTCPeerConnection` trong một trang trắng, tái hiện đúng trình tự code (track tổng hợp bằng `canvas.captureStream` + `AudioContext`, không cần webcam) thì ra ngay:
+
+> `addTransceiver()` gọi **trước** `setRemoteDescription(offer)` ở bên trả lời **không** được ghép vào m-line của offer.
+
+Chrome tạo transceiver `recvonly` **mới** cho từng m-line của offer, còn hai transceiver mang track của mình thì mồ côi (`mid: null`, `currentDirection: null`). Bên trả lời kết thúc với **4** transceiver, answer là `a=recvonly` cả audio lẫn video → **không gửi gì**, `ontrack` bên kia không bao giờ chạy. Chiều ngược lại vẫn chạy vì bên gọi tự sinh m-line từ transceiver của nó. Đúng y triệu chứng.
+
+Sửa: bên trả lời **không** dựng transceiver trước. `setRemoteDescription(offer)` trước đã, rồi mới nhận lấy transceiver mà nó vừa tạo — ép `direction = "sendrecv"` và `replaceTrack()` vào sender — xong mới `setLocalDescription()`. Bên gọi vẫn `addTransceiver` như cũ. Cả hai vai dùng chung một hàm `applyLocalTracks(pc, create)`; `create` chỉ bật cho bên gọi để không đẻ thêm m-line mà answer không mang được.
+
+Đo lại sau khi sửa: answer `sendrecv/sendrecv`, mỗi bên đúng 2 transceiver, byte chạy cả hai chiều cho cả audio lẫn video, bật/tắt cam sau đó **không** phát sinh renegotiation.
+
+### 6.3.2 Còn "mic không nghe" — đã đo hết đường ống, code sạch
+
+Sau khi hình chạy hai chiều, tiếng vẫn không nghe. Đo bằng probe từng khúc một, **không tìm thấy lỗi code nào nữa**:
+
+| Khúc | Cách đo | Kết quả |
+| ---- | ------- | ------- |
+| Transport | hai `RTCPeerConnection`, `getStats()` | byte audio chạy cả hai chiều, `totalAudioEnergy` 9.06 |
+| Phát lại | `<audio>` nhận stream gộp / stream chỉ audio / `<video>` không mute, đo bằng `captureStream()` + `AnalyserNode` | cả ba đều `audible`, `peakSpectrum` 255 |
+| Manager thật | biên dịch `peer-connection-manager.ts` rồi cho hai instance nói chuyện đúng thứ tự thật (host bật cam+mic trước, guest gọi rồi mới gắn track) | hai bên nhận đủ `audio+video`, track `live`, `muted=false` |
+
+Nghĩa là khúc duy nhất chưa quan sát được là **mic có thu được gì không** — và đúng chỗ đó app đang mù hoàn toàn:
+
+1. **Lỗi thiết bị trong phòng bị nuốt sạch.** `DevicePermissionNotice` chỉ có ở pre-join. `getUserMedia` fail trong phòng (hay gặp nhất: `NotReadableError` khi hai profile Chrome trên cùng máy giành một mic) thì `enableMic()` trả `false`, `media.error` được set và **không hiển thị ở đâu cả** — nút mic lặng lẽ không bật lên. Giờ có toast dùng lại các key `liveroom.prejoin.*`.
+2. **Không có chỉ báo mức âm.** Key `prejoin.micPreview` và `room.video.permissionBanner` đã nằm sẵn trong file dịch từ đầu nhưng chưa ai dựng. Giờ mỗi tile có meter 4 vạch + viền xanh khi đang phát ra tiếng (`use-audio-level.ts`), chạy cho cả tile của mình lẫn tile người khác. Đây vừa là tính năng vừa là thứ trả lời được câu "tiếng có tới không" mà không cần mở `webrtc-internals`.
+
+Test tiếp theo cho kết quả quyết định: Chrome báo **"Microphone: Using now"** mà meter đứng yên ⇒ track mic sống nhưng **trả về im lặng**, và đó đúng là thứ peer kia nhận được. Không phải lỗi đường ống. Hai thủ phạm ngoài code, cùng đến từ việc test hai profile Chrome trên **một máy**: hai process giành một mic (process thứ hai nhận silence, tuỳ driver shared/exclusive mode), và AEC — hai cửa sổ loopback độ trễ thấp làm tín hiệu tham chiếu trùng gần khớp với tiếng nói trực tiếp nên bị trừ gần hết. Ảnh cũng cho thấy tile `pro1` đang là **mic gạch chéo**, tức host chưa bật mic — chiều đó không có gì để nghe ngay từ đầu.
+
+Nên phần bổ sung tập trung vào việc làm tình trạng này **nhìn thấy được**, thay vì vá mù:
+- Meter đo đúng cái track sẽ được gửi đi (sau AEC), nên "vạch không nhảy" = "peer sẽ không nghe thấy gì". Đây là câu trả lời trực tiếp, không cần mở `webrtc-internals`.
+- Banner cảnh báo khi mic bật mà im lặng quá 6s, kèm `audioTrack.label` để lộ ngay trường hợp Chrome chọn nhầm thiết bị đầu vào.
+- Meter cũng được gắn vào pre-join (key `micPreview` có sẵn từ đầu) — chỗ test mic **một cửa sổ, tách biệt**, trước khi vào phòng.
+
+Lưu ý khi đọc `use-audio-level.ts`: sự kiện `addtrack` **không** phát khi gọi `stream.addTrack()` từ script (spec chỉ phát khi user agent tự thêm) — mà cả stream preview local lẫn `remoteStream` của peer đều được thêm track bằng script. Nên hook dò track theo nhịp 100ms chứ không nghe event. Đã đo: chưa có track → 0, script thêm track → đầy vạch, `track.enabled = false` → 0, bật lại → đầy vạch, gỡ track → 0.
+
+Probe cũng lộ hai thứ nữa, đã tính vào code:
+- `RTCTrackEvent.streams` **luôn rỗng** khi gắn track bằng `replaceTrack` (xác nhận lỗi số 1 ở trên) — bắt buộc phải tự dựng `MediaStream` cho mỗi peer.
+- `replaceTrack(null)` lúc tắt cam **không** làm track phía kia `mute`, nên chỉ nghe track là không đủ: tile đứng hình frame cuối. Điều kiện hiện hình phải là `videoActive && participant.cameraOn` — track lo "media đã chạy chưa", server lo "người ta có bật cam không".
+
+---
+
 ## 7. Bắt đầu một phiên mới thế nào
 
 Backend đã xong hết và đã qua một lượt vá (mục 6); còn lại là Phase 9 (frontend, mục 4). Trước khi viết code nên:
