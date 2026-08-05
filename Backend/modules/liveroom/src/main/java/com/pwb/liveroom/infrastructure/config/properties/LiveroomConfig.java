@@ -20,6 +20,7 @@ public class LiveroomConfig {
     private CodeLookup codeLookup = new CodeLookup();
     private Moderation moderation = new Moderation();
     private Chat chat = new Chat();
+    private Music music = new Music();
     private Rtc rtc = new Rtc();
 
     @Getter
@@ -70,6 +71,13 @@ public class LiveroomConfig {
     public static class Chat {
 
         private Duration retention = Duration.ofDays(90);
+    }
+
+    @Getter
+    @Setter
+    public static class Music {
+
+        private Duration audioUrlTtl = Duration.ofHours(1);
     }
 
     @Getter

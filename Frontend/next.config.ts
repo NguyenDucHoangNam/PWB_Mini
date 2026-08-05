@@ -35,8 +35,17 @@ const sameOrigin =
 const localBackendFallback = "http://localhost:8080";
 
 /**
+ * The live room talks STOMP over a WebSocket to the backend origin, so that
+ * origin has to be allowed with a ws(s):// scheme too — `connect-src` matches
+ * on scheme, and the http(s) entry above does not cover the handshake.
+ */
+const backendWsOrigin = backendOrigin ? backendOrigin.replace(/^http/, "ws") : null;
+const localBackendWsFallback = localBackendFallback.replace(/^http/, "ws");
+
+/**
  * Build the connect-src directive based on the configured backend origin.
- * - Always: 'self' (same-origin), https://accounts.google.com (Google Identity).
+ * - Always: 'self' (same-origin), https://accounts.google.com (Google Identity),
+ *   and the backend's ws(s) origin for the live room socket.
  * - Dev: ws:/wss: (Next.js HMR websocket).
  * - When `NEXT_PUBLIC_API_BASE_URL` is set: include its origin so the
  *   browser allows `fetch`/XHR to the backend. Without this, the first
@@ -47,6 +56,8 @@ const connectSrc = [
   sameOrigin,
   backendOrigin,
   localBackendFallback,
+  backendWsOrigin,
+  localBackendWsFallback,
   "https://accounts.google.com",
   isDev ? "ws: wss:" : null,
 ]

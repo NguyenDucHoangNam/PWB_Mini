@@ -143,6 +143,12 @@ Duyệt join request (`ApproveJoinRequestUseCaseImpl`) gọi thẳng `admissions
 
 Việc gì cần chạy "khi có người vào phòng" thì phải móc **cả hai** chỗ.
 
+Hệ quả cho client: người vừa được duyệt **đã ngồi sẵn trong phòng** trước khi `REQUEST_APPROVED` rời server (cùng transaction). Gọi `POST /participants/me` lúc đó sẽ ăn `LR_041`. Luật đúng cho FE, dùng chung cho mọi trường hợp:
+
+> Vào màn phòng họp thì cứ gọi `POST /participants/me`, và coi **`LR_041` là thành công**. `LR_044` → đá về luồng xin vào; `LR_051` → màn cooldown bị kick; `LR_040` phòng đầy; `LR_002` phòng đã kết thúc.
+
+Luật này đúng cho cả owner vào phòng mình, người vừa được duyệt, và người rời rồi quay lại.
+
 ### 2.20 Signaling đi hàng đợi riêng của từng người, **không** đi topic con
 
 Kế hoạch ban đầu định dùng `/topic/liveroom/{roomId}/rtc/{targetUserId}`. Không dùng được: `StompSubscriptionScopeInterceptor` chỉ đọc `{roomId}` ở segment đầu, nên **bất kỳ ai trong phòng cũng subscribe được topic RTC của người khác** và đọc trọn SDP/ICE của cặp peer đó. Muốn vá thì phải cho interceptor hiểu thêm segment cuối — tức là thêm một luật bảo mật nữa dễ quên.
@@ -327,7 +333,31 @@ Một lượt rà lại backend trước khi bắt đầu Phase 9. Tất cả đ
 
 **Không** đụng tới, vẫn nằm ở mục 5: broker/registry in-memory, TURN credential tĩnh, R-ROLE-06 (IAM chưa có API đổi role nên không có nguồn kích hoạt), REST POST gửi chat (cố ý không làm).
 
+### 6.1 Bổ sung khi bắt đầu frontend (Phase 0 của FE)
+
+`GET /rooms/{roomId}/music/audio-url` — thêm vì phát hiện **nghe chung không chạy được cho người không sở hữu bài hát**: `SongUseCaseImpl.getAudioUrl` đi qua `requireOwnedSong`, còn `SongCatalogPort` chỉ trả metadata (`PlayableSong` không có S3 key). Mọi người nhận được tên bài và độ dài mà không có đường nào lấy file.
+
+Endpoint chắn bằng `RoomSessions.requireInRoom` (ngoài phòng → `LR_042`), và **`songId` lấy từ `PlaybackState` của phòng chứ không nhận từ client** — nhận từ client thì nó thành oracle dò quyền sở hữu bài hát của người khác. Chưa có bài nào đang phát → `LR_072`. TTL chỉnh bằng `pwb.liveroom.music.audio-url-ttl` (mặc định 1h).
+
+`SongCatalogPort` thêm `presignPlayback(songId, ttl)`; `AudioSongCatalogAdapter` gọi thẳng `StoragePort.presignDownload` — **cố ý không qua `SongUseCase`**, vì use case đó gắn liền với kiểm tra quyền sở hữu.
+
+Đã kiểm chứng bằng API thật: chủ bài và người khác trong phòng đều nhận URL presign của cùng một `songId`; người ngoài phòng nhận `LR_042`.
+
 Lưu ý khi test: `-Dspring-boot.run.jvmArguments` **không truyền được** giá trị có dấu cách (cron), dùng biến môi trường (`PWB_LIVEROOM_SCHEDULER_CHATRETENTIONCRON`). Và script STOMP phải `sleep` sau khi `subscribe` rồi mới publish — không thì frame tới trước lúc SUBSCRIBE được xử lý và trông y hệt một lỗi thật (đã mất công vì đúng chỗ này).
+
+---
+
+## 6.2 Phase 9 — frontend (đã làm)
+
+`Frontend/src/features/liveroom/` (74 file) + route `(dashboard)/dashboard/liveroom/*` và route group full-screen `(liveroom)/liveroom/[roomId]`.
+
+**Ba lỗi chỉ lộ ra khi chạy client thật** — đúng như kinh nghiệm các phase trước:
+
+1. **Hàng chờ duyệt không tự xoá sau khi owner bấm Cho vào.** `REQUEST_APPROVED` chỉ gửi cho người xin vào (§2.6), owner không bao giờ nhận nên store không có gì để xoá. Owner phải tự gỡ dòng đó trong `onSuccess` của mutation — xem `removeJoinRequest` trong store.
+2. **`myUserId` null lúc mount.** `RoomScreen` đọc user từ auth store; khi F5, token được khôi phục trước khi object `user` có, nên store bị `reset` với id rỗng và mọi so sánh "cái này của tôi" (owner, tile của mình, echo chat của mình) đều sai. Màn phòng giờ **chờ tới khi biết user** rồi mới mở phiên.
+3. **Nhạc mất sau F5.** Backend chỉ đẩy bài đang phát cho người nó vừa xếp chỗ; người đã ngồi trong phòng F5 sẽ nhận `LR_041` nên không được đẩy gì. `use-room-session` publish `music/get-state` ngay sau khi nạp snapshot.
+
+**Môi trường**: `node_modules` của Frontend còn symlink trỏ về `frontend` viết thường (di sản commit `69a42ee` đổi tên thư mục). Node giải quyết được vì Windows không phân biệt hoa thường, nhưng **Turbopack thì không** — cả `next dev` lẫn `next build` chết với "inferred your workspace root ... couldn't find the Next.js package". Khắc phục: xoá `node_modules` và `pnpm install` lại. Đặt `turbopack.root` **không** giải quyết được.
 
 ---
 

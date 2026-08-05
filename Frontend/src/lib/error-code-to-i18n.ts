@@ -17,6 +17,16 @@ const EXACT_ERROR_CODE_TO_I18N_KEY: Record<string, string> = {
   VOICE_015: "voice.errors.processingInProgress",
   VOICE_TAG_IN_USE: "voice.errors.voiceTagInUse",
 
+  LR_006: "liveroom.errors.codeThrottled",
+  LR_032: "liveroom.errors.requestLocked",
+  LR_040: "liveroom.errors.roomFull",
+  LR_044: "liveroom.errors.approvalRequired",
+  LR_051: "liveroom.errors.kickCooldown",
+  LR_052: "liveroom.errors.micCooldown",
+  LR_075: "liveroom.errors.musicConflict",
+  LR_076: "liveroom.errors.musicOwnerAbsent",
+  LR_080: "liveroom.errors.wsUnauthorized",
+
   VALIDATION_FAILED: "validation.required",
   VALIDATION_INVALID_REQUEST: "validation.required",
   VALIDATION_CONSTRAINT_VIOLATION: "validation.required",

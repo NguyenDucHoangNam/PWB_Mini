@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { MobileDrawer } from "./mobile-drawer";
 import { UserDropdown, LogOut } from "./user-dropdown";
 import { LocaleSwitcher } from "./locale-switcher";
-import { User as UserIcon } from "lucide-react";
+import { KeyRound, User as UserIcon, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { useProGuard } from "@/features/auth/hooks/use-pro-guard";
@@ -35,6 +35,7 @@ interface NavItem {
 
 export function SiteHeaderClient() {
   const t = useTranslations("header");
+  const tLiveroom = useTranslations("liveroom.nav");
   const [isOpen, setIsOpen] = useState(false);
   const isMounted = useSyncExternalStore(subscribeMounted, getMountedSnapshot, getServerSnapshot);
   const pathname = usePathname();
@@ -102,6 +103,20 @@ export function SiteHeaderClient() {
   ];
 
   const dropdownItems: Array<import("@/hooks/use-dropdown-menu").DropdownItem> = [
+    ...(isPro
+      ? [
+          {
+            label: tLiveroom("liveroom"),
+            href: "/dashboard/liveroom",
+            icon: <Video aria-hidden="true" />,
+          },
+        ]
+      : []),
+    {
+      label: tLiveroom("joinRoom"),
+      href: "/dashboard/liveroom/join",
+      icon: <KeyRound aria-hidden="true" />,
+    },
     {
       label: t("profile"),
       href: "/dashboard/profile",
@@ -204,6 +219,8 @@ export function SiteHeaderClient() {
                   profile: t("profile"),
                   logout: t("logout"),
                   account: t("account"),
+                  liveroom: tLiveroom("liveroom"),
+                  joinRoom: tLiveroom("joinRoom"),
                 }}
                 onLogout={handleLogout}
                 onNavigate={() => setIsOpen(false)}
@@ -290,6 +307,8 @@ interface MobileMenuLabels {
   profile: string;
   logout: string;
   account: string;
+  liveroom: string;
+  joinRoom: string;
 }
 
 function MobileAuthenticated({
@@ -320,6 +339,14 @@ function MobileAuthenticated({
           {labels.dashboard}
         </Link>
       )}
+      {isPro && (
+        <Link href="/dashboard/liveroom" onClick={onNavigate} className={linkClass}>
+          {labels.liveroom}
+        </Link>
+      )}
+      <Link href="/dashboard/liveroom/join" onClick={onNavigate} className={linkClass}>
+        {labels.joinRoom}
+      </Link>
       <Link href="/dashboard/profile" onClick={onNavigate} className={linkClass}>
         {labels.profile}
       </Link>
