@@ -39,6 +39,9 @@ public enum LiveroomErrorCode implements ErrorCode {
 
     CHAT_EMPTY                   (ErrorCategory.VALIDATION,        "LR_060", "Chat message content is empty."),
     CHAT_TOO_LONG                (ErrorCategory.VALIDATION,        "LR_061", "Chat message exceeds maximum length."),
+    TRACK_COMMENT_EMPTY          (ErrorCategory.VALIDATION,        "LR_062", "Track comment content is empty."),
+    TRACK_COMMENT_TOO_LONG       (ErrorCategory.VALIDATION,        "LR_063", "Track comment exceeds maximum length."),
+    TRACK_COMMENT_SONG_MISMATCH  (ErrorCategory.CONFLICT,          "LR_064", "That song is no longer playing in this room."),
 
     MUSIC_NOT_OWN_SONG           (ErrorCategory.FORBIDDEN,         "LR_070", "You can only select your own songs."),
     MUSIC_NOT_READY              (ErrorCategory.CONFLICT,          "LR_071", "The song is not ready to play yet."),

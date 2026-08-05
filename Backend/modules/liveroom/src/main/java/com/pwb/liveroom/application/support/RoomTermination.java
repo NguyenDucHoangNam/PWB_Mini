@@ -7,6 +7,7 @@ import com.pwb.liveroom.domain.model.Participant;
 import com.pwb.liveroom.domain.repository.JoinRequestRepository;
 import com.pwb.liveroom.domain.repository.LiveRoomRepository;
 import com.pwb.liveroom.domain.repository.ParticipantRepository;
+import com.pwb.liveroom.domain.service.TrackCommentStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -24,6 +25,7 @@ public class RoomTermination {
     private final JoinRequestRepository joinRequestRepository;
     private final SessionCycleStarter sessionCycleStarter;
     private final Playbacks playbacks;
+    private final TrackCommentStore trackCommentStore;
 
 
     public LiveRoom terminate(LiveRoom room, EndedReason reason, Instant at) {
@@ -35,6 +37,7 @@ public class RoomTermination {
 
 
         playbacks.freezeOnRoomEnd(room, at);
+        trackCommentStore.clearCycle(cycleId);
 
         room.end(reason, at);
         sessionCycleStarter.close(room, reason, at);

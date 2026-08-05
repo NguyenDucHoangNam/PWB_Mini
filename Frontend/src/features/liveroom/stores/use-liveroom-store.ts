@@ -11,6 +11,7 @@ import type {
   Participant,
   Room,
   RtcConfig,
+  TrackComment,
 } from "../types";
 
 export interface PendingChatMessage {
@@ -78,6 +79,11 @@ interface LiveroomState {
     state: MusicStateData | null;
     sequenceNumber: number;
     reloadToken: number;
+  };
+
+  trackComments: {
+    songId: string | null;
+    items: TrackComment[];
   };
 
   rtc: {
@@ -181,6 +187,7 @@ export const useLiveroomStore = create<LiveroomState>((set, get) => ({
   joinRequests: {},
   chat: { messages: [], seenIds: new Set(), hasMore: false, nextCursor: null, pending: [] },
   music: { state: null, sequenceNumber: -1, reloadToken: 0 },
+  trackComments: { songId: null, items: [] },
   rtc: { config: null, peers: {} },
   lifecycle: { endingAt: null, kicked: null, revivedAt: null },
 
@@ -197,6 +204,7 @@ export const useLiveroomStore = create<LiveroomState>((set, get) => ({
       joinRequests: {},
       chat: { messages: [], seenIds: new Set(), hasMore: false, nextCursor: null, pending: [] },
       music: { state: null, sequenceNumber: -1, reloadToken: 0 },
+      trackComments: { songId: null, items: [] },
       rtc: { config: null, peers: {} },
       lifecycle: { endingAt: null, kicked: null, revivedAt: null },
     }),
@@ -551,8 +559,46 @@ function reduce(state: LiveroomState, event: LiveroomEvent): Partial<LiveroomSta
           reloadToken: songChanged ? state.music.reloadToken + 1 : state.music.reloadToken,
         },
         room: { ...state.room, ownerAbsent: event.data.ownerAbsent },
+
+
+        trackComments: songChanged
+          ? { songId: event.data.songId, items: [] }
+          : state.trackComments,
       };
     }
+
+    case "TRACK_COMMENT_ADDED": {
+      const { songId } = event.data;
+      if (state.trackComments.songId !== songId) return {};
+      if (state.trackComments.items.some((item) => item.id === event.data.commentId)) return {};
+      const comment: TrackComment = {
+        id: event.data.commentId,
+        songId,
+        userId: event.data.userId,
+        userEmail: event.data.userEmail,
+        content: event.data.content,
+        positionSeconds: event.data.positionSeconds,
+        createdAt: event.data.createdAt,
+      };
+      return {
+        trackComments: {
+          songId,
+          items: [...state.trackComments.items, comment].sort(
+            (a, b) => a.positionSeconds - b.positionSeconds,
+          ),
+        },
+      };
+    }
+
+    case "TRACK_COMMENT_SNAPSHOT":
+      return {
+        trackComments: {
+          songId: event.data.songId,
+          items: [...event.data.comments].sort(
+            (a, b) => a.positionSeconds - b.positionSeconds,
+          ),
+        },
+      };
 
     case "RTC_OFFER":
     case "RTC_ANSWER":

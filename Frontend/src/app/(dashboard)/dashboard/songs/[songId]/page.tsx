@@ -16,7 +16,6 @@ import { SongStatusBadge, SongVoiceTagBadge } from "@/features/voice/components/
 import { AudioPlayer } from "@/features/voice/components/audio-player";
 import { useSong, useRetryProcessing, useVoiceTagConfig } from "@/features/voice/api/songs";
 import { SONG_STREAM_KEY } from "@/features/voice/api/song-stream";
-import { clearMergePending, isMergePending } from "@/features/voice/lib/pending-merge";
 import { resolveVoiceErrorMessage } from "@/features/voice/lib/resolve-voice-error-message";
 import type { SongStatus } from "@/features/voice/types";
 
@@ -75,27 +74,23 @@ export default function SongDetailPage() {
 
   const status = songRes?.data?.status;
 
-  // The upload form deliberately stays quiet about a queued merge, so this is where the outcome is
-  // announced. It also evicts the stream cache: while the merge ran the presigned URL pointed at the
-  // plain upload, and once the merged rendition exists nothing else would consider that entry stale.
+  // Announces a merge that finished while this page was open — the case where the user reached the
+  // song some other way than the upload form, which waits out its own merge before sending anyone here.
+  // It also evicts the stream cache: while the merge ran the presigned URL pointed at the plain upload,
+  // and once the merged rendition exists nothing else would consider that entry stale.
   const previousStatus = useRef<SongStatus | undefined>(undefined);
   useEffect(() => {
     if (!songId || !status) return;
 
-    // Watching the status change only catches a merge that outlives this page's first load. The flag
-    // covers the rest: a short song can be done before the page even mounts.
-    const awaitingMerge =
-      previousStatus.current === "PROCESSING" || isMergePending(songId);
+    const wasMerging = previousStatus.current === "PROCESSING";
     previousStatus.current = status;
 
-    if (!awaitingMerge) return;
+    if (!wasMerging) return;
 
     if (status === "PROCESSED") {
-      clearMergePending(songId);
       queryClient.invalidateQueries({ queryKey: [SONG_STREAM_KEY, songId] });
       toast.success(t("processingCompleted"));
     } else if (status === "FAILED") {
-      clearMergePending(songId);
       toast.error(t("processingFailedToast"));
     }
   }, [status, songId, queryClient, t]);

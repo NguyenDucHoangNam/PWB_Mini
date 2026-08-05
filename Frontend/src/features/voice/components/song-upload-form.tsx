@@ -15,14 +15,23 @@ import { UploadProgress } from "@/components/ui/upload-progress";
 import { asApiError } from "@/lib/api-client";
 import { resolveVoiceErrorMessage } from "../lib/resolve-voice-error-message";
 import { readAudioDuration } from "../lib/read-audio-duration";
-import { markMergePending } from "../lib/pending-merge";
-import { getPresignedUploadUrl, createSong, SONGS_KEY } from "../api/songs";
+import { getPresignedUploadUrl, createSong, getSong, SONGS_KEY } from "../api/songs";
 import { useListVoiceTags } from "../api/voice-tags";
 import { useFileValidation } from "../hooks/use-file-validation";
 import { uploadSongFormSchema, type UploadSongFormValues, type UploadSongFormInput } from "../schemas/song-schema";
-import type { CreateSongRequest } from "../types";
+import type { CreateSongRequest, SongStatus } from "../types";
 
-type UploadStep = "idle" | "preparing" | "uploading" | "creating";
+type UploadStep = "idle" | "preparing" | "uploading" | "creating" | "merging";
+
+/**
+ * How often the form asks whether the merge has landed, and how long it is willing to wait.
+ *
+ * The cap is not a failure: the merge keeps running server-side. It is there so a queue backed up
+ * behind other songs cannot pin the user to this screen indefinitely — past it they are handed to the
+ * song's own page, which polls for the same thing.
+ */
+const MERGE_POLL_INTERVAL_MS = 2000;
+const MERGE_WAIT_LIMIT_MS = 5 * 60 * 1000;
 
 interface SongUploadFormProps {
   onCancel?: () => void;
@@ -44,6 +53,9 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
   const [clientError, setClientError] = useState<string | null>(null);
   const [uploadStep, setUploadStep] = useState<UploadStep>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [mergingSongId, setMergingSongId] = useState<string | null>(null);
+  // Set when the user walks away from the wait, so the poll loop stops asking.
+  const abandonedRef = useRef(false);
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -156,6 +168,14 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
     return () => window.removeEventListener("beforeunload", warn);
   }, [isBusy]);
 
+  // The poll loop outlives a render, so unmounting has to tell it to stop rather than leave it
+  // updating state on a component that is gone.
+  useEffect(() => {
+    return () => {
+      abandonedRef.current = true;
+    };
+  }, []);
+
   const cancelUpload = useCallback(() => {
     if (xhrRef.current) {
       xhrRef.current.abort();
@@ -200,6 +220,40 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
       xhr.setRequestHeader("Content-Type", audioFile.type || "audio/mpeg");
       xhr.send(audioFile);
     });
+  };
+
+  /**
+   * Polls until the merge settles, and answers with the status it settled on — or `PROCESSING` if the
+   * wait ran out. A read that fails is not treated as the merge failing: the merge runs server-side
+   * and a single dropped request says nothing about it, so the loop just tries again.
+   */
+  const waitForMerge = async (songId: string): Promise<SongStatus> => {
+    setMergingSongId(songId);
+    setUploadStep("merging");
+    const deadline = Date.now() + MERGE_WAIT_LIMIT_MS;
+
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, MERGE_POLL_INTERVAL_MS));
+      if (abandonedRef.current) return "PROCESSING";
+
+      try {
+        const res = await getSong({ songId });
+        const status = res.data?.status;
+        if (status && status !== "PROCESSING") {
+          return status;
+        }
+      } catch {
+        // Keep waiting; the next poll is the retry.
+      }
+    }
+    return "PROCESSING";
+  };
+
+  const leaveMergeRunning = () => {
+    if (!mergingSongId) return;
+    abandonedRef.current = true;
+    toast.info(t("uploadQueued"));
+    router.push(`/dashboard/songs/${mergingSongId}`);
   };
 
   const submitSong = async (values: UploadSongFormValues) => {
@@ -259,19 +313,29 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
         // This flow posts directly rather than through useCreateSong, so nothing else would tell the
         // list its cache is out of date.
         queryClient.invalidateQueries({ queryKey: [SONGS_KEY] });
-        // A song that carries a voice tag is not finished when its upload is — the merge is still
-        // queued. Calling that a success claims work that has not happened yet, so the announcement is
-        // left to the detail page, which is watching for the status to actually flip.
-        if (response.data.status === "PROCESSING") {
-          markMergePending(response.data.id);
+
+        const songId = response.data.id;
+        // A song with a voice tag is not the song the user asked for until the merge lands, so the
+        // wait stays here rather than handing them a detail page for a half-finished song. Uploading
+        // and merging are one errand; splitting them across two screens made the second half look
+        // like a problem.
+        const finalStatus =
+          response.data.status === "PROCESSING" ? await waitForMerge(songId) : response.data.status;
+
+        if (abandonedRef.current) return;
+
+        if (finalStatus === "FAILED") {
+          toast.error(t("processingFailed"));
+        } else if (finalStatus === "PROCESSING") {
+          // Still going after the cap; the song's own page takes over the watch.
           toast.info(t("uploadQueued"));
         } else {
           toast.success(t("uploadSuccess"));
         }
+
         onSuccess?.();
-        // Straight into the song rather than back to the list: it is the thing the user just made, and
-        // for a song with a voice tag it is also where the merge reports its progress.
-        router.push(`/dashboard/songs/${response.data.id}`);
+        // Straight into the song rather than back to the list: it is the thing the user just made.
+        router.push(`/dashboard/songs/${songId}`);
       } else {
         toast.error(response.message || tCommon("error"));
       }
@@ -379,6 +443,19 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                   {t("cancelUpload")}
                 </Button>
               )}
+              {/* The file is already safe on the server by now, so leaving is only giving up the wait —
+                  never the upload. Without this a slow queue would hold the user on this screen. */}
+              {uploadStep === "merging" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={leaveMergeRunning}
+                  className="text-xs shrink-0"
+                >
+                  {t("mergeRunInBackground")}
+                </Button>
+              )}
             </div>
 
             <UploadProgress
@@ -387,6 +464,12 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
               loadedBytes={(file.size * uploadProgress) / 100}
               totalBytes={file.size}
             />
+
+            {uploadStep === "merging" && (
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                {t("mergeWaitHint")}
+              </p>
+            )}
           </div>
         ) : (
           <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
@@ -709,6 +792,7 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                 {uploadStep === "preparing" && tUpload("preparing")}
                 {uploadStep === "uploading" && tUpload("sending", { percent: uploadProgress })}
                 {uploadStep === "creating" && tUpload("finalizing")}
+                {uploadStep === "merging" && tUpload("merging")}
               </span>
             </>
           ) : (

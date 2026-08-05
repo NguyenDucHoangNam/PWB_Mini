@@ -620,7 +620,10 @@
         "startOffsetSeconds": "Start Offset (seconds)",
         "startOffsetHint": "Initial delay in seconds before playing the first Voice Tag",
         "cancelUpload": "Cancel upload",
-        "uploadCancelled": "Upload cancelled"
+        "uploadCancelled": "Upload cancelled",
+        "processingFailed": "The voice tag merge failed. You can hit \"Retry\" on the song page.",
+        "mergeRunInBackground": "Run in background",
+        "mergeWaitHint": "Merging the voice tag into your song. It is ready the moment this finishes — wait here, or let it run in the background."
       },
       "delete": {
         "confirmTitle": "Delete song?",
@@ -883,6 +886,14 @@
         "retry": "Retry",
         "newMessages": "New messages"
       },
+      "comments": {
+        "placeholder": "Comment at this moment",
+        "send": "Post comment",
+        "empty": "No comment at this moment",
+        "noSong": "Pick a song to comment on it",
+        "atTime": "at {time}",
+        "tooLong": "Comments are limited to {max} characters"
+      },
       "music": {
         "title": "Listening together",
         "pickSong": "Pick a song",
@@ -967,6 +978,9 @@
       "micCooldown": "You can unmute in {seconds}s",
       "chatEmpty": "Write something first",
       "chatTooLong": "Messages are limited to 500 characters",
+      "commentEmpty": "Write something first",
+      "commentTooLong": "That comment is too long",
+      "commentSongMismatch": "That song is no longer playing",
       "musicNotOwnSong": "You can only pick your own songs",
       "musicNotReady": "That song is not ready yet",
       "musicNotPlaying": "Nothing is playing right now",
@@ -1043,6 +1057,7 @@
     "preparing": "Preparing...",
     "sending": "Uploading {percent}%",
     "finalizing": "Finishing up...",
-    "sizeDetail": "{loaded} / {total} MB"
+    "sizeDetail": "{loaded} / {total} MB",
+    "merging": "Merging the voice tag..."
   }
 }

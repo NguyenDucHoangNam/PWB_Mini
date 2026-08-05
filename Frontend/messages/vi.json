@@ -620,7 +620,10 @@
         "startOffsetSeconds": "Thời gian chờ đầu bài (giây)",
         "startOffsetHint": "Số giây bỏ qua ở đầu bài hát trước khi chèn Voice Tag lần đầu tiên",
         "cancelUpload": "Hủy upload",
-        "uploadCancelled": "Đã hủy upload"
+        "uploadCancelled": "Đã hủy upload",
+        "processingFailed": "Ghép Voice Tag thất bại. Bạn có thể bấm \"Xử lý lại\" ở trang bài hát.",
+        "mergeRunInBackground": "Chạy nền",
+        "mergeWaitHint": "Đang ghép Voice Tag vào bài hát. Bài hát sẽ sẵn sàng ngay khi xong — bạn có thể chờ ở đây hoặc để chạy nền."
       },
       "delete": {
         "confirmTitle": "Xóa bài hát?",
@@ -883,6 +886,14 @@
         "retry": "Gửi lại",
         "newMessages": "Tin nhắn mới"
       },
+      "comments": {
+        "placeholder": "Bình luận tại đoạn này",
+        "send": "Gửi bình luận",
+        "empty": "Chưa có bình luận ở đoạn này",
+        "noSong": "Chọn một bài để bình luận",
+        "atTime": "tại {time}",
+        "tooLong": "Bình luận tối đa {max} ký tự"
+      },
       "music": {
         "title": "Nghe cùng nhau",
         "pickSong": "Chọn bài",
@@ -967,6 +978,9 @@
       "micCooldown": "Bạn bật lại micro được sau {seconds}s",
       "chatEmpty": "Hãy nhập nội dung trước",
       "chatTooLong": "Tin nhắn tối đa 500 ký tự",
+      "commentEmpty": "Hãy viết gì đó đã",
+      "commentTooLong": "Bình luận quá dài",
+      "commentSongMismatch": "Bài hát đó không còn được phát",
       "musicNotOwnSong": "Bạn chỉ chọn được bài của chính mình",
       "musicNotReady": "Bài này chưa sẵn sàng",
       "musicNotPlaying": "Hiện không có bài nào đang phát",
@@ -1043,6 +1057,7 @@
     "preparing": "Đang chuẩn bị...",
     "sending": "Đang tải lên {percent}%",
     "finalizing": "Đang hoàn tất...",
-    "sizeDetail": "{loaded} / {total} MB"
+    "sizeDetail": "{loaded} / {total} MB",
+    "merging": "Đang ghép Voice Tag..."
   }
 }

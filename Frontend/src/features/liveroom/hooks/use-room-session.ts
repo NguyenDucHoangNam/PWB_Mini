@@ -81,6 +81,7 @@ export function useRoomSession(roomId: string, myUserId: string | null): RoomSes
 
 
     liveroomSocket.publish(appDestinations.musicGetState(roomId));
+    liveroomSocket.publish(appDestinations.commentsGet(roomId));
   }, [roomId]);
 
   const seatAndSubscribe = useCallback(async () => {

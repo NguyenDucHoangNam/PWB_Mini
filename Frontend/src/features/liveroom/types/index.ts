@@ -44,6 +44,7 @@ export const ROOM_MAX_GRACE_SECONDS = 1800;
 export const ROOM_DEFAULT_GRACE_SECONDS = 60;
 export const ROOM_CODE_LENGTH = 6;
 export const CHAT_MAX_CONTENT_LENGTH = 500;
+export const TRACK_COMMENT_MAX_LENGTH = 200;
 export const CHAT_HISTORY_MAX_SIZE = 200;
 export const JOIN_REJECT_LIMIT = 3;
 
@@ -123,6 +124,16 @@ export interface ChatMessage {
   userEmail: string;
   content: string;
   sentAt: string;
+}
+
+export interface TrackComment {
+  id: string;
+  songId: string;
+  userId: string;
+  userEmail: string;
+  content: string;
+  positionSeconds: number;
+  createdAt: string;
 }
 
 export interface ChatHistory {

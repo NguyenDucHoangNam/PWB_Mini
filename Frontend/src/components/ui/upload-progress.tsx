@@ -8,8 +8,12 @@ import { Loader2 } from "lucide-react";
  * last byte is sent the server still has work to do — probing the audio, storing it, writing the row —
  * and a bar parked at 100% with nothing happening reads as a hang. `finalizing` keeps the bar full but
  * says out loud that the wait is now the server's.
+ *
+ * `merging` is the voice tag being rendered into the song. It is part of the same wait as far as the
+ * user is concerned — the song is not the one they asked for until it finishes — so it is a phase of
+ * this bar rather than a separate screen.
  */
-export type UploadPhase = "preparing" | "uploading" | "finalizing";
+export type UploadPhase = "preparing" | "uploading" | "finalizing" | "merging";
 
 interface UploadProgressProps {
   phase: UploadPhase;
@@ -37,7 +41,8 @@ export function UploadProgress({
   const t = useTranslations("upload");
 
   // A sliver of bar while preparing: zero width looks like nothing is happening at all.
-  const width = phase === "preparing" ? 5 : phase === "finalizing" ? 100 : percent;
+  const width =
+    phase === "preparing" ? 5 : phase === "finalizing" || phase === "merging" ? 100 : percent;
   const showSize = totalBytes !== undefined && loadedBytes !== undefined && totalBytes > 0;
 
   return (
@@ -67,6 +72,7 @@ export function UploadProgress({
           {phase === "preparing" && t("preparing")}
           {phase === "uploading" && t("sending", { percent })}
           {phase === "finalizing" && t("finalizing")}
+          {phase === "merging" && t("merging")}
         </span>
         {phase === "uploading" && showSize && (
           <span className="font-medium tabular-nums">

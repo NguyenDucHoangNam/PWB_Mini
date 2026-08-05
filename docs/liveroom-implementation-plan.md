@@ -183,6 +183,40 @@ TTL của `AvatarProperties` là 15 phút, hợp với trang hồ sơ vì trang 
 
 **Quy ước từ nay:** toast thành công trong liveroom dùng key i18n phía client (`endedToast`, `kickedToast`, `reopenedToast`, `revivedToast`), **không** dùng `response.message`. Cả tính năng đã dịch phía client rồi; trộn hai nguồn là cách bug song ngữ quay lại. Thêm `LR_xxx` mới thì thêm **cả** entry trong map lẫn key `liveroom.errors.*` ở hai file `messages/en.json` và `messages/vi.json`.
 
+### 2.25 Bình luận theo mốc thời gian của bài nhạc — MVP không lưu lâu dài
+
+Kiểu SoundCloud: nghe tới giây 10 thì gõ bình luận, bình luận ghim ở giây 10, nhạc chạy tới đó thì nó tự nổi lên cho cả phòng. Không có trong `liveroom-business-requirements.md` — yêu cầu mới, thêm 2026-08-06.
+
+**Lưu trong bộ nhớ, sau một port — không dùng DB.** `domain/service/TrackCommentStore` + `infrastructure/service/InMemoryTrackCommentStore`, cùng hình dạng `SongCatalogPort` / `AudioSongCatalogAdapter`. Dữ liệu này *được định nghĩa là vứt đi*, thêm bảng nghĩa là thêm migration, mapper và scheduler dọn cho thứ sống không quá một buổi họp. Backend cũng đã chạy `enableSimpleBroker`, tức là vốn dĩ không scale ngang được cho WebSocket, nên map trong bộ nhớ không làm mất khả năng nào đang có. **Đánh đổi: restart backend là mất bình luận** dù phòng vẫn sống. Muốn bỏ hạn chế này thì viết adapter Redis, không đụng use case.
+
+**Khoá theo `(cycleId, songId)`.** Khoá theo `songId` là cách rẻ nhất để quay lại bài cũ thì bình luận cũ còn — chỉ là cách đặt khoá, không tốn thêm code. Khoá theo `cycleId` chứ không phải `roomId` vì mở lại phòng tạo cycle mới.
+
+**Xoá tại `RoomTermination.terminate`.** Đây là chỗ *duy nhất* cả kết thúc thủ công lẫn tự động đều đi qua, nên một dòng phủ hết; cũng chính là cái chặn rò bộ nhớ, vì mọi phòng rồi đều kết thúc. **Hệ quả cố ý:** hoàn tác kết thúc (cửa sổ 5 giây) *không* khôi phục bình luận, khác nhạc ở mục 2.17 — nhưng đúng nguyên văn yêu cầu "kết thúc phòng thì bình luận không được lưu lại".
+
+**Đi kênh `music` sẵn có** (`broadcastToRoomChannel(..., MUSIC_CHANNEL)`) chứ không mở topic mới: client đã subscribe `roomMusicTopic` rồi, nên không phải thêm subscription hay xét lại `StompSubscriptionScopeInterceptor`. Phía client thì kênh nào cũng đổ chung vào `applyEvent`, kênh chỉ là cách nhóm fan-out phía server.
+
+**Client hỏi snapshot, server không tự đẩy khi có người vào.** `/app/liveroom/{roomId}/comments/get` trả về riêng cho người hỏi qua `sendToUserChannel`. Đây là cách né mục 2.19: đẩy lúc kết nạp thì phải móc cả hai cửa vào phòng, còn để client hỏi thì một dòng trong `loadSnapshot` phủ cả hai, phủ luôn reload và reconnect. Trả riêng chứ không phát ra topic (khác `music/get-state` ở mục 2.18) vì bình luận không có sequence number để loại frame thừa.
+
+**Mốc thời gian do client chốt lúc focus ô nhập, server kiểm và kẹp.** Gõ mất mấy giây thì nhạc đã chạy tiếp, ghim theo lúc bấm gửi sẽ lệch. Payload kèm `songId` để đóng cửa sổ đua đổi bài giữa lúc gõ (`LR_064`). Server đọc `PlaybackState` hiện tại, đối chiếu `songId`, kẹp vị trí vào `[0, songDurationSeconds]`.
+
+**`AddTrackCommentUseCaseImpl` là `readOnly = true` và không ghi gì xuống DB** (khác `SendChatMessageUseCaseImpl` có ghi bảng và `markInteraction`). Store nằm ngoài transaction: nếu transaction rollback sau khi đã ghi vào map thì map giữ bình luận còn event không bao giờ phát. Không ghi DB thì tình huống đó không tồn tại.
+
+**Frontend:** bình luận nổi lên bằng cách lọc theo **cửa sổ** `[position - 4s, position]`, không dùng cờ "đã hiện rồi" — nhờ vậy tua lùi thì nó tự hiện lại. Ô nhập giữ `songId` mà nội dung được viết cho, nên đổi bài là bản nháp tự hết hiệu lực mà không cần effect.
+
+### 2.26 Sóng nhạc kiểu SoundCloud — peak tính ở client
+
+Thanh seek đã đổi từ `RangeSlider` sang `TrackWaveform`: sóng nhạc **chính là** thanh tua, avatar bình luận nằm trên dải ngay dưới sóng.
+
+**Peak tính ở client, không có ở backend.** Không chỗ nào trong hệ thống lưu peak, và thêm bước trích peak bằng ffmpeg vào pipeline upload thì phải đụng module `audio`, thêm cột, thêm storage, cộng với một đợt backfill cho các bài đã upload. Thay vào đó `use-waveform-peaks` `fetch` chính cái URL presigned mà `<audio>` đang stream, `decodeAudioData`, rút xuống 180 cột. **Đánh đổi: tải file thêm một lần** cho mỗi bài (lần đầu; sau đó cache theo `songId` ở cấp module nên đổi qua đổi lại là tức thì).
+
+Dùng **RMS chứ không phải max** cho mỗi cột: với nhạc đã master nén mạnh — đúng loại file app này xử lý — max biến mọi cột thành gai gần đầy như nhau, nhìn không ra hình dáng bài hát.
+
+`WaveformState` có riêng trạng thái **`unavailable`**, không gộp chung với "chưa có peak". Giải mã có thể hỏng vĩnh viễn (bucket chưa mở CORS cho origin này, hoặc codec trình duyệt không giải được), mà một thanh nhấp nháy mãi thì người dùng đọc thành treo. Hỏng thì hiện cột phẳng tĩnh, sóng vẫn tua được bình thường. `connect-src` trong `next.config.ts` đã có sẵn storage origin nên CSP không chặn, nhưng **CORS của bucket là chuyện riêng, phải kiểm khi chạy thật**.
+
+Phần đã phát vẽ bằng **một bản sao clip đè lên** (`clip-path: inset(0 X% 0 0)`) chứ không đổi class từng cột: playhead nhích 4 lần/giây, cách này mỗi nhịp chỉ đổi một thuộc tính style thay vì diff 180 phần tử.
+
+**Bấm vào sóng trong lúc đang gõ thì dời mốc đã chốt** theo chỗ vừa bấm — nên `Draft` phải nằm ở `MusicPlayer` chứ không phải trong `TrackCommentLane`, vì cả sóng lẫn ô nhập cùng chạm vào nó.
+
 ---
 
 ## 3. Build, chạy, kiểm chứng

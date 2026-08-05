@@ -3,6 +3,7 @@ import type {
   MicState,
   ParticipantRole,
   PlaybackStatus,
+  TrackComment,
 } from "./index";
 
 export type LiveroomEventType =
@@ -25,6 +26,8 @@ export type LiveroomEventType =
   | "CHAT_MESSAGE_RECEIVED"
   | "MUSIC_PLAYBACK_STATE_CHANGED"
   | "MUSIC_SONG_CHANGED"
+  | "TRACK_COMMENT_ADDED"
+  | "TRACK_COMMENT_SNAPSHOT"
   | "RTC_OFFER"
   | "RTC_ANSWER"
   | "RTC_ICE_CANDIDATE"
@@ -183,6 +186,24 @@ export type MusicPlaybackStateChangedEvent = Envelope<
 
 export type MusicSongChangedEvent = Envelope<"MUSIC_SONG_CHANGED", MusicStateData>;
 
+export type TrackCommentAddedEvent = Envelope<
+  "TRACK_COMMENT_ADDED",
+  {
+    commentId: string;
+    songId: string;
+    userId: string;
+    userEmail: string;
+    content: string;
+    positionSeconds: number;
+    createdAt: string;
+  }
+>;
+
+export type TrackCommentSnapshotEvent = Envelope<
+  "TRACK_COMMENT_SNAPSHOT",
+  { songId: string | null; comments: TrackComment[] }
+>;
+
 export type RtcOfferEvent = Envelope<"RTC_OFFER", { fromUserId: string; sdp: string }>;
 
 export type RtcAnswerEvent = Envelope<"RTC_ANSWER", { fromUserId: string; sdp: string }>;
@@ -238,6 +259,8 @@ export type LiveroomEvent =
   | ChatMessageReceivedEvent
   | MusicPlaybackStateChangedEvent
   | MusicSongChangedEvent
+  | TrackCommentAddedEvent
+  | TrackCommentSnapshotEvent
   | RtcOfferEvent
   | RtcAnswerEvent
   | RtcIceCandidateEvent

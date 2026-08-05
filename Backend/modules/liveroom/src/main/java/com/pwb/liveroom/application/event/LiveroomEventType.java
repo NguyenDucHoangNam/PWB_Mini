@@ -37,6 +37,10 @@ public enum LiveroomEventType {
 
     MUSIC_SONG_CHANGED,
 
+    TRACK_COMMENT_ADDED,
+
+    TRACK_COMMENT_SNAPSHOT,
+
     RTC_OFFER,
     RTC_ANSWER,
     RTC_ICE_CANDIDATE,

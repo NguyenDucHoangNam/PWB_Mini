@@ -21,6 +21,7 @@ public class LiveroomConfig {
     private Moderation moderation = new Moderation();
     private Chat chat = new Chat();
     private Music music = new Music();
+    private Comments comments = new Comments();
     private Rtc rtc = new Rtc();
     private Realtime realtime = new Realtime();
 
@@ -79,6 +80,15 @@ public class LiveroomConfig {
     public static class Music {
 
         private Duration audioUrlTtl = Duration.ofHours(1);
+    }
+
+    @Getter
+    @Setter
+    public static class Comments {
+
+        private int maxLength = 200;
+
+        private int perSong = 200;
     }
 
     @Getter

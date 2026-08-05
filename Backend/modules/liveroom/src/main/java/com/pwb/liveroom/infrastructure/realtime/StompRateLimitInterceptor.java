@@ -31,6 +31,7 @@ public class StompRateLimitInterceptor implements ChannelInterceptor {
 
     private static final String RTC_SEGMENT = "/rtc/";
     private static final String CHAT_SEGMENT = "/chat/";
+    private static final String COMMENTS_SEGMENT = "/comments/";
 
     private final LiveroomConfig config;
     private final ObjectProvider<SimpMessagingTemplate> messagingTemplate;
@@ -80,7 +81,7 @@ public class StompRateLimitInterceptor implements ChannelInterceptor {
         if (destination.contains(RTC_SEGMENT)) {
             return Bucket.RTC;
         }
-        if (destination.contains(CHAT_SEGMENT)) {
+        if (destination.contains(CHAT_SEGMENT) || destination.contains(COMMENTS_SEGMENT)) {
             return Bucket.CHAT;
         }
         return Bucket.OTHER;

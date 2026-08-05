@@ -2,6 +2,7 @@ package com.pwb.liveroom.application.event;
 
 import com.pwb.liveroom.application.command.RtcIceCandidate;
 import com.pwb.liveroom.application.command.RtcSignalType;
+import com.pwb.liveroom.application.view.TrackCommentView;
 import com.pwb.liveroom.domain.enums.EndedReason;
 import com.pwb.liveroom.domain.model.ChatMessage;
 import com.pwb.liveroom.domain.model.JoinRequest;
@@ -11,6 +12,7 @@ import com.pwb.liveroom.domain.model.PlaybackState;
 
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -205,6 +207,25 @@ public final class RoomEvents {
                 "lastUpdatedBy", state.getLastUpdatedBy(),
                 "sequenceNumber", state.getSequenceNumber(),
                 "ownerAbsent", room.isOwnerAbsent()
+        ));
+    }
+
+    public static RoomEvent trackCommentAdded(LiveRoom room, TrackCommentView comment) {
+        return event(LiveroomEventType.TRACK_COMMENT_ADDED, room.getId(), map(
+                "commentId", comment.id(),
+                "songId", comment.songId(),
+                "userId", comment.userId(),
+                "userEmail", comment.userEmail(),
+                "content", comment.content(),
+                "positionSeconds", comment.positionSeconds(),
+                "createdAt", comment.createdAt()
+        ));
+    }
+
+    public static RoomEvent trackCommentSnapshot(LiveRoom room, UUID songId, List<TrackCommentView> comments) {
+        return event(LiveroomEventType.TRACK_COMMENT_SNAPSHOT, room.getId(), map(
+                "songId", songId,
+                "comments", comments
         ));
     }
 

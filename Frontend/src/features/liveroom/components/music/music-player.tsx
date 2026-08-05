@@ -13,8 +13,11 @@ import { LiveroomErrorCode } from "../../lib/liveroom-error-codes";
 import { serverNow } from "../../lib/server-clock";
 import { positionAt, usePlaybackPosition } from "../../hooks/use-playback-position";
 import { useLiveroomStore } from "../../stores/use-liveroom-store";
+import { useWaveformPeaks } from "../../hooks/use-waveform-peaks";
 import { RangeSlider } from "../ui/range-slider";
 import { SongPickerDialog } from "./song-picker-dialog";
+import { EMPTY_DRAFT, TrackCommentLane, type Draft } from "./track-comment-lane";
+import { TrackWaveform } from "./track-waveform";
 
 const DRIFT_TOLERANCE_S = 1.5;
 const GET_STATE_DEBOUNCE_MS = 300;
@@ -31,11 +34,13 @@ export function MusicPlayer({ roomId }: { roomId: string }) {
   const music = useLiveroomStore((state) => state.music.state);
   const reloadToken = useLiveroomStore((state) => state.music.reloadToken);
   const isOwner = useLiveroomStore((state) => state.isOwner);
+  const comments = useLiveroomStore((state) => state.trackComments.items);
   const position = usePlaybackPosition();
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [scrubbing, setScrubbing] = useState<number | null>(null);
+  const [audioUrl, setAudioUrl] = useState<{ songId: string; url: string } | null>(null);
+  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
 
   const publish = useCallback(
     (destination: string, body?: unknown) => liveroomSocket.publish(destination, body),
@@ -55,6 +60,7 @@ export function MusicPlayer({ roomId }: { roomId: string }) {
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !music?.songId) return;
+    liveroomSocket.publish(appDestinations.commentsGet(roomId));
     let cancelled = false;
     void (async () => {
       try {
@@ -62,6 +68,7 @@ export function MusicPlayer({ roomId }: { roomId: string }) {
         if (cancelled || !response.data?.url) return;
         audio.src = response.data.url;
         audio.load();
+        setAudioUrl({ songId: response.data.songId, url: response.data.url });
       } catch {
         if (!cancelled) toast.error(t("loadFailed"));
       }
@@ -110,7 +117,17 @@ export function MusicPlayer({ roomId }: { roomId: string }) {
   const ownerAbsent = music?.ownerAbsent ?? false;
   const playBlocked = ownerAbsent && !isOwner;
   const duration = music?.songDurationSeconds ?? 0;
-  const shown = scrubbing ?? position;
+  const songId = music?.songId ?? null;
+  const waveform = useWaveformPeaks(songId, audioUrl?.songId === songId ? audioUrl.url : null);
+
+
+
+  const seekTo = (value: number) => {
+    publish(appDestinations.musicSeek(roomId), { positionSeconds: value });
+    if (draft.songId === songId && draft.pinned !== null) {
+      setDraft({ ...draft, pinned: value });
+    }
+  };
 
   return (
     <section className="flex shrink-0 flex-col gap-2 border-t border-neutral-200 bg-neutral-50 px-3 py-2 dark:border-neutral-800 dark:bg-neutral-950">
@@ -167,25 +184,9 @@ export function MusicPlayer({ roomId }: { roomId: string }) {
           </div>
         </div>
 
-        <div className="flex min-w-[200px] flex-1 items-center gap-2">
-          <span className="shrink-0 text-xs tabular-nums text-neutral-500 dark:text-neutral-400">
-            {formatClock(shown)}
-          </span>
-          <RangeSlider
-            value={shown}
-            max={duration}
-            ariaLabel={t("seek")}
-            disabled={!music?.songId}
-            onChange={setScrubbing}
-            onCommit={(value) => {
-              setScrubbing(null);
-              publish(appDestinations.musicSeek(roomId), { positionSeconds: value });
-            }}
-          />
-          <span className="shrink-0 text-xs tabular-nums text-neutral-500 dark:text-neutral-400">
-            {formatClock(duration)}
-          </span>
-        </div>
+        <span className="ml-auto shrink-0 text-xs tabular-nums text-neutral-500 dark:text-neutral-400">
+          {formatClock(position)} / {formatClock(duration)}
+        </span>
 
         <div className="flex w-32 shrink-0 items-center gap-2">
           <Volume2 className="size-4 shrink-0 text-neutral-400" aria-hidden />
@@ -216,6 +217,23 @@ export function MusicPlayer({ roomId }: { roomId: string }) {
           <TooltipContent>{t("pickSong")}</TooltipContent>
         </Tooltip>
       </div>
+
+      <TrackWaveform
+        waveform={waveform}
+        position={position}
+        durationSeconds={duration}
+        comments={comments}
+        pinnedPosition={draft.songId === songId ? draft.pinned : null}
+        onSeek={seekTo}
+      />
+
+      <TrackCommentLane
+        roomId={roomId}
+        songId={songId}
+        position={position}
+        draft={draft}
+        onDraftChange={setDraft}
+      />
 
       {playBlocked ? (
         <p className="text-xs text-amber-700 dark:text-amber-400">{t("ownerAbsentHint")}</p>
