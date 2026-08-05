@@ -6,6 +6,7 @@ import com.pwb.liveroom.infrastructure.config.properties.LiveroomConfig;
 import com.pwb.shared.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.MessageSource;
 import org.springframework.context.event.EventListener;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -32,7 +33,7 @@ public class StompRateLimitInterceptor implements ChannelInterceptor {
     private static final String CHAT_SEGMENT = "/chat/";
 
     private final LiveroomConfig config;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final ObjectProvider<SimpMessagingTemplate> messagingTemplate;
     private final MessageSource messageSource;
 
     private final Map<String, Window> windows = new ConcurrentHashMap<>();
@@ -98,8 +99,12 @@ public class StompRateLimitInterceptor implements ChannelInterceptor {
         if (accessor.getUser() == null) {
             return;
         }
+        SimpMessagingTemplate template = messagingTemplate.getIfAvailable();
+        if (template == null) {
+            return;
+        }
         try {
-            messagingTemplate.convertAndSendToUser(
+            template.convertAndSendToUser(
                     accessor.getUser().getName(),
                     LiveroomStompExceptionHandler.ERROR_QUEUE,
                     ApiResponse.error(LiveroomErrorCode.WS_RATE_LIMITED, resolve()));

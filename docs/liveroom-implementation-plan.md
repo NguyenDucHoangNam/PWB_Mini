@@ -442,6 +442,19 @@ Mesh nghĩa là mỗi client **upload N bản sao** luồng của mình, mà tr�
 
 Dọn theo `SessionDisconnectEvent`, nếu không map rò theo từng phiên.
 
+**Bẫy đã dính — vòng phụ thuộc bean.** Constructor-inject thẳng `SimpMessagingTemplate` vào interceptor thì app **không boot được**:
+
+```
+brokerMessagingTemplate → DelegatingWebSocketMessageBrokerConfiguration
+   → WebSocketConfig → StompRateLimitInterceptor → brokerMessagingTemplate
+```
+
+`SimpMessagingTemplate` do chính broker config tạo ra, nên bất kỳ interceptor nào đăng ký trong config đó đều không được inject nó trực tiếp. Dùng `ObjectProvider<SimpMessagingTemplate>` rồi `getIfAvailable()` lúc thật sự cần gửi — hoãn phân giải sang runtime.
+
+`mvn compile` **không** bắt được lỗi này; phải boot mới lộ. Đụng vào `WebSocketConfig` hay interceptor thì luôn chạy thật một lần.
+
+Đã kiểm chứng bằng script STOMP thật (25 frame chat liên tiếp): 15 frame lọt tới controller đúng bằng hạn mức, đúng **1** lần `LR_081` chứ không phải mỗi frame một lần, và kết nối vẫn mở.
+
 ### 6.4.3 Cache membership cho relay RTC
 
 `RelayRtcSignalUseCaseImpl` mở transaction + 3 query cho **mỗi** ICE candidate. Localhost chỉ có host candidate nên vài cái; có STUN/TURN thật thì mỗi peer sinh host + srflx + relay cho từng interface, phòng 5 người vào cùng lúc là hàng trăm transaction dồn trong vài giây.
