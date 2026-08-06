@@ -22,7 +22,13 @@ import {
   writeMediaIntent,
 } from "../../lib/liveroom-storage";
 import { resolveLiveroomErrorMessage } from "../../lib/resolve-liveroom-error-message";
-import type { JoinRequest, RoomLookup } from "../../types";
+import type { JoinRequest, JoinRequestState, RoomLookup } from "../../types";
+
+const RESUMABLE_STATES: ReadonlySet<JoinRequestState> = new Set<JoinRequestState>([
+  "PENDING",
+  "APPROVED",
+  "LOCKED",
+]);
 
 export function JoinFlow({ roomCode }: { roomCode: string }) {
   const t = useTranslations("liveroom.join");
@@ -56,11 +62,12 @@ export function JoinFlow({ roomCode }: { roomCode: string }) {
   });
 
   const recovered = myRequestResponse?.data;
-  const request =
-    createdRequest ??
-    (recovered && recovered.state !== "CANCELLED" && recovered.state !== "EXPIRED"
-      ? recovered
-      : null);
+  const staleDecision = recovered ? !RESUMABLE_STATES.has(recovered.state) : false;
+  const request = createdRequest ?? (recovered && !staleDecision ? recovered : null);
+
+  useEffect(() => {
+    if (staleDecision && roomId) clearIdempotencyKey(roomId);
+  }, [staleDecision, roomId]);
 
   const { mutate: askToJoin, isPending: asking } = useCreateJoinRequest({
     mutationConfig: {

@@ -45,13 +45,27 @@ public class StorageConfig {
         return builder.build();
     }
 
+    /**
+     * Backs the transfer manager, and is where parallelism actually comes from.
+     *
+     * <p>{@code S3TransferManager} on a plain {@code S3AsyncClient} does <em>not</em> split anything: it
+     * moves the whole object over one stream. Without {@code multipartEnabled} the transfer manager is
+     * only a nicer API over the same single-stream transfer, which is what this was before — including
+     * the {@code >25 MB} upload path that its name suggested was already multipart.
+     */
     @Bean
     public S3AsyncClient s3AsyncClient(StorageProperties properties) {
         StorageProperties.S3 s3 = properties.getS3();
+        log.info("Initializing S3 async client: multipart threshold={}B, part size={}B",
+                s3.getMultipartThresholdBytes(), s3.getMultipartPartSizeBytes());
 
         var builder = S3AsyncClient.builder()
                 .region(Region.of(s3.getRegion()))
                 .credentialsProvider(credentialsProvider(s3))
+                .multipartEnabled(true)
+                .multipartConfiguration(multipart -> multipart
+                        .thresholdInBytes(s3.getMultipartThresholdBytes())
+                        .minimumPartSizeInBytes(s3.getMultipartPartSizeBytes()))
                 .serviceConfiguration(S3Configuration.builder()
                         .pathStyleAccessEnabled(s3.isPathStyleAccess())
                         .build());

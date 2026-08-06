@@ -35,13 +35,19 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequ
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 import software.amazon.awssdk.transfer.s3.S3TransferManager;
 import software.amazon.awssdk.transfer.s3.model.CompletedUpload;
+import software.amazon.awssdk.transfer.s3.model.CompletedFileUpload;
+import software.amazon.awssdk.transfer.s3.model.DownloadFileRequest;
+import software.amazon.awssdk.transfer.s3.model.UploadFileRequest;
 import software.amazon.awssdk.transfer.s3.model.UploadRequest;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CompletionException;
 
 @Slf4j
 @Service
@@ -78,6 +84,75 @@ public class S3StorageServiceImpl implements StorageService {
     public UploadResult upload(String key, byte[] content, String contentType) {
         MediaTypeUtils.validateKey(key);
         return upload(key, new ByteArrayInputStream(content), content.length, contentType);
+    }
+
+    @Override
+    @Retryable(
+            retryFor = {S3Exception.class, IOException.class},
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 1000, multiplier = 3, maxDelay = 10000)
+    )
+    public UploadResult uploadFile(String key, Path source, String contentType) {
+        MediaTypeUtils.validateKey(key);
+        String bucket = bucket();
+
+        try {
+            long sizeBytes = Files.size(source);
+            UploadFileRequest request = UploadFileRequest.builder()
+                    .source(source)
+                    .putObjectRequest(PutObjectRequest.builder()
+                            .bucket(bucket)
+                            .key(key)
+                            .contentType(contentType)
+                            .build())
+                    .build();
+
+            CompletedFileUpload result = transferManager.uploadFile(request).completionFuture().join();
+            return new UploadResult(key, sizeBytes, contentType, result.response().eTag());
+        } catch (IOException e) {
+            throw new StorageException(StorageErrorCode.STORAGE_UPLOAD_FAILED, e);
+        } catch (RuntimeException e) {
+            throw new StorageException(StorageErrorCode.STORAGE_UPLOAD_FAILED, unwrap(e));
+        }
+    }
+
+    @Override
+    @Retryable(
+            retryFor = {S3Exception.class, IOException.class},
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 1000, multiplier = 3, maxDelay = 10000)
+    )
+    public long downloadToFile(String key, Path destination) {
+        MediaTypeUtils.validateKey(key);
+        String bucket = bucket();
+
+        try {
+            DownloadFileRequest request = DownloadFileRequest.builder()
+                    // A retry would otherwise fail on the file the previous attempt left behind.
+                    .destination(destination)
+                    .getObjectRequest(GetObjectRequest.builder()
+                            .bucket(bucket)
+                            .key(key)
+                            .build())
+                    .build();
+
+            transferManager.downloadFile(request).completionFuture().join();
+            return Files.size(destination);
+        } catch (IOException e) {
+            throw new StorageException(StorageErrorCode.STORAGE_DOWNLOAD_FAILED, e);
+        } catch (RuntimeException e) {
+            Throwable cause = unwrap(e);
+            if (cause instanceof NoSuchKeyException
+                    || (cause instanceof S3Exception s3 && s3.statusCode() == 404)) {
+                throw new StorageException(StorageErrorCode.STORAGE_OBJECT_NOT_FOUND, cause);
+            }
+            throw new StorageException(StorageErrorCode.STORAGE_DOWNLOAD_FAILED, cause);
+        }
+    }
+
+    /** The transfer manager reports failures wrapped in the future's {@link CompletionException}. */
+    private Throwable unwrap(RuntimeException ex) {
+        return ex instanceof CompletionException && ex.getCause() != null ? ex.getCause() : ex;
     }
 
     @Override

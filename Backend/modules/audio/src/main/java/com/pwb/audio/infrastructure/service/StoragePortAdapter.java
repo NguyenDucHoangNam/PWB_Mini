@@ -14,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -59,10 +58,14 @@ public class StoragePortAdapter implements StoragePort {
     }
 
     @Override
-    public InputStream download(String storageKey) {
-        return storageService.download(storageKey);
+    public void downloadToPath(String storageKey, Path destination) {
+        storageService.downloadToFile(storageKey, destination);
     }
 
+    /**
+     * {@code contentLength} is no longer passed on: the transfer manager reads it off the file, and
+     * taking the caller's word for it is how a mismatch becomes a corrupt object.
+     */
     @Override
     public String uploadFromPath(String storageKey, Path sourcePath, long contentLength) {
         String contentType;
@@ -71,11 +74,7 @@ public class StoragePortAdapter implements StoragePort {
         } catch (IOException ex) {
             throw new AudioBusinessException(AudioErrorCode.STORAGE_ERROR, ex);
         }
-        try (InputStream in = Files.newInputStream(sourcePath)) {
-            return storageService.upload(storageKey, in, contentLength, contentType).getKey();
-        } catch (IOException ex) {
-            throw new AudioBusinessException(AudioErrorCode.STORAGE_ERROR, ex);
-        }
+        return storageService.uploadFile(storageKey, sourcePath, contentType).getKey();
     }
 
     @Override

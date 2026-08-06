@@ -72,16 +72,53 @@ Cả 7 mapper của module liveroom đều gọi hàm này; cả 3 mapper của 
 | `audio/.../WatermarkFilterBuilderTest.java` | cập nhật cho cả 2 nhánh loop / asplit |
 | `audio/.../audio/JaffreeAudioProcessorAdapter.java` | **timeout thật cho FFmpeg** — `executeAsync()` + `get(timeoutMinutes, MINUTES)`, hết giờ thì dừng tiến trình và ném `PROCESSING_TIMED_OUT` |
 | `audio/.../application/exception/AudioErrorCode.java` + `messages*.properties` | thêm `AUDIO_028 PROCESSING_TIMED_OUT` |
+| `shared-infrastructure/.../storage/config/StorageConfig.java` | **bật multipart thật** trên `S3AsyncClient` — xem 2.2 |
+| `shared-infrastructure/.../storage/StorageService.java` + `impl/S3StorageServiceImpl.java` | thêm `uploadFile(key, Path, contentType)` và `downloadToFile(key, Path)` chạy qua transfer manager |
+| `shared-infrastructure/.../storage/properties/StorageProperties.java` | thêm `multipartThresholdBytes`, `multipartPartSizeBytes` (mặc định 5 MiB — mức tối thiểu S3 cho phép) |
+| `audio/.../domain/service/StoragePort.java` + `infrastructure/service/StoragePortAdapter.java` | bỏ `download(): InputStream`, thay bằng `downloadToPath(key, Path)`; `uploadFromPath` chuyển sang `uploadFile` |
+| `shared-infrastructure/.../S3StorageServiceFileTransferTest.java` | **file mới** — 8 test cho 2 method mới |
 
 ### Frontend
 
 | File | Thay đổi |
 |---|---|
-| `features/voice/lib/pending-merge.ts` | **file mới** — cờ sessionStorage đánh dấu "upload này còn đang ghép" |
-| `features/voice/components/song-upload-form.tsx` | nếu server trả `status === "PROCESSING"` → `toast.info(uploadQueued)` + đặt cờ, **không** báo thành công |
-| `app/(dashboard)/dashboard/songs/[songId]/page.tsx` | toast success khi `PROCESSING → PROCESSED`, toast error khi `→ FAILED`; cờ sessionStorage bắt cả ca merge xong trước khi trang mount |
-| `messages/vi.json`, `messages/en.json` | thêm `uploadQueued`, `processingCompleted`, `processingFailedToast`; sửa `processingBanner` |
+| `features/voice/components/song-upload-form.tsx` | **gộp upload + ghép thành một quy trình** — xem 2.1 |
+| `components/ui/upload-progress.tsx` | thêm pha `merging` |
+| `app/(dashboard)/dashboard/songs/[songId]/page.tsx` | toast success khi `PROCESSING → PROCESSED`, toast error khi `→ FAILED` — giờ chỉ còn phục vụ ca vào trang bằng đường khác (từ danh sách), vì form đã tự chờ xong mới điều hướng |
+| `features/voice/components/song-upload-form.test.tsx` | **file mới** — 6 test cho vòng chờ ghép |
+| `messages/vi.json`, `messages/en.json` | thêm `uploadQueued`, `processingCompleted`, `processingFailedToast`, `upload.merging`, `form.processingFailed`, `form.mergeRunInBackground`, `form.mergeWaitHint`; sửa `processingBanner` |
 | `features/landing/components/section-{demo,features,how-it-works}.tsx` | khai báo kiểu `Variants` cho các const variant — sửa lỗi `tsc` ở mục 3.3 cũ |
+| ~~`features/voice/lib/pending-merge.ts`~~ | **đã xoá** — cờ sessionStorage thành thừa sau 2.1 |
+
+#### 2.1 Upload + ghép là **một** quy trình
+
+Cách làm ban đầu — báo `uploadQueued` rồi đẩy user sang trang chi tiết đang `PROCESSING` — vẫn sai ý.
+Nhìn từ phía user, tải file và ghép voice tag là **một việc**; tách thành hai màn khiến nửa sau trông
+như bị lỗi ("sao vẫn còn Đang xử lý"). Giờ:
+
+- Form ở nguyên tại chỗ sau khi `createSong` trả `PROCESSING`, chuyển sang pha `merging`, poll
+  `getSong` mỗi 2s.
+- Ghép xong → `toast.success` → **lúc đó mới** điều hướng sang trang bài hát (đã ở trạng thái xong).
+  Thất bại → toast lỗi rồi vẫn điều hướng, để user bấm "Xử lý lại".
+- Bài **không** có voice tag đi thẳng như cũ, không chờ gì.
+- **Nút "Chạy nền"**: file đã nằm an toàn trên server rồi, nên rời đi chỉ là bỏ cuộc chờ chứ không
+  huỷ upload. Không có nút này thì hàng đợi kẹt sẽ giam user ở màn upload.
+- **Trần chờ 5 phút** rồi bàn giao cho trang bài hát — không phải lỗi, chỉ là không giam user.
+- Poll lỗi mạng **không** bị coi là ghép thất bại; lần poll sau chính là lần retry.
+
+#### 2.2 Multipart song song cho worker
+
+**Phát hiện quan trọng:** `S3TransferManager` đặt trên một `S3AsyncClient` thường **không chia part gì
+cả** — nó chỉ là API đẹp hơn cho cùng một luồng đơn. Thiếu `multipartEnabled(true)` nên nhánh
+`uploadMultipart` (>25 MB) mà tên gọi ngụ ý là multipart **cũng chưa bao giờ là multipart**.
+
+- `StorageConfig` bật `multipartEnabled(true)` + threshold/part size 5 MiB → file 8–12 MB của pipeline
+  giờ mới thật sự đi 2–3 part song song.
+- Worker chuyển sang `downloadToPath` / `uploadFile` (file-based). Bản `InputStream` không thể chia
+  part được — stream chỉ đọc được một lần, theo thứ tự — nên kiểu dữ liệu chính là thứ quyết định,
+  không phải một tuỳ chọn truyền vào.
+- `uploadFromPath` không còn chuyển tiếp `contentLength` của caller: transfer manager tự đọc kích thước
+  từ file, tin lời caller là cách một sai lệch trở thành object hỏng.
 
 ### Đã kiểm chứng
 
@@ -90,8 +127,10 @@ Cả 7 mapper của module liveroom đều gọi hàm này; cả 3 mapper của 
   interval 10 / offset 2).
 - **Bỏ ffprobe output an toàn**: duration output đo được đúng bằng duration bài (30.000000 / 316.000000).
 - `mvn -o test -pl modules/audio` → **26/26 pass**.
-- `mvn -o test -pl shared/shared-infrastructure -Dtest='!*IT'` → **43/43 pass**.
+- `mvn -o test -pl shared/shared-infrastructure -Dtest='!*IT'` → **51/51 pass** (43 cũ + 8 mới).
 - Frontend: `tsc --noEmit` **sạch toàn repo** (không còn lỗi landing), `eslint` sạch trên các file đã đụng.
+- `npx vitest run` → **60/61 pass**. Ca fail duy nhất là `login-form.test.tsx` (nút Google Sign-In),
+  **có sẵn** — đã kiểm chứng bằng cách stash thay đổi messages của tôi rồi chạy lại, vẫn fail y hệt.
 - **Timeout FFmpeg đo bằng ffmpeg thật** (script `TimeoutProbe` trong scratchpad, encode 30 phút với timeout 1s).
   Hai điều chỉ lộ ra khi chạy thật, cả hai đã sửa trong code:
   - `forceStop()` **có thể ném `CancellationException`** khi nó chạy đua với tiến trình vừa kết thúc
@@ -120,9 +159,25 @@ Caused by: java.net.SocketException: Invalid argument: connect
 ```
 
 **Đã xác nhận là lỗi có sẵn**: gỡ toàn bộ thay đổi outbox của tôi ra rồi chạy lại vẫn fail y hệt (5/5 error).
-Nguyên nhân là Kafka client không mở được socket loopback trên máy này — nghi firewall / antivirus / VPN.
-**Cần chạy lại 2 IT này ở môi trường CI hoặc máy khác trước khi deploy**, để chắc `OutboxRelayTrigger`
-không làm hỏng gì.
+
+**Đã khoanh được nguyên nhân chính xác** (trước chỉ đoán "firewall / antivirus / VPN"). Đo bằng một
+chương trình Java 2 dòng trên máy này:
+
+| Thao tác | Kết quả |
+|---|---|
+| `new ServerSocket(0)` + connect `127.0.0.1` | **OK** |
+| `Selector.open()` | **FAIL** — `Unable to establish loopback connection` |
+
+TCP loopback bình thường; thứ bị chặn là **socket AF_UNIX** mà JDK 21 dùng cho wakeup pipe của NIO
+selector (`sun.nio.ch.UnixDomainSockets.connect0`). Vì vậy **mọi** thứ chạy trên NIO selector đều chết
+tại chỗ trên máy này, không riêng Kafka:
+
+- Kafka client (2 IT ở trên)
+- Netty → `S3AsyncClient` → không dựng được client, nên không test được multipart tại đây (mục 3.7)
+- `com.sun.net.httpserver.HttpServer` → không dựng được S3 giả để quan sát request
+
+Đã thử vài system property để ép JDK bỏ AF_UNIX, không cái nào ăn. Nhiều khả năng do phần mềm bảo mật
+trên Windows chặn AF_UNIX. **Cần chạy lại 2 IT này ở CI hoặc máy khác trước khi deploy.**
 
 ### 3.2 `modules/iam` test source không compile — **rộng hơn 3 file, mới sửa được 3**
 
@@ -202,6 +257,31 @@ FFmpeg chỉ ~1.6s. Phần lớn thời gian là mạng. Sau khi deploy:
 - Import thừa trong `JaffreeAudioProcessorAdapter` (`java.nio.file.Paths`, `java.util.Objects`) — có sẵn, vô hại.
 
 ---
+
+### 3.7 Multipart: chưa đo được ở máy này, **cần xác nhận sau khi deploy**
+
+Đây là điểm yếu duy nhất còn lại của mục 2.2. Tôi **chưa** quan sát được request thật để chứng minh
+SDK chia part, vì `Selector.open()` bị chặn (mục 3.1) nên không dựng được cả `S3AsyncClient` lẫn HTTP
+server giả. Cái đã có:
+
+- Compile sạch, `S3AsyncClientBuilder.multipartEnabled` / `multipartConfiguration` tồn tại thật trong
+  AWS SDK **2.28.0** (đã `javap` để chắc, không đoán theo trí nhớ).
+- 8 unit test cho phần có nhánh thật (`downloadToFile` / `uploadFile`, gỡ `CompletionException`,
+  404 → `STORAGE_OBJECT_NOT_FOUND`).
+
+Cái **chưa** có: bằng chứng SDK thật sự phát nhiều ranged GET / part PUT.
+
+Có sẵn `MultipartProbe.java` trong scratchpad — dựng HTTP server giả làm S3, đếm số ranged GET và số
+part PUT, chạy được cả 2 chế độ để so sánh. Chạy nó ở CI hoặc máy không chặn AF_UNIX:
+
+```
+java -cp "<classpath>" MultipartProbe <thư-mục> true
+```
+
+Kỳ vọng với object 12 MB, part 5 MiB: **ranged GET ≥ 3**, `CreateMultipartUpload = true`, **part PUT ≥ 3**.
+Nếu ra `ranged GET = 1` và `plain PUT = 1` thì multipart **vẫn chưa ăn** và cần xem lại config.
+
+Cách đo đơn giản hơn nếu ngại chạy probe: bật log request của SDK và xem một lần ghép thật.
 
 ## 4. Ghi chú bảo mật
 

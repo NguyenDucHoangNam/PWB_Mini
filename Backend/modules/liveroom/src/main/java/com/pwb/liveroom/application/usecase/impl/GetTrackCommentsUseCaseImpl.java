@@ -39,9 +39,6 @@ public class GetTrackCommentsUseCaseImpl implements GetTrackCommentsUseCase {
                 ? List.of()
                 : viewFactory.toViews(commentStore.findBySong(room.getCurrentCycleId(), songId));
 
-        eventPublisher.sendToUserChannel(
-                actorId,
-                RoomEvents.trackCommentSnapshot(room, songId, comments),
-                LiveroomEventPublisher.MUSIC_CHANNEL);
+        eventPublisher.sendToUser(actorId, RoomEvents.trackCommentSnapshot(room, songId, comments));
     }
 }

@@ -21,6 +21,7 @@ import { TrackWaveform } from "./track-waveform";
 
 const DRIFT_TOLERANCE_S = 1.5;
 const GET_STATE_DEBOUNCE_MS = 300;
+const END_OF_TRACK_GRACE_MS = 250;
 
 function formatClock(totalSeconds: number): string {
   const safe = Math.max(0, Math.floor(totalSeconds));
@@ -97,6 +98,21 @@ export function MusicPlayer({ roomId }: { roomId: string }) {
       audio.pause();
     }
   }, [music, reloadToken]);
+
+  useEffect(() => {
+    if (!isOwner || !music?.songId || music.status !== "PLAYING") return;
+    const total = music.songDurationSeconds;
+    if (!total) return;
+
+    const pause = () => publish(appDestinations.musicPause(roomId));
+    const remainingMs = (total - positionAt(music, serverNow())) * 1000;
+    if (remainingMs <= 0) {
+      pause();
+      return;
+    }
+    const timer = window.setTimeout(pause, remainingMs + END_OF_TRACK_GRACE_MS);
+    return () => window.clearTimeout(timer);
+  }, [music, isOwner, roomId, publish]);
 
   useEffect(() => {
     const off = liveroomSocket.onFrameError((error) => {

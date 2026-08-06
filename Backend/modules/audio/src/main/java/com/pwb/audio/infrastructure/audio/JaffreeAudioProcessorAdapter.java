@@ -17,10 +17,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -155,12 +153,8 @@ public class JaffreeAudioProcessorAdapter implements AudioProcessorPort {
     }
 
     private Path download(String storageKey, Path target) {
-        try (InputStream in = storagePort.download(storageKey)) {
-            Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
-            return target;
-        } catch (IOException ex) {
-            throw new AudioBusinessException(AudioErrorCode.STORAGE_ERROR, ex);
-        }
+        storagePort.downloadToPath(storageKey, target);
+        return target;
     }
 
     private double requireDuration(Path file, String what) {

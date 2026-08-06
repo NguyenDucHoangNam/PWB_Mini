@@ -119,6 +119,9 @@ public final class PlaybackState extends DomainBaseEntity {
     public void resume(UUID by, Instant at) {
         requireSong();
 
+        if (hasReachedEnd()) {
+            this.positionSeconds = 0d;
+        }
         this.status = PlaybackStatus.PLAYING;
         this.startedAt = at;
         bump(by, at);
@@ -164,6 +167,10 @@ public final class PlaybackState extends DomainBaseEntity {
 
     public boolean hasSong() {
         return songId != null;
+    }
+
+    public boolean hasReachedEnd() {
+        return songDurationSeconds != null && positionSeconds >= songDurationSeconds;
     }
 
     public boolean isPlaying() {
