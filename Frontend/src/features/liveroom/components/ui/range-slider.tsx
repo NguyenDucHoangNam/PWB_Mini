@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 
 export function RangeSlider({
   value,
@@ -38,7 +39,12 @@ export function RangeSlider({
       style={{
         background: `linear-gradient(to right, currentColor ${percent}%, rgb(163 163 163 / 0.35) ${percent}%)`,
       }}
-      className={`h-1.5 w-full cursor-pointer appearance-none rounded-full text-black disabled:cursor-not-allowed disabled:opacity-50 dark:text-white [&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-current [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-current ${className}`}
+      className={cn(
+        "h-1.5 w-full cursor-pointer appearance-none rounded-full text-black transition-[height] outline-none hover:h-2 focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-white",
+        "[&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-current [&::-moz-range-thumb]:shadow",
+        "[&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-current [&::-webkit-slider-thumb]:shadow [&::-webkit-slider-thumb]:transition-transform hover:[&::-webkit-slider-thumb]:scale-125",
+        className,
+      )}
     />
   );
 }

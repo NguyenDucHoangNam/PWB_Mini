@@ -503,7 +503,17 @@
       "searchVoiceTagsPlaceholder": "Tìm voice tag theo tên...",
       "clearSearch": "Xoá tìm kiếm",
       "noResults": "Không tìm thấy kết quả",
-      "noResultsHint": "Không có mục nào khớp với “{query}”. Thử từ khoá khác xem sao."
+      "noResultsHint": "Không có mục nào khớp với “{query}”. Thử từ khoá khác xem sao.",
+      "songCount": "{count, plural, =0 {Chưa có bài hát} =1 {1 bài hát} other {# bài hát}}",
+      "voiceTagCount": "{count, plural, =0 {Chưa có voice tag} =1 {1 voice tag} other {# voice tag}}",
+      "showingRange": "Hiển thị {from}–{to} / {total}",
+      "colTitle": "Tiêu đề",
+      "colFormat": "Định dạng",
+      "colSize": "Dung lượng",
+      "colDuration": "Thời lượng",
+      "colName": "Tên",
+      "colType": "Loại",
+      "colLanguage": "Ngôn ngữ"
     },
     "voiceTags": {
       "title": "Voice Tag",
@@ -917,7 +927,12 @@
         "ownerAbsentHint": "Chủ phòng đã rời — nhạc tạm dừng tới khi họ quay lại",
         "changedBy": "{name} đã đổi",
         "notReady": "Bài này chưa sẵn sàng để phát",
-        "loadFailed": "Không tải được file nhạc"
+        "loadFailed": "Không tải được file nhạc",
+        "back10": "Lùi {seconds} giây",
+        "forward10": "Tiến {seconds} giây",
+        "mute": "Tắt tiếng",
+        "unmute": "Bật tiếng",
+        "blockedHint": "Bấm để bật tiếng"
       },
       "video": {
         "you": "Bạn",

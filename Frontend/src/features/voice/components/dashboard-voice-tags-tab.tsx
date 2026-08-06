@@ -32,7 +32,6 @@ export function DashboardVoiceTagsTab() {
   const page = useMemo(() => parsePage(searchParams.get("page")), [searchParams]);
   const queryFromUrl = searchParams.get("q") ?? "";
 
-  // Local field, debounced URL: typing stays instant while the address bar still describes the result.
   const [keyword, setKeyword] = useState(queryFromUrl);
   const debouncedKeyword = useDebouncedValue(keyword, SEARCH_DEBOUNCE_MS);
   const searching = debouncedKeyword.trim().length > 0;
@@ -66,12 +65,8 @@ export function DashboardVoiceTagsTab() {
   const pageData = data?.success && data.data ? data.data : null;
   const items = pageData ? pageData.content : [];
   const totalPages = pageData ? pageData.totalPages : 0;
+  const totalElements = pageData ? pageData.totalElements : 0;
 
-  /**
-   * Deleting the last tag on the last page leaves the URL pointing past the end, where the list renders
-   * the "no voice tags yet" state and the pager hides itself — nothing is left to click back with. The
-   * response echoes the page it describes, so a stale keepPreviousData payload cannot trigger this.
-   */
   useEffect(() => {
     if (!pageData || pageData.page !== page || page === 0 || page < totalPages) return;
     router.replace(buildHref(totalPages - 1));
@@ -81,12 +76,6 @@ export function DashboardVoiceTagsTab() {
     router.push(buildHref(newPage));
   };
 
-  /**
-   * A changed keyword makes the old page number meaningless, so it is dropped along with it.
-   *
-   * `replace`, not `push`: typing one word would otherwise leave a history entry per pause, so Back
-   * would walk letter by letter back out of the search instead of leaving the page.
-   */
   useEffect(() => {
     if (debouncedKeyword === queryFromUrl) return;
     const params = new URLSearchParams(searchParams.toString());
@@ -98,20 +87,25 @@ export function DashboardVoiceTagsTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedKeyword, queryFromUrl]);
 
+  const rangeFrom = page * DEFAULT_PAGE_SIZE + 1;
+  const rangeTo = Math.min(rangeFrom + items.length - 1, totalElements);
+
   return (
     <div className="flex flex-col gap-4">
-      <SearchInput
-        value={keyword}
-        onValueChange={setKeyword}
-        loading={searching && isFetching}
-        placeholder={tList("searchVoiceTagsPlaceholder")}
-        clearLabel={tList("clearSearch")}
-        aria-label={tList("searchVoiceTagsPlaceholder")}
-      />
+      <div className="flex-1">
+        <SearchInput
+          value={keyword}
+          onValueChange={setKeyword}
+          loading={searching && isFetching}
+          placeholder={tList("searchVoiceTagsPlaceholder")}
+          clearLabel={tList("clearSearch")}
+          aria-label={tList("searchVoiceTagsPlaceholder")}
+        />
+      </div>
 
       <div
         aria-busy={isFetching}
-        className={`rounded-xl border border-neutral-200 bg-white transition-opacity dark:border-neutral-800 dark:bg-black ${
+        className={`overflow-hidden rounded-xl border border-neutral-200 bg-white transition-opacity dark:border-neutral-800 dark:bg-black ${
           isFetching && !isLoading ? "opacity-60" : ""
         }`}
       >
@@ -168,35 +162,62 @@ export function DashboardVoiceTagsTab() {
             </Link>
           </div>
         ) : (
-          <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
-            {items.map((tag) => (
-              <VoiceTagCard key={tag.id} voiceTag={tag} />
-            ))}
+          <div className="divide-y divide-neutral-100 dark:divide-neutral-800/50">
+            {items.map((tag, i) => {
+              const isOdd = i % 2 === 0;
+              return (
+                <div
+                  key={tag.id}
+                  className={`relative ${
+                    isOdd
+                      ? "bg-white dark:bg-black"
+                      : "bg-neutral-50/60 dark:bg-neutral-950/60"
+                  }`}
+                >
+                  <div
+                    className={`absolute left-0 top-0 h-full w-[3px] ${
+                      isOdd
+                        ? "bg-neutral-900 dark:bg-neutral-100"
+                        : "bg-transparent"
+                    }`}
+                    aria-hidden="true"
+                  />
+                  <div className="px-4 py-3">
+                    <VoiceTagCard voiceTag={tag} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page === 0}
-            onClick={() => setPage(Math.max(0, page - 1))}
-          >
-            {tList("prev")}
-          </Button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-xs text-neutral-500 dark:text-neutral-400">
-            {page + 1} / {totalPages}
+            {tList("showingRange", { from: rangeFrom, to: rangeTo, total: totalElements })}
           </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page + 1 >= totalPages}
-            onClick={() => setPage(page + 1)}
-          >
-            {tList("next")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page === 0}
+              onClick={() => setPage(Math.max(0, page - 1))}
+            >
+              {tList("prev")}
+            </Button>
+            <span className="text-xs text-neutral-500 dark:text-neutral-400">
+              {page + 1} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page + 1 >= totalPages}
+              onClick={() => setPage(page + 1)}
+            >
+              {tList("next")}
+            </Button>
+          </div>
         </div>
       )}
     </div>

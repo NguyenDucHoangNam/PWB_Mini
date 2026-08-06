@@ -39,6 +39,10 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-brass: var(--brass);
+  --color-brass-foreground: var(--brass-foreground);
+  --ease-key: var(--key-ease);
+  --ease-hammer: var(--hammer-ease);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -82,6 +86,39 @@
   --sidebar-border: oklch(0.895 0 0);
   --sidebar-ring: oklch(0.75 0 0);
   --ghost-stroke: rgba(0, 0, 0, 0.7);
+
+  /* Tempo: every duration in the app is a note value at 120bpm */
+  --tempo-bpm: 120;
+  --beat: 500ms;
+  --beat-half: 1000ms;
+  --beat-8th: 250ms;
+  --beat-16th: 125ms;
+  --key-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --hammer-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* The single accent: piano pedal brass. Reserve for live/playing/recording. */
+  --brass: oklch(0.58 0.11 75);
+  --brass-foreground: oklch(0.985 0 0);
+
+  /* M1 key surface + M4 hammer travel */
+  --key-travel: 2px;
+  --key-scale: 0.985;
+  --key-edge: oklch(0.85 0 0);
+  --key-shadow-rest:
+    inset 0 1px 0 oklch(1 0 0 / 0.9), inset 0 -2px 4px oklch(0 0 0 / 0.06);
+  --key-shadow-pressed: inset 0 3px 6px oklch(0 0 0 / 0.18);
+  --key-face: linear-gradient(to bottom, oklch(1 0 0), oklch(0.985 0 0) 55%, oklch(0.955 0 0));
+  --key-grain: repeating-linear-gradient(
+    to right,
+    transparent 0,
+    transparent 1px,
+    oklch(0 0 0 / 0.03) 1px,
+    oklch(0 0 0 / 0.03) 2px
+  );
+
+  /* M2 staff */
+  --staff-gap: 0.6rem;
+  --staff-line: oklch(0.145 0 0 / 0.12);
 }
 
 .dark {
@@ -117,6 +154,95 @@
   --sidebar-border: oklch(1 0 0 / 12%);
   --sidebar-ring: oklch(0.6 0 0);
   --ghost-stroke: rgba(255, 255, 255, 0.8);
+
+  --brass: oklch(0.8 0.12 82);
+  --brass-foreground: oklch(0.11 0 0);
+
+  --key-edge: oklch(0.35 0 0);
+  --key-shadow-rest:
+    inset 0 1px 0 oklch(1 0 0 / 0.5), inset 0 -2px 4px oklch(0 0 0 / 0.12);
+  --key-shadow-pressed: inset 0 3px 6px oklch(0 0 0 / 0.3);
+  --key-face: linear-gradient(to bottom, oklch(0.93 0 0), oklch(0.9 0 0) 55%, oklch(0.86 0 0));
+
+  --staff-line: oklch(1 0 0 / 0.12);
+}
+
+/* Tempo utilities — use these instead of duration-200 */
+@utility beat {
+  transition-duration: var(--beat);
+}
+@utility beat-half {
+  transition-duration: var(--beat-half);
+}
+@utility beat-8th {
+  transition-duration: var(--beat-8th);
+}
+@utility beat-16th {
+  transition-duration: var(--beat-16th);
+}
+
+/* M4 — hammer travel. Composes with anything; never owns box-shadow so
+   focus rings survive. aria-haspopup is excluded so anchored popups stay put. */
+@utility key-press {
+  transition-property: all;
+  transition-duration: var(--beat-16th);
+  transition-timing-function: var(--key-ease);
+
+  &:active:not(:disabled):not([data-disabled]):not([aria-disabled="true"]):not([aria-haspopup]) {
+    translate: 0 var(--key-travel);
+    scale: var(--key-scale);
+  }
+}
+
+/* M1 — key surfaces. Pair with key-press. Use outline, not ring, for focus. */
+@utility key-white {
+  background-color: oklch(1 0 0);
+  background-image: var(--key-grain), var(--key-face);
+  border-right: 1px solid var(--key-edge);
+  border-radius: 0 0 3px 3px;
+  box-shadow: var(--key-shadow-rest);
+  color: oklch(0.145 0 0);
+
+  &:active:not(:disabled) {
+    box-shadow: var(--key-shadow-pressed);
+  }
+}
+
+@utility key-black {
+  --key-shadow-rest: inset 0 -3px 4px oklch(1 0 0 / 0.1), 0 4px 8px oklch(0 0 0 / 0.4);
+  --key-shadow-pressed:
+    inset 0 3px 5px oklch(0 0 0 / 0.9), inset 0 -1px 1px oklch(1 0 0 / 0.05);
+  background-color: oklch(0.05 0 0);
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent 1px,
+      oklch(1 0 0 / 0.04) 1px,
+      oklch(1 0 0 / 0.04) 2px
+    ),
+    linear-gradient(to bottom, oklch(0.22 0 0), oklch(0.08 0 0) 60%, oklch(0.02 0 0));
+  border-radius: 0 0 3px 3px;
+  box-shadow: var(--key-shadow-rest);
+  color: oklch(0.985 0 0);
+
+  &:active:not(:disabled) {
+    box-shadow: var(--key-shadow-pressed);
+  }
+}
+
+/* M2 — five staff lines, centred, drawn once */
+@utility staff-lines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--staff-line) 0,
+    var(--staff-line) 1px,
+    transparent 1px,
+    transparent var(--staff-gap)
+  );
+  background-size: 100% calc(var(--staff-gap) * 4 + 1px);
+  background-repeat: no-repeat;
+  background-position: center;
 }
 
 @layer base {
@@ -378,36 +504,42 @@
     }
   }
 
-  .cn-toast__waveform {
-    @apply ml-auto inline-flex items-end gap-[2px] opacity-70;
-    height: 14px;
+  /* M3 — waveform. Sizes to the font, colours to currentColor. */
+  .waveform {
+    @apply inline-flex items-end gap-[2px];
+    height: 1em;
   }
-  .cn-toast__waveform > span {
+  .waveform > span {
     @apply block w-[2px] rounded-full;
     background-color: currentColor;
     height: 100%;
     transform-origin: bottom center;
     will-change: transform, opacity;
-    animation: cn-waveform 900ms cubic-bezier(0.37, 0, 0.63, 1) infinite;
+    animation: cn-waveform var(--beat-half) cubic-bezier(0.37, 0, 0.63, 1) infinite;
   }
-  .cn-toast__waveform > span:nth-child(1) {
-    animation-delay: 0ms;
+  .waveform > span:nth-child(2) {
+    animation-delay: var(--beat-16th);
   }
-  .cn-toast__waveform > span:nth-child(2) {
-    animation-delay: 120ms;
+  .waveform > span:nth-child(3) {
+    animation-delay: calc(var(--beat-16th) * 2);
   }
-  .cn-toast__waveform > span:nth-child(3) {
-    animation-delay: 240ms;
+  .waveform > span:nth-child(4) {
+    animation-delay: calc(var(--beat-16th) * 3);
   }
-  .cn-toast__waveform > span:nth-child(4) {
-    animation-delay: 360ms;
+  .waveform > span:nth-child(5) {
+    animation-delay: calc(var(--beat-16th) * 4);
   }
-  .cn-toast__waveform > span:nth-child(5) {
-    animation-delay: 480ms;
+  .waveform[data-state="paused"] > span {
+    animation-play-state: paused;
+    transform: scaleY(0.35);
+  }
+  .cn-toast .waveform {
+    @apply ml-auto opacity-70;
+    height: 14px;
   }
 
   .otp-flash {
-    animation: otp-flash 800ms ease-out;
+    animation: otp-flash calc(var(--beat) * 1.5) ease-out;
   }
   @keyframes shimmer {
     0% {
@@ -437,7 +569,13 @@
 @media (prefers-reduced-motion: reduce) {
   .cn-toast,
   .cn-toast__progress,
-  .cn-toast__waveform > span {
+  .waveform > span {
     animation: none !important;
+  }
+
+  /* Drop the travel, keep the inset shadow: press still reads without motion */
+  .key-press:active {
+    translate: none !important;
+    scale: none !important;
   }
 }

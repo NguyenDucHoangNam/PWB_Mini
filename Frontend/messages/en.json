@@ -503,7 +503,17 @@
       "searchVoiceTagsPlaceholder": "Search voice tags by name...",
       "clearSearch": "Clear search",
       "noResults": "No results found",
-      "noResultsHint": "Nothing matches “{query}”. Try a different word."
+      "noResultsHint": "Nothing matches “{query}”. Try a different word.",
+      "songCount": "{count, plural, =0 {No songs} =1 {1 song} other {# songs}}",
+      "voiceTagCount": "{count, plural, =0 {No voice tags} =1 {1 voice tag} other {# voice tags}}",
+      "showingRange": "Showing {from}–{to} of {total}",
+      "colTitle": "Title",
+      "colFormat": "Format",
+      "colSize": "Size",
+      "colDuration": "Duration",
+      "colName": "Name",
+      "colType": "Type",
+      "colLanguage": "Language"
     },
     "voiceTags": {
       "title": "Voice Tags",
@@ -917,7 +927,12 @@
         "ownerAbsentHint": "The host left — music stays paused until they return",
         "changedBy": "Changed by {name}",
         "notReady": "This song is not ready to play yet",
-        "loadFailed": "Could not load the audio"
+        "loadFailed": "Could not load the audio",
+        "back10": "Back {seconds}s",
+        "forward10": "Forward {seconds}s",
+        "mute": "Mute",
+        "unmute": "Unmute",
+        "blockedHint": "Tap to turn on sound"
       },
       "video": {
         "you": "You",

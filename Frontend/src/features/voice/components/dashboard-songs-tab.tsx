@@ -1,18 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Music, Upload, AlertCircle, SearchX } from "lucide-react";
+import { toast } from "sonner";
+import { Music, Upload, AlertCircle, SearchX, Pencil, Trash2, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
-import { SongCard } from "@/features/voice/components/song-card";
+import { asApiError } from "@/lib/api-client";
 import { SongDeleteDialog } from "@/features/voice/components/song-delete-dialog";
-import { useListSongs, useSearchSongs } from "@/features/voice/api/songs";
+import { SongStatusBadge, SongVoiceTagBadge } from "@/features/voice/components/song-status-badge";
+import { useListSongs, useSearchSongs, useUpdateSong } from "@/features/voice/api/songs";
+import { resolveVoiceErrorMessage } from "@/features/voice/lib/resolve-voice-error-message";
 import { SONG_VIEW_STATUSES } from "@/features/voice/types";
 import type { Song, SongView } from "@/features/voice/types";
 
@@ -30,6 +33,222 @@ function parsePage(value: string | null): number {
   return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 0;
 }
 
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+function formatDuration(seconds: number) {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+interface SongRowProps {
+  song: Song;
+  index: number;
+  onDelete: (song: Song) => void;
+}
+
+function SongRow({ song, index, onDelete }: SongRowProps) {
+  const router = useRouter();
+  const tActions = useTranslations("voice.actions");
+  const tCommon = useTranslations("common");
+  const tErrors = useTranslations("voice.errors");
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(song.title);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const isOdd = index % 2 === 0;
+
+  const { mutate: updateSong, isPending } = useUpdateSong({
+    mutationConfig: {
+      onSuccess: (response) => {
+        if (response.success) {
+          toast.success(tCommon("save"));
+          setIsEditing(false);
+        } else {
+          toast.error(response.message || tCommon("error"));
+        }
+      },
+      onError: asApiError((err) => {
+        toast.error(resolveVoiceErrorMessage(err, tErrors, tCommon));
+      }),
+    },
+  });
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const startEdit = () => {
+    setEditValue(song.title);
+    setIsEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setEditValue(song.title);
+    setIsEditing(false);
+  };
+
+  const saveEdit = () => {
+    const trimmed = editValue.trim();
+    if (!trimmed || isPending) return;
+    if (trimmed === song.title) {
+      setIsEditing(false);
+      return;
+    }
+    updateSong({ songId: song.id, data: { title: trimmed } });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveEdit();
+    } else if (e.key === "Escape") {
+      cancelEdit();
+    }
+  };
+
+  const handleRowClick = () => {
+    if (!isEditing) {
+      router.push(`/dashboard/songs/${song.id}`);
+    }
+  };
+
+  return (
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={handleRowClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && !isEditing) handleRowClick();
+      }}
+      className={`group relative flex items-center gap-3 px-4 py-3 transition-colors cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-900 ${
+        isOdd
+          ? "bg-white dark:bg-black"
+          : "bg-neutral-50/60 dark:bg-neutral-950/60"
+      }`}
+    >
+      <div
+        className={`absolute left-0 top-0 h-full w-[3px] transition-colors ${
+          isOdd
+            ? "bg-neutral-900 dark:bg-neutral-100"
+            : "bg-transparent"
+        }`}
+        aria-hidden="true"
+      />
+
+      <span className="w-8 shrink-0 text-center text-xs font-mono text-neutral-400 dark:text-neutral-500">
+        {index + 1}
+      </span>
+
+      <div className="flex flex-1 items-center gap-3 min-w-0">
+        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+          <div className="flex items-center gap-2 min-w-0">
+            {isEditing ? (
+              <div className="flex items-center gap-1.5 min-w-0 flex-1" onClick={(e) => e.stopPropagation()}>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  onBlur={cancelEdit}
+                  maxLength={200}
+                  disabled={isPending}
+                  className="min-w-0 flex-1 rounded border border-neutral-300 bg-white px-2 py-0.5 text-sm font-semibold text-neutral-900 outline-none focus:border-black dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-white"
+                />
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    saveEdit();
+                  }}
+                  disabled={isPending || !editValue.trim()}
+                  className="flex size-6 shrink-0 items-center justify-center rounded text-neutral-600 hover:bg-neutral-200 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                  aria-label={tCommon("save")}
+                >
+                  <Check className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    cancelEdit();
+                  }}
+                  className="flex size-6 shrink-0 items-center justify-center rounded text-neutral-600 hover:bg-neutral-200 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                  aria-label={tCommon("cancel")}
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <span className="truncate text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+                  {song.title}
+                </span>
+                <SongStatusBadge status={song.status} />
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-2 sm:hidden">
+            <SongVoiceTagBadge hasVoiceTag={song.hasVoiceTag} />
+          </div>
+        </div>
+      </div>
+
+      <div className="hidden sm:flex items-center">
+        <SongVoiceTagBadge hasVoiceTag={song.hasVoiceTag} />
+      </div>
+
+      <span className="hidden md:block w-14 shrink-0 text-center text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">
+        {(song.format ?? "").toUpperCase()}
+      </span>
+
+      <span className="hidden lg:block w-16 shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400">
+        {song.fileSizeBytes !== null ? formatBytes(song.fileSizeBytes) : "-"}
+      </span>
+
+      <span className="w-12 shrink-0 text-right text-xs font-mono text-neutral-600 dark:text-neutral-300">
+        {song.durationSeconds !== null ? formatDuration(song.durationSeconds) : "-"}
+      </span>
+
+      <div className="flex shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity sm:w-16 justify-end">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7 text-neutral-500 hover:bg-neutral-200 hover:text-black dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
+          onClick={(e) => {
+            e.stopPropagation();
+            startEdit();
+          }}
+          aria-label={tActions("edit")}
+        >
+          <Pencil className="size-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7 text-neutral-500 hover:bg-red-50 hover:text-red-600 dark:text-neutral-400 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(song);
+          }}
+          aria-label={tActions("delete")}
+        >
+          <Trash2 className="size-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function DashboardSongsTab() {
   const t = useTranslations("voice.songs");
   const tStatus = useTranslations("voice.status");
@@ -43,8 +262,6 @@ export function DashboardSongsTab() {
   const page = useMemo(() => parsePage(searchParams.get("page")), [searchParams]);
   const queryFromUrl = searchParams.get("q") ?? "";
 
-  // The field is local so typing stays instant; the URL only catches up once the debounced value does,
-  // which also keeps a search shareable and survivable across a reload.
   const [keyword, setKeyword] = useState(queryFromUrl);
   const debouncedKeyword = useDebouncedValue(keyword, SEARCH_DEBOUNCE_MS);
   const searching = debouncedKeyword.trim().length > 0;
@@ -80,10 +297,6 @@ export function DashboardSongsTab() {
     status: SONG_VIEW_STATUSES[view],
     queryConfig: {
       enabled: !searching,
-      // Songs land here straight from upload while still rendering; without this their badge would sit
-      // on PROCESSING until the user reloaded by hand. The background flag matters because react-query
-      // freezes interval refetches on a hidden tab, and waiting out a render is exactly when people
-      // switch away.
       refetchIntervalInBackground: true,
       refetchInterval: (query) =>
         query.state.data?.data?.content.some((song) => song.status === "PROCESSING")
@@ -102,24 +315,17 @@ export function DashboardSongsTab() {
 
   const { data, isLoading, isFetching, isError, refetch } = searching ? searchQuery : listQuery;
 
-  // The server applies both the status filter and the keyword, so this page and the page count already
-  // describe the filtered set. Filtering here as well would only re-hide rows the query never returned.
   const pageData = data?.success && data.data ? data.data : null;
   const items = pageData ? pageData.content : [];
   const totalPages = pageData ? pageData.totalPages : 0;
+  const totalElements = pageData ? pageData.totalElements : 0;
   const toDeleteId = searchParams.get("delete");
 
-  /**
-   * Deleting the last song on the last page leaves the URL pointing past the end, where the list renders
-   * the "no songs yet" state and the pager hides itself — nothing is left to click back with. The
-   * response echoes the page it describes, so a stale keepPreviousData payload cannot trigger this.
-   */
   useEffect(() => {
     if (!pageData || pageData.page !== page || page === 0 || page < totalPages) return;
     router.replace(buildPageHref(totalPages - 1));
   }, [pageData, page, totalPages, router, buildPageHref]);
 
-  // Three groups, not four job states: a plain upload and a finished merge are both simply playable.
   const filters: { value: SongView; label: string }[] = [
     { value: "ALL", label: tList("all") },
     { value: "READY", label: tStatus("ready") },
@@ -131,17 +337,9 @@ export function DashboardSongsTab() {
     updateQuery({ view: value === "ALL" ? null : value, page: null });
   };
 
-  /**
-   * Any change to the search text invalidates the page number: page 3 of the old result set has nothing
-   * to do with page 3 of the new one.
-   *
-   * `replace`, not `push`: typing one word would otherwise leave a history entry per pause, so Back
-   * would walk letter by letter back out of the search instead of leaving the page.
-   */
   useEffect(() => {
     if (debouncedKeyword === queryFromUrl) return;
     router.replace(buildQuery({ q: debouncedKeyword || null, page: null }));
-    // buildQuery closes over the current params on purpose; re-running on its identity would loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedKeyword, queryFromUrl]);
 
@@ -157,38 +355,39 @@ export function DashboardSongsTab() {
     updateQuery({ delete: null });
   };
 
+  const rangeFrom = page * DEFAULT_PAGE_SIZE + 1;
+  const rangeTo = Math.min(rangeFrom + items.length - 1, totalElements);
+
   return (
     <div className="flex flex-col gap-4">
-      <SearchInput
-        value={keyword}
-        onValueChange={setKeyword}
-        loading={searching && isFetching}
-        placeholder={tList("searchSongsPlaceholder")}
-        clearLabel={tList("clearSearch")}
-        aria-label={tList("searchSongsPlaceholder")}
-      />
-
-      <div className="flex flex-wrap gap-2">
-        {filters.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => setView(opt.value)}
-            aria-pressed={view === opt.value}
-            className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-              view === opt.value
-                ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-                : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-black dark:text-neutral-300 dark:hover:bg-neutral-900"
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <div className="flex-1">
+          <SearchInput
+            value={keyword}
+            onValueChange={setKeyword}
+            loading={searching && isFetching}
+            placeholder={tList("searchSongsPlaceholder")}
+            clearLabel={tList("clearSearch")}
+            aria-label={tList("searchSongsPlaceholder")}
+          />
+        </div>
+        <select
+          value={view}
+          onChange={(e) => setView(e.target.value as SongView)}
+          className="h-9 shrink-0 appearance-none rounded-lg border border-neutral-200 bg-white px-3 pr-8 text-xs font-semibold text-neutral-700 outline-none transition-colors hover:border-neutral-300 focus-visible:ring-2 focus-visible:ring-ring/50 dark:border-neutral-800 dark:bg-black dark:text-neutral-300 dark:hover:border-neutral-700"
+          style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 8px center" }}
+        >
+          {filters.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div
         aria-busy={isFetching}
-        className={`rounded-xl border border-neutral-200 bg-white transition-opacity dark:border-neutral-800 dark:bg-black ${
+        className={`overflow-hidden rounded-xl border border-neutral-200 bg-white transition-opacity dark:border-neutral-800 dark:bg-black ${
           isFetching && !isLoading ? "opacity-60" : ""
         }`}
       >
@@ -208,8 +407,6 @@ export function DashboardSongsTab() {
             </Button>
           </div>
         ) : items.length === 0 && searching ? (
-          // A library that has songs but none matching is a different situation from an empty library:
-          // offering "upload your first song" here would be answering a question nobody asked.
           <div className="flex flex-col items-center justify-center gap-4 p-12 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-900">
               <SearchX className="h-8 w-8 text-neutral-400" />
@@ -247,35 +444,56 @@ export function DashboardSongsTab() {
             </Link>
           </div>
         ) : (
-          <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
-            {items.map((song) => (
-              <SongCard key={song.id} song={song} onDelete={openDelete} />
-            ))}
-          </div>
+          <>
+            <div className="hidden sm:flex items-center gap-3 border-b border-neutral-100 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-400 dark:border-neutral-800 dark:text-neutral-500">
+              <span className="w-8 shrink-0 text-center">#</span>
+              <span className="flex-1">{tList("colTitle")}</span>
+              <span className="w-20" />
+              <span className="hidden md:block w-14 shrink-0 text-center">{tList("colFormat")}</span>
+              <span className="hidden lg:block w-16 shrink-0 text-right">{tList("colSize")}</span>
+              <span className="w-12 shrink-0 text-right">{tList("colDuration")}</span>
+              <span className="w-16 shrink-0" />
+            </div>
+            <div className="divide-y divide-neutral-100 dark:divide-neutral-800/50">
+              {items.map((song, i) => (
+                <SongRow
+                  key={song.id}
+                  song={song}
+                  index={page * DEFAULT_PAGE_SIZE + i}
+                  onDelete={openDelete}
+                />
+              ))}
+            </div>
+          </>
         )}
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page === 0}
-            onClick={() => setPage(Math.max(0, page - 1))}
-          >
-            {tList("prev")}
-          </Button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-xs text-neutral-500 dark:text-neutral-400">
-            {page + 1} / {totalPages}
+            {tList("showingRange", { from: rangeFrom, to: rangeTo, total: totalElements })}
           </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page + 1 >= totalPages}
-            onClick={() => setPage(page + 1)}
-          >
-            {tList("next")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page === 0}
+              onClick={() => setPage(Math.max(0, page - 1))}
+            >
+              {tList("prev")}
+            </Button>
+            <span className="text-xs text-neutral-500 dark:text-neutral-400">
+              {page + 1} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page + 1 >= totalPages}
+              onClick={() => setPage(page + 1)}
+            >
+              {tList("next")}
+            </Button>
+          </div>
         </div>
       )}
 

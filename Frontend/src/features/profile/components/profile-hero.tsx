@@ -105,7 +105,7 @@ export function ProfileHero({
           />
           <label
             htmlFor={uploadId}
-            className="absolute -bottom-1 -right-1 flex size-9 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-black text-white shadow-lg transition-transform hover:scale-105 active:scale-95 dark:border-neutral-950 dark:bg-white dark:text-black"
+            className="key-press absolute -bottom-1 -right-1 flex size-9 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-black text-white shadow-lg hover:scale-105 dark:border-neutral-950 dark:bg-white dark:text-black"
             aria-label={avatarTitle}
           >
             <Camera className="size-4" aria-hidden="true" />

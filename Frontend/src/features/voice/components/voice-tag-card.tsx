@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { Play, Pause, Volume2, VolumeX, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { Play, Pause, Volume2, VolumeX, Pencil, Trash2, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { asApiError } from "@/lib/api-client";
 import type { VoiceTag } from "../types";
-import { useVoiceTagAudioUrl } from "../api/voice-tags";
+import { useVoiceTagAudioUrl, useUpdateVoiceTag } from "../api/voice-tags";
+import { resolveVoiceErrorMessage } from "../lib/resolve-voice-error-message";
 import { VoiceTagDeleteDialog } from "./voice-tag-delete-dialog";
-import { VoiceTagEditDialog } from "./voice-tag-edit-dialog";
 
 import { LanguageFlagIcon } from "./language-flag";
 
@@ -18,54 +20,147 @@ interface VoiceTagCardProps {
 
 export function VoiceTagCard({ voiceTag }: VoiceTagCardProps) {
   const tActions = useTranslations("voice.actions");
+  const tCommon = useTranslations("common");
+  const tErrors = useTranslations("voice.errors");
+
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(voiceTag.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const { mutate: updateTag, isPending } = useUpdateVoiceTag({
+    mutationConfig: {
+      onSuccess: (response) => {
+        if (response.success) {
+          toast.success(tCommon("save"));
+          setIsEditing(false);
+        } else {
+          toast.error(response.message || tCommon("error"));
+        }
+      },
+      onError: asApiError((err) => {
+        toast.error(resolveVoiceErrorMessage(err, tErrors, tCommon));
+      }),
+    },
+  });
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const startEdit = () => {
+    setEditValue(voiceTag.name);
+    setIsEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setEditValue(voiceTag.name);
+    setIsEditing(false);
+  };
+
+  const saveEdit = () => {
+    const trimmed = editValue.trim();
+    if (!trimmed || isPending) return;
+    if (trimmed === voiceTag.name) {
+      setIsEditing(false);
+      return;
+    }
+    updateTag({ voiceTagId: voiceTag.id, data: { name: trimmed } });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveEdit();
+    } else if (e.key === "Escape") {
+      cancelEdit();
+    }
+  };
 
   return (
-    <div className="group relative flex flex-col justify-between gap-3.5 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm transition-all duration-200 hover:border-neutral-300 hover:shadow-md dark:border-neutral-800 dark:bg-black dark:hover:border-neutral-700">
+    <div className="group relative flex flex-col justify-between gap-3.5">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <h3 className="truncate text-base font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
-            {voiceTag.name}
-          </h3>
-          {voiceTag.languageCode && (
-            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-700 border border-neutral-200/80 dark:bg-neutral-900 dark:text-neutral-300 dark:border-neutral-800 uppercase">
-              <LanguageFlagIcon langCode={voiceTag.languageCode} className="h-3 w-[18px] rounded-[1px] shrink-0" />
-              {voiceTag.languageCode}
-            </span>
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          {isEditing ? (
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              <input
+                ref={inputRef}
+                type="text"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onBlur={cancelEdit}
+                maxLength={100}
+                disabled={isPending}
+                className="min-w-0 flex-1 rounded border border-neutral-300 bg-white px-2 py-0.5 text-base font-bold tracking-tight text-neutral-900 outline-none focus:border-black dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-white"
+              />
+              <button
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  saveEdit();
+                }}
+                disabled={isPending || !editValue.trim()}
+                className="flex size-7 shrink-0 items-center justify-center rounded text-neutral-600 hover:bg-neutral-200 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                aria-label={tCommon("save")}
+              >
+                <Check className="size-4" />
+              </button>
+              <button
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  cancelEdit();
+                }}
+                className="flex size-7 shrink-0 items-center justify-center rounded text-neutral-600 hover:bg-neutral-200 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                aria-label={tCommon("cancel")}
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+          ) : (
+            <>
+              <h3 className="truncate text-base font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
+                {voiceTag.name}
+              </h3>
+              {voiceTag.languageCode && (
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-700 border border-neutral-200/80 dark:bg-neutral-900 dark:text-neutral-300 dark:border-neutral-800 uppercase">
+                  <LanguageFlagIcon langCode={voiceTag.languageCode} className="h-3 w-[18px] rounded-[1px] shrink-0" />
+                  {voiceTag.languageCode}
+                </span>
+              )}
+            </>
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8 text-neutral-500 hover:bg-neutral-100 hover:text-black dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
-            onClick={() => setEditOpen(true)}
-            title={tActions("edit")}
-          >
-            <Pencil className="size-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8 text-neutral-500 hover:bg-red-50 hover:text-red-600 dark:text-neutral-400 dark:hover:bg-red-950/40 dark:hover:text-red-400"
-            onClick={() => setDeleteOpen(true)}
-            title={tActions("delete")}
-          >
-            <Trash2 className="size-4" />
-          </Button>
-        </div>
+        {!isEditing && (
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 text-neutral-500 hover:bg-neutral-100 hover:text-black dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
+              onClick={startEdit}
+              title={tActions("edit")}
+            >
+              <Pencil className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 text-neutral-500 hover:bg-red-50 hover:text-red-600 dark:text-neutral-400 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+              onClick={() => setDeleteOpen(true)}
+              title={tActions("delete")}
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          </div>
+        )}
       </div>
 
       <VoiceTagPreviewInline voiceTagId={voiceTag.id} />
-
-      <VoiceTagEditDialog
-        voiceTagId={voiceTag.id}
-        currentName={voiceTag.name}
-        open={editOpen}
-        onOpenChange={setEditOpen}
-      />
 
       <VoiceTagDeleteDialog
         voiceTagId={voiceTag.id}
@@ -80,8 +175,6 @@ export function VoiceTagCard({ voiceTag }: VoiceTagCardProps) {
 function VoiceTagPreviewInline({ voiceTagId }: { voiceTagId: string }) {
   const t = useTranslations("voice.voiceTags");
   const tPlayer = useTranslations("voice.player");
-  // Signing a URL on mount cost one round trip per card just to draw a play button — a page of 20 tags
-  // fired 20 of them before the user pressed anything. Ask only once someone actually wants to listen.
   const [requested, setRequested] = useState(false);
   const { data, isLoading, error } = useVoiceTagAudioUrl({
     voiceTagId,
@@ -195,7 +288,7 @@ function VoiceTagCustomPlayer({ url, autoPlay = false }: { url: string; autoPlay
       <button
         type="button"
         onClick={togglePlay}
-        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-black text-white transition-transform hover:scale-105 active:scale-95 dark:bg-white dark:text-black"
+        className="key-press flex size-8 shrink-0 items-center justify-center rounded-full bg-black text-white hover:scale-105 dark:bg-white dark:text-black"
         aria-label={isPlaying ? "Pause" : "Play"}
       >
         {isPlaying ? (

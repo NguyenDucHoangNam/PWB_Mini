@@ -74,7 +74,7 @@ export function SongVoiceTagBadge({
 
   return (
     <span
-      className={`${BADGE_BASE} border-violet-300 bg-violet-50 text-violet-800 dark:border-violet-800 dark:bg-violet-950/30 dark:text-violet-300 ${className}`}
+      className={`${BADGE_BASE} border-black bg-black text-white dark:border-white dark:bg-white dark:text-black ${className}`}
       title={t("hasVoiceTagHint")}
     >
       <Mic className="size-3 shrink-0" aria-hidden="true" />
