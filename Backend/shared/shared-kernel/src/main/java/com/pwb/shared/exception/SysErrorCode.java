@@ -5,6 +5,7 @@ public enum SysErrorCode implements ErrorCode {
     INVALID_REQUEST           (ErrorCategory.VALIDATION,         "INVALID_REQUEST",           "The request is invalid"),
     INVALID_PARAMETER         (ErrorCategory.VALIDATION,         "INVALID_PARAMETER",         "One or more request parameters are invalid"),
     MALFORMED_REQUEST_BODY    (ErrorCategory.VALIDATION,         "MALFORMED_REQUEST_BODY",    "The request body could not be parsed"),
+    ACCESS_DENIED             (ErrorCategory.FORBIDDEN,          "ACCESS_DENIED",             "You do not have permission to perform this action"),
     RESOURCE_NOT_FOUND        (ErrorCategory.NOT_FOUND,          "RESOURCE_NOT_FOUND",        "The requested resource was not found"),
     METHOD_NOT_ALLOWED        (ErrorCategory.METHOD_NOT_ALLOWED, "METHOD_NOT_ALLOWED",        "The HTTP method is not supported for this endpoint"),
     CONCURRENT_UPDATE         (ErrorCategory.CONFLICT,           "CONCURRENT_UPDATE",         "The resource was modified by another request. Please retry."),

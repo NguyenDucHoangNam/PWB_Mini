@@ -89,6 +89,10 @@ export const useListRooms = ({
     queryKey: [LIVEROOM_ROOMS_KEY, { status, page, size }],
     queryFn: () => listRooms({ status, page, size }),
     placeholderData: keepPreviousData,
+
+
+
+    staleTime: 0,
     ...queryConfig,
   });
 

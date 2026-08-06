@@ -13,6 +13,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -130,6 +131,19 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleNoResource(NoResourceFoundException ex) {
         log.warn("Resource not found: {} {}", ex.getHttpMethod(), ex.getResourcePath());
         return respond(SysErrorCode.RESOURCE_NOT_FOUND, null);
+    }
+
+    /**
+     * Denials raised by method security ({@code @PreAuthorize} and friends) surface inside the
+     * handler, past the point where {@code ExceptionTranslationFilter} could turn them into a 403 —
+     * so without this they fall through to {@link #handleGeneric} and a rejected caller is told the
+     * server broke. {@code AuthorizationDeniedException} extends {@link AccessDeniedException}, so
+     * both the pre- and post-authorization variants land here.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
+        log.debug("Access denied: {}", ex.getMessage());
+        return respond(SysErrorCode.ACCESS_DENIED, null);
     }
 
     @ExceptionHandler(Exception.class)

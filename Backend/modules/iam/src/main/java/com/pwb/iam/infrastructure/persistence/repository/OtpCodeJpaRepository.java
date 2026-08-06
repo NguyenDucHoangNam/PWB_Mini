@@ -17,8 +17,15 @@ public interface OtpCodeJpaRepository extends IamJpaRepository<OtpCodeJpaEntity>
     Optional<OtpCodeJpaEntity> findFirstByUserIdAndPurposeAndStatusAndDeletedFalseOrderByCreatedAtDesc(
             UUID userId, OtpPurpose purpose, OtpCode.OtpStatus status);
 
+    /**
+     * {@code flushAutomatically} is not optional here. These are bulk updates, so they bypass the
+     * persistence context, and {@code clearAutomatically} then discards whatever it still holds.
+     * Registration persists the new user and issues its OTP in one transaction — without the flush,
+     * the queued {@code iam_users} insert is thrown away by the clear and the account is silently
+     * never created, while the OTP row (written afterwards) commits normally.
+     */
     @Transactional
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE OtpCodeJpaEntity o SET o.status = 'EXPIRED' " +
             "WHERE o.userId = :userId AND o.purpose = :purpose AND o.status = 'PENDING' AND o.deleted = false")
     int invalidatePending(@Param("userId") UUID userId, @Param("purpose") OtpPurpose purpose);
@@ -29,13 +36,13 @@ public interface OtpCodeJpaRepository extends IamJpaRepository<OtpCodeJpaEntity>
      * on the first try.
      */
     @Transactional
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE OtpCodeJpaEntity o SET o.status = 'LOCKED' " +
             "WHERE o.id = :id AND o.status = 'PENDING' AND o.attempts >= :maxAttempts")
     int markLockedIfNotAlready(@Param("id") UUID id, @Param("maxAttempts") int maxAttempts);
 
     @Transactional
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE OtpCodeJpaEntity o SET o.attempts = o.attempts + 1 " +
             "WHERE o.id = :id AND o.status = 'PENDING'")
     int incrementAttempts(@Param("id") UUID id);

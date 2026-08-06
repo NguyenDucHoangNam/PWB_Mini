@@ -64,6 +64,9 @@ export default function SongDetailPage() {
   const { data: songRes, isLoading } = useSong({
     songId,
     queryConfig: {
+      // Rendering outlives the user's attention, so this has to keep ticking on a hidden tab —
+      // react-query stops interval refetches in the background by default.
+      refetchIntervalInBackground: true,
       refetchInterval: (query) =>
         query.state.data?.data?.status === "PROCESSING" ? POLL_INTERVAL_MS : false,
     },

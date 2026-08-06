@@ -21,10 +21,13 @@ public class PasswordResetTokenRepositoryImpl implements PasswordResetTokenRepos
     private final PasswordResetTokenMapper mapper;
 
     @Override
+    @Transactional
     public PasswordResetToken save(PasswordResetToken token) {
-        PasswordResetTokenJpaEntity entity = mapper.toEntity(token);
-        PasswordResetTokenJpaEntity saved = repository.save(entity);
-        return mapper.toDomain(saved);
+        UUID id = token.getTokenId();
+        PasswordResetTokenJpaEntity target = id == null
+                ? mapper.toEntity(token, null)
+                : mapper.toEntity(token, repository.findById(id).orElse(null));
+        return mapper.toDomain(repository.save(target));
     }
 
     @Override

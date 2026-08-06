@@ -86,7 +86,10 @@ class LiveroomSocket {
 
   connect(): void {
     this.wantConnected = true;
-    if (this.client?.active) return;
+    if (this.client?.active) {
+      this.setStatus(this.status, this.attempt);
+      return;
+    }
     this.openClient();
   }
 

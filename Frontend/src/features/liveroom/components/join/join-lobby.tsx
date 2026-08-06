@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Ban, Clock, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,12 +11,25 @@ import { Spinner } from "@/components/ui/spinner";
 import { asApiError } from "@/lib/api-client";
 import { AutoJoinCountdown } from "./auto-join-countdown";
 import { JoinStepIndicator } from "./join-step-indicator";
-import { useCancelJoinRequest, useMyJoinRequest } from "../../api/join-requests";
+import {
+  myJoinRequestKey,
+  useCancelJoinRequest,
+  useMyJoinRequest,
+} from "../../api/join-requests";
+import { liveroomSocket } from "../../lib/liveroom-socket";
 import { clearIdempotencyKey } from "../../lib/liveroom-storage";
 import { resolveLiveroomErrorMessage } from "../../lib/resolve-liveroom-error-message";
 import type { JoinRequest } from "../../types";
+import type { LiveroomEventType } from "../../types/events";
 
 const POLL_MS = 5000;
+
+const DECISION_EVENTS: ReadonlySet<LiveroomEventType> = new Set<LiveroomEventType>([
+  "REQUEST_APPROVED",
+  "REQUEST_REJECTED_BY_OWNER",
+  "REQUEST_REJECTED_BY_CAPACITY",
+  "REQUEST_LOCKED",
+]);
 
 interface JoinLobbyProps {
   roomId: string;
@@ -29,10 +43,13 @@ export function JoinLobby({ roomId, initialRequest, onRetry }: JoinLobbyProps) {
   const tErrors = useTranslations("liveroom.errors");
   const router = useRouter();
 
+  const queryClient = useQueryClient();
+
   const { data, isFetching } = useMyJoinRequest({
     roomId,
     refetchInterval: POLL_MS,
     queryConfig: {
+      refetchIntervalInBackground: true,
       initialData: {
         success: true,
         message: "",
@@ -45,6 +62,26 @@ export function JoinLobby({ roomId, initialRequest, onRetry }: JoinLobbyProps) {
 
   const request = data?.data ?? initialRequest;
   const terminal = request.state !== "PENDING";
+
+  useEffect(() => {
+    liveroomSocket.connect();
+    return liveroomSocket.onEvent((event) => {
+      if (event.roomId !== roomId || !DECISION_EVENTS.has(event.type)) return;
+      void queryClient.invalidateQueries({ queryKey: myJoinRequestKey(roomId) });
+    });
+  }, [roomId, queryClient]);
+
+  const approvedRef = useRef(false);
+  useEffect(() => {
+    if (request.state === "APPROVED") approvedRef.current = true;
+  }, [request.state]);
+
+  useEffect(
+    () => () => {
+      if (!approvedRef.current) liveroomSocket.disconnect();
+    },
+    [],
+  );
 
   useEffect(() => {
     if (terminal && request.state !== "APPROVED") clearIdempotencyKey(roomId);

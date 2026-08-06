@@ -66,7 +66,10 @@ export function DashboardSongsTab() {
     status: SONG_VIEW_STATUSES[view],
     queryConfig: {
       // Songs land here straight from upload while still rendering; without this their badge would sit
-      // on PROCESSING until the user reloaded by hand.
+      // on PROCESSING until the user reloaded by hand. The background flag matters because react-query
+      // freezes interval refetches on a hidden tab, and waiting out a render is exactly when people
+      // switch away.
+      refetchIntervalInBackground: true,
       refetchInterval: (query) =>
         query.state.data?.data?.content.some((song) => song.status === "PROCESSING")
           ? LIST_POLL_INTERVAL_MS

@@ -20,6 +20,23 @@ public class PasswordResetTokenMapper {
                 .build();
     }
 
+    /**
+     * Mutates the row the token was loaded from rather than building a fresh entity. The builder
+     * above cannot carry an id — {@code id} is generated — so re-saving a rehydrated token through
+     * it inserts a second row and leaves the original behind, still {@code used = false} and still
+     * matched by {@code findActiveByHash}. That is what made a spent reset link keep working for
+     * the rest of its TTL.
+     */
+    public PasswordResetTokenJpaEntity toEntity(PasswordResetToken domain, PasswordResetTokenJpaEntity existing) {
+        if (domain == null || existing == null) {
+            return toEntity(domain);
+        }
+        existing.setUsed(domain.isUsed());
+        existing.setUsedAt(domain.getUsedAt());
+        existing.setExpiresAt(domain.getExpiresAt());
+        return existing;
+    }
+
     public PasswordResetToken toDomain(PasswordResetTokenJpaEntity entity) {
         if (entity == null) {
             return null;
