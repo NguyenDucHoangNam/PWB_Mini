@@ -338,7 +338,6 @@ export function RoomScreen({ roomId }: { roomId: string }) {
           {
             id: roomId,
             roomName: room.roomName,
-            canUndoEnd: true,
           } as Room
         }
         open={endOpen}

@@ -51,7 +51,6 @@ export const liveroomApi = {
   room: (roomId: string) => `/liveroom/rooms/${roomId}`,
   roomByCode: (roomCode: string) => `/liveroom/rooms/by-code/${roomCode}`,
   end: (roomId: string) => `/liveroom/rooms/${roomId}/end`,
-  undoEnd: (roomId: string) => `/liveroom/rooms/${roomId}/undo-end`,
   reopen: (roomId: string) => `/liveroom/rooms/${roomId}/reopen`,
   joinRequests: (roomId: string) => `/liveroom/rooms/${roomId}/join-requests`,
   myJoinRequest: (roomId: string) => `/liveroom/rooms/${roomId}/join-requests/me`,

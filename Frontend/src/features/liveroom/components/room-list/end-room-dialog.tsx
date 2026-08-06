@@ -12,11 +12,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { asApiError } from "@/lib/api-client";
-import { useEndRoom, useUndoEndRoom } from "../../api/rooms";
+import { useEndRoom } from "../../api/rooms";
 import { resolveLiveroomErrorMessage } from "../../lib/resolve-liveroom-error-message";
 import type { Room } from "../../types";
-
-const UNDO_TOAST_MS = 5000;
 
 interface EndRoomDialogProps {
   room: Room | null;
@@ -30,33 +28,12 @@ export function EndRoomDialog({ room, open, onOpenChange, onSuccess }: EndRoomDi
   const tCommon = useTranslations("common");
   const tErrors = useTranslations("liveroom.errors");
 
-  const { mutate: undoEnd } = useUndoEndRoom({
-    mutationConfig: {
-      onSuccess: () => {
-        toast.success(t("revivedToast"));
-      },
-      onError: asApiError((err) => {
-        toast.error(resolveLiveroomErrorMessage(err, tErrors, tCommon));
-      }),
-    },
-  });
-
   const { mutate: end, isPending } = useEndRoom({
     mutationConfig: {
-      onSuccess: (response, variables) => {
+      onSuccess: () => {
         onOpenChange(false);
         onSuccess?.();
-        if (response.data?.canUndoEnd) {
-          toast.success(t("endedToast"), {
-            duration: UNDO_TOAST_MS,
-            action: {
-              label: t("undo"),
-              onClick: () => undoEnd({ roomId: variables.roomId }),
-            },
-          });
-        } else {
-          toast.success(t("endedToast"));
-        }
+        toast.success(t("endedToast"));
       },
       onError: asApiError((err) => {
         toast.error(resolveLiveroomErrorMessage(err, tErrors, tCommon));

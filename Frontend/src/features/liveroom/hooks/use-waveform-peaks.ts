@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-export const WAVEFORM_BAR_COUNT = 180;
+export const WAVEFORM_BAR_COUNT = 320;
 
 
 

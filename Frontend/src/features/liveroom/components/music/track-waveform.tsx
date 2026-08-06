@@ -1,6 +1,13 @@
 "use client";
 
-import { memo, useRef, useState } from "react";
+import {
+  memo,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { UserAvatar } from "../ui/user-avatar";
 import { WAVEFORM_BAR_COUNT, type WaveformState } from "../../hooks/use-waveform-peaks";
 import { useLiveroomStore } from "../../stores/use-liveroom-store";
@@ -8,25 +15,56 @@ import { displayName } from "../../utils/participant-sort";
 import type { TrackComment } from "../../types";
 
 const IDLE_PEAKS = Array.from({ length: WAVEFORM_BAR_COUNT }, (_, index) =>
-  0.18 + 0.12 * Math.abs(Math.sin(index / 3)),
+  0.3 + 0.2 * Math.abs(Math.sin(index / 9)) + 0.12 * Math.abs(Math.sin(index / 2.3)),
 );
+
+const BAR_PITCH_PX = 3;
+const MIN_BAR_COUNT = 24;
+const AMPLITUDE_CURVE = 0.62;
+const MIN_BAR_PERCENT = 12;
 
 function formatClock(totalSeconds: number): string {
   const safe = Math.max(0, Math.floor(totalSeconds));
   return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, "0")}`;
 }
 
+function resample(peaks: number[], count: number): number[] {
+  if (count >= peaks.length) return peaks;
+  const step = peaks.length / count;
+  const out: number[] = [];
+  for (let bar = 0; bar < count; bar += 1) {
+    const start = Math.floor(bar * step);
+    const end = Math.max(start + 1, Math.min(peaks.length, Math.floor((bar + 1) * step)));
+    let loudest = 0;
+    for (let index = start; index < end; index += 1) {
+      if (peaks[index] > loudest) loudest = peaks[index];
+    }
+    out.push(loudest);
+  }
+  return out;
+}
 
+function barHeight(peak: number): string {
+  const scaled = Math.pow(Math.min(1, Math.max(0, peak)), AMPLITUDE_CURVE) * 100;
+  return `${Math.max(MIN_BAR_PERCENT, scaled)}%`;
+}
 
-
-const Bars = memo(function Bars({ peaks, className }: { peaks: number[]; className: string }) {
+const Bars = memo(function Bars({
+  peaks,
+  className,
+  barClassName,
+}: {
+  peaks: number[];
+  className: string;
+  barClassName: string;
+}) {
   return (
     <div className={`flex size-full items-center gap-px ${className}`}>
       {peaks.map((peak, index) => (
         <span
           key={index}
-          className="min-w-px flex-1 rounded-[1px] bg-current"
-          style={{ height: `${Math.max(6, peak * 100)}%` }}
+          className={`min-w-0 flex-1 rounded-full ${barClassName}`}
+          style={{ height: barHeight(peak) }}
         />
       ))}
     </div>
@@ -48,14 +86,35 @@ export function TrackWaveform({
   pinnedPosition: number | null;
   onSeek: (positionSeconds: number) => void;
 }) {
-  const peaks = waveform.peaks ?? IDLE_PEAKS;
   const pulsing = waveform.status === "loading";
   const participants = useLiveroomStore((state) => state.participants);
   const trackRef = useRef<HTMLDivElement>(null);
   const [hoverRatio, setHoverRatio] = useState<number | null>(null);
+  const [scrubRatio, setScrubRatio] = useState<number | null>(null);
+  const [trackWidth, setTrackWidth] = useState(0);
+
+  useEffect(() => {
+    const element = trackRef.current;
+    if (!element) return;
+    setTrackWidth(element.getBoundingClientRect().width);
+    const observer = new ResizeObserver((entries) => {
+      setTrackWidth(entries[0].contentRect.width);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const source = waveform.peaks ?? IDLE_PEAKS;
+  const peaks = useMemo(
+    () => resample(source, Math.max(MIN_BAR_COUNT, Math.floor(trackWidth / BAR_PITCH_PX))),
+    [source, trackWidth],
+  );
 
   const seekable = durationSeconds > 0;
-  const playedPercent = seekable ? Math.min(100, (position / durationSeconds) * 100) : 0;
+  const playedRatio = seekable ? Math.min(1, Math.max(0, position / durationSeconds)) : 0;
+  const displayRatio = scrubRatio ?? playedRatio;
+  const displayPercent = displayRatio * 100;
+  const displaySeconds = displayRatio * durationSeconds;
 
   const ratioAt = (clientX: number): number | null => {
     const box = trackRef.current?.getBoundingClientRect();
@@ -63,10 +122,22 @@ export function TrackWaveform({
     return Math.min(1, Math.max(0, (clientX - box.left) / box.width));
   };
 
-  const seekTo = (clientX: number) => {
-    if (!seekable) return;
-    const ratio = ratioAt(clientX);
-    if (ratio === null) return;
+  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!seekable || event.button !== 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setScrubRatio(ratioAt(event.clientX));
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const ratio = ratioAt(event.clientX);
+    setHoverRatio(ratio);
+    if (scrubRatio !== null) setScrubRatio(ratio);
+  };
+
+  const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (scrubRatio === null) return;
+    const ratio = ratioAt(event.clientX) ?? scrubRatio;
+    setScrubRatio(null);
     onSeek(ratio * durationSeconds);
   };
 
@@ -79,30 +150,50 @@ export function TrackWaveform({
         aria-label="waveform"
         aria-valuemin={0}
         aria-valuemax={Math.round(durationSeconds)}
-        aria-valuenow={Math.round(position)}
-        aria-valuetext={formatClock(position)}
-        onClick={(event) => seekTo(event.clientX)}
-        onMouseMove={(event) => setHoverRatio(ratioAt(event.clientX))}
-        onMouseLeave={() => setHoverRatio(null)}
+        aria-valuenow={Math.round(displaySeconds)}
+        aria-valuetext={formatClock(displaySeconds)}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={() => setScrubRatio(null)}
+        onPointerLeave={() => setHoverRatio(null)}
         onKeyDown={(event) => {
           if (!seekable) return;
           if (event.key === "ArrowRight") onSeek(Math.min(durationSeconds, position + 5));
           if (event.key === "ArrowLeft") onSeek(Math.max(0, position - 5));
         }}
-        className={`relative h-14 select-none outline-none focus-visible:ring-2 focus-visible:ring-ring/50 md:h-16 ${
+        className={`relative h-16 touch-none rounded-lg select-none outline-none focus-visible:ring-2 focus-visible:ring-ring/50 md:h-20 ${
           seekable ? "cursor-pointer" : "cursor-default"
         }`}
       >
-        <div className="absolute inset-0 text-neutral-300 dark:text-neutral-700">
-          <Bars peaks={peaks} className={pulsing ? "animate-pulse" : ""} />
+        <div className="absolute inset-0">
+          <Bars
+            peaks={peaks}
+            className={pulsing ? "animate-pulse" : ""}
+            barClassName="bg-neutral-300 dark:bg-neutral-700"
+          />
         </div>
 
         <div
-          className="absolute inset-0 text-black dark:text-white"
-          style={{ clipPath: `inset(0 ${100 - playedPercent}% 0 0)` }}
+          className="absolute inset-0"
+          style={{ clipPath: `inset(0 ${100 - displayPercent}% 0 0)` }}
         >
-          <Bars peaks={peaks} className="" />
+          <Bars
+            peaks={peaks}
+            className=""
+            barClassName="bg-gradient-to-t from-neutral-900 via-neutral-700 to-neutral-500 dark:from-white dark:via-neutral-200 dark:to-neutral-400"
+          />
         </div>
+
+        {seekable ? (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-1 w-0.5 -translate-x-1/2 rounded-full bg-black dark:bg-white"
+            style={{ left: `${displayPercent}%` }}
+          >
+            <span className="absolute -top-1 left-1/2 size-2 -translate-x-1/2 rounded-full bg-black ring-2 ring-white dark:bg-white dark:ring-neutral-950" />
+          </span>
+        ) : null}
 
         {pinnedPosition !== null && seekable ? (
           <span

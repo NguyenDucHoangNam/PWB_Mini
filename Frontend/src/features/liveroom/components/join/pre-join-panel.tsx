@@ -45,7 +45,7 @@ export function PreJoinPanel({ media, submitting, disabled, onSubmit }: PreJoinP
           playsInline
           muted
           aria-label={t("cameraPreview")}
-          className={`size-full object-cover ${media.cameraOn ? "" : "hidden"}`}
+          className={`size-full -scale-x-100 object-cover ${media.cameraOn ? "" : "hidden"}`}
         />
         {!media.cameraOn ? (
           <div className="flex size-full items-center justify-center text-sm text-neutral-400">

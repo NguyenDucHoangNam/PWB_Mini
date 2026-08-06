@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { Loader2, MicOff, ShieldOff, WifiOff } from "lucide-react";
+import { Crown, Loader2, MicOff, ShieldOff, WifiOff } from "lucide-react";
 import { UserAvatar } from "../ui/user-avatar";
 import { useAudioLevel } from "../../hooks/use-audio-level";
 import { displayName } from "../../utils/participant-sort";
@@ -64,19 +64,28 @@ export function VideoTile({
   const connecting = !isMe && (connectionState === "connecting" || connectionState === "new");
   const failed = !isMe && (connectionState === "failed" || connectionState === "disconnected");
   const mutedByOwner = participant.micState === "MUTED_BY_OWNER";
+  const isRoomOwner = participant.roomRole === "OWNER";
 
   return (
     <div
       className={`relative overflow-hidden rounded-xl bg-neutral-900 ${
         featured ? "col-span-2 row-span-2" : ""
-      } ${speaking ? "ring-2 ring-emerald-400" : ""}`}
+      } ${
+        isRoomOwner
+          ? "shadow-[0_0_20px_-4px_rgba(251,191,36,0.65)]"
+          : speaking
+            ? "ring-2 ring-emerald-400"
+            : ""
+      }`}
     >
       <video
         ref={videoRef}
         autoPlay
         playsInline
         muted
-        className={`size-full object-cover ${showVideo ? "" : "hidden"}`}
+        className={`size-full object-cover ${isMe ? "-scale-x-100" : ""} ${
+          showVideo ? "" : "hidden"
+        }`}
       />
 
       {!isMe ? <audio ref={audioRef} autoPlay playsInline /> : null}
@@ -87,13 +96,31 @@ export function VideoTile({
             email={participant.userEmail}
             avatarUrl={participant.avatarUrl}
             seed={participant.userId}
-            className={
+            className={`${
               featured
                 ? "size-24 text-3xl md:size-28 md:text-4xl"
                 : "size-16 text-xl md:size-20 md:text-2xl"
-            }
+            } ${isRoomOwner ? "ring-2 ring-amber-300/80" : ""}`}
           />
         </div>
+      ) : null}
+
+      {isRoomOwner ? (
+        <>
+          <span
+            aria-hidden
+            className={`pointer-events-none absolute inset-0 rounded-xl border-2 ${
+              speaking ? "border-emerald-400" : "border-amber-400"
+            }`}
+          />
+          <span
+            className="absolute top-1.5 left-1.5 flex items-center gap-1 rounded-full bg-gradient-to-b from-amber-200 to-amber-500 px-1.5 py-0.5 text-[10px] leading-none font-bold text-amber-950 shadow-md ring-1 ring-amber-600/40"
+            title={tParticipants("owner")}
+          >
+            <Crown className="size-3" aria-hidden />
+            <span className="sr-only sm:not-sr-only">{tParticipants("owner")}</span>
+          </span>
+        </>
       ) : null}
 
       {connecting ? (

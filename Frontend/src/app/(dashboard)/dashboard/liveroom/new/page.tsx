@@ -1,16 +1,20 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useProGuard } from "@/features/auth/hooks/use-pro-guard";
+import { Spinner } from "@/components/ui/spinner";
 import { CreateRoomForm } from "@/features/liveroom/components/room-list/create-room-form";
-import { LiveroomProPrompt } from "@/features/liveroom/components/room-list/liveroom-pro-prompt";
+import { useLiveroomProRedirect } from "@/features/liveroom/hooks/use-liveroom-pro-redirect";
 
 export default function NewLiveroomPage() {
-  const { isPro } = useProGuard();
+  const { resolving } = useLiveroomProRedirect();
   const t = useTranslations("liveroom.create");
 
-  if (!isPro) {
-    return <LiveroomProPrompt />;
+  if (resolving) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Spinner size="sm" />
+      </div>
+    );
   }
 
   return (

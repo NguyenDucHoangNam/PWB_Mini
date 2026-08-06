@@ -1,14 +1,18 @@
 "use client";
 
-import { useProGuard } from "@/features/auth/hooks/use-pro-guard";
+import { Spinner } from "@/components/ui/spinner";
 import { LiveroomList } from "@/features/liveroom/components/room-list/liveroom-list";
-import { LiveroomProPrompt } from "@/features/liveroom/components/room-list/liveroom-pro-prompt";
+import { useLiveroomProRedirect } from "@/features/liveroom/hooks/use-liveroom-pro-redirect";
 
 export default function DashboardLiveroomPage() {
-  const { isPro } = useProGuard();
+  const { resolving } = useLiveroomProRedirect();
 
-  if (!isPro) {
-    return <LiveroomProPrompt />;
+  if (resolving) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Spinner size="sm" />
+      </div>
+    );
   }
 
   return (

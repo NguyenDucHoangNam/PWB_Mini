@@ -65,9 +65,6 @@ export const findRoomByCode = ({
 export const endRoom = ({ roomId }: { roomId: string }): Promise<ApiResponse<Room>> =>
   apiClient.post(liveroomApi.end(roomId)).then((res) => res.data);
 
-export const undoEndRoom = ({ roomId }: { roomId: string }): Promise<ApiResponse<Room>> =>
-  apiClient.post(liveroomApi.undoEnd(roomId)).then((res) => res.data);
-
 export const reopenRoom = ({ roomId }: { roomId: string }): Promise<ApiResponse<Room>> =>
   apiClient.post(liveroomApi.reopen(roomId)).then((res) => res.data);
 
@@ -187,23 +184,6 @@ export const useEndRoom = ({ mutationConfig }: UseEndRoomOptions = {}) => {
       return onSuccess?.(response, variables, onMutateResult, context);
     },
     mutationFn: endRoom,
-  });
-};
-
-type UseUndoEndRoomOptions = {
-  mutationConfig?: MutationConfig<typeof undoEndRoom>;
-};
-
-export const useUndoEndRoom = ({ mutationConfig }: UseUndoEndRoomOptions = {}) => {
-  const queryClient = useQueryClient();
-  const { onSuccess, ...restMutationConfig } = mutationConfig ?? {};
-  return useMutation({
-    ...restMutationConfig,
-    onSuccess: (response, variables, onMutateResult, context) => {
-      if (response.success) invalidateRoom(queryClient, variables.roomId);
-      return onSuccess?.(response, variables, onMutateResult, context);
-    },
-    mutationFn: undoEndRoom,
   });
 };
 

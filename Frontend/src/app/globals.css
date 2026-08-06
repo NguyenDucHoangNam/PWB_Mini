@@ -137,11 +137,19 @@
   }
 
   [data-sonner-toaster][data-y-position="top"] {
-    top: max(80px, env(safe-area-inset-top, 0px)) !important;
+    top: max(72px, env(safe-area-inset-top, 0px)) !important;
   }
 
   [data-sonner-toaster][data-y-position="bottom"] {
     bottom: max(var(--offset, 16px), env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  [data-sonner-toaster][data-x-position="right"] {
+    right: 16px !important;
+  }
+
+  [data-sonner-toaster][data-x-position="left"] {
+    left: 16px !important;
   }
 
   .cn-toast {

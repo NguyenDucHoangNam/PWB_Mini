@@ -141,7 +141,10 @@ export function SiteHeaderClient() {
                     ...(isPro
                       ? [{ label: t("dashboard"), href: "/dashboard/songs" }]
                       : []),
-                    { label: tLiveroom("liveroom"), href: "/dashboard/liveroom" },
+                    {
+                      label: tLiveroom("liveroom"),
+                      href: isPro ? "/dashboard/liveroom" : "/dashboard/liveroom/join",
+                    },
                   ]}
                   pathname={pathname}
                 />
@@ -328,7 +331,11 @@ function MobileAuthenticated({
           {labels.dashboard}
         </Link>
       )}
-      <Link href="/dashboard/liveroom" onClick={onNavigate} className={linkClass}>
+      <Link
+        href={isPro ? "/dashboard/liveroom" : "/dashboard/liveroom/join"}
+        onClick={onNavigate}
+        className={linkClass}
+      >
         {labels.liveroom}
       </Link>
       <Link href="/dashboard/profile" onClick={onNavigate} className={linkClass}>
