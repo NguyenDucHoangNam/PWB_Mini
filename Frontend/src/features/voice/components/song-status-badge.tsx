@@ -1,18 +1,12 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Loader2, Mic, Music } from "lucide-react";
+import { Mic, Music } from "lucide-react";
 import type { SongStatus } from "../types";
 
 const BADGE_BASE =
-  "inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold";
+  "inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-mono tracking-tight";
 
-/**
- * Only the two states a listener can act on. `UPLOADED` and `PROCESSED` are both "ready to play" — the
- * difference between them is a detail of the merge job, not something to label a song with, so ready
- * songs carry no lifecycle badge at all. What actually distinguishes them is the voice tag, which
- * {@link SongVoiceTagBadge} shows instead.
- */
 export function SongStatusBadge({
   status,
   className = "",
@@ -25,9 +19,13 @@ export function SongStatusBadge({
   if (status === "PROCESSING") {
     return (
       <span
-        className={`${BADGE_BASE} border-yellow-300 bg-yellow-50 text-yellow-800 dark:border-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-300 ${className}`}
+        className={`${BADGE_BASE} border-neutral-300 bg-neutral-100 text-neutral-800 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 ${className}`}
       >
-        <Loader2 className="size-3 animate-spin" aria-hidden="true" />
+        <span className="flex items-end gap-0.5 h-3 w-3 shrink-0" aria-hidden="true">
+          <span className="w-0.5 bg-neutral-800 dark:bg-neutral-200 animate-[bounce_1s_infinite_100ms] h-full rounded-full" />
+          <span className="w-0.5 bg-neutral-800 dark:bg-neutral-200 animate-[bounce_1s_infinite_300ms] h-2/3 rounded-full" />
+          <span className="w-0.5 bg-neutral-800 dark:bg-neutral-200 animate-[bounce_1s_infinite_200ms] h-4/5 rounded-full" />
+        </span>
         {t("processing")}
       </span>
     );
@@ -36,8 +34,9 @@ export function SongStatusBadge({
   if (status === "FAILED") {
     return (
       <span
-        className={`${BADGE_BASE} border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300 ${className}`}
+        className={`${BADGE_BASE} border-dashed border-neutral-400 bg-neutral-100 text-neutral-700 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-300 ${className}`}
       >
+        <span className="size-1.5 rounded-full bg-neutral-500" aria-hidden="true" />
         {t("failed")}
       </span>
     );
@@ -46,11 +45,6 @@ export function SongStatusBadge({
   return null;
 }
 
-/**
- * Whether a song carries a voice tag. This is the real difference between two songs that are both ready,
- * so it earns the space a lifecycle badge used to take. Deliberately says only that one is present —
- * which tag it was belongs on the song's own page, not on every row of a listing.
- */
 export function SongVoiceTagBadge({
   hasVoiceTag,
   className = "",
@@ -63,7 +57,7 @@ export function SongVoiceTagBadge({
   if (!hasVoiceTag) {
     return (
       <span
-        className={`${BADGE_BASE} border-neutral-200 bg-neutral-50 text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400 ${className}`}
+        className={`${BADGE_BASE} border-neutral-200 bg-neutral-50 text-neutral-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400 ${className}`}
         title={t("plainMusicHint")}
       >
         <Music className="size-3" aria-hidden="true" />
@@ -74,7 +68,7 @@ export function SongVoiceTagBadge({
 
   return (
     <span
-      className={`${BADGE_BASE} border-black bg-black text-white dark:border-white dark:bg-white dark:text-black ${className}`}
+      className={`${BADGE_BASE} border-neutral-900 bg-black text-white dark:border-neutral-100 dark:bg-white dark:text-black ${className}`}
       title={t("hasVoiceTagHint")}
     >
       <Mic className="size-3 shrink-0" aria-hidden="true" />

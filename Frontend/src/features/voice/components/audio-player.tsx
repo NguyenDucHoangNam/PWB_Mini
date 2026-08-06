@@ -13,6 +13,13 @@ interface AudioPlayerProps {
 
 const WAVEFORM_BARS = 100;
 
+// Deterministic stand-in for random skeleton bar heights. Keeping this pure means the
+// placeholder holds still across re-renders instead of reshuffling on every paint.
+function skeletonBarHeight(index: number): number {
+  const noise = Math.abs((Math.sin((index + 1) * 12.9898) * 43758.5453) % 1);
+  return Math.max(3, Math.round((0.2 + noise * 0.5) * 64));
+}
+
 function formatTime(timeInSec: number) {
   if (!Number.isFinite(timeInSec)) return "0:00";
   const mins = Math.floor(timeInSec / 60);
@@ -182,7 +189,7 @@ function SongCustomPlayer({ url }: { url: string }) {
                 key={i}
                 className="flex-1 min-w-[2px] rounded-full bg-neutral-100 dark:bg-neutral-900 animate-pulse"
                 style={{
-                  height: `${Math.max(3, Math.round((0.2 + Math.random() * 0.5) * 64))}px`,
+                  height: `${skeletonBarHeight(i)}px`,
                   animationDelay: `${i * 15}ms`,
                 }}
               />

@@ -162,27 +162,27 @@ export function DashboardVoiceTagsTab() {
             </Link>
           </div>
         ) : (
-          <div className="divide-y divide-neutral-100 dark:divide-neutral-800/50">
+          <div className="divide-y divide-neutral-100 dark:divide-neutral-800/40">
             {items.map((tag, i) => {
               const isOdd = i % 2 === 0;
               return (
                 <div
                   key={tag.id}
-                  className={`relative ${
+                  className={`group relative transition-all active:translate-y-[1px] ${
                     isOdd
-                      ? "bg-white dark:bg-black"
-                      : "bg-neutral-50/60 dark:bg-neutral-950/60"
+                      ? "bg-white hover:bg-neutral-50 dark:bg-black dark:hover:bg-neutral-950"
+                      : "bg-neutral-50/70 hover:bg-neutral-100/80 dark:bg-neutral-900/40 dark:hover:bg-neutral-900/80"
                   }`}
                 >
                   <div
-                    className={`absolute left-0 top-0 h-full w-[3px] ${
+                    className={`absolute left-0 top-0 h-full w-[4px] transition-colors ${
                       isOdd
-                        ? "bg-neutral-900 dark:bg-neutral-100"
-                        : "bg-transparent"
+                        ? "bg-black dark:bg-white"
+                        : "bg-neutral-300 dark:bg-neutral-700 group-hover:bg-black dark:group-hover:bg-white"
                     }`}
                     aria-hidden="true"
                   />
-                  <div className="px-4 py-3">
+                  <div className="px-5 py-4">
                     <VoiceTagCard voiceTag={tag} />
                   </div>
                 </div>

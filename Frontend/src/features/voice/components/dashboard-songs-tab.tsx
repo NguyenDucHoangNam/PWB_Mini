@@ -129,23 +129,23 @@ function SongRow({ song, index, onDelete }: SongRowProps) {
       onKeyDown={(e) => {
         if (e.key === "Enter" && !isEditing) handleRowClick();
       }}
-      className={`group relative flex items-center gap-3 px-4 py-3 transition-colors cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-900 ${
+      className={`group relative flex items-center gap-3 px-4 py-3.5 transition-all cursor-pointer border-b border-neutral-100 dark:border-neutral-800/60 active:translate-y-[1px] ${
         isOdd
-          ? "bg-white dark:bg-black"
-          : "bg-neutral-50/60 dark:bg-neutral-950/60"
+          ? "bg-white hover:bg-neutral-50 dark:bg-black dark:hover:bg-neutral-950"
+          : "bg-neutral-50/70 hover:bg-neutral-100/80 dark:bg-neutral-900/40 dark:hover:bg-neutral-900/80"
       }`}
     >
       <div
-        className={`absolute left-0 top-0 h-full w-[3px] transition-colors ${
+        className={`absolute left-0 top-0 h-full w-[4px] transition-colors ${
           isOdd
-            ? "bg-neutral-900 dark:bg-neutral-100"
-            : "bg-transparent"
+            ? "bg-black dark:bg-white"
+            : "bg-neutral-300 dark:bg-neutral-700 group-hover:bg-black dark:group-hover:bg-white"
         }`}
         aria-hidden="true"
       />
 
-      <span className="w-8 shrink-0 text-center text-xs font-mono text-neutral-400 dark:text-neutral-500">
-        {index + 1}
+      <span className="w-8 shrink-0 text-center font-mono text-xs font-semibold text-neutral-400 dark:text-neutral-500">
+        {String(index + 1).padStart(2, "0")}
       </span>
 
       <div className="flex flex-1 items-center gap-3 min-w-0">
@@ -162,7 +162,7 @@ function SongRow({ song, index, onDelete }: SongRowProps) {
                   onBlur={cancelEdit}
                   maxLength={200}
                   disabled={isPending}
-                  className="min-w-0 flex-1 rounded border border-neutral-300 bg-white px-2 py-0.5 text-sm font-semibold text-neutral-900 outline-none focus:border-black dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-white"
+                  className="min-w-0 flex-1 rounded border border-neutral-400 bg-white px-2 py-1 text-sm font-semibold text-neutral-900 outline-none focus:border-black dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-white"
                 />
                 <button
                   type="button"
@@ -171,7 +171,7 @@ function SongRow({ song, index, onDelete }: SongRowProps) {
                     saveEdit();
                   }}
                   disabled={isPending || !editValue.trim()}
-                  className="flex size-6 shrink-0 items-center justify-center rounded text-neutral-600 hover:bg-neutral-200 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                  className="flex size-7 shrink-0 items-center justify-center rounded border border-neutral-300 bg-neutral-100 text-neutral-800 hover:bg-neutral-200 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
                   aria-label={tCommon("save")}
                 >
                   <Check className="size-3.5" />
@@ -182,7 +182,7 @@ function SongRow({ song, index, onDelete }: SongRowProps) {
                     e.preventDefault();
                     cancelEdit();
                   }}
-                  className="flex size-6 shrink-0 items-center justify-center rounded text-neutral-600 hover:bg-neutral-200 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                  className="flex size-7 shrink-0 items-center justify-center rounded border border-neutral-200 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-800"
                   aria-label={tCommon("cancel")}
                 >
                   <X className="size-3.5" />
@@ -190,7 +190,7 @@ function SongRow({ song, index, onDelete }: SongRowProps) {
               </div>
             ) : (
               <>
-                <span className="truncate text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+                <span className="truncate text-sm font-semibold tracking-tight text-neutral-900 dark:text-neutral-100 group-hover:underline decoration-neutral-400 underline-offset-4">
                   {song.title}
                 </span>
                 <SongStatusBadge status={song.status} />
@@ -207,23 +207,23 @@ function SongRow({ song, index, onDelete }: SongRowProps) {
         <SongVoiceTagBadge hasVoiceTag={song.hasVoiceTag} />
       </div>
 
-      <span className="hidden md:block w-14 shrink-0 text-center text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase">
+      <span className="hidden md:block w-14 shrink-0 text-center font-mono text-[11px] font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-widest">
         {(song.format ?? "").toUpperCase()}
       </span>
 
-      <span className="hidden lg:block w-16 shrink-0 text-right text-xs text-neutral-500 dark:text-neutral-400">
+      <span className="hidden lg:block w-16 shrink-0 text-right font-mono text-xs text-neutral-500 dark:text-neutral-400">
         {song.fileSizeBytes !== null ? formatBytes(song.fileSizeBytes) : "-"}
       </span>
 
-      <span className="w-12 shrink-0 text-right text-xs font-mono text-neutral-600 dark:text-neutral-300">
+      <span className="w-12 shrink-0 text-right font-mono text-xs font-semibold text-neutral-700 dark:text-neutral-200">
         {song.durationSeconds !== null ? formatDuration(song.durationSeconds) : "-"}
       </span>
 
-      <div className="flex shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity sm:w-16 justify-end">
+      <div className="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity sm:w-16 justify-end">
         <Button
           variant="ghost"
           size="icon"
-          className="size-7 text-neutral-500 hover:bg-neutral-200 hover:text-black dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
+          className="size-7 rounded text-neutral-500 hover:bg-neutral-200 hover:text-black dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
           onClick={(e) => {
             e.stopPropagation();
             startEdit();
@@ -235,7 +235,7 @@ function SongRow({ song, index, onDelete }: SongRowProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="size-7 text-neutral-500 hover:bg-red-50 hover:text-red-600 dark:text-neutral-400 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+          className="size-7 rounded text-neutral-500 hover:bg-neutral-200 hover:text-black dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
           onClick={(e) => {
             e.stopPropagation();
             onDelete(song);
@@ -445,7 +445,7 @@ export function DashboardSongsTab() {
           </div>
         ) : (
           <>
-            <div className="hidden sm:flex items-center gap-3 border-b border-neutral-100 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-400 dark:border-neutral-800 dark:text-neutral-500">
+            <div className="hidden sm:flex items-center gap-3 border-b border-neutral-200 bg-neutral-100/70 px-4 py-2 text-[11px] font-mono font-semibold uppercase tracking-widest text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900/60 dark:text-neutral-400">
               <span className="w-8 shrink-0 text-center">#</span>
               <span className="flex-1">{tList("colTitle")}</span>
               <span className="w-20" />
@@ -454,7 +454,7 @@ export function DashboardSongsTab() {
               <span className="w-12 shrink-0 text-right">{tList("colDuration")}</span>
               <span className="w-16 shrink-0" />
             </div>
-            <div className="divide-y divide-neutral-100 dark:divide-neutral-800/50">
+            <div className="divide-y divide-neutral-100 dark:divide-neutral-800/40">
               {items.map((song, i) => (
                 <SongRow
                   key={song.id}

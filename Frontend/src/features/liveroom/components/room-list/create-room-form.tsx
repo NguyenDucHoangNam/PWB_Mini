@@ -87,23 +87,25 @@ export function CreateRoomForm() {
       noValidate
     >
       <div className="flex flex-col gap-2">
-        <Label htmlFor="liveroom-name">{t("roomName")}</Label>
+        <Label htmlFor="liveroom-name" className="font-semibold text-xs uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
+          {t("roomName")}
+        </Label>
         <Input
           id="liveroom-name"
           {...register("roomName")}
           maxLength={ROOM_NAME_MAX_LENGTH}
           placeholder={t("roomNamePlaceholder")}
           aria-invalid={Boolean(errors.roomName)}
-          className="h-11 md:h-9"
+          className="h-10 text-sm border-neutral-300 bg-white focus:border-black dark:border-neutral-700 dark:bg-neutral-900 dark:focus:border-white"
         />
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">{t("roomNameHint")}</p>
+        <p className="text-xs font-mono text-neutral-500 dark:text-neutral-400">{t("roomNameHint")}</p>
         {errors.roomName ? (
-          <p className="text-xs text-red-600 dark:text-red-400">{renderNameError()}</p>
+          <p role="alert" className="text-xs font-mono font-semibold text-neutral-900 dark:text-neutral-100">{renderNameError()}</p>
         ) : null}
       </div>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-sm leading-none font-medium">
+        <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
           {t("maxParticipants")}
         </legend>
         <div className="flex flex-wrap gap-2">
@@ -115,26 +117,26 @@ export function CreateRoomForm() {
               onClick={() =>
                 setValue("maxParticipants", option, { shouldValidate: true })
               }
-              className={`size-11 rounded-lg border text-sm font-medium transition-colors md:size-9 ${
+              className={`size-9 rounded-lg border font-mono text-sm font-bold transition-all active:translate-y-[1px] ${
                 capacity === option
-                  ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-                  : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400 dark:border-neutral-800 dark:bg-black dark:text-neutral-300"
+                  ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black shadow-xs"
+                  : "border-neutral-300 bg-white text-neutral-800 hover:border-black dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:border-white"
               }`}
             >
               {option}
             </button>
           ))}
         </div>
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+        <p className="text-xs font-mono text-neutral-500 dark:text-neutral-400">
           {t("maxParticipantsHint")}
         </p>
         {errors.maxParticipants ? (
-          <p className="text-xs text-red-600 dark:text-red-400">{t("capacityInvalid")}</p>
+          <p role="alert" className="text-xs font-mono font-semibold text-neutral-900 dark:text-neutral-100">{t("capacityInvalid")}</p>
         ) : null}
       </fieldset>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="liveroom-grace">{t("graceSeconds")}</Label>
+        <Label htmlFor="liveroom-grace" className="font-semibold text-xs uppercase tracking-wide text-neutral-700 dark:text-neutral-300">{t("graceSeconds")}</Label>
         <div className="flex flex-wrap gap-2">
           {GRACE_PRESETS.map((preset) => (
             <button
@@ -144,10 +146,10 @@ export function CreateRoomForm() {
               onClick={() =>
                 setValue("ownerGraceSeconds", preset, { shouldValidate: true })
               }
-              className={`h-11 rounded-lg border px-3 text-sm font-medium transition-colors md:h-9 ${
+              className={`h-9 rounded-lg border px-3 font-mono text-xs font-bold transition-all active:translate-y-[1px] ${
                 grace === preset
-                  ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-                  : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400 dark:border-neutral-800 dark:bg-black dark:text-neutral-300"
+                  ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black shadow-xs"
+                  : "border-neutral-300 bg-white text-neutral-800 hover:border-black dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:border-white"
               }`}
             >
               {preset}s
@@ -162,26 +164,30 @@ export function CreateRoomForm() {
           max={ROOM_MAX_GRACE_SECONDS}
           {...register("ownerGraceSeconds", { valueAsNumber: true })}
           aria-invalid={Boolean(errors.ownerGraceSeconds)}
-          className="h-11 md:h-9"
+          className="h-10 text-sm font-mono border-neutral-300 bg-white focus:border-black dark:border-neutral-700 dark:bg-neutral-900 dark:focus:border-white"
         />
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">{t("graceHint")}</p>
+        <p className="text-xs font-mono text-neutral-500 dark:text-neutral-400">{t("graceHint")}</p>
         {errors.ownerGraceSeconds ? (
-          <p className="text-xs text-red-600 dark:text-red-400">{t("graceInvalid")}</p>
+          <p role="alert" className="text-xs font-mono font-semibold text-neutral-900 dark:text-neutral-100">{t("graceInvalid")}</p>
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+      <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-end">
         <Button
           type="button"
           variant="ghost"
-          className="h-11 md:h-9"
+          className="h-10 min-h-[44px] sm:min-h-0 text-neutral-600 dark:text-neutral-400"
           disabled={isPending}
           onClick={() => router.push("/dashboard/liveroom")}
         >
           {t("cancel")}
         </Button>
-        <Button type="submit" className="h-11 md:h-9" disabled={isPending}>
-          {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+        <Button
+          type="submit"
+          className="h-10 min-h-[44px] sm:min-h-0 bg-black font-semibold text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 active:translate-y-[1px] transition-all"
+          disabled={isPending}
+        >
+          {isPending ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
           {isPending ? t("submitting") : t("submit")}
         </Button>
       </div>

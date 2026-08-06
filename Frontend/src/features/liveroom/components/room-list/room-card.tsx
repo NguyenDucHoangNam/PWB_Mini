@@ -42,14 +42,23 @@ export function RoomCard({ room, onEnd, onReopen }: RoomCardProps) {
   };
 
   return (
-    <div className="@container flex flex-col gap-4 rounded-xl border border-neutral-200 bg-white p-4 md:p-5 dark:border-neutral-800 dark:bg-black">
-      <div className="flex items-start justify-between gap-3">
+    <div className="group relative flex flex-col justify-between gap-4 rounded-xl border border-neutral-300 bg-white p-5 shadow-xs transition-all hover:border-black dark:border-neutral-800 dark:bg-black dark:hover:border-white active:translate-y-[1px]">
+      <div
+        className={`absolute left-0 top-0 h-full w-[4px] rounded-l-xl transition-colors ${
+          isActive
+            ? "bg-black dark:bg-white"
+            : "bg-neutral-300 dark:bg-neutral-700 group-hover:bg-black dark:group-hover:bg-white"
+        }`}
+        aria-hidden="true"
+      />
+
+      <div className="flex items-start justify-between gap-3 pl-1">
         <div className="min-w-0">
-          <h3 className="truncate text-base font-semibold text-black md:text-lg dark:text-white">
+          <h3 className="truncate text-base font-bold tracking-tight text-neutral-900 md:text-lg dark:text-neutral-100 group-hover:underline underline-offset-4 decoration-neutral-400">
             {room.roomName}
           </h3>
-          <p className="mt-1 flex items-center gap-1.5 text-xs text-neutral-500 md:text-sm dark:text-neutral-400">
-            <Users className="size-3.5" aria-hidden />
+          <p className="mt-1 flex items-center gap-1.5 font-mono text-xs text-neutral-500 md:text-sm dark:text-neutral-400">
+            <Users className="size-3.5" aria-hidden="true" />
             {t("participants", {
               count: room.currentParticipantCount,
               max: room.effectiveMaxParticipants,
@@ -59,46 +68,46 @@ export function RoomCard({ room, onEnd, onReopen }: RoomCardProps) {
         <RoomStatusBadge status={room.status} />
       </div>
 
-      <div className="flex items-center gap-2">
-        <span className="rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 font-mono text-sm tracking-[0.2em] text-black dark:border-neutral-800 dark:bg-neutral-900 dark:text-white">
+      <div className="flex items-center gap-2 pl-1">
+        <span className="rounded-lg border border-neutral-300 bg-neutral-100 px-3 py-1.5 font-mono text-sm font-semibold tracking-[0.2em] text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100">
           {formatRoomCode(room.roomCode)}
         </span>
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon"
           onClick={copyCode}
           aria-label={t("copyCode")}
-          className="size-11 md:size-9"
+          className="size-9 min-h-[44px] sm:min-h-0 border-neutral-300 dark:border-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-800"
         >
-          {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+          {copied ? <Check className="size-4 text-black dark:text-white" /> : <Copy className="size-4" />}
         </Button>
       </div>
 
       {!isActive && room.endedAt ? (
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+        <p className="pl-1 font-mono text-xs text-neutral-500 dark:text-neutral-400">
           {t("endedAt", { date: new Date(room.endedAt).toLocaleString() })}
           {room.endedReason ? ` · ${tEnded(ENDED_REASON_KEY[room.endedReason])}` : ""}
         </p>
       ) : null}
 
       {room.reopenedCount > 0 ? (
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+        <p className="pl-1 font-mono text-xs text-neutral-500 dark:text-neutral-400">
           {t("reopenedCount", { count: room.reopenedCount })}
         </p>
       ) : null}
 
-      <div className="mt-auto flex flex-col gap-2 @sm:flex-row">
+      <div className="mt-auto flex flex-col gap-2 pt-2 sm:flex-row pl-1">
         {isActive ? (
           <>
-            <Link href={`/liveroom/${room.id}`} className="@sm:flex-1">
-              <Button className="h-11 w-full md:h-9">
+            <Link href={`/liveroom/${room.id}`} className="sm:flex-1">
+              <Button className="h-9 min-h-[44px] sm:min-h-0 w-full bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 font-semibold active:translate-y-[1px] transition-all">
                 <LogIn className="size-4" />
                 {t("openRoom")}
               </Button>
             </Link>
             <Button
-              variant="destructive"
-              className="h-11 md:h-9 @sm:w-auto"
+              variant="outline"
+              className="h-9 min-h-[44px] sm:min-h-0 border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 font-semibold"
               onClick={() => onEnd(room)}
             >
               <Square className="size-4" />
@@ -108,7 +117,7 @@ export function RoomCard({ room, onEnd, onReopen }: RoomCardProps) {
         ) : (
           <Button
             variant="outline"
-            className="h-11 w-full md:h-9"
+            className="h-9 min-h-[44px] sm:min-h-0 w-full border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 font-semibold"
             onClick={() => onReopen(room)}
           >
             <RotateCcw className="size-4" />

@@ -170,8 +170,12 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
   }, [isBusy]);
 
   // The poll loop outlives a render, so unmounting has to tell it to stop rather than leave it
-  // updating state on a component that is gone.
+  // updating state on a component that is gone. The flag is cleared on the way in as well: a
+  // remount — StrictMode's double-invoke in dev, or the user coming back to the page — starts a
+  // fresh form, and a stale `true` left by the previous cleanup would abandon its upload before it
+  // began.
   useEffect(() => {
+    abandonedRef.current = false;
     return () => {
       abandonedRef.current = true;
     };
@@ -389,37 +393,37 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={`group relative flex flex-col items-center justify-center cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
+            className={`group relative flex flex-col items-center justify-center cursor-pointer rounded-xl border-2 border-dashed p-10 text-center transition-all ${
               isDragging
-                ? "border-primary bg-accent/50 scale-[0.99]"
-                : "border-border bg-muted/30 hover:border-neutral-400 dark:hover:border-neutral-600"
+                ? "border-black bg-neutral-100 dark:border-white dark:bg-neutral-900 scale-[0.99]"
+                : "border-neutral-300 bg-neutral-50/60 hover:border-black hover:bg-neutral-100/70 dark:border-neutral-800 dark:bg-neutral-950/60 dark:hover:border-white dark:hover:bg-neutral-900/60"
             }`}
           >
-            <div className="flex size-12 items-center justify-center rounded-xl bg-background border border-border shadow-xs">
-              <UploadCloud className="size-6 text-foreground" />
+            <div className="flex size-12 items-center justify-center rounded-xl bg-black text-white shadow-xs dark:bg-white dark:text-black transition-transform group-hover:scale-105">
+              <UploadCloud className="size-6" />
             </div>
-            <p className="mt-3 text-sm font-semibold text-foreground">
+            <p className="mt-3.5 text-sm font-bold text-neutral-900 dark:text-neutral-100">
               {t("dropzoneTitle")}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-xs font-mono text-neutral-500 dark:text-neutral-400">
               {t("dropzoneHint")}
             </p>
           </div>
         ) : isBusy ? (
-          <div className="rounded-xl border border-border bg-card p-4 flex flex-col gap-3">
+          <div className="rounded-xl border border-neutral-300 bg-neutral-100/80 p-4 dark:border-neutral-800 dark:bg-neutral-900/80 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3.5 min-w-0">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-black text-white dark:bg-white dark:text-black">
                   <FileAudio className="size-5" />
                 </div>
                 <div className="min-w-0 space-y-0.5">
-                  <p className="text-sm font-semibold text-foreground truncate">
+                  <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
                     {file.name}
                   </p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2 text-xs font-mono text-neutral-500 dark:text-neutral-400">
                     <span>{fileSizeMB} MB</span>
                     <span>•</span>
-                    <span className="uppercase font-medium text-foreground bg-muted px-1.5 py-0.5 rounded text-[10px]">
+                    <span className="uppercase font-semibold text-neutral-800 bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-200 px-1.5 py-0.5 rounded text-[10px]">
                       {file.name.split(".").pop()}
                     </span>
                     {fileDuration > 0 && (
@@ -437,22 +441,20 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                   variant="outline"
                   size="sm"
                   onClick={cancelUpload}
-                  className="text-xs shrink-0"
+                  className="text-xs shrink-0 border-neutral-300 dark:border-neutral-700"
                   aria-label={t("cancelUpload")}
                 >
                   <X className="size-3.5 mr-1" aria-hidden="true" />
                   {t("cancelUpload")}
                 </Button>
               )}
-              {/* The file is already safe on the server by now, so leaving is only giving up the wait —
-                  never the upload. Without this a slow queue would hold the user on this screen. */}
               {uploadStep === "merging" && (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={leaveMergeRunning}
-                  className="text-xs shrink-0"
+                  className="text-xs shrink-0 border-neutral-300 dark:border-neutral-700"
                 >
                   {t("mergeRunInBackground")}
                 </Button>
@@ -467,25 +469,25 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
             />
 
             {uploadStep === "merging" && (
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
+              <p className="text-[11px] font-mono leading-relaxed text-neutral-500 dark:text-neutral-400">
                 {t("mergeWaitHint")}
               </p>
             )}
           </div>
         ) : (
-          <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
+          <div className="flex items-center justify-between rounded-xl border border-neutral-300 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900">
             <div className="flex items-center gap-3.5 min-w-0">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-black text-white dark:bg-white dark:text-black">
                 <FileAudio className="size-5" />
               </div>
               <div className="min-w-0 space-y-0.5">
-                <p className="text-sm font-semibold text-foreground truncate">
+                <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
                   {file.name}
                 </p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 text-xs font-mono text-neutral-500 dark:text-neutral-400">
                   <span>{fileSizeMB} MB</span>
                   <span>•</span>
-                  <span className="uppercase font-medium text-foreground bg-muted px-1.5 py-0.5 rounded text-[10px]">
+                  <span className="uppercase font-semibold text-neutral-800 bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-200 px-1.5 py-0.5 rounded text-[10px]">
                     {file.name.split(".").pop()}
                   </span>
                   {fileDuration > 0 && (
@@ -506,7 +508,7 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                 setFileDuration(0);
                 if (fileInputRef.current) fileInputRef.current.value = "";
               }}
-              className="text-xs"
+              className="text-xs border-neutral-300 dark:border-neutral-700"
             >
               {t("changeFile")}
             </Button>
@@ -515,8 +517,8 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="song-title" className="font-medium text-sm">
-          {t("titleLabel")} <span className="text-destructive">*</span>
+        <Label htmlFor="song-title" className="font-semibold text-xs uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
+          {t("titleLabel")} <span className="text-neutral-500">*</span>
         </Label>
         <Input
           id="song-title"
@@ -525,20 +527,20 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
           maxLength={200}
           disabled={isBusy}
           aria-describedby={errors.title ? "song-title-error" : undefined}
-          className="h-10 text-sm"
+          className="h-10 text-sm border-neutral-300 bg-white focus:border-black dark:border-neutral-700 dark:bg-neutral-900 dark:focus:border-white"
         />
         {errors.title && (
-          <p id="song-title-error" role="alert" className="text-xs text-destructive">
+          <p id="song-title-error" role="alert" className="text-xs font-semibold text-neutral-900 dark:text-neutral-100">
             {tValidation(errors.title.message as never)}
           </p>
         )}
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-5 flex flex-col gap-5">
-        <label className="flex items-center gap-3 cursor-pointer select-none text-sm font-medium text-foreground">
+      <div className="rounded-xl border border-neutral-300 bg-neutral-50/50 p-5 flex flex-col gap-5 dark:border-neutral-800 dark:bg-neutral-900/40">
+        <label className="flex items-center gap-3 cursor-pointer select-none text-sm font-semibold text-neutral-900 dark:text-neutral-100">
           <input
             type="checkbox"
-            className="h-4 w-4 rounded border-input text-primary focus:ring-ring"
+            className="h-4 w-4 rounded border-neutral-400 text-black accent-black dark:accent-white focus:ring-black"
             disabled={isBusy}
             {...register("attachVoiceTag")}
           />
@@ -546,22 +548,17 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
         </label>
 
         {attachVoiceTag && (
-          <div className="flex flex-col gap-5 pt-3 border-t border-border">
+          <div className="flex flex-col gap-5 pt-3 border-t border-neutral-200 dark:border-neutral-800">
             {voiceTags.length === 0 ? (
-              <p className="text-xs text-muted-foreground bg-muted p-3 rounded-lg border border-border">
+              <p className="text-xs font-mono text-neutral-500 bg-neutral-100 p-3 rounded-lg border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-400">
                 {t("noVoiceTags")}
               </p>
             ) : (
               <>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="voice-tag-select" className="font-medium text-xs text-muted-foreground">
+                  <Label htmlFor="voice-tag-select" className="font-mono text-xs font-semibold uppercase text-neutral-600 dark:text-neutral-400">
                     {t("selectVoiceTag")}
                   </Label>
-                  {/*
-                    A dropdown of every tag stops being usable somewhere past a couple of dozen; this
-                    searches instead, and each row shows the voice and language so two tags with similar
-                    names stay distinguishable. The id itself stays in the form via setValue.
-                  */}
                   <VoiceTagPicker
                     id="voice-tag-select"
                     disabled={isBusy}
@@ -569,30 +566,30 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                   />
                 </div>
 
-                <div className="flex items-start gap-2.5 rounded-lg border border-border bg-muted/40 p-3 text-xs text-foreground">
-                  <Info className="size-4 text-muted-foreground shrink-0 mt-0.5" />
+                <div className="flex items-start gap-2.5 rounded-lg border border-neutral-300 bg-neutral-100 p-3 text-xs text-neutral-800 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200">
+                  <Info className="size-4 text-neutral-600 dark:text-neutral-400 shrink-0 mt-0.5" />
                   <div className="space-y-0.5">
                     <p className="font-semibold">{t("duckingPercentage")}</p>
-                    <p className="text-muted-foreground leading-relaxed">
+                    <p className="text-neutral-600 dark:text-neutral-400 leading-relaxed">
                       {t("duckingTooltip")}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/20 p-4">
+                <div className="flex flex-col gap-3 rounded-xl border border-neutral-300 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-foreground">{t("timelineTitle")}</span>
-                    <span className="text-[11px] font-medium text-muted-foreground bg-muted px-2.5 py-0.5 rounded-full border border-border">
+                    <span className="text-xs font-mono font-bold uppercase tracking-wider text-neutral-900 dark:text-neutral-100">{t("timelineTitle")}</span>
+                    <span className="text-[11px] font-mono font-semibold text-neutral-700 bg-neutral-100 px-2.5 py-0.5 rounded-full border border-neutral-300 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300">
                       {t("timelineInsertions", { count: markers.length })}
                     </span>
                   </div>
 
-                  <div className="relative h-12 w-full rounded-lg border border-border bg-background p-2 flex items-center overflow-hidden">
-                    <div className="absolute inset-x-2 top-2 bottom-2 flex items-center justify-between gap-0.5 opacity-20">
+                  <div className="relative h-12 w-full rounded-lg border border-neutral-300 bg-neutral-100 p-2 flex items-center overflow-hidden dark:border-neutral-800 dark:bg-neutral-900">
+                    <div className="absolute inset-x-2 top-2 bottom-2 flex items-center justify-between gap-0.5 opacity-30">
                       {Array.from({ length: 50 }).map((_, i) => (
                         <div
                           key={i}
-                          className="w-1 bg-foreground rounded-full"
+                          className="w-1 bg-black dark:bg-white rounded-full"
                           style={{
                             height: `${(i % 5 === 0 ? 80 : (i % 2 === 0 ? 50 : 30))}%`,
                           }}
@@ -609,8 +606,8 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                             className="absolute top-0 bottom-0 flex flex-col items-center -translate-x-1/2"
                             style={{ left: `${leftPct}%` }}
                           >
-                            <div className="h-full w-0.5 bg-primary" />
-                            <span className="absolute -top-1 rounded bg-primary px-1 text-[9px] font-bold text-primary-foreground shadow-xs">
+                            <div className="h-full w-0.5 bg-black dark:bg-white" />
+                            <span className="absolute -top-1 rounded bg-black px-1 text-[9px] font-mono font-bold text-white shadow-xs dark:bg-white dark:text-black">
                               {timeSec}s
                             </span>
                           </div>
@@ -619,10 +616,10 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-neutral-500 dark:text-neutral-400">
                     <div>
                       <span>{t("timelinePositions")} </span>
-                      <span className="font-semibold text-foreground">
+                      <span className="font-semibold text-neutral-900 dark:text-neutral-100">
                         {markers.length > 0 ? markers.slice(0, 8).map((m) => `${m}s`).join(", ") + (markers.length > 8 ? "..." : "") : "0s"}
                       </span>
                     </div>
@@ -633,9 +630,9 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-2 rounded-xl border border-border bg-background p-4">
+                  <div className="flex flex-col gap-2 rounded-xl border border-neutral-300 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="interval-seconds" className="text-xs font-medium">
+                      <Label htmlFor="interval-seconds" className="text-xs font-semibold uppercase text-neutral-700 dark:text-neutral-300">
                         {t("intervalSeconds")}
                       </Label>
                       <div className="flex items-center gap-1">
@@ -645,10 +642,10 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                           min={5}
                           max={600}
                           disabled={isBusy}
-                          className="h-7 w-16 text-right text-xs font-semibold border-border px-1.5"
+                          className="h-7 w-16 text-right font-mono text-xs font-semibold border-neutral-300 dark:border-neutral-700 px-1.5"
                           {...register("intervalSeconds")}
                         />
-                        <span className="text-xs font-medium text-muted-foreground">s</span>
+                        <span className="text-xs font-mono text-neutral-500">s</span>
                       </div>
                     </div>
                     <input
@@ -658,16 +655,16 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                       value={intervalSeconds}
                       disabled={isBusy}
                       onChange={(e) => setValue("intervalSeconds", Number(e.target.value))}
-                      className="w-full accent-primary h-1.5 rounded-lg cursor-pointer bg-muted"
+                      className="w-full accent-black dark:accent-white h-1.5 rounded-lg cursor-pointer bg-neutral-200 dark:bg-neutral-800"
                     />
-                    <p className="text-[11px] text-muted-foreground leading-tight">
+                    <p className="text-[11px] font-mono text-neutral-500 leading-tight">
                       {t("intervalHint")}
                     </p>
                   </div>
 
-                  <div className="flex flex-col gap-2 rounded-xl border border-border bg-background p-4">
+                  <div className="flex flex-col gap-2 rounded-xl border border-neutral-300 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="volume-percentage" className="text-xs font-medium">
+                      <Label htmlFor="volume-percentage" className="text-xs font-semibold uppercase text-neutral-700 dark:text-neutral-300">
                         {t("volumePercentage")}
                       </Label>
                       <div className="flex items-center gap-1">
@@ -677,10 +674,10 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                           min={0}
                           max={100}
                           disabled={isBusy}
-                          className="h-7 w-16 text-right text-xs font-semibold border-border px-1.5"
+                          className="h-7 w-16 text-right font-mono text-xs font-semibold border-neutral-300 dark:border-neutral-700 px-1.5"
                           {...register("volumePercentage")}
                         />
-                        <span className="text-xs font-medium text-muted-foreground">%</span>
+                        <span className="text-xs font-mono text-neutral-500">%</span>
                       </div>
                     </div>
                     <input
@@ -690,16 +687,16 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                       value={volumePercentage}
                       disabled={isBusy}
                       onChange={(e) => setValue("volumePercentage", Number(e.target.value))}
-                      className="w-full accent-primary h-1.5 rounded-lg cursor-pointer bg-muted"
+                      className="w-full accent-black dark:accent-white h-1.5 rounded-lg cursor-pointer bg-neutral-200 dark:bg-neutral-800"
                     />
-                    <p className="text-[11px] text-muted-foreground leading-tight">
+                    <p className="text-[11px] font-mono text-neutral-500 leading-tight">
                       {t("volumeHint")}
                     </p>
                   </div>
 
-                  <div className="flex flex-col gap-2 rounded-xl border border-border bg-background p-4">
+                  <div className="flex flex-col gap-2 rounded-xl border border-neutral-300 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="ducking-percentage" className="text-xs font-medium">
+                      <Label htmlFor="ducking-percentage" className="text-xs font-semibold uppercase text-neutral-700 dark:text-neutral-300">
                         {t("duckingPercentage")}
                       </Label>
                       <div className="flex items-center gap-1">
@@ -709,10 +706,10 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                           min={0}
                           max={100}
                           disabled={isBusy}
-                          className="h-7 w-16 text-right text-xs font-semibold border-border px-1.5"
+                          className="h-7 w-16 text-right font-mono text-xs font-semibold border-neutral-300 dark:border-neutral-700 px-1.5"
                           {...register("duckingPercentage")}
                         />
-                        <span className="text-xs font-medium text-muted-foreground">%</span>
+                        <span className="text-xs font-mono text-neutral-500">%</span>
                       </div>
                     </div>
                     <input
@@ -722,16 +719,16 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                       value={duckingPercentage}
                       disabled={isBusy}
                       onChange={(e) => setValue("duckingPercentage", Number(e.target.value))}
-                      className="w-full accent-primary h-1.5 rounded-lg cursor-pointer bg-muted"
+                      className="w-full accent-black dark:accent-white h-1.5 rounded-lg cursor-pointer bg-neutral-200 dark:bg-neutral-800"
                     />
-                    <p className="text-[11px] text-muted-foreground leading-tight">
+                    <p className="text-[11px] font-mono text-neutral-500 leading-tight">
                       {t("duckingHint")}
                     </p>
                   </div>
 
-                  <div className="flex flex-col gap-2 rounded-xl border border-border bg-background p-4">
+                  <div className="flex flex-col gap-2 rounded-xl border border-neutral-300 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="start-offset" className="text-xs font-medium">
+                      <Label htmlFor="start-offset" className="text-xs font-semibold uppercase text-neutral-700 dark:text-neutral-300">
                         {t("startOffsetSeconds")}
                       </Label>
                       <div className="flex items-center gap-1">
@@ -741,10 +738,10 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                           min={0}
                           max={120}
                           disabled={isBusy}
-                          className="h-7 w-16 text-right text-xs font-semibold border-border px-1.5"
+                          className="h-7 w-16 text-right font-mono text-xs font-semibold border-neutral-300 dark:border-neutral-700 px-1.5"
                           {...register("startOffsetSeconds")}
                         />
-                        <span className="text-xs font-medium text-muted-foreground">s</span>
+                        <span className="text-xs font-mono text-neutral-500">s</span>
                       </div>
                     </div>
                     <input
@@ -754,9 +751,9 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                       value={startOffsetSeconds}
                       disabled={isBusy}
                       onChange={(e) => setValue("startOffsetSeconds", Number(e.target.value))}
-                      className="w-full accent-primary h-1.5 rounded-lg cursor-pointer bg-muted"
+                      className="w-full accent-black dark:accent-white h-1.5 rounded-lg cursor-pointer bg-neutral-200 dark:bg-neutral-800"
                     />
-                    <p className="text-[11px] text-muted-foreground leading-tight">
+                    <p className="text-[11px] font-mono text-neutral-500 leading-tight">
                       {t("startOffsetHint")}
                     </p>
                   </div>
@@ -770,7 +767,7 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
       {clientError && (
         <div
           role="alert"
-          className="rounded-xl border border-red-200 bg-red-50/80 p-3.5 text-xs font-semibold text-red-600 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400"
+          className="rounded-xl border border-neutral-400 bg-neutral-100 p-3.5 text-xs font-mono font-semibold text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
         >
           {clientError}
         </div>
@@ -782,7 +779,11 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
             {tActions("cancel")}
           </Button>
         )}
-        <Button type="submit" disabled={isBusy || !file} className="min-w-32 font-semibold">
+        <Button
+          type="submit"
+          disabled={isBusy || !file}
+          className="min-w-36 min-h-[44px] sm:min-h-0 font-semibold bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 active:translate-y-[1px] transition-all"
+        >
           {isBusy ? (
             <>
               <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />

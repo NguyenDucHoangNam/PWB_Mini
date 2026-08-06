@@ -95,7 +95,7 @@ export function VoiceTagCard({ voiceTag }: VoiceTagCardProps) {
                 onBlur={cancelEdit}
                 maxLength={100}
                 disabled={isPending}
-                className="min-w-0 flex-1 rounded border border-neutral-300 bg-white px-2 py-0.5 text-base font-bold tracking-tight text-neutral-900 outline-none focus:border-black dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-white"
+                className="min-w-0 flex-1 rounded border border-neutral-400 bg-white px-2 py-0.5 text-base font-bold tracking-tight text-neutral-900 outline-none focus:border-black dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-white"
               />
               <button
                 type="button"
@@ -104,7 +104,7 @@ export function VoiceTagCard({ voiceTag }: VoiceTagCardProps) {
                   saveEdit();
                 }}
                 disabled={isPending || !editValue.trim()}
-                className="flex size-7 shrink-0 items-center justify-center rounded text-neutral-600 hover:bg-neutral-200 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                className="flex size-7 shrink-0 items-center justify-center rounded border border-neutral-300 bg-neutral-100 text-neutral-800 hover:bg-neutral-200 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
                 aria-label={tCommon("save")}
               >
                 <Check className="size-4" />
@@ -115,7 +115,7 @@ export function VoiceTagCard({ voiceTag }: VoiceTagCardProps) {
                   e.preventDefault();
                   cancelEdit();
                 }}
-                className="flex size-7 shrink-0 items-center justify-center rounded text-neutral-600 hover:bg-neutral-200 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                className="flex size-7 shrink-0 items-center justify-center rounded border border-neutral-200 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-800"
                 aria-label={tCommon("cancel")}
               >
                 <X className="size-4" />
@@ -123,11 +123,11 @@ export function VoiceTagCard({ voiceTag }: VoiceTagCardProps) {
             </div>
           ) : (
             <>
-              <h3 className="truncate text-base font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
+              <h3 className="truncate text-base font-bold tracking-tight text-neutral-900 dark:text-neutral-50 group-hover:underline decoration-neutral-400 underline-offset-4">
                 {voiceTag.name}
               </h3>
               {voiceTag.languageCode && (
-                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-700 border border-neutral-200/80 dark:bg-neutral-900 dark:text-neutral-300 dark:border-neutral-800 uppercase">
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded bg-neutral-100 px-2 py-0.5 text-[11px] font-mono font-semibold text-neutral-800 border border-neutral-300 dark:bg-neutral-900 dark:text-neutral-200 dark:border-neutral-700 uppercase tracking-wide">
                   <LanguageFlagIcon langCode={voiceTag.languageCode} className="h-3 w-[18px] rounded-[1px] shrink-0" />
                   {voiceTag.languageCode}
                 </span>
@@ -141,7 +141,7 @@ export function VoiceTagCard({ voiceTag }: VoiceTagCardProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="size-8 text-neutral-500 hover:bg-neutral-100 hover:text-black dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
+              className="size-8 rounded text-neutral-500 hover:bg-neutral-200 hover:text-black dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
               onClick={startEdit}
               title={tActions("edit")}
             >
@@ -150,7 +150,7 @@ export function VoiceTagCard({ voiceTag }: VoiceTagCardProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="size-8 text-neutral-500 hover:bg-red-50 hover:text-red-600 dark:text-neutral-400 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+              className="size-8 rounded text-neutral-500 hover:bg-neutral-200 hover:text-black dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
               onClick={() => setDeleteOpen(true)}
               title={tActions("delete")}
             >
@@ -187,19 +187,19 @@ function VoiceTagPreviewInline({ voiceTagId }: { voiceTagId: string }) {
       <button
         type="button"
         onClick={() => setRequested(true)}
-        className="flex items-center gap-3 rounded-lg border border-neutral-200/80 bg-neutral-50 px-3 py-2.5 text-xs font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+        className="flex items-center gap-3 rounded-lg border border-neutral-300 bg-neutral-100 px-3.5 py-2.5 text-xs font-semibold text-neutral-800 transition-all hover:bg-neutral-200 active:translate-y-[1px] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
       >
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-black text-white dark:bg-white dark:text-black">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-black text-white dark:bg-white dark:text-black shadow-xs">
           <Play className="ml-0.5 size-3.5 fill-current" />
         </span>
-        {t("preview")}
+        <span className="font-mono tracking-wide">{t("preview")}</span>
       </button>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 rounded-lg bg-neutral-50 px-3 py-2.5 text-xs text-neutral-500 dark:bg-neutral-900">
+      <div className="flex items-center gap-2 rounded-lg bg-neutral-100 px-3 py-2.5 text-xs font-mono text-neutral-500 dark:bg-neutral-900">
         <Spinner size="sm" />
         {t("preview")}
       </div>
@@ -208,7 +208,7 @@ function VoiceTagPreviewInline({ voiceTagId }: { voiceTagId: string }) {
 
   if (error || !url) {
     return (
-      <div className="rounded-lg bg-neutral-50 px-3 py-2.5 text-xs text-red-600 dark:bg-neutral-900 dark:text-red-400">
+      <div className="rounded-lg border border-dashed border-neutral-400 bg-neutral-100 px-3 py-2.5 text-xs font-mono text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
         {tPlayer("loadError")}
       </div>
     );
@@ -274,7 +274,7 @@ function VoiceTagCustomPlayer({ url, autoPlay = false }: { url: string; autoPlay
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="flex items-center gap-3 rounded-lg bg-neutral-50 px-3 py-2.5 dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800">
+    <div className="flex items-center gap-3 rounded-lg bg-neutral-100/90 px-3.5 py-2.5 dark:bg-neutral-900/90 border border-neutral-300 dark:border-neutral-800 shadow-xs">
       <audio
         ref={audioRef}
         src={url}
@@ -288,7 +288,7 @@ function VoiceTagCustomPlayer({ url, autoPlay = false }: { url: string; autoPlay
       <button
         type="button"
         onClick={togglePlay}
-        className="key-press flex size-8 shrink-0 items-center justify-center rounded-full bg-black text-white hover:scale-105 dark:bg-white dark:text-black"
+        className="flex size-8 shrink-0 items-center justify-center rounded-md bg-black text-white hover:bg-neutral-800 active:translate-y-[1px] dark:bg-white dark:text-black dark:hover:bg-neutral-200 transition-all"
         aria-label={isPlaying ? "Pause" : "Play"}
       >
         {isPlaying ? (
@@ -298,12 +298,20 @@ function VoiceTagCustomPlayer({ url, autoPlay = false }: { url: string; autoPlay
         )}
       </button>
 
+      {isPlaying && (
+        <span className="hidden sm:flex items-end gap-0.5 h-3.5 w-3 shrink-0" aria-hidden="true">
+          <span className="w-0.5 bg-neutral-800 dark:bg-neutral-200 animate-[bounce_1s_infinite_100ms] h-full rounded-full" />
+          <span className="w-0.5 bg-neutral-800 dark:bg-neutral-200 animate-[bounce_1s_infinite_300ms] h-2/3 rounded-full" />
+          <span className="w-0.5 bg-neutral-800 dark:bg-neutral-200 animate-[bounce_1s_infinite_200ms] h-4/5 rounded-full" />
+        </span>
+      )}
+
       <div className="flex flex-1 items-center gap-2 min-w-0">
-        <span className="text-[11px] font-mono text-neutral-500 shrink-0 min-w-[28px]">
+        <span className="text-[11px] font-mono text-neutral-600 dark:text-neutral-400 shrink-0 min-w-[28px]">
           {formatTime(currentTime)}
         </span>
         <div
-          className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800 cursor-pointer group"
+          className="relative h-2 flex-1 overflow-hidden rounded-full bg-neutral-300 dark:bg-neutral-800 cursor-pointer group"
           onClick={handleSeek}
         >
           <div
@@ -311,7 +319,7 @@ function VoiceTagCustomPlayer({ url, autoPlay = false }: { url: string; autoPlay
             style={{ width: `${progressPercent}%` }}
           />
         </div>
-        <span className="text-[11px] font-mono text-neutral-400 shrink-0 min-w-[28px]">
+        <span className="text-[11px] font-mono text-neutral-500 shrink-0 min-w-[28px]">
           {formatTime(duration)}
         </span>
       </div>
@@ -319,7 +327,7 @@ function VoiceTagCustomPlayer({ url, autoPlay = false }: { url: string; autoPlay
       <button
         type="button"
         onClick={toggleMute}
-        className="text-neutral-400 hover:text-black dark:hover:text-white transition-colors shrink-0"
+        className="text-neutral-500 hover:text-black dark:text-neutral-400 dark:hover:text-white transition-colors shrink-0 p-1"
         aria-label={isMuted ? "Unmute" : "Muted"}
       >
         {isMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}

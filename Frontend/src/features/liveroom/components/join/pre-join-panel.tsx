@@ -28,17 +28,88 @@ export function PreJoinPanel({ media, submitting, disabled, onSubmit }: PreJoinP
   }, [media.cameraOn, media.stream]);
 
   return (
-    <div className="flex flex-col gap-6">
-      <JoinStepIndicator current={2} />
+    <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start w-full">
+      <div className="md:col-span-5 flex flex-col justify-between gap-4 rounded-xl border border-neutral-300 bg-white p-5 shadow-xs dark:border-neutral-800 dark:bg-black">
+        <JoinStepIndicator current={2} />
 
-      <div className="flex flex-col gap-1">
-        <h2 className="text-xl font-semibold text-black md:text-2xl dark:text-white">
-          {t("title")}
-        </h2>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("subtitle")}</p>
+        <div className="flex flex-col gap-0.5">
+          <h2 className="text-lg font-bold tracking-tight text-neutral-900 md:text-xl dark:text-neutral-100">
+            {t("title")}
+          </h2>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400">{t("subtitle")}</p>
+        </div>
+
+        {media.micOn ? (
+          <div className="flex items-center gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-2.5 dark:border-neutral-800 dark:bg-neutral-900">
+            <span className="font-mono text-xs font-semibold text-neutral-600 dark:text-neutral-400">
+              {t("micPreview")}
+            </span>
+            <span className="flex flex-1 items-end gap-1" aria-hidden="true">
+              {[1, 2, 3, 4].map((bar) => (
+                <span
+                  key={bar}
+                  className={`h-2.5 flex-1 rounded-full transition-colors ${
+                    audioLevel >= bar
+                      ? "bg-black dark:bg-white"
+                      : "bg-neutral-300 dark:bg-neutral-700"
+                  }`}
+                />
+              ))}
+            </span>
+          </div>
+        ) : null}
+
+        {media.error ? <DevicePermissionNotice kind={media.error} /> : null}
+
+        <div className="flex flex-wrap gap-2 pt-1">
+          <Button
+            type="button"
+            variant="outline"
+            className={`h-9 font-mono text-xs font-bold transition-all active:translate-y-[1px] ${
+              media.cameraOn
+                ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                : "border-neutral-300 bg-neutral-100 text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+            }`}
+            disabled={media.requesting}
+            onClick={() => (media.cameraOn ? media.disableCamera() : void media.enableCamera())}
+          >
+            {media.cameraOn ? <Camera className="size-4 mr-1" /> : <CameraOff className="size-4 mr-1" />}
+            {media.cameraOn ? t("cameraOn") : t("cameraOff")}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className={`h-9 font-mono text-xs font-bold transition-all active:translate-y-[1px] ${
+              media.micOn
+                ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                : "border-neutral-300 bg-neutral-100 text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+            }`}
+            disabled={media.requesting}
+            onClick={() => (media.micOn ? media.disableMic() : void media.enableMic())}
+          >
+            {media.micOn ? <Mic className="size-4 mr-1" /> : <MicOff className="size-4 mr-1" />}
+            {media.micOn ? t("micOn") : t("micOff")}
+          </Button>
+          {media.requesting ? (
+            <span className="flex items-center gap-1.5 font-mono text-xs text-neutral-500 dark:text-neutral-400">
+              <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+              {t("requesting")}
+            </span>
+          ) : null}
+        </div>
+
+        <Button
+          type="button"
+          className="h-10 min-h-[44px] sm:min-h-0 w-full bg-black font-semibold text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 active:translate-y-[1px] transition-all"
+          disabled={submitting || disabled}
+          onClick={onSubmit}
+        >
+          {submitting ? <Loader2 className="size-4 animate-spin mr-1.5" aria-hidden="true" /> : null}
+          {t("enterRoom")}
+        </Button>
       </div>
 
-      <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-neutral-900">
+      <div className="md:col-span-7 relative aspect-video w-full overflow-hidden rounded-xl border border-neutral-300 bg-black dark:border-neutral-800 shadow-xs min-h-[220px] max-h-[360px]">
         <video
           ref={videoRef}
           autoPlay
@@ -48,73 +119,12 @@ export function PreJoinPanel({ media, submitting, disabled, onSubmit }: PreJoinP
           className={`size-full -scale-x-100 object-cover ${media.cameraOn ? "" : "hidden"}`}
         />
         {!media.cameraOn ? (
-          <div className="flex size-full items-center justify-center text-sm text-neutral-400">
-            <CameraOff className="mr-2 size-5" aria-hidden />
+          <div className="flex size-full flex-col items-center justify-center gap-2 text-xs font-mono text-neutral-400">
+            <CameraOff className="size-8 text-neutral-600 dark:text-neutral-500" aria-hidden="true" />
             {t("cameraOff")}
           </div>
         ) : null}
       </div>
-
-      {media.micOn ? (
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-neutral-500 dark:text-neutral-400">
-            {t("micPreview")}
-          </span>
-          <span className="flex flex-1 items-end gap-1" aria-hidden>
-            {[1, 2, 3, 4].map((bar) => (
-              <span
-                key={bar}
-                className={`h-2 flex-1 rounded-full transition-colors ${
-                  audioLevel >= bar
-                    ? "bg-emerald-500"
-                    : "bg-neutral-200 dark:bg-neutral-800"
-                }`}
-              />
-            ))}
-          </span>
-        </div>
-      ) : null}
-
-      {media.error ? <DevicePermissionNotice kind={media.error} /> : null}
-
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant={media.cameraOn ? "default" : "outline"}
-          className="h-11 md:h-9"
-          disabled={media.requesting}
-          onClick={() => (media.cameraOn ? media.disableCamera() : void media.enableCamera())}
-        >
-          {media.cameraOn ? <Camera className="size-4" /> : <CameraOff className="size-4" />}
-          {media.cameraOn ? t("cameraOn") : t("cameraOff")}
-        </Button>
-        <Button
-          type="button"
-          variant={media.micOn ? "default" : "outline"}
-          className="h-11 md:h-9"
-          disabled={media.requesting}
-          onClick={() => (media.micOn ? media.disableMic() : void media.enableMic())}
-        >
-          {media.micOn ? <Mic className="size-4" /> : <MicOff className="size-4" />}
-          {media.micOn ? t("micOn") : t("micOff")}
-        </Button>
-        {media.requesting ? (
-          <span className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-            {t("requesting")}
-          </span>
-        ) : null}
-      </div>
-
-      <Button
-        type="button"
-        className="h-11 w-full md:h-9"
-        disabled={submitting || disabled}
-        onClick={onSubmit}
-      >
-        {submitting ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
-        {t("enterRoom")}
-      </Button>
     </div>
   );
 }

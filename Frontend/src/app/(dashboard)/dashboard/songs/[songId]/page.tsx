@@ -96,6 +96,23 @@ export default function SongDetailPage() {
     },
   });
 
+  // Declared before the early returns below so the hook order stays stable.
+  const { mutate: updateSong, isPending: isSaving } = useUpdateSong({
+    mutationConfig: {
+      onSuccess: (response) => {
+        if (response.success) {
+          toast.success(tCommon("save"));
+          setIsEditingTitle(false);
+        } else {
+          toast.error(response.message || tCommon("error"));
+        }
+      },
+      onError: asApiError((err) => {
+        toast.error(resolveVoiceErrorMessage(err, tErrors, tCommon));
+      }),
+    },
+  });
+
   if (!isPro) {
     return <ProUpgradePrompt />;
   }
@@ -120,22 +137,6 @@ export default function SongDetailPage() {
   }
 
   const song = songRes.data;
-
-  const { mutate: updateSong, isPending: isSaving } = useUpdateSong({
-    mutationConfig: {
-      onSuccess: (response) => {
-        if (response.success) {
-          toast.success(tCommon("save"));
-          setIsEditingTitle(false);
-        } else {
-          toast.error(response.message || tCommon("error"));
-        }
-      },
-      onError: asApiError((err) => {
-        toast.error(resolveVoiceErrorMessage(err, tErrors, tCommon));
-      }),
-    },
-  });
 
   const startEditTitle = () => {
     setEditTitle(song.title);
