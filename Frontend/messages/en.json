@@ -498,7 +498,12 @@
       "prev": "Prev",
       "next": "Next",
       "all": "All",
-      "loading": "Loading..."
+      "loading": "Loading...",
+      "searchSongsPlaceholder": "Search songs by title...",
+      "searchVoiceTagsPlaceholder": "Search voice tags by name...",
+      "clearSearch": "Clear search",
+      "noResults": "No results found",
+      "noResultsHint": "Nothing matches “{query}”. Try a different word."
     },
     "voiceTags": {
       "title": "Voice Tags",
@@ -736,7 +741,11 @@
       "errorLoad": "Could not load your rooms",
       "retry": "Try again",
       "prev": "Previous",
-      "next": "Next"
+      "next": "Next",
+      "searchPlaceholder": "Search rooms by name or code...",
+      "clearSearch": "Clear search",
+      "noResults": "No rooms found",
+      "noResultsHint": "No room matches “{query}”."
     },
     "create": {
       "title": "Create a live room",

@@ -498,7 +498,12 @@
       "prev": "Trước",
       "next": "Sau",
       "all": "Tất cả",
-      "loading": "Đang tải..."
+      "loading": "Đang tải...",
+      "searchSongsPlaceholder": "Tìm bài hát theo tên...",
+      "searchVoiceTagsPlaceholder": "Tìm voice tag theo tên...",
+      "clearSearch": "Xoá tìm kiếm",
+      "noResults": "Không tìm thấy kết quả",
+      "noResultsHint": "Không có mục nào khớp với “{query}”. Thử từ khoá khác xem sao."
     },
     "voiceTags": {
       "title": "Voice Tag",
@@ -736,7 +741,11 @@
       "errorLoad": "Không tải được danh sách phòng",
       "retry": "Thử lại",
       "prev": "Trước",
-      "next": "Sau"
+      "next": "Sau",
+      "searchPlaceholder": "Tìm phòng theo tên hoặc mã...",
+      "clearSearch": "Xoá tìm kiếm",
+      "noResults": "Không tìm thấy phòng nào",
+      "noResultsHint": "Không có phòng nào khớp với “{query}”."
     },
     "create": {
       "title": "Tạo phòng trực tuyến",

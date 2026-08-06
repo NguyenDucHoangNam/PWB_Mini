@@ -2,14 +2,19 @@ package com.pwb.audio.infrastructure.persistence.adapter;
 
 import com.pwb.audio.domain.model.VoiceTag;
 import com.pwb.audio.domain.repository.VoiceTagRepository;
+import com.pwb.audio.domain.repository.VoiceTagSearchCriteria;
 import com.pwb.audio.infrastructure.persistence.entity.VoiceTagJpaEntity;
 import com.pwb.audio.infrastructure.persistence.mapper.VoiceTagMapper;
 import com.pwb.audio.infrastructure.persistence.repository.VoiceTagJpaRepository;
+import com.pwb.audio.infrastructure.persistence.specification.VoiceTagSpecifications;
+import com.pwb.audio.infrastructure.search.AudioSearchIndexWriter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -19,15 +24,19 @@ public class VoiceTagRepositoryImpl implements VoiceTagRepository {
 
     private final VoiceTagJpaRepository voiceTagJpaRepository;
     private final VoiceTagMapper voiceTagMapper;
+    private final AudioSearchIndexWriter searchIndexWriter;
 
+    /**
+     * The search index is refreshed from the saved aggregate, not the incoming one: only the persisted
+     * form carries the generated id and the audit timestamps the index sorts on.
+     */
     @Override
     public VoiceTag save(VoiceTag voiceTag) {
-        if (voiceTag.isNew()) {
-            return voiceTagMapper.toDomain(voiceTagJpaRepository.save(voiceTagMapper.toEntity(voiceTag)));
-        }
-        VoiceTagJpaEntity target = loadForUpdate(voiceTag.getId());
-        voiceTagMapper.applyTo(voiceTag, target);
-        return voiceTagMapper.toDomain(voiceTagJpaRepository.save(target));
+        VoiceTag saved = voiceTag.isNew()
+                ? voiceTagMapper.toDomain(voiceTagJpaRepository.save(voiceTagMapper.toEntity(voiceTag)))
+                : voiceTagMapper.toDomain(voiceTagJpaRepository.save(applyToExisting(voiceTag)));
+        searchIndexWriter.voiceTagSaved(saved);
+        return saved;
     }
 
     @Override
@@ -59,8 +68,31 @@ public class VoiceTagRepositoryImpl implements VoiceTagRepository {
     }
 
     @Override
+    public List<VoiceTag> findAllByIdIn(Collection<UUID> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return voiceTagJpaRepository.findAllById(ids).stream()
+                .map(voiceTagMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public Page<VoiceTag> search(VoiceTagSearchCriteria criteria, Pageable pageable) {
+        return voiceTagJpaRepository.findAll(VoiceTagSpecifications.fromCriteria(criteria), pageable)
+                .map(voiceTagMapper::toDomain);
+    }
+
+    @Override
     public void deleteById(UUID id) {
         voiceTagJpaRepository.deleteById(id);
+        searchIndexWriter.voiceTagDeleted(id);
+    }
+
+    private VoiceTagJpaEntity applyToExisting(VoiceTag voiceTag) {
+        VoiceTagJpaEntity target = loadForUpdate(voiceTag.getId());
+        voiceTagMapper.applyTo(voiceTag, target);
+        return target;
     }
 
     /**

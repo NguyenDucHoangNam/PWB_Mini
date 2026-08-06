@@ -10,6 +10,7 @@ import com.pwb.iam.infrastructure.persistence.entity.UserJpaEntity;
 import com.pwb.iam.infrastructure.persistence.mapper.UserMapper;
 import com.pwb.iam.infrastructure.persistence.repository.UserJpaRepository;
 import com.pwb.iam.infrastructure.persistence.specification.UserSpecifications;
+import com.pwb.iam.infrastructure.search.IamSearchIndexWriter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,13 +31,21 @@ public class UserRepositoryImpl implements UserRepository {
 
     private final UserJpaRepository userJpaRepository;
     private final UserMapper userMapper;
+    private final IamSearchIndexWriter searchIndexWriter;
 
+    /**
+     * The index is refreshed from the persisted entity rather than the domain aggregate, because
+     * {@code User.rehydrate} drops the audit timestamps and the index sorts on them.
+     */
     @Override
     public User save(User user) {
         UserJpaEntity target = userJpaRepository.findByIdAndDeletedFalse(user.getUserId())
                 .map(existing -> userMapper.toEntity(user, existing))
                 .orElseGet(() -> userMapper.toEntity(user, null));
-        return userMapper.toDomain(userJpaRepository.save(target));
+
+        UserJpaEntity saved = userJpaRepository.save(target);
+        searchIndexWriter.userSaved(saved);
+        return userMapper.toDomain(saved);
     }
 
     @Override

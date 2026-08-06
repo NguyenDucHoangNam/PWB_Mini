@@ -5,15 +5,18 @@ import com.pwb.audio.api.dto.request.UpdateSongRequest;
 import com.pwb.audio.api.dto.request.UploadUrlRequest;
 import com.pwb.audio.api.dto.response.AudioUrlResponse;
 import com.pwb.audio.api.dto.response.SongResponse;
+import com.pwb.audio.api.dto.response.SongSuggestionResponse;
 import com.pwb.audio.api.dto.response.SongTagConfigResponse;
 import com.pwb.audio.api.dto.response.UploadUrlResponse;
 import com.pwb.audio.application.command.DeleteSongCommand;
 import com.pwb.audio.application.command.UpdateSongCommand;
+import com.pwb.audio.application.usecase.SongSearchUseCase;
 import com.pwb.audio.application.usecase.SongUseCase;
 import com.pwb.audio.application.view.AudioUrlView;
 import com.pwb.audio.application.view.SongView;
 import com.pwb.audio.application.view.UploadUrlView;
 import com.pwb.audio.domain.enums.SongStatus;
+import com.pwb.audio.domain.repository.SongSearchCriteria;
 import com.pwb.shared.dto.ApiResponse;
 import com.pwb.shared.dto.PageResponse;
 import com.pwb.web.dto.PageResponses;
@@ -63,7 +66,10 @@ public class SongController {
     private static final long MIN_EXPIRES_IN_SECONDS = 60L;
     private static final long MAX_EXPIRES_IN_SECONDS = 86_400L;
 
+    private static final int MAX_SUGGESTION_LIMIT = 20;
+
     private final SongUseCase songUseCase;
+    private final SongSearchUseCase songSearchUseCase;
     private final MessageResolver messageResolver;
 
     @PostMapping("/upload-url")
@@ -116,6 +122,57 @@ public class SongController {
     ) {
         Page<SongView> page = songUseCase.listSongs(userId, status, pageable);
         PageResponse<SongResponse> body = PageResponses.from(page, SongResponse::from);
+        return ResponseEntity.ok(ApiResponse.success(body));
+    }
+
+    /**
+     * Full-text search over the caller's own library. Separate from the listing above rather than a
+     * parameter on it, because the two order results by different things — relevance here, upload date
+     * there — and a single endpoint that silently switched between them would page inconsistently.
+     *
+     * <p>Only the title is searched. Rows come back ranked, tolerant of typos and of missing Vietnamese
+     * diacritics, so "ha noi" finds "Hà Nội". If the search engine is unavailable the answer falls back to
+     * a database query: the same filters, plain substring matching, no ranking.
+     *
+     * @param q      the search text; blank means the filters alone decide the result
+     * @param status repeatable, same as on the listing
+     */
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<PageResponse<SongResponse>>> searchSongs(
+            @CurrentUser UUID userId,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) List<SongStatus> status,
+            @RequestParam(required = false) String format,
+            @RequestParam(required = false) @Min(0) Integer minDuration,
+            @RequestParam(required = false) @Min(0) Integer maxDuration,
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        SongSearchCriteria criteria = new SongSearchCriteria(
+                userId, q, status == null ? List.of() : status, format, minDuration, maxDuration);
+        Page<SongView> page = songSearchUseCase.search(criteria, pageable);
+        PageResponse<SongResponse> body = PageResponses.from(page, SongResponse::from);
+        return ResponseEntity.ok(ApiResponse.success(body));
+    }
+
+    /**
+     * Search-as-you-type. Answers with titles only and no paging — it exists to be called on every
+     * keystroke, so it stays as small as the dropdown that renders it.
+     *
+     * @param status narrows the suggestions; the room's song picker passes the playable states so it never
+     *               offers a track that cannot be played
+     */
+    @GetMapping("/suggest")
+    public ResponseEntity<ApiResponse<List<SongSuggestionResponse>>> suggestSongs(
+            @CurrentUser UUID userId,
+            @RequestParam String q,
+            @RequestParam(required = false) List<SongStatus> status,
+            @RequestParam(defaultValue = "8") @Min(1) @Max(MAX_SUGGESTION_LIMIT) int limit
+    ) {
+        SongSearchCriteria criteria = new SongSearchCriteria(
+                userId, q, status == null ? List.of() : status, null, null, null);
+        List<SongSuggestionResponse> body = songSearchUseCase.suggest(criteria, limit).stream()
+                .map(SongSuggestionResponse::from)
+                .toList();
         return ResponseEntity.ok(ApiResponse.success(body));
     }
 

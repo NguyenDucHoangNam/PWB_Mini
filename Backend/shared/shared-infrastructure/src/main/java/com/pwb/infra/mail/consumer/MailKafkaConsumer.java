@@ -3,13 +3,8 @@ package com.pwb.infra.mail.consumer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.infra.mail.api.EmailPayload;
 import com.pwb.infra.mail.properties.MailProperties;
-import jakarta.activation.DataHandler;
-import jakarta.activation.DataSource;
 import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeBodyPart;
 import jakarta.mail.internet.MimeMessage;
-import jakarta.mail.internet.MimeMultipart;
-import jakarta.mail.util.ByteArrayDataSource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -21,9 +16,6 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
-import java.io.InputStream;
-
 @Slf4j
 @Component
 @ConditionalOnProperty(name = "pwb.mail.consumer.enabled", havingValue = "true", matchIfMissing = true)
@@ -33,7 +25,6 @@ public class MailKafkaConsumer {
     private static final String FALLBACK_FROM = "noreply@pwb.local";
     private static final String LOGO_CONTENT_ID = "pwb-logo";
     private static final String LOGO_RESOURCE_PATH = "static/images/pwb-logo.png";
-    private static final String IMAGE_PNG_MIME = "image/png";
 
     private final JavaMailSender mailSender;
     private final MailProperties mailProperties;
@@ -77,11 +68,7 @@ public class MailKafkaConsumer {
 
     private void sendEmail(EmailPayload payload) {
         try {
-            String fromAddress = payload.from() != null && !payload.from().isBlank()
-                    ? payload.from()
-                    : (mailProperties.getFromAddress() != null && !mailProperties.getFromAddress().isBlank()
-                        ? mailProperties.getFromAddress()
-                        : FALLBACK_FROM);
+            String fromAddress = resolveFromAddress(payload);
 
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -90,10 +77,12 @@ public class MailKafkaConsumer {
             helper.setSubject(payload.subject());
 
             if (payload.textBody() != null && !payload.textBody().isBlank()) {
-                helper.setText(payload.textBody(), buildHtmlBodyWithLogo(payload.htmlBody()));
+                helper.setText(payload.textBody(), payload.htmlBody());
             } else {
-                helper.setText(buildHtmlBodyWithLogo(payload.htmlBody()), true);
+                helper.setText(payload.htmlBody(), true);
             }
+
+            addInlineLogo(helper);
 
             mailSender.send(message);
         } catch (MailException | MessagingException | java.io.UnsupportedEncodingException ex) {
@@ -103,45 +92,26 @@ public class MailKafkaConsumer {
         }
     }
 
-    private String buildHtmlBodyWithLogo(String htmlBody) {
-        try {
-            byte[] logoBytes = loadLogoBytes();
-            if (logoBytes == null) {
-                return htmlBody;
-            }
-
-            MimeMultipart rootMultipart = new MimeMultipart("related");
-            MimeMultipart htmlMultipart = new MimeMultipart("alternative");
-            MimeBodyPart htmlPart = new MimeBodyPart();
-            htmlPart.setContent(htmlMultipart);
-            rootMultipart.addBodyPart(htmlPart);
-
-            MimeBodyPart imagePart = new MimeBodyPart();
-            DataSource imageDs = new ByteArrayDataSource(logoBytes, IMAGE_PNG_MIME);
-            imagePart.setDataHandler(new DataHandler(imageDs));
-            imagePart.setHeader("Content-ID", "<" + LOGO_CONTENT_ID + ">");
-            imagePart.setDisposition(MimeMessage.INLINE);
-            rootMultipart.addBodyPart(imagePart);
-
-            MimeBodyPart textPart = new MimeBodyPart();
-            textPart.setText(htmlBody, "UTF-8", "html");
-            htmlMultipart.addBodyPart(textPart);
-
-            MimeMessage tempMessage = mailSender.createMimeMessage();
-            tempMessage.setContent(rootMultipart);
-            return (String) tempMessage.getContent();
-        } catch (Exception ex) {
-            log.warn("Failed to embed logo, sending without logo: {}", ex.getMessage());
-            return htmlBody;
+    private String resolveFromAddress(EmailPayload payload) {
+        if (payload.from() != null && !payload.from().isBlank()) {
+            return payload.from();
         }
+        if (mailProperties.getFromAddress() != null && !mailProperties.getFromAddress().isBlank()) {
+            return mailProperties.getFromAddress();
+        }
+        return FALLBACK_FROM;
     }
 
-    private byte[] loadLogoBytes() {
-        try (InputStream is = new ClassPathResource(LOGO_RESOURCE_PATH).getInputStream()) {
-            return is.readAllBytes();
-        } catch (IOException ex) {
+    private void addInlineLogo(MimeMessageHelper helper) {
+        ClassPathResource logoResource = new ClassPathResource(LOGO_RESOURCE_PATH);
+        if (!logoResource.exists()) {
             log.warn("Logo resource not found: {}, email will be sent without logo", LOGO_RESOURCE_PATH);
-            return null;
+            return;
+        }
+        try {
+            helper.addInline(LOGO_CONTENT_ID, logoResource);
+        } catch (MessagingException ex) {
+            log.warn("Failed to embed logo, sending without logo: {}", ex.getMessage());
         }
     }
 }

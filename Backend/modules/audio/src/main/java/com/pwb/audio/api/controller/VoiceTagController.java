@@ -6,21 +6,27 @@ import com.pwb.audio.api.dto.request.UpdateVoiceTagRequest;
 import com.pwb.audio.api.dto.response.AudioUrlResponse;
 import com.pwb.audio.api.dto.response.TtsVoiceResponse;
 import com.pwb.audio.api.dto.response.VoiceTagResponse;
+import com.pwb.audio.api.dto.response.VoiceTagSuggestionResponse;
 import com.pwb.audio.application.command.DeleteVoiceTagCommand;
 import com.pwb.audio.application.command.UpdateVoiceTagCommand;
 import com.pwb.audio.application.command.VoiceTagAudioUpload;
 import com.pwb.audio.application.exception.AudioBusinessException;
 import com.pwb.audio.application.exception.AudioErrorCode;
+import com.pwb.audio.application.usecase.VoiceTagSearchUseCase;
 import com.pwb.audio.application.usecase.VoiceTagUseCase;
 import com.pwb.audio.application.view.AudioUrlView;
 import com.pwb.audio.application.view.TtsPreview;
 import com.pwb.audio.application.view.VoiceTagView;
+import com.pwb.audio.domain.enums.VoiceTagType;
+import com.pwb.audio.domain.repository.VoiceTagSearchCriteria;
 import com.pwb.shared.dto.ApiResponse;
 import com.pwb.shared.dto.PageResponse;
 import com.pwb.web.dto.PageResponses;
 import com.pwb.web.message.MessageResolver;
 import com.pwb.web.security.CurrentUser;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
@@ -66,7 +72,10 @@ public class VoiceTagController {
 
     private static final String HEADER_PREVIEW_DURATION = "X-Preview-Duration-Seconds";
 
+    private static final int MAX_SUGGESTION_LIMIT = 20;
+
     private final VoiceTagUseCase voiceTagUseCase;
+    private final VoiceTagSearchUseCase voiceTagSearchUseCase;
     private final MessageResolver messageResolver;
 
     @PostMapping("/tts")
@@ -156,6 +165,46 @@ public class VoiceTagController {
     ) {
         Page<VoiceTagView> page = voiceTagUseCase.listVoiceTags(userId, pageable);
         PageResponse<VoiceTagResponse> body = PageResponses.from(page, VoiceTagResponse::from);
+        return ResponseEntity.ok(ApiResponse.success(body));
+    }
+
+    /**
+     * Full-text search over the caller's own voice tags, ranked by relevance.
+     *
+     * <p>Only the name is matched. The synthesis source text is not searched: a tag is found by what its
+     * owner called it, not by the words it happens to say. Matching tolerates typos and missing Vietnamese
+     * diacritics, and falls back to a plain database substring query when the engine is unavailable.
+     */
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<PageResponse<VoiceTagResponse>>> searchVoiceTags(
+            @CurrentUser UUID userId,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) VoiceTagType tagType,
+            @RequestParam(required = false) String languageCode,
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        VoiceTagSearchCriteria criteria = new VoiceTagSearchCriteria(userId, q, tagType, languageCode);
+        Page<VoiceTagView> page = voiceTagSearchUseCase.search(criteria, pageable);
+        PageResponse<VoiceTagResponse> body = PageResponses.from(page, VoiceTagResponse::from);
+        return ResponseEntity.ok(ApiResponse.success(body));
+    }
+
+    /**
+     * Search-as-you-type for the voice tag picker in the song upload form. Each row carries the voice and
+     * language alongside the name, so the dropdown can show what a tag sounds like without one request per
+     * suggestion.
+     */
+    @GetMapping("/suggest")
+    public ResponseEntity<ApiResponse<List<VoiceTagSuggestionResponse>>> suggestVoiceTags(
+            @CurrentUser UUID userId,
+            @RequestParam String q,
+            @RequestParam(required = false) VoiceTagType tagType,
+            @RequestParam(defaultValue = "8") @Min(1) @Max(MAX_SUGGESTION_LIMIT) int limit
+    ) {
+        VoiceTagSearchCriteria criteria = new VoiceTagSearchCriteria(userId, q, tagType, null);
+        List<VoiceTagSuggestionResponse> body = voiceTagSearchUseCase.suggest(criteria, limit).stream()
+                .map(VoiceTagSuggestionResponse::from)
+                .toList();
         return ResponseEntity.ok(ApiResponse.success(body));
     }
 

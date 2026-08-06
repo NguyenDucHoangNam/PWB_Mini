@@ -9,7 +9,7 @@ export function ProUpgradePrompt() {
   const tActions = useTranslations("voice.actions");
 
   return (
-    <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-neutral-200 bg-white p-12 text-center dark:border-neutral-800 dark:bg-black">
+    <div className="flex min-h-[60vh] flex-1 flex-col items-center justify-center gap-4 rounded-xl border border-neutral-200 bg-white p-12 text-center dark:border-neutral-800 dark:bg-black">
       <h2 className="text-xl font-bold text-black dark:text-white">{t("proOnly")}</h2>
       <p className="max-w-md text-sm text-neutral-500 dark:text-neutral-400">
         {tActions("configure")}

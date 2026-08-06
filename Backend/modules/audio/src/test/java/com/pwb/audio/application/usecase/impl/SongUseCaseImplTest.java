@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pwb.audio.application.command.CreateSongCommand;
 import com.pwb.audio.application.exception.AudioBusinessException;
 import com.pwb.audio.application.exception.AudioErrorCode;
+import com.pwb.audio.application.support.SongViewFactory;
 import com.pwb.audio.application.support.StorageCleaner;
 import com.pwb.audio.domain.model.Song;
 import com.pwb.audio.domain.repository.SongRepository;
@@ -57,7 +58,8 @@ class SongUseCaseImplTest {
                 mock(StorageCleaner.class),
                 uploadProperties,
                 mock(OutboxEnqueueHelper.class),
-                new ObjectMapper()
+                new ObjectMapper(),
+                new SongViewFactory(mock(SongTagConfigRepository.class))
         );
     }
 

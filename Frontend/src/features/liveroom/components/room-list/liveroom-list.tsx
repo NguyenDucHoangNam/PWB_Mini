@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { KeyRound, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SearchInput } from "@/components/ui/search-input";
 import { Spinner } from "@/components/ui/spinner";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
-import { useListRooms } from "../../api/rooms";
+import { useListRooms, useSearchRooms } from "../../api/rooms";
 import { EndRoomDialog } from "./end-room-dialog";
 import { ReopenRoomDialog } from "./reopen-room-dialog";
 import { RoomCard } from "./room-card";
@@ -18,18 +20,44 @@ const TABS: { value: RoomStatus; labelKey: string }[] = [
   { value: "ENDED", labelKey: "tabEnded" },
 ];
 
+const SEARCH_DEBOUNCE_MS = 250;
+
 export function LiveroomList() {
   const t = useTranslations("liveroom.list");
   const [status, setStatus] = useState<RoomStatus>("ACTIVE");
   const [page, setPage] = useState(0);
   const [endTarget, setEndTarget] = useState<Room | null>(null);
   const [reopenTarget, setReopenTarget] = useState<Room | null>(null);
+  const [keyword, setKeyword] = useState("");
 
-  const { data, isPending, isError, refetch } = useListRooms({
+  const debouncedKeyword = useDebouncedValue(keyword, SEARCH_DEBOUNCE_MS);
+  const searching = debouncedKeyword.trim().length > 0;
+
+
+
+
+  const [pagedKeyword, setPagedKeyword] = useState(debouncedKeyword);
+  if (pagedKeyword !== debouncedKeyword) {
+    setPagedKeyword(debouncedKeyword);
+    setPage(0);
+  }
+
+  const listQuery = useListRooms({
     status,
     page,
     size: DEFAULT_PAGE_SIZE,
+    queryConfig: { enabled: !searching },
   });
+
+  const searchQuery = useSearchRooms({
+    q: debouncedKeyword,
+    status,
+    page,
+    size: DEFAULT_PAGE_SIZE,
+    queryConfig: { enabled: searching },
+  });
+
+  const { data, isPending, isFetching, isError, refetch } = searching ? searchQuery : listQuery;
 
   const rooms = data?.data?.content ?? [];
   const isLast = data?.data?.last ?? true;
@@ -65,6 +93,15 @@ export function LiveroomList() {
           </Link>
         </div>
       </div>
+
+      <SearchInput
+        value={keyword}
+        onValueChange={setKeyword}
+        loading={searching && isFetching}
+        placeholder={t("searchPlaceholder")}
+        clearLabel={t("clearSearch")}
+        aria-label={t("searchPlaceholder")}
+      />
 
       <div
         role="tablist"
@@ -103,10 +140,17 @@ export function LiveroomList() {
         </div>
       ) : rooms.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-neutral-200 bg-white p-8 text-center md:p-12 dark:border-neutral-800 dark:bg-black">
-          <h2 className="text-lg font-semibold text-black dark:text-white">{t("empty")}</h2>
+          <h2 className="text-lg font-semibold text-black dark:text-white">
+            {searching ? t("noResults") : t("empty")}
+          </h2>
           <p className="max-w-md text-sm text-neutral-500 dark:text-neutral-400">
-            {t("emptyHint")}
+            {searching ? t("noResultsHint", { query: debouncedKeyword }) : t("emptyHint")}
           </p>
+          {searching ? (
+            <Button variant="outline" onClick={() => setKeyword("")}>
+              {t("clearSearch")}
+            </Button>
+          ) : null}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 xl:grid-cols-3">

@@ -17,6 +17,7 @@ import { resolveVoiceErrorMessage } from "../lib/resolve-voice-error-message";
 import { readAudioDuration } from "../lib/read-audio-duration";
 import { getPresignedUploadUrl, createSong, getSong, SONGS_KEY } from "../api/songs";
 import { useListVoiceTags } from "../api/voice-tags";
+import { VoiceTagPicker } from "./voice-tag-picker";
 import { useFileValidation } from "../hooks/use-file-validation";
 import { uploadSongFormSchema, type UploadSongFormValues, type UploadSongFormInput } from "../schemas/song-schema";
 import type { CreateSongRequest, SongStatus } from "../types";
@@ -556,19 +557,16 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                   <Label htmlFor="voice-tag-select" className="font-medium text-xs text-muted-foreground">
                     {t("selectVoiceTag")}
                   </Label>
-                  <select
+                  {/*
+                    A dropdown of every tag stops being usable somewhere past a couple of dozen; this
+                    searches instead, and each row shows the voice and language so two tags with similar
+                    names stay distinguishable. The id itself stays in the form via setValue.
+                  */}
+                  <VoiceTagPicker
                     id="voice-tag-select"
-                    className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     disabled={isBusy}
-                    {...register("voiceTagId")}
-                  >
-                    <option value="">-- {t("selectVoiceTagPlaceholder")} --</option>
-                    {voiceTags.map((vt) => (
-                      <option key={vt.id} value={vt.id}>
-                        {vt.name} ({vt.tagType})
-                      </option>
-                    ))}
-                  </select>
+                    onSelect={(voiceTagId) => setValue("voiceTagId", voiceTagId)}
+                  />
                 </div>
 
                 <div className="flex items-start gap-2.5 rounded-lg border border-border bg-muted/40 p-3 text-xs text-foreground">

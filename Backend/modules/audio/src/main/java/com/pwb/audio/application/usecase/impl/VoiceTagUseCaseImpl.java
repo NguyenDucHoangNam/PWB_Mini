@@ -6,6 +6,7 @@ import com.pwb.audio.application.command.VoiceTagAudioUpload;
 import com.pwb.audio.application.exception.AudioBusinessException;
 import com.pwb.audio.application.exception.AudioErrorCode;
 import com.pwb.audio.application.support.StorageCleaner;
+import com.pwb.audio.application.support.VoiceTagViews;
 import com.pwb.audio.application.usecase.VoiceTagUseCase;
 import com.pwb.audio.application.view.AudioUrlView;
 import com.pwb.audio.application.view.TtsPreview;
@@ -239,20 +240,7 @@ public class VoiceTagUseCaseImpl implements VoiceTagUseCase {
     }
 
     private VoiceTagView toVoiceTagView(VoiceTag voiceTag) {
-        return new VoiceTagView(
-                voiceTag.getId(),
-                voiceTag.getUserId(),
-                voiceTag.getName(),
-                voiceTag.getTagType(),
-                voiceTag.getSourceText(),
-                voiceTag.getLanguageCode(),
-                voiceTag.getVoiceName(),
-                voiceTag.getDurationSeconds(),
-                voiceTag.getFileSizeBytes(),
-                voiceTag.isDefault(),
-                voiceTag.getCreatedAt(),
-                voiceTag.getUpdatedAt()
-        );
+        return VoiceTagViews.toView(voiceTag);
     }
 
     private String buildTtsKey(UUID userId, String name) {

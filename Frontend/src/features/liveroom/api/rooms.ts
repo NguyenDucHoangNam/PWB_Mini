@@ -21,6 +21,10 @@ export interface ListRoomsParams {
   size?: number;
 }
 
+export interface SearchRoomsParams extends ListRoomsParams {
+  q: string;
+}
+
 export const createRoom = ({
   data,
 }: {
@@ -35,6 +39,17 @@ export const listRooms = ({
 }: ListRoomsParams): Promise<ApiResponse<PaginatedResponse<Room>>> =>
   apiClient
     .get(liveroomApi.rooms, { params: { status, page, size } })
+    .then((res) => res.data);
+
+
+export const searchRooms = ({
+  q,
+  status,
+  page,
+  size,
+}: SearchRoomsParams): Promise<ApiResponse<PaginatedResponse<Room>>> =>
+  apiClient
+    .get(liveroomApi.roomSearch, { params: { q, status, page, size } })
     .then((res) => res.data);
 
 export const getRoom = ({ roomId }: { roomId: string }): Promise<ApiResponse<Room>> =>
@@ -74,6 +89,21 @@ export const useCreateRoom = ({ mutationConfig }: UseCreateRoomOptions = {}) => 
     mutationFn: createRoom,
   });
 };
+
+type UseSearchRoomsOptions = {
+  queryConfig?: QueryConfig<typeof searchRooms>;
+};
+
+export const useSearchRooms = ({
+  queryConfig,
+  ...params
+}: SearchRoomsParams & UseSearchRoomsOptions) =>
+  useQuery({
+    queryKey: [LIVEROOM_ROOMS_KEY, "search", params],
+    queryFn: () => searchRooms(params),
+    placeholderData: keepPreviousData,
+    ...queryConfig,
+  });
 
 type UseListRoomsOptions = {
   queryConfig?: QueryConfig<typeof listRooms>;

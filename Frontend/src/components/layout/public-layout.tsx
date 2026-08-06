@@ -9,7 +9,9 @@ export function PublicLayout({ children }: PublicLayoutProps) {
   return (
     <div className="flex min-h-screen flex-col bg-white dark:bg-black font-sans">
       <SiteHeader />
-      <main className="flex w-full flex-1 flex-col">{children}</main>
+      {/* min-h keeps the content area a full viewport tall (minus the h-16 header) so a short
+          page never lets the footer creep up into the fold. */}
+      <main className="flex min-h-[calc(100dvh-4rem)] w-full flex-1 flex-col">{children}</main>
       <SiteFooter />
     </div>
   );

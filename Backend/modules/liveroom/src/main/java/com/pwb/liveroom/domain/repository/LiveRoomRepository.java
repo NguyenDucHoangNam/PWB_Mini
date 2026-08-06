@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -35,4 +36,10 @@ public interface LiveRoomRepository {
 
 
     List<UUID> findEmptyRoomIds(Instant startedBefore);
+
+
+    List<LiveRoom> findAllByIdIn(Collection<UUID> ids);
+
+
+    Page<LiveRoom> search(RoomSearchCriteria criteria, Pageable pageable);
 }

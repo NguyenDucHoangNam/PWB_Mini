@@ -1,20 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Music, Upload, AlertCircle } from "lucide-react";
+import { Music, Upload, AlertCircle, SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SearchInput } from "@/components/ui/search-input";
 import { Spinner } from "@/components/ui/spinner";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { SongCard } from "@/features/voice/components/song-card";
 import { SongDeleteDialog } from "@/features/voice/components/song-delete-dialog";
-import { useListSongs } from "@/features/voice/api/songs";
+import { useListSongs, useSearchSongs } from "@/features/voice/api/songs";
 import { SONG_VIEW_STATUSES } from "@/features/voice/types";
 import type { Song, SongView } from "@/features/voice/types";
 
 const LIST_POLL_INTERVAL_MS = 5000;
+const SEARCH_DEBOUNCE_MS = 250;
 
 const SONG_VIEWS = Object.keys(SONG_VIEW_STATUSES) as SongView[];
 
@@ -38,15 +41,26 @@ export function DashboardSongsTab() {
 
   const view = useMemo(() => parseView(searchParams.get("view")), [searchParams]);
   const page = useMemo(() => parsePage(searchParams.get("page")), [searchParams]);
+  const queryFromUrl = searchParams.get("q") ?? "";
 
-  const updateQuery = (next: Record<string, string | null>) => {
+  // The field is local so typing stays instant; the URL only catches up once the debounced value does,
+  // which also keeps a search shareable and survivable across a reload.
+  const [keyword, setKeyword] = useState(queryFromUrl);
+  const debouncedKeyword = useDebouncedValue(keyword, SEARCH_DEBOUNCE_MS);
+  const searching = debouncedKeyword.trim().length > 0;
+
+  const buildQuery = (next: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
     for (const [key, value] of Object.entries(next)) {
       if (value === null || value === "") params.delete(key);
       else params.set(key, value);
     }
     const query = params.toString();
-    router.push(query ? `${pathname}?${query}` : pathname);
+    return query ? `${pathname}?${query}` : pathname;
+  };
+
+  const updateQuery = (next: Record<string, string | null>) => {
+    router.push(buildQuery(next));
   };
 
   const buildPageHref = useCallback(
@@ -60,11 +74,12 @@ export function DashboardSongsTab() {
     [pathname, searchParams],
   );
 
-  const { data, isLoading, isFetching, isError, refetch } = useListSongs({
+  const listQuery = useListSongs({
     page,
     size: DEFAULT_PAGE_SIZE,
     status: SONG_VIEW_STATUSES[view],
     queryConfig: {
+      enabled: !searching,
       // Songs land here straight from upload while still rendering; without this their badge would sit
       // on PROCESSING until the user reloaded by hand. The background flag matters because react-query
       // freezes interval refetches on a hidden tab, and waiting out a render is exactly when people
@@ -77,8 +92,18 @@ export function DashboardSongsTab() {
     },
   });
 
-  // The server applies the status filter, so this page and the page count already describe the
-  // filtered set. Filtering here as well would only re-hide rows the query never returned.
+  const searchQuery = useSearchSongs({
+    page,
+    size: DEFAULT_PAGE_SIZE,
+    q: debouncedKeyword,
+    status: SONG_VIEW_STATUSES[view],
+    queryConfig: { enabled: searching },
+  });
+
+  const { data, isLoading, isFetching, isError, refetch } = searching ? searchQuery : listQuery;
+
+  // The server applies both the status filter and the keyword, so this page and the page count already
+  // describe the filtered set. Filtering here as well would only re-hide rows the query never returned.
   const pageData = data?.success && data.data ? data.data : null;
   const items = pageData ? pageData.content : [];
   const totalPages = pageData ? pageData.totalPages : 0;
@@ -106,6 +131,20 @@ export function DashboardSongsTab() {
     updateQuery({ view: value === "ALL" ? null : value, page: null });
   };
 
+  /**
+   * Any change to the search text invalidates the page number: page 3 of the old result set has nothing
+   * to do with page 3 of the new one.
+   *
+   * `replace`, not `push`: typing one word would otherwise leave a history entry per pause, so Back
+   * would walk letter by letter back out of the search instead of leaving the page.
+   */
+  useEffect(() => {
+    if (debouncedKeyword === queryFromUrl) return;
+    router.replace(buildQuery({ q: debouncedKeyword || null, page: null }));
+    // buildQuery closes over the current params on purpose; re-running on its identity would loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedKeyword, queryFromUrl]);
+
   const setPage = (newPage: number) => {
     router.push(buildPageHref(newPage));
   };
@@ -120,6 +159,15 @@ export function DashboardSongsTab() {
 
   return (
     <div className="flex flex-col gap-4">
+      <SearchInput
+        value={keyword}
+        onValueChange={setKeyword}
+        loading={searching && isFetching}
+        placeholder={tList("searchSongsPlaceholder")}
+        clearLabel={tList("clearSearch")}
+        aria-label={tList("searchSongsPlaceholder")}
+      />
+
       <div className="flex flex-wrap gap-2">
         {filters.map((opt) => (
           <button
@@ -157,6 +205,25 @@ export function DashboardSongsTab() {
             </p>
             <Button variant="outline" size="sm" onClick={() => refetch()}>
               {t("retry")}
+            </Button>
+          </div>
+        ) : items.length === 0 && searching ? (
+          // A library that has songs but none matching is a different situation from an empty library:
+          // offering "upload your first song" here would be answering a question nobody asked.
+          <div className="flex flex-col items-center justify-center gap-4 p-12 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-900">
+              <SearchX className="h-8 w-8 text-neutral-400" />
+            </div>
+            <div className="max-w-sm space-y-1">
+              <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
+                {tList("noResults")}
+              </h3>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                {tList("noResultsHint", { query: debouncedKeyword })}
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setKeyword("")}>
+              {tList("clearSearch")}
             </Button>
           </div>
         ) : items.length === 0 ? (

@@ -54,6 +54,22 @@
             <artifactId>spring-kafka</artifactId>
         </dependency>
 
+        <!--
+            The low-level Elasticsearch client only. Spring Data Elasticsearch is deliberately left out:
+            search here is hand-written query DSL against explicit mappings, and the repository
+            abstraction would add a second, redundant way to reach the same cluster. Boot's
+            ElasticsearchRestClientAutoConfiguration still builds the RestClient from
+            `spring.elasticsearch.*`, so timeouts stay configurable from application.yml.
+        -->
+        <dependency>
+            <groupId>co.elastic.clients</groupId>
+            <artifactId>elasticsearch-java</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.elasticsearch.client</groupId>
+            <artifactId>elasticsearch-rest-client</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
@@ -131,6 +147,17 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>kafka</artifactId>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>junit</groupId>
+                    <artifactId>junit</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>elasticsearch</artifactId>
             <scope>test</scope>
             <exclusions>
                 <exclusion>

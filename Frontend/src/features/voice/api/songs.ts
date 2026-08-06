@@ -10,8 +10,10 @@ import type { ApiResponse, PaginatedResponse } from "@/types/api";
 import type {
   CreateSongRequest,
   ListSongsParams,
+  SearchSongsParams,
   Song,
   SongStatus,
+  SongSuggestion,
   VoiceTagConfig,
   UpdateSongRequest,
   UploadUrlResponse,
@@ -47,6 +49,47 @@ export const listSongs = ({
   apiClient
     .get("/songs", {
       params: { page, size, status: status?.length ? status : undefined },
+      paramsSerializer: { indexes: null },
+    })
+    .then((res) => res.data);
+
+/** Same repeated-param treatment for `status` as {@link listSongs}. */
+export const searchSongs = ({
+  page,
+  size,
+  q,
+  status,
+  format,
+  minDuration,
+  maxDuration,
+}: SearchSongsParams): Promise<ApiResponse<PaginatedResponse<Song>>> =>
+  apiClient
+    .get("/songs/search", {
+      params: {
+        page,
+        size,
+        q,
+        status: status?.length ? status : undefined,
+        format: format ?? undefined,
+        minDuration: minDuration ?? undefined,
+        maxDuration: maxDuration ?? undefined,
+      },
+      paramsSerializer: { indexes: null },
+    })
+    .then((res) => res.data);
+
+export const suggestSongs = ({
+  q,
+  status,
+  limit = 8,
+}: {
+  q: string;
+  status?: SongStatus[] | null;
+  limit?: number;
+}): Promise<ApiResponse<SongSuggestion[]>> =>
+  apiClient
+    .get("/songs/suggest", {
+      params: { q, limit, status: status?.length ? status : undefined },
       paramsSerializer: { indexes: null },
     })
     .then((res) => res.data);
@@ -144,6 +187,47 @@ export const useListSongs = ({
     queryFn: () => listSongs({ page, size, status }),
     // Holding the previous page while the next one loads keeps the list from collapsing to a spinner
     // on every paging click. Mutations invalidate this key, so freshness does not depend on staleTime.
+    placeholderData: keepPreviousData,
+    ...queryConfig,
+  });
+
+type UseSearchSongsOptions = {
+  queryConfig?: QueryConfig<typeof searchSongs>;
+};
+
+export const useSearchSongs = ({
+  queryConfig,
+  ...params
+}: SearchSongsParams & UseSearchSongsOptions) =>
+  useQuery({
+    queryKey: [SONGS_KEY, "search", params],
+    queryFn: () => searchSongs(params),
+    placeholderData: keepPreviousData,
+    ...queryConfig,
+  });
+
+type UseSuggestSongsOptions = {
+  queryConfig?: QueryConfig<typeof suggestSongs>;
+};
+
+/**
+ * Disabled below two characters: a one-letter prefix matches most of a library, so the request costs a
+ * round-trip to produce a list nobody can choose from.
+ */
+export const useSuggestSongs = ({
+  q,
+  status,
+  limit,
+  queryConfig,
+}: {
+  q: string;
+  status?: SongStatus[] | null;
+  limit?: number;
+} & UseSuggestSongsOptions) =>
+  useQuery({
+    queryKey: [SONGS_KEY, "suggest", { q, status: status ?? null, limit: limit ?? 8 }],
+    queryFn: () => suggestSongs({ q, status, limit }),
+    enabled: q.trim().length >= 2,
     placeholderData: keepPreviousData,
     ...queryConfig,
   });

@@ -12,9 +12,11 @@ import type {
   CreateTtsVoiceTagRequest,
   ListVoiceTagsParams,
   PreviewTtsRequest,
+  SearchVoiceTagsParams,
   TtsVoice,
   UpdateVoiceTagRequest,
   VoiceTag,
+  VoiceTagSuggestion,
   VoiceTagType,
 } from "../types";
 
@@ -60,6 +62,40 @@ export const listVoiceTags = ({
 }: ListVoiceTagsParams): Promise<ApiResponse<PaginatedResponse<VoiceTag>>> =>
   apiClient
     .get("/voice-tags", { params: { page, size } })
+    .then((res) => res.data);
+
+export const searchVoiceTags = ({
+  page,
+  size,
+  q,
+  tagType,
+  languageCode,
+}: SearchVoiceTagsParams): Promise<ApiResponse<PaginatedResponse<VoiceTag>>> =>
+  apiClient
+    .get("/voice-tags/search", {
+      params: {
+        page,
+        size,
+        q,
+        tagType: tagType ?? undefined,
+        languageCode: languageCode ?? undefined,
+      },
+    })
+    .then((res) => res.data);
+
+export const suggestVoiceTags = ({
+  q,
+  tagType,
+  limit = 8,
+}: {
+  q: string;
+  tagType?: VoiceTagType | null;
+  limit?: number;
+}): Promise<ApiResponse<VoiceTagSuggestion[]>> =>
+  apiClient
+    .get("/voice-tags/suggest", {
+      params: { q, limit, tagType: tagType ?? undefined },
+    })
     .then((res) => res.data);
 
 export const updateVoiceTag = ({
@@ -173,6 +209,44 @@ export const useListVoiceTags = ({
   useQuery({
     queryKey: [VOICE_TAGS_KEY, { page, size }],
     queryFn: () => listVoiceTags({ page, size }),
+    placeholderData: keepPreviousData,
+    ...queryConfig,
+  });
+
+type UseSearchVoiceTagsOptions = {
+  queryConfig?: QueryConfig<typeof searchVoiceTags>;
+};
+
+export const useSearchVoiceTags = ({
+  queryConfig,
+  ...params
+}: SearchVoiceTagsParams & UseSearchVoiceTagsOptions) =>
+  useQuery({
+    queryKey: [VOICE_TAGS_KEY, "search", params],
+    queryFn: () => searchVoiceTags(params),
+    placeholderData: keepPreviousData,
+    ...queryConfig,
+  });
+
+type UseSuggestVoiceTagsOptions = {
+  queryConfig?: QueryConfig<typeof suggestVoiceTags>;
+};
+
+/** Held back below two characters, for the same reason as the song suggester. */
+export const useSuggestVoiceTags = ({
+  q,
+  tagType,
+  limit,
+  queryConfig,
+}: {
+  q: string;
+  tagType?: VoiceTagType | null;
+  limit?: number;
+} & UseSuggestVoiceTagsOptions) =>
+  useQuery({
+    queryKey: [VOICE_TAGS_KEY, "suggest", { q, tagType: tagType ?? null, limit: limit ?? 8 }],
+    queryFn: () => suggestVoiceTags({ q, tagType, limit }),
+    enabled: q.trim().length >= 2,
     placeholderData: keepPreviousData,
     ...queryConfig,
   });

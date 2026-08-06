@@ -8,6 +8,7 @@ import com.pwb.audio.application.command.UpdateSongCommand;
 import com.pwb.audio.application.command.VoiceTagSettings;
 import com.pwb.audio.application.exception.AudioBusinessException;
 import com.pwb.audio.application.exception.AudioErrorCode;
+import com.pwb.audio.application.support.SongViewFactory;
 import com.pwb.audio.application.support.StorageCleaner;
 import com.pwb.audio.application.usecase.SongUseCase;
 import com.pwb.audio.application.view.AudioUrlView;
@@ -39,11 +40,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -63,6 +62,7 @@ public class SongUseCaseImpl implements SongUseCase {
     private final AudioUploadProperties uploadProperties;
     private final OutboxEnqueueHelper outboxEnqueueHelper;
     private final ObjectMapper objectMapper;
+    private final SongViewFactory songViewFactory;
 
     @Override
     public UploadUrlView createUploadUrl(UUID userId, String format) {
@@ -113,14 +113,14 @@ public class SongUseCaseImpl implements SongUseCase {
             log.info("Song created: songId={}", saved.getId());
         }
 
-        return toSongView(saved, voiceTag != null);
+        return songViewFactory.toView(saved, voiceTag != null);
     }
 
     @Override
     @Transactional(readOnly = true)
     public SongView getSong(UUID userId, UUID songId) {
         Song song = requireOwnedSong(userId, songId);
-        return toSongView(song, resolveTaggedSongIds(List.of(song)).contains(song.getId()));
+        return songViewFactory.toView(song);
     }
 
     @Override
@@ -130,22 +130,8 @@ public class SongUseCaseImpl implements SongUseCase {
                 ? songRepository.findAllByUserId(userId, pageable)
                 : songRepository.findAllByUserIdAndStatusIn(userId, statuses, pageable);
 
-        Set<UUID> taggedSongIds = resolveTaggedSongIds(page.getContent());
-        return page.map(song -> toSongView(song, taggedSongIds.contains(song.getId())));
-    }
-
-    /**
-     * One query for the whole page rather than one per row. Only the existence of a configuration is
-     * needed — a listing says that a song carries a voice tag, not which one.
-     */
-    private Set<UUID> resolveTaggedSongIds(Collection<Song> songs) {
-        if (songs.isEmpty()) {
-            return Set.of();
-        }
-        return songTagConfigRepository.findAllBySongIdIn(songs.stream().map(Song::getId).toList())
-                .stream()
-                .map(SongTagConfig::getSongId)
-                .collect(Collectors.toSet());
+        Set<UUID> taggedSongIds = songViewFactory.resolveTaggedSongIds(page.getContent());
+        return page.map(song -> songViewFactory.toView(song, taggedSongIds.contains(song.getId())));
     }
 
     @Override
@@ -165,7 +151,7 @@ public class SongUseCaseImpl implements SongUseCase {
         Song saved = songRepository.save(song);
 
         log.info("Song updated: songId={}", saved.getId());
-        return toSongView(saved, resolveTaggedSongIds(List.of(saved)).contains(saved.getId()));
+        return songViewFactory.toView(saved);
     }
 
     @Override
@@ -199,7 +185,7 @@ public class SongUseCaseImpl implements SongUseCase {
         publishSongProcessingRequested(saved.getId(), userId);
 
         log.info("Processing retried: songId={}", saved.getId());
-        return toSongView(saved, resolveTaggedSongIds(List.of(saved)).contains(saved.getId()));
+        return songViewFactory.toView(saved);
     }
 
     @Override
@@ -329,25 +315,4 @@ public class SongUseCaseImpl implements SongUseCase {
         }
     }
 
-    private SongView toSongView(Song song, boolean hasVoiceTag) {
-        return new SongView(
-                song.getId(),
-                song.getUserId(),
-                song.getTitle(),
-                song.getArtist(),
-                song.getAlbum(),
-                song.getOriginalS3Key(),
-                song.getProcessedS3Key(),
-                song.getFileSizeBytes(),
-                song.getDurationSeconds(),
-                song.getFormat() != null ? song.getFormat().value() : null,
-                song.getStatus(),
-                song.getThumbnailUrl(),
-                song.getLastError(),
-                song.isProcessed(),
-                hasVoiceTag,
-                song.getCreatedAt(),
-                song.getUpdatedAt()
-        );
-    }
 }

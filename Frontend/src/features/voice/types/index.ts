@@ -152,3 +152,41 @@ export interface ListSongsParams {
   /** Omit or pass an empty list to include every status. Filtering is server-side so paging stays correct. */
   status?: SongStatus[] | null;
 }
+
+/**
+ * Search is a separate endpoint from the listing rather than a parameter on it, because the two order
+ * results differently — relevance here, upload date there.
+ */
+export interface SearchSongsParams extends ListSongsParams {
+  q: string;
+  format?: string | null;
+  minDuration?: number | null;
+  maxDuration?: number | null;
+}
+
+/** One search-as-you-type row. Deliberately minimal: it is fetched on every keystroke. */
+export interface SongSuggestion {
+  id: string;
+  title: string;
+}
+
+export interface SearchVoiceTagsParams {
+  page: number;
+  size: number;
+  q: string;
+  tagType?: VoiceTagType | null;
+  languageCode?: string | null;
+}
+
+/**
+ * Carries the synthesis metadata alongside the name so the picker in the upload form can show what a
+ * tag sounds like without a follow-up request per row. The source text is not included — it is not
+ * searched and is far too long for a dropdown.
+ */
+export interface VoiceTagSuggestion {
+  id: string;
+  name: string;
+  voiceName: string | null;
+  languageCode: string | null;
+  tagType: VoiceTagType;
+}

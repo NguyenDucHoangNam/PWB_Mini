@@ -1,16 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Mic, Plus, AlertCircle } from "lucide-react";
+import { Mic, Plus, AlertCircle, SearchX } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SearchInput } from "@/components/ui/search-input";
 import { Spinner } from "@/components/ui/spinner";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { VoiceTagCard } from "@/features/voice/components/voice-tag-card";
-import { useListVoiceTags } from "@/features/voice/api/voice-tags";
+import { useListVoiceTags, useSearchVoiceTags } from "@/features/voice/api/voice-tags";
 
+const SEARCH_DEBOUNCE_MS = 250;
 
 function parsePage(value: string | null): number {
   const parsed = Number(value ?? "0");
@@ -27,6 +30,12 @@ export function DashboardVoiceTagsTab() {
   const searchParams = useSearchParams();
 
   const page = useMemo(() => parsePage(searchParams.get("page")), [searchParams]);
+  const queryFromUrl = searchParams.get("q") ?? "";
+
+  // Local field, debounced URL: typing stays instant while the address bar still describes the result.
+  const [keyword, setKeyword] = useState(queryFromUrl);
+  const debouncedKeyword = useDebouncedValue(keyword, SEARCH_DEBOUNCE_MS);
+  const searching = debouncedKeyword.trim().length > 0;
 
   const buildHref = useCallback(
     (nextPage: number) => {
@@ -39,10 +48,20 @@ export function DashboardVoiceTagsTab() {
     [pathname, searchParams],
   );
 
-  const { data, isLoading, isFetching, isError, refetch } = useListVoiceTags({
+  const listQuery = useListVoiceTags({
     page,
     size: DEFAULT_PAGE_SIZE,
+    queryConfig: { enabled: !searching },
   });
+
+  const searchQuery = useSearchVoiceTags({
+    page,
+    size: DEFAULT_PAGE_SIZE,
+    q: debouncedKeyword,
+    queryConfig: { enabled: searching },
+  });
+
+  const { data, isLoading, isFetching, isError, refetch } = searching ? searchQuery : listQuery;
 
   const pageData = data?.success && data.data ? data.data : null;
   const items = pageData ? pageData.content : [];
@@ -62,8 +81,34 @@ export function DashboardVoiceTagsTab() {
     router.push(buildHref(newPage));
   };
 
+  /**
+   * A changed keyword makes the old page number meaningless, so it is dropped along with it.
+   *
+   * `replace`, not `push`: typing one word would otherwise leave a history entry per pause, so Back
+   * would walk letter by letter back out of the search instead of leaving the page.
+   */
+  useEffect(() => {
+    if (debouncedKeyword === queryFromUrl) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("page");
+    if (debouncedKeyword) params.set("q", debouncedKeyword);
+    else params.delete("q");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedKeyword, queryFromUrl]);
+
   return (
     <div className="flex flex-col gap-4">
+      <SearchInput
+        value={keyword}
+        onValueChange={setKeyword}
+        loading={searching && isFetching}
+        placeholder={tList("searchVoiceTagsPlaceholder")}
+        clearLabel={tList("clearSearch")}
+        aria-label={tList("searchVoiceTagsPlaceholder")}
+      />
+
       <div
         aria-busy={isFetching}
         className={`rounded-xl border border-neutral-200 bg-white transition-opacity dark:border-neutral-800 dark:bg-black ${
@@ -83,6 +128,23 @@ export function DashboardVoiceTagsTab() {
             </p>
             <Button variant="outline" size="sm" onClick={() => refetch()}>
               {t("retry")}
+            </Button>
+          </div>
+        ) : items.length === 0 && searching ? (
+          <div className="flex flex-col items-center justify-center gap-4 p-12 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-900">
+              <SearchX className="h-8 w-8 text-neutral-400" />
+            </div>
+            <div className="max-w-sm space-y-1">
+              <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
+                {tList("noResults")}
+              </h3>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                {tList("noResultsHint", { query: debouncedKeyword })}
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setKeyword("")}>
+              {tList("clearSearch")}
             </Button>
           </div>
         ) : items.length === 0 ? (

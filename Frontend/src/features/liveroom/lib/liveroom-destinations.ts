@@ -47,6 +47,7 @@ export const appDestinations = {
 
 export const liveroomApi = {
   rooms: "/liveroom/rooms",
+  roomSearch: "/liveroom/rooms/search",
   room: (roomId: string) => `/liveroom/rooms/${roomId}`,
   roomByCode: (roomCode: string) => `/liveroom/rooms/by-code/${roomCode}`,
   end: (roomId: string) => `/liveroom/rooms/${roomId}/end`,

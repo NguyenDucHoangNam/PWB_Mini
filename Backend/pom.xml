@@ -43,6 +43,8 @@
         <spring-dotenv.version>5.1.0</spring-dotenv.version>
         <google-api-client.version>2.7.1</google-api-client.version>
 
+        <failsafe.extraJvmArgs/>
+
         <junit.version>4.13.2</junit.version>
         <mockito.version>5.11.0</mockito.version>
         <assertj.version>3.25.3</assertj.version>
@@ -189,7 +191,12 @@
                     <includes>
                         <include>**/*IT.java</include>
                     </includes>
-                    <argLine>-Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
+                    <!--
+                        failsafe.extraJvmArgs is an escape hatch for JVM flags a particular machine needs
+                        and the project does not. It is empty by default so nothing machine-specific ends
+                        up committed here; pass it on the command line instead.
+                    -->
+                    <argLine>-Djdk.net.URLClassPath.disableClassPathURLCheck=true ${failsafe.extraJvmArgs}</argLine>
                 </configuration>
             </plugin>
         </plugins>

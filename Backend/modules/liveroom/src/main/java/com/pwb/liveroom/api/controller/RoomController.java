@@ -11,10 +11,12 @@ import com.pwb.liveroom.application.usecase.FindRoomByCodeUseCase;
 import com.pwb.liveroom.application.usecase.GetRoomUseCase;
 import com.pwb.liveroom.application.usecase.ListRoomsUseCase;
 import com.pwb.liveroom.application.usecase.ReopenRoomUseCase;
+import com.pwb.liveroom.application.usecase.SearchRoomsUseCase;
 import com.pwb.liveroom.application.usecase.UndoEndRoomUseCase;
 import com.pwb.liveroom.application.view.RoomLookupView;
 import com.pwb.liveroom.application.view.RoomView;
 import com.pwb.liveroom.domain.enums.RoomStatus;
+import com.pwb.liveroom.domain.repository.RoomSearchCriteria;
 import com.pwb.shared.dto.ApiResponse;
 import com.pwb.shared.dto.PageResponse;
 import com.pwb.web.dto.PageResponses;
@@ -57,6 +59,7 @@ public class RoomController {
     private final CreateRoomUseCase createRoom;
     private final GetRoomUseCase getRoom;
     private final ListRoomsUseCase listRooms;
+    private final SearchRoomsUseCase searchRooms;
     private final FindRoomByCodeUseCase findRoomByCode;
     private final EndRoomUseCase endRoom;
     private final UndoEndRoomUseCase undoEndRoom;
@@ -81,6 +84,20 @@ public class RoomController {
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Page<RoomView> page = listRooms.execute(userId, status, pageable);
+        PageResponse<RoomResponse> body = PageResponses.from(page, RoomResponse::from);
+        return ResponseEntity.ok(ApiResponse.success(body));
+    }
+
+
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<PageResponse<RoomResponse>>> search(
+            @CurrentUser UUID userId,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) RoomStatus status,
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        RoomSearchCriteria criteria = new RoomSearchCriteria(userId, q, status);
+        Page<RoomView> page = searchRooms.execute(criteria, pageable);
         PageResponse<RoomResponse> body = PageResponses.from(page, RoomResponse::from);
         return ResponseEntity.ok(ApiResponse.success(body));
     }
