@@ -17,29 +17,24 @@ export default function NewVoiceTagPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 font-sans">
-      <div className="flex items-center gap-3">
+    <div className="flex w-full flex-col gap-5 sm:gap-6">
+      <div className="flex items-start gap-3">
         <Link
           href="/dashboard/voice-tags"
           aria-label={tActions("back")}
-          className="flex size-9 min-h-[44px] sm:min-h-0 items-center justify-center rounded-lg border border-neutral-300 bg-neutral-100 hover:bg-neutral-200 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-800 transition-all active:translate-y-[1px]"
+          className="key-press flex size-11 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground beat-16th transition-colors ease-hammer hover:bg-muted hover:text-foreground sm:size-9"
         >
-          <ArrowLeft className="size-4 text-neutral-800 dark:text-neutral-200" />
+          <ArrowLeft className="size-4" aria-hidden="true" />
         </Link>
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2">
-            <span className="h-5 w-1 rounded-full bg-black dark:bg-white" aria-hidden="true" />
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
-              {t("title")}
-            </h1>
-          </div>
-          <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 mt-0.5 ml-3">
-            {t("subtitle")}
-          </p>
+        <div className="flex min-w-0 flex-col gap-1">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+            {t("title")}
+          </h1>
+          <p className="text-sm leading-relaxed text-muted-foreground">{t("subtitle")}</p>
         </div>
       </div>
 
-      <div className="rounded-xl border border-neutral-200 border-t-4 border-t-black bg-white p-6 dark:border-neutral-800 dark:border-t-white dark:bg-black shadow-xs">
+      <div className="rounded-xl border border-border bg-card p-4 sm:p-6">
         <VoiceTagForm />
       </div>
     </div>

@@ -21,20 +21,17 @@ function ModeCard({ icon, title, description, onSelect }: ModeCardProps) {
     <button
       type="button"
       onClick={onSelect}
-      className="group relative flex items-start gap-3.5 rounded-xl border border-neutral-300 bg-white p-5 text-left transition-all hover:border-black hover:bg-neutral-50 active:translate-y-[1px] dark:border-neutral-800 dark:bg-black dark:hover:border-white dark:hover:bg-neutral-950 shadow-xs cursor-pointer min-h-[44px]"
+      className="key-press group flex cursor-pointer items-start gap-3.5 rounded-xl border border-border bg-card p-4 text-left beat-16th transition-colors ease-hammer hover:border-foreground/25 hover:bg-muted/40 sm:p-5"
     >
-      <span className="absolute left-0 top-0 h-full w-[4px] rounded-l-xl bg-neutral-300 dark:bg-neutral-700 group-hover:bg-black dark:group-hover:bg-white transition-colors" aria-hidden="true" />
-      <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-black text-white dark:bg-white dark:text-black">
+      <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
         {icon}
       </span>
       <span className="flex min-w-0 flex-col gap-1">
-        <span className="text-sm font-bold text-neutral-900 dark:text-neutral-100 group-hover:underline underline-offset-4 decoration-neutral-400">{title}</span>
-        <span className="text-xs leading-relaxed text-neutral-500 dark:text-neutral-400">
-          {description}
-        </span>
+        <span className="text-sm font-semibold text-foreground">{title}</span>
+        <span className="text-xs leading-relaxed text-muted-foreground">{description}</span>
       </span>
       <ChevronRight
-        className="ml-auto size-4 shrink-0 self-center text-neutral-400 transition-transform group-hover:translate-x-0.5"
+        className="ml-auto size-4 shrink-0 self-center text-muted-foreground beat-16th transition-transform ease-hammer group-hover:translate-x-0.5"
         aria-hidden="true"
       />
     </button>
@@ -60,8 +57,8 @@ export function VoiceTagForm() {
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-neutral-600 dark:text-neutral-400">{t("prompt")}</p>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <p className="text-sm text-muted-foreground">{t("prompt")}</p>
+      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
         <ModeCard
           icon={<Mic className="size-4.5" aria-hidden="true" />}
           title={t("ttsTitle")}
@@ -79,7 +76,7 @@ export function VoiceTagForm() {
         <button
           type="button"
           onClick={backToList}
-          className="text-xs font-medium text-neutral-500 underline-offset-4 hover:underline dark:text-neutral-400"
+          className="text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
         >
           {t("backToList")}
         </button>

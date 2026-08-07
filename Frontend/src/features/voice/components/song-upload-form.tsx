@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch, type UseFormRegisterReturn } from "react-hook-form";
 import { standardSchemaResolver as zodResolver } from "@hookform/resolvers/standard-schema";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ import { UploadProgress } from "@/components/ui/upload-progress";
 import { asApiError } from "@/lib/api-client";
 import { resolveVoiceErrorMessage } from "../lib/resolve-voice-error-message";
 import { readAudioDuration } from "../lib/read-audio-duration";
+import { formatDuration } from "../lib/format-audio";
 import { getPresignedUploadUrl, createSong, getSong, SONGS_KEY } from "../api/songs";
 import { useListVoiceTags } from "../api/voice-tags";
 import { VoiceTagPicker } from "./voice-tag-picker";
@@ -34,9 +35,102 @@ type UploadStep = "idle" | "preparing" | "uploading" | "creating" | "merging";
 const MERGE_POLL_INTERVAL_MS = 2000;
 const MERGE_WAIT_LIMIT_MS = 5 * 60 * 1000;
 
+const TIMELINE_TICKS = 50;
+
 interface SongUploadFormProps {
   onCancel?: () => void;
   onSuccess?: () => void;
+}
+
+function SelectedFileSummary({
+  fileName,
+  sizeLabel,
+  durationSeconds,
+}: {
+  fileName: string;
+  sizeLabel: string;
+  durationSeconds: number;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+        <FileAudio className="size-5" aria-hidden="true" />
+      </span>
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <p className="truncate text-sm font-medium text-foreground">{fileName}</p>
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span>{sizeLabel}</span>
+          <span aria-hidden="true">·</span>
+          <span className="uppercase">{fileName.split(".").pop()}</span>
+          {durationSeconds > 0 && (
+            <>
+              <span aria-hidden="true">·</span>
+              <span className="tabular-nums">{formatDuration(durationSeconds)}</span>
+            </>
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+interface SliderFieldProps {
+  id: string;
+  label: string;
+  hint: string;
+  unit: string;
+  min: number;
+  max: number;
+  value: number;
+  disabled: boolean;
+  registration: UseFormRegisterReturn;
+  onSlide: (value: number) => void;
+}
+
+function SliderField({
+  id,
+  label,
+  hint,
+  unit,
+  min,
+  max,
+  value,
+  disabled,
+  registration,
+  onSlide,
+}: SliderFieldProps) {
+  return (
+    <div className="flex flex-col gap-2.5 rounded-xl border border-border p-4">
+      <div className="flex items-center justify-between gap-2">
+        <Label htmlFor={id} className="text-xs font-medium text-muted-foreground">
+          {label}
+        </Label>
+        <div className="flex items-center gap-1">
+          <Input
+            id={id}
+            type="number"
+            min={min}
+            max={max}
+            disabled={disabled}
+            className="h-7 w-16 px-1.5 text-right text-xs tabular-nums"
+            {...registration}
+          />
+          <span className="text-xs text-muted-foreground">{unit}</span>
+        </div>
+      </div>
+      <input
+        type="range"
+        aria-label={label}
+        min={min}
+        max={max}
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onSlide(Number(e.target.value))}
+        className="h-1.5 w-full cursor-pointer rounded-lg bg-border accent-primary"
+      />
+      <p className="text-xs leading-tight text-muted-foreground">{hint}</p>
+    </div>
+  );
 }
 
 export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
@@ -372,417 +466,293 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
       onSubmit={(event) => void handleSubmit(submitSong)(event)}
       className="flex flex-col gap-5"
     >
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="song-file" className="font-semibold text-sm">
-          {t("fileLabel")} <span className="text-destructive">*</span>
-        </Label>
+      <input
+        id="song-file"
+        ref={fileInputRef}
+        type="file"
+        accept="audio/mpeg,audio/mp3,audio/wav,audio/wave,audio/flac,audio/x-flac,.mp3,.wav,.flac"
+        onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+        className="sr-only"
+        disabled={isBusy}
+      />
 
-        <input
-          id="song-file"
-          ref={fileInputRef}
-          type="file"
-          accept="audio/mpeg,audio/mp3,audio/wav,audio/wave,audio/flac,audio/x-flac,.mp3,.wav,.flac"
-          onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
-          className="sr-only"
-          disabled={isBusy}
-        />
+      <div className="grid gap-5 lg:grid-cols-2 lg:gap-6">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="song-file" className="text-sm font-medium">
+            {t("fileLabel")} <span className="text-destructive">*</span>
+          </Label>
 
-        {!file ? (
-          <div
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className={`group relative flex flex-col items-center justify-center cursor-pointer rounded-xl border-2 border-dashed p-10 text-center transition-all ${
-              isDragging
-                ? "border-black bg-neutral-100 dark:border-white dark:bg-neutral-900 scale-[0.99]"
-                : "border-neutral-300 bg-neutral-50/60 hover:border-black hover:bg-neutral-100/70 dark:border-neutral-800 dark:bg-neutral-950/60 dark:hover:border-white dark:hover:bg-neutral-900/60"
-            }`}
-          >
-            <div className="flex size-12 items-center justify-center rounded-xl bg-black text-white shadow-xs dark:bg-white dark:text-black transition-transform group-hover:scale-105">
-              <UploadCloud className="size-6" />
-            </div>
-            <p className="mt-3.5 text-sm font-bold text-neutral-900 dark:text-neutral-100">
-              {t("dropzoneTitle")}
-            </p>
-            <p className="mt-1 text-xs font-mono text-neutral-500 dark:text-neutral-400">
-              {t("dropzoneHint")}
-            </p>
-          </div>
-        ) : isBusy ? (
-          <div className="rounded-xl border border-neutral-300 bg-neutral-100/80 p-4 dark:border-neutral-800 dark:bg-neutral-900/80 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-black text-white dark:bg-white dark:text-black">
-                  <FileAudio className="size-5" />
-                </div>
-                <div className="min-w-0 space-y-0.5">
-                  <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
-                    {file.name}
-                  </p>
-                  <div className="flex items-center gap-2 text-xs font-mono text-neutral-500 dark:text-neutral-400">
-                    <span>{fileSizeMB} MB</span>
-                    <span>•</span>
-                    <span className="uppercase font-semibold text-neutral-800 bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-200 px-1.5 py-0.5 rounded text-[10px]">
-                      {file.name.split(".").pop()}
-                    </span>
-                    {fileDuration > 0 && (
-                      <>
-                        <span>•</span>
-                        <span>{Math.floor(fileDuration / 60)}:{String(fileDuration % 60).padStart(2, "0")}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-              {uploadStep === "uploading" && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={cancelUpload}
-                  className="text-xs shrink-0 border-neutral-300 dark:border-neutral-700"
-                  aria-label={t("cancelUpload")}
-                >
-                  <X className="size-3.5 mr-1" aria-hidden="true" />
-                  {t("cancelUpload")}
-                </Button>
-              )}
-              {uploadStep === "merging" && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={leaveMergeRunning}
-                  className="text-xs shrink-0 border-neutral-300 dark:border-neutral-700"
-                >
-                  {t("mergeRunInBackground")}
-                </Button>
-              )}
-            </div>
-
-            <UploadProgress
-              phase={uploadStep === "creating" ? "finalizing" : uploadStep}
-              percent={uploadProgress}
-              loadedBytes={(file.size * uploadProgress) / 100}
-              totalBytes={file.size}
-            />
-
-            {uploadStep === "merging" && (
-              <p className="text-[11px] font-mono leading-relaxed text-neutral-500 dark:text-neutral-400">
-                {t("mergeWaitHint")}
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="flex items-center justify-between rounded-xl border border-neutral-300 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-black text-white dark:bg-white dark:text-black">
-                <FileAudio className="size-5" />
-              </div>
-              <div className="min-w-0 space-y-0.5">
-                <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate">
-                  {file.name}
-                </p>
-                <div className="flex items-center gap-2 text-xs font-mono text-neutral-500 dark:text-neutral-400">
-                  <span>{fileSizeMB} MB</span>
-                  <span>•</span>
-                  <span className="uppercase font-semibold text-neutral-800 bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-200 px-1.5 py-0.5 rounded text-[10px]">
-                    {file.name.split(".").pop()}
-                  </span>
-                  {fileDuration > 0 && (
-                    <>
-                      <span>•</span>
-                      <span>{Math.floor(fileDuration / 60)}:{String(fileDuration % 60).padStart(2, "0")}</span>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setFile(null);
-                setFileDuration(0);
-                if (fileInputRef.current) fileInputRef.current.value = "";
-              }}
-              className="text-xs border-neutral-300 dark:border-neutral-700"
+          {!file ? (
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={`group flex flex-1 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed p-6 text-center beat-16th transition-colors ease-hammer sm:p-8 ${
+                isDragging
+                  ? "border-foreground bg-muted"
+                  : "border-border hover:border-foreground/40 hover:bg-muted/50"
+              }`}
             >
-              {t("changeFile")}
-            </Button>
-          </div>
-        )}
-      </div>
+              <span className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                <UploadCloud className="size-5" aria-hidden="true" />
+              </span>
+              <p className="mt-3 text-sm font-medium text-foreground">{t("dropzoneTitle")}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t("dropzoneHint")}</p>
+            </div>
+          ) : isBusy ? (
+            <div className="flex flex-1 flex-col gap-3 rounded-xl border border-border bg-muted/50 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <SelectedFileSummary
+                  fileName={file.name}
+                  sizeLabel={`${fileSizeMB} MB`}
+                  durationSeconds={fileDuration}
+                />
+                {uploadStep === "uploading" && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={cancelUpload}
+                    className="shrink-0"
+                    aria-label={t("cancelUpload")}
+                  >
+                    <X className="mr-1 size-3.5" aria-hidden="true" />
+                    {t("cancelUpload")}
+                  </Button>
+                )}
+                {uploadStep === "merging" && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={leaveMergeRunning}
+                    className="shrink-0"
+                  >
+                    {t("mergeRunInBackground")}
+                  </Button>
+                )}
+              </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="song-title" className="font-semibold text-xs uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
-          {t("titleLabel")} <span className="text-neutral-500">*</span>
-        </Label>
-        <Input
-          id="song-title"
-          placeholder={t("titleLabel")}
-          {...register("title")}
-          maxLength={200}
-          disabled={isBusy}
-          aria-describedby={errors.title ? "song-title-error" : undefined}
-          className="h-10 text-sm border-neutral-300 bg-white focus:border-black dark:border-neutral-700 dark:bg-neutral-900 dark:focus:border-white"
-        />
-        {errors.title && (
-          <p id="song-title-error" role="alert" className="text-xs font-semibold text-neutral-900 dark:text-neutral-100">
-            {tValidation(errors.title.message as never)}
-          </p>
-        )}
-      </div>
+              <UploadProgress
+                phase={uploadStep === "creating" ? "finalizing" : uploadStep}
+                percent={uploadProgress}
+                loadedBytes={(file.size * uploadProgress) / 100}
+                totalBytes={file.size}
+              />
 
-      <div className="rounded-xl border border-neutral-300 bg-neutral-50/50 p-5 flex flex-col gap-5 dark:border-neutral-800 dark:bg-neutral-900/40">
-        <label className="flex items-center gap-3 cursor-pointer select-none text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-neutral-400 text-black accent-black dark:accent-white focus:ring-black"
-            disabled={isBusy}
-            {...register("attachVoiceTag")}
-          />
-          <span>{t("attachVoiceTag")}</span>
-        </label>
+              {uploadStep === "merging" && (
+                <p className="text-xs leading-relaxed text-muted-foreground">{t("mergeWaitHint")}</p>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-1 items-start justify-between gap-3 rounded-xl border border-border bg-muted/50 p-4">
+              <SelectedFileSummary
+                fileName={file.name}
+                sizeLabel={`${fileSizeMB} MB`}
+                durationSeconds={fileDuration}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => {
+                  setFile(null);
+                  setFileDuration(0);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+              >
+                {t("changeFile")}
+              </Button>
+            </div>
+          )}
+        </div>
 
-        {attachVoiceTag && (
-          <div className="flex flex-col gap-5 pt-3 border-t border-neutral-200 dark:border-neutral-800">
-            {voiceTags.length === 0 ? (
-              <p className="text-xs font-mono text-neutral-500 bg-neutral-100 p-3 rounded-lg border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-400">
-                {t("noVoiceTags")}
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="song-title" className="text-sm font-medium">
+              {t("titleLabel")} <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="song-title"
+              placeholder={t("titleLabel")}
+              {...register("title")}
+              maxLength={200}
+              disabled={isBusy}
+              aria-describedby={errors.title ? "song-title-error" : undefined}
+              className="h-10"
+            />
+            {errors.title && (
+              <p id="song-title-error" role="alert" className="text-xs text-destructive">
+                {tValidation(errors.title.message as never)}
               </p>
-            ) : (
-              <>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="voice-tag-select" className="font-mono text-xs font-semibold uppercase text-neutral-600 dark:text-neutral-400">
-                    {t("selectVoiceTag")}
-                  </Label>
-                  <VoiceTagPicker
-                    id="voice-tag-select"
-                    disabled={isBusy}
-                    onSelect={(voiceTagId) => setValue("voiceTagId", voiceTagId)}
-                  />
-                </div>
-
-                <div className="flex items-start gap-2.5 rounded-lg border border-neutral-300 bg-neutral-100 p-3 text-xs text-neutral-800 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200">
-                  <Info className="size-4 text-neutral-600 dark:text-neutral-400 shrink-0 mt-0.5" />
-                  <div className="space-y-0.5">
-                    <p className="font-semibold">{t("duckingPercentage")}</p>
-                    <p className="text-neutral-600 dark:text-neutral-400 leading-relaxed">
-                      {t("duckingTooltip")}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-3 rounded-xl border border-neutral-300 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider text-neutral-900 dark:text-neutral-100">{t("timelineTitle")}</span>
-                    <span className="text-[11px] font-mono font-semibold text-neutral-700 bg-neutral-100 px-2.5 py-0.5 rounded-full border border-neutral-300 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300">
-                      {t("timelineInsertions", { count: markers.length })}
-                    </span>
-                  </div>
-
-                  <div className="relative h-12 w-full rounded-lg border border-neutral-300 bg-neutral-100 p-2 flex items-center overflow-hidden dark:border-neutral-800 dark:bg-neutral-900">
-                    <div className="absolute inset-x-2 top-2 bottom-2 flex items-center justify-between gap-0.5 opacity-30">
-                      {Array.from({ length: 50 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className="w-1 bg-black dark:bg-white rounded-full"
-                          style={{
-                            height: `${(i % 5 === 0 ? 80 : (i % 2 === 0 ? 50 : 30))}%`,
-                          }}
-                        />
-                      ))}
-                    </div>
-
-                    <div className="relative h-full w-full">
-                      {markers.map((timeSec, idx) => {
-                        const leftPct = (timeSec / trackLength) * 100;
-                        return (
-                          <div
-                            key={idx}
-                            className="absolute top-0 bottom-0 flex flex-col items-center -translate-x-1/2"
-                            style={{ left: `${leftPct}%` }}
-                          >
-                            <div className="h-full w-0.5 bg-black dark:bg-white" />
-                            <span className="absolute -top-1 rounded bg-black px-1 text-[9px] font-mono font-bold text-white shadow-xs dark:bg-white dark:text-black">
-                              {timeSec}s
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-neutral-500 dark:text-neutral-400">
-                    <div>
-                      <span>{t("timelinePositions")} </span>
-                      <span className="font-semibold text-neutral-900 dark:text-neutral-100">
-                        {markers.length > 0 ? markers.slice(0, 8).map((m) => `${m}s`).join(", ") + (markers.length > 8 ? "..." : "") : "0s"}
-                      </span>
-                    </div>
-                    <div>
-                      {t("duckingStatus", { percent: String(duckingPercentage) })}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-2 rounded-xl border border-neutral-300 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="interval-seconds" className="text-xs font-semibold uppercase text-neutral-700 dark:text-neutral-300">
-                        {t("intervalSeconds")}
-                      </Label>
-                      <div className="flex items-center gap-1">
-                        <Input
-                          id="interval-seconds"
-                          type="number"
-                          min={5}
-                          max={600}
-                          disabled={isBusy}
-                          className="h-7 w-16 text-right font-mono text-xs font-semibold border-neutral-300 dark:border-neutral-700 px-1.5"
-                          {...register("intervalSeconds")}
-                        />
-                        <span className="text-xs font-mono text-neutral-500">s</span>
-                      </div>
-                    </div>
-                    <input
-                      type="range"
-                      min={5}
-                      max={600}
-                      value={intervalSeconds}
-                      disabled={isBusy}
-                      onChange={(e) => setValue("intervalSeconds", Number(e.target.value))}
-                      className="w-full accent-black dark:accent-white h-1.5 rounded-lg cursor-pointer bg-neutral-200 dark:bg-neutral-800"
-                    />
-                    <p className="text-[11px] font-mono text-neutral-500 leading-tight">
-                      {t("intervalHint")}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-col gap-2 rounded-xl border border-neutral-300 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="volume-percentage" className="text-xs font-semibold uppercase text-neutral-700 dark:text-neutral-300">
-                        {t("volumePercentage")}
-                      </Label>
-                      <div className="flex items-center gap-1">
-                        <Input
-                          id="volume-percentage"
-                          type="number"
-                          min={0}
-                          max={100}
-                          disabled={isBusy}
-                          className="h-7 w-16 text-right font-mono text-xs font-semibold border-neutral-300 dark:border-neutral-700 px-1.5"
-                          {...register("volumePercentage")}
-                        />
-                        <span className="text-xs font-mono text-neutral-500">%</span>
-                      </div>
-                    </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      value={volumePercentage}
-                      disabled={isBusy}
-                      onChange={(e) => setValue("volumePercentage", Number(e.target.value))}
-                      className="w-full accent-black dark:accent-white h-1.5 rounded-lg cursor-pointer bg-neutral-200 dark:bg-neutral-800"
-                    />
-                    <p className="text-[11px] font-mono text-neutral-500 leading-tight">
-                      {t("volumeHint")}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-col gap-2 rounded-xl border border-neutral-300 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="ducking-percentage" className="text-xs font-semibold uppercase text-neutral-700 dark:text-neutral-300">
-                        {t("duckingPercentage")}
-                      </Label>
-                      <div className="flex items-center gap-1">
-                        <Input
-                          id="ducking-percentage"
-                          type="number"
-                          min={0}
-                          max={100}
-                          disabled={isBusy}
-                          className="h-7 w-16 text-right font-mono text-xs font-semibold border-neutral-300 dark:border-neutral-700 px-1.5"
-                          {...register("duckingPercentage")}
-                        />
-                        <span className="text-xs font-mono text-neutral-500">%</span>
-                      </div>
-                    </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      value={duckingPercentage}
-                      disabled={isBusy}
-                      onChange={(e) => setValue("duckingPercentage", Number(e.target.value))}
-                      className="w-full accent-black dark:accent-white h-1.5 rounded-lg cursor-pointer bg-neutral-200 dark:bg-neutral-800"
-                    />
-                    <p className="text-[11px] font-mono text-neutral-500 leading-tight">
-                      {t("duckingHint")}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-col gap-2 rounded-xl border border-neutral-300 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="start-offset" className="text-xs font-semibold uppercase text-neutral-700 dark:text-neutral-300">
-                        {t("startOffsetSeconds")}
-                      </Label>
-                      <div className="flex items-center gap-1">
-                        <Input
-                          id="start-offset"
-                          type="number"
-                          min={0}
-                          max={120}
-                          disabled={isBusy}
-                          className="h-7 w-16 text-right font-mono text-xs font-semibold border-neutral-300 dark:border-neutral-700 px-1.5"
-                          {...register("startOffsetSeconds")}
-                        />
-                        <span className="text-xs font-mono text-neutral-500">s</span>
-                      </div>
-                    </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={120}
-                      value={startOffsetSeconds}
-                      disabled={isBusy}
-                      onChange={(e) => setValue("startOffsetSeconds", Number(e.target.value))}
-                      className="w-full accent-black dark:accent-white h-1.5 rounded-lg cursor-pointer bg-neutral-200 dark:bg-neutral-800"
-                    />
-                    <p className="text-[11px] font-mono text-neutral-500 leading-tight">
-                      {t("startOffsetHint")}
-                    </p>
-                  </div>
-                </div>
-              </>
             )}
           </div>
-        )}
+
+          <div className="flex flex-1 flex-col gap-4 rounded-xl border border-border bg-muted/40 p-4">
+            <label className="flex cursor-pointer select-none items-center gap-3 text-sm font-medium text-foreground">
+              <input
+                type="checkbox"
+                className="size-4 rounded border-border accent-primary"
+                disabled={isBusy}
+                {...register("attachVoiceTag")}
+              />
+              <span>{t("attachVoiceTag")}</span>
+            </label>
+
+            {attachVoiceTag &&
+              (voiceTags.length === 0 ? (
+                <p className="rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
+                  {t("noVoiceTags")}
+                </p>
+              ) : (
+                <div className="flex flex-col gap-3 border-t border-border pt-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="voice-tag-select" className="text-xs font-medium text-muted-foreground">
+                      {t("selectVoiceTag")}
+                    </Label>
+                    <VoiceTagPicker
+                      id="voice-tag-select"
+                      disabled={isBusy}
+                      onSelect={(voiceTagId) => setValue("voiceTagId", voiceTagId)}
+                    />
+                  </div>
+
+                  <div className="flex items-start gap-2.5 rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
+                    <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                    <p className="leading-relaxed">{t("duckingTooltip")}</p>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
       </div>
 
-      {clientError && (
-        <div
-          role="alert"
-          className="rounded-xl border border-neutral-400 bg-neutral-100 p-3.5 text-xs font-mono font-semibold text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-        >
-          {clientError}
-        </div>
+      {attachVoiceTag && voiceTags.length > 0 && (
+        <>
+          <div className="flex flex-col gap-3 rounded-xl border border-border p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-sm font-medium text-foreground">{t("timelineTitle")}</span>
+              <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">
+                {t("timelineInsertions", { count: markers.length })}
+              </span>
+            </div>
+
+            <div className="relative flex h-12 w-full items-center overflow-hidden rounded-lg border border-border bg-muted/50 p-2">
+              <div className="absolute inset-x-2 top-2 bottom-2 flex items-center justify-between gap-0.5 opacity-25">
+                {Array.from({ length: TIMELINE_TICKS }).map((_, i) => (
+                  <span
+                    key={i}
+                    className="w-1 rounded-full bg-foreground"
+                    style={{ height: `${i % 5 === 0 ? 80 : i % 2 === 0 ? 50 : 30}%` }}
+                  />
+                ))}
+              </div>
+
+              <div className="relative h-full w-full">
+                {markers.map((timeSec) => (
+                  <div
+                    key={timeSec}
+                    className="absolute top-0 bottom-0 flex -translate-x-1/2 flex-col items-center"
+                    style={{ left: `${(timeSec / trackLength) * 100}%` }}
+                  >
+                    <span className="h-full w-0.5 bg-primary" />
+                    <span className="absolute -top-1 rounded bg-primary px-1 text-xs text-primary-foreground">
+                      {timeSec}s
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+              <p>
+                {t("timelinePositions")}{" "}
+                <span className="text-foreground">
+                  {markers.length > 0
+                    ? markers.slice(0, 8).map((m) => `${m}s`).join(", ") +
+                      (markers.length > 8 ? "..." : "")
+                    : "0s"}
+                </span>
+              </p>
+              <p>{t("duckingStatus", { percent: String(duckingPercentage) })}</p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <SliderField
+              id="interval-seconds"
+              label={t("intervalSeconds")}
+              hint={t("intervalHint")}
+              unit="s"
+              min={5}
+              max={600}
+              value={intervalSeconds}
+              disabled={isBusy}
+              registration={register("intervalSeconds")}
+              onSlide={(next) => setValue("intervalSeconds", next)}
+            />
+            <SliderField
+              id="volume-percentage"
+              label={t("volumePercentage")}
+              hint={t("volumeHint")}
+              unit="%"
+              min={0}
+              max={100}
+              value={volumePercentage}
+              disabled={isBusy}
+              registration={register("volumePercentage")}
+              onSlide={(next) => setValue("volumePercentage", next)}
+            />
+            <SliderField
+              id="ducking-percentage"
+              label={t("duckingPercentage")}
+              hint={t("duckingHint")}
+              unit="%"
+              min={0}
+              max={100}
+              value={duckingPercentage}
+              disabled={isBusy}
+              registration={register("duckingPercentage")}
+              onSlide={(next) => setValue("duckingPercentage", next)}
+            />
+            <SliderField
+              id="start-offset"
+              label={t("startOffsetSeconds")}
+              hint={t("startOffsetHint")}
+              unit="s"
+              min={0}
+              max={120}
+              value={startOffsetSeconds}
+              disabled={isBusy}
+              registration={register("startOffsetSeconds")}
+              onSlide={(next) => setValue("startOffsetSeconds", next)}
+            />
+          </div>
+        </>
       )}
 
-      <div className="flex items-center justify-end gap-3 pt-2">
+      {clientError && (
+        <p
+          role="alert"
+          className="rounded-xl border border-destructive/30 bg-destructive/10 p-3.5 text-sm text-destructive"
+        >
+          {clientError}
+        </p>
+      )}
+
+      <div className="flex items-center justify-end gap-3">
         {onCancel && (
-          <Button type="button" variant="ghost" onClick={onCancel} disabled={isBusy}>
+          <Button type="button" variant="ghost" size="lg" onClick={onCancel} disabled={isBusy}>
             {tActions("cancel")}
           </Button>
         )}
         <Button
           type="submit"
+          size="lg"
           disabled={isBusy || !file}
-          className="min-w-36 min-h-[44px] sm:min-h-0 font-semibold bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 active:translate-y-[1px] transition-all"
+          className="h-11 min-w-36 font-semibold sm:h-9"
         >
           {isBusy ? (
             <>

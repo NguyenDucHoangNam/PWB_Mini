@@ -1,11 +1,11 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Mic, Music } from "lucide-react";
+import { Mic } from "lucide-react";
 import type { SongStatus } from "../types";
 
 const BADGE_BASE =
-  "inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-mono tracking-tight";
+  "inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium";
 
 export function SongStatusBadge({
   status,
@@ -19,12 +19,12 @@ export function SongStatusBadge({
   if (status === "PROCESSING") {
     return (
       <span
-        className={`${BADGE_BASE} border-neutral-300 bg-neutral-100 text-neutral-800 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 ${className}`}
+        className={`${BADGE_BASE} border-border bg-secondary text-secondary-foreground ${className}`}
       >
-        <span className="flex items-end gap-0.5 h-3 w-3 shrink-0" aria-hidden="true">
-          <span className="w-0.5 bg-neutral-800 dark:bg-neutral-200 animate-[bounce_1s_infinite_100ms] h-full rounded-full" />
-          <span className="w-0.5 bg-neutral-800 dark:bg-neutral-200 animate-[bounce_1s_infinite_300ms] h-2/3 rounded-full" />
-          <span className="w-0.5 bg-neutral-800 dark:bg-neutral-200 animate-[bounce_1s_infinite_200ms] h-4/5 rounded-full" />
+        <span className="waveform" aria-hidden="true">
+          <span />
+          <span />
+          <span />
         </span>
         {t("processing")}
       </span>
@@ -34,9 +34,8 @@ export function SongStatusBadge({
   if (status === "FAILED") {
     return (
       <span
-        className={`${BADGE_BASE} border-dashed border-neutral-400 bg-neutral-100 text-neutral-700 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-300 ${className}`}
+        className={`${BADGE_BASE} border-destructive/30 bg-destructive/10 text-destructive ${className}`}
       >
-        <span className="size-1.5 rounded-full bg-neutral-500" aria-hidden="true" />
         {t("failed")}
       </span>
     );
@@ -57,10 +56,9 @@ export function SongVoiceTagBadge({
   if (!hasVoiceTag) {
     return (
       <span
-        className={`${BADGE_BASE} border-neutral-200 bg-neutral-50 text-neutral-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400 ${className}`}
+        className={`${BADGE_BASE} border-transparent text-muted-foreground ${className}`}
         title={t("plainMusicHint")}
       >
-        <Music className="size-3" aria-hidden="true" />
         {t("plainMusic")}
       </span>
     );
@@ -68,10 +66,10 @@ export function SongVoiceTagBadge({
 
   return (
     <span
-      className={`${BADGE_BASE} border-neutral-900 bg-black text-white dark:border-neutral-100 dark:bg-white dark:text-black ${className}`}
+      className={`${BADGE_BASE} border-border bg-secondary text-secondary-foreground ${className}`}
       title={t("hasVoiceTagHint")}
     >
-      <Mic className="size-3 shrink-0" aria-hidden="true" />
+      <Mic className="size-3" aria-hidden="true" />
       {t("hasVoiceTag")}
     </span>
   );

@@ -156,122 +156,127 @@ export function UploadVoiceTagForm({ onCancel, onSuccess }: UploadVoiceTagFormPr
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="upload-tag-name">{t("nameLabel")}</Label>
-        <Input
-          id="upload-tag-name"
-          value={name}
-          maxLength={100}
-          disabled={isPending}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </div>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <input
+        ref={fileInputRef}
+        id="upload-tag-file"
+        type="file"
+        accept="audio/mpeg,audio/wav,audio/flac,.mp3,.wav,.flac"
+        className="sr-only"
+        disabled={isPending}
+        onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+      />
 
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="upload-tag-file">{t("fileLabel")}</Label>
-        <input
-          ref={fileInputRef}
-          id="upload-tag-file"
-          type="file"
-          accept="audio/mpeg,audio/wav,audio/flac,.mp3,.wav,.flac"
-          className="hidden"
-          disabled={isPending}
-          onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
-        />
-
-        {!file ? (
-          <button
-            type="button"
+      <div className="grid gap-5 lg:grid-cols-2 lg:gap-6">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="upload-tag-name">{t("nameLabel")}</Label>
+          <Input
+            id="upload-tag-name"
+            value={name}
+            maxLength={100}
             disabled={isPending}
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setIsDragging(true);
-            }}
-            onDragLeave={(e) => {
-              e.preventDefault();
-              setIsDragging(false);
-            }}
-            onDrop={(e) => {
-              e.preventDefault();
-              setIsDragging(false);
-              handleFileChange(e.dataTransfer.files?.[0] ?? null);
-            }}
-            className={`flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-8 text-center transition-colors ${
-              isDragging
-                ? "border-neutral-900 bg-neutral-50 dark:border-neutral-100 dark:bg-neutral-900"
-                : "border-neutral-300 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900/60"
-            }`}
-          >
-            <UploadCloud className="size-7 text-neutral-400" aria-hidden="true" />
-            <span className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">
-              {t("dropzoneTitle")}
-            </span>
-            <span className="text-xs text-neutral-500 dark:text-neutral-400">
-              {t("dropzoneHint", { max: VOICE_TAG_MAX_DURATION_SECONDS })}
-            </span>
-          </button>
-        ) : (
-          <div className="flex flex-col gap-3 rounded-xl border border-neutral-200 p-3.5 dark:border-neutral-800">
-            <div className="flex items-center gap-3">
-              <FileAudio className="size-5 shrink-0 text-neutral-500" aria-hidden="true" />
-              <div className="flex min-w-0 flex-col">
-                <span className="truncate text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                  {file.name}
-                </span>
-                <span
-                  className={`text-xs ${
-                    tooLong
-                      ? "font-semibold text-red-600 dark:text-red-400"
-                      : "text-neutral-500 dark:text-neutral-400"
-                  }`}
+            onChange={(e) => setName(e.target.value)}
+            className="h-10"
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="upload-tag-file">{t("fileLabel")}</Label>
+
+          {!file ? (
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                setIsDragging(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDragging(false);
+                handleFileChange(e.dataTransfer.files?.[0] ?? null);
+              }}
+              className={`key-press flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-6 text-center beat-16th transition-colors ease-hammer ${
+                isDragging
+                  ? "border-foreground bg-muted"
+                  : "border-border hover:border-foreground/40 hover:bg-muted/50"
+              }`}
+            >
+              <UploadCloud className="size-6 text-muted-foreground" aria-hidden="true" />
+              <span className="text-sm font-medium text-foreground">{t("dropzoneTitle")}</span>
+              <span className="text-xs text-muted-foreground">
+                {t("dropzoneHint", { max: VOICE_TAG_MAX_DURATION_SECONDS })}
+              </span>
+            </button>
+          ) : (
+            <div className="flex flex-1 flex-col gap-3 rounded-xl border border-border bg-muted/40 p-4">
+              <div className="flex items-center gap-3">
+                <FileAudio className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <div className="flex min-w-0 flex-col">
+                  <span className="truncate text-sm font-medium text-foreground">{file.name}</span>
+                  <span className={`text-xs ${tooLong ? "text-destructive" : "text-muted-foreground"}`}>
+                    {isReadingDuration
+                      ? t("readingDuration")
+                      : duration > 0
+                        ? t("durationOf", {
+                            duration: formatSeconds(duration),
+                            max: VOICE_TAG_MAX_DURATION_SECONDS,
+                          })
+                        : t("durationUnknown")}
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="ml-auto size-9 shrink-0 sm:size-8"
+                  disabled={isPending}
+                  onClick={clearFile}
+                  aria-label={tActions("cancel")}
                 >
-                  {isReadingDuration
-                    ? t("readingDuration")
-                    : duration > 0
-                      ? t("durationOf", {
-                          duration: formatSeconds(duration),
-                          max: VOICE_TAG_MAX_DURATION_SECONDS,
-                        })
-                      : t("durationUnknown")}
-                </span>
+                  <X className="size-4" aria-hidden="true" />
+                </Button>
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="ml-auto size-8 shrink-0"
-                disabled={isPending}
-                onClick={clearFile}
-                title={tActions("cancel")}
-              >
-                <X className="size-4" />
-              </Button>
+
+              {previewUrl && (
+                <audio
+                  controls
+                  preload="metadata"
+                  src={previewUrl}
+                  className="w-full"
+                  aria-label={file.name}
+                />
+              )}
             </div>
+          )}
 
-            {previewUrl && (
-              <audio controls preload="metadata" src={previewUrl} className="w-full" aria-label={file.name} />
-            )}
-          </div>
-        )}
-
-        {clientError && (
-          <p role="alert" className="text-xs text-red-600 dark:text-red-400">
-            {clientError}
-          </p>
-        )}
+          {clientError && (
+            <p role="alert" className="text-xs text-destructive">
+              {clientError}
+            </p>
+          )}
+        </div>
       </div>
 
       {phase && <UploadProgress phase={phase} percent={percent} />}
 
       <div className="flex justify-end gap-2">
         {onCancel && (
-          <Button type="button" variant="ghost" onClick={onCancel} disabled={isPending}>
+          <Button type="button" variant="ghost" size="lg" onClick={onCancel} disabled={isPending}>
             {tActions("back")}
           </Button>
         )}
-        <Button type="submit" disabled={!canSubmit || isPending}>
+        <Button
+          type="submit"
+          size="lg"
+          disabled={!canSubmit || isPending}
+          className="h-11 min-w-36 sm:h-9"
+        >
           {isPending && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />}
           {t("submitButton")}
         </Button>

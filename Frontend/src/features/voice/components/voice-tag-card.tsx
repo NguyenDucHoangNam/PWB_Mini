@@ -10,9 +10,12 @@ import { asApiError } from "@/lib/api-client";
 import type { VoiceTag } from "../types";
 import { useVoiceTagAudioUrl, useUpdateVoiceTag } from "../api/voice-tags";
 import { resolveVoiceErrorMessage } from "../lib/resolve-voice-error-message";
+import { formatDuration } from "../lib/format-audio";
 import { VoiceTagDeleteDialog } from "./voice-tag-delete-dialog";
 
 import { LanguageFlagIcon } from "./language-flag";
+
+const SEEK_STEP_SECONDS = 1;
 
 interface VoiceTagCardProps {
   voiceTag: VoiceTag;
@@ -81,86 +84,95 @@ export function VoiceTagCard({ voiceTag }: VoiceTagCardProps) {
   };
 
   return (
-    <div className="group relative flex flex-col justify-between gap-3.5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          {isEditing ? (
-            <div className="flex items-center gap-1.5 min-w-0 flex-1">
-              <input
-                ref={inputRef}
-                type="text"
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onBlur={cancelEdit}
-                maxLength={100}
-                disabled={isPending}
-                className="min-w-0 flex-1 rounded border border-neutral-400 bg-white px-2 py-0.5 text-base font-bold tracking-tight text-neutral-900 outline-none focus:border-black dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-white"
-              />
-              <button
-                type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  saveEdit();
-                }}
-                disabled={isPending || !editValue.trim()}
-                className="flex size-7 shrink-0 items-center justify-center rounded border border-neutral-300 bg-neutral-100 text-neutral-800 hover:bg-neutral-200 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
-                aria-label={tCommon("save")}
-              >
-                <Check className="size-4" />
-              </button>
-              <button
-                type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  cancelEdit();
-                }}
-                className="flex size-7 shrink-0 items-center justify-center rounded border border-neutral-200 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-800"
-                aria-label={tCommon("cancel")}
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-          ) : (
-            <>
-              <h3 className="truncate text-base font-bold tracking-tight text-neutral-900 dark:text-neutral-50 group-hover:underline decoration-neutral-400 underline-offset-4">
-                {voiceTag.name}
-              </h3>
-              {voiceTag.languageCode && (
-                <span className="inline-flex shrink-0 items-center gap-1.5 rounded bg-neutral-100 px-2 py-0.5 text-[11px] font-mono font-semibold text-neutral-800 border border-neutral-300 dark:bg-neutral-900 dark:text-neutral-200 dark:border-neutral-700 uppercase tracking-wide">
-                  <LanguageFlagIcon langCode={voiceTag.languageCode} className="h-3 w-[18px] rounded-[1px] shrink-0" />
-                  {voiceTag.languageCode}
-                </span>
-              )}
-            </>
-          )}
-        </div>
-
-        {!isEditing && (
-          <div className="flex shrink-0 items-center gap-1">
+    <article className="group flex h-full flex-col gap-4 rounded-xl border border-border bg-card p-4 beat-16th transition-colors ease-hammer hover:border-foreground/20">
+      <div className="flex items-start justify-between gap-2">
+        {isEditing ? (
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            <input
+              ref={inputRef}
+              type="text"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onBlur={cancelEdit}
+              maxLength={100}
+              disabled={isPending}
+              aria-label={tActions("edit")}
+              className="h-9 min-w-0 flex-1 rounded-lg border border-input bg-background px-2.5 text-sm font-semibold text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            />
             <Button
-              variant="ghost"
+              variant="secondary"
               size="icon"
-              className="size-8 rounded text-neutral-500 hover:bg-neutral-200 hover:text-black dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
-              onClick={startEdit}
-              title={tActions("edit")}
+              className="size-9 shrink-0"
+              disabled={isPending || !editValue.trim()}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                saveEdit();
+              }}
+              aria-label={tCommon("save")}
             >
-              <Pencil className="size-4" />
+              <Check className="size-4" aria-hidden="true" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="size-8 rounded text-neutral-500 hover:bg-neutral-200 hover:text-black dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
-              onClick={() => setDeleteOpen(true)}
-              title={tActions("delete")}
+              className="size-9 shrink-0"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                cancelEdit();
+              }}
+              aria-label={tCommon("cancel")}
             >
-              <Trash2 className="size-4" />
+              <X className="size-4" aria-hidden="true" />
             </Button>
           </div>
+        ) : (
+          <>
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <h3 className="truncate text-base font-semibold tracking-tight text-foreground">
+                {voiceTag.name}
+              </h3>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                {voiceTag.languageCode && (
+                  <span className="inline-flex items-center gap-1.5 rounded-md border border-border px-1.5 py-0.5">
+                    <LanguageFlagIcon
+                      langCode={voiceTag.languageCode}
+                      className="h-3 w-4.5 shrink-0 rounded-xs"
+                    />
+                    {voiceTag.languageCode}
+                  </span>
+                )}
+                <span className="tabular-nums">{formatDuration(voiceTag.durationSeconds)}</span>
+              </div>
+            </div>
+
+            <div className="hover-reveal flex shrink-0 items-center gap-0.5">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-11 text-muted-foreground hover:text-foreground sm:size-8"
+                onClick={startEdit}
+                aria-label={tActions("edit")}
+              >
+                <Pencil className="size-4 sm:size-3.5" aria-hidden="true" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-11 text-muted-foreground hover:text-destructive sm:size-8"
+                onClick={() => setDeleteOpen(true)}
+                aria-label={tActions("delete")}
+              >
+                <Trash2 className="size-4 sm:size-3.5" aria-hidden="true" />
+              </Button>
+            </div>
+          </>
         )}
       </div>
 
-      <VoiceTagPreviewInline voiceTagId={voiceTag.id} />
+      <div className="mt-auto">
+        <VoiceTagPreviewInline voiceTagId={voiceTag.id} />
+      </div>
 
       <VoiceTagDeleteDialog
         voiceTagId={voiceTag.id}
@@ -168,7 +180,7 @@ export function VoiceTagCard({ voiceTag }: VoiceTagCardProps) {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
       />
-    </div>
+    </article>
   );
 }
 
@@ -184,22 +196,26 @@ function VoiceTagPreviewInline({ voiceTagId }: { voiceTagId: string }) {
 
   if (!requested) {
     return (
-      <button
-        type="button"
+      <Button
+        variant="outline"
+        size="lg"
         onClick={() => setRequested(true)}
-        className="flex items-center gap-3 rounded-lg border border-neutral-300 bg-neutral-100 px-3.5 py-2.5 text-xs font-semibold text-neutral-800 transition-all hover:bg-neutral-200 active:translate-y-[1px] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+        className="h-11 w-full justify-start gap-3 px-3"
       >
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-black text-white dark:bg-white dark:text-black shadow-xs">
-          <Play className="ml-0.5 size-3.5 fill-current" />
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+          <Play className="ml-0.5 size-3 fill-current" aria-hidden="true" />
         </span>
-        <span className="font-mono tracking-wide">{t("preview")}</span>
-      </button>
+        <span className="text-sm font-medium">{t("preview")}</span>
+      </Button>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 rounded-lg bg-neutral-100 px-3 py-2.5 text-xs font-mono text-neutral-500 dark:bg-neutral-900">
+      <div
+        role="status"
+        className="flex h-11 items-center gap-2 rounded-lg border border-border bg-secondary px-3 text-sm text-muted-foreground"
+      >
         <Spinner size="sm" />
         {t("preview")}
       </div>
@@ -208,9 +224,12 @@ function VoiceTagPreviewInline({ voiceTagId }: { voiceTagId: string }) {
 
   if (error || !url) {
     return (
-      <div className="rounded-lg border border-dashed border-neutral-400 bg-neutral-100 px-3 py-2.5 text-xs font-mono text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+      <p
+        role="alert"
+        className="flex h-11 items-center rounded-lg border border-dashed border-border px-3 text-sm text-muted-foreground"
+      >
         {tPlayer("loadError")}
-      </div>
+      </p>
     );
   }
 
@@ -218,6 +237,8 @@ function VoiceTagPreviewInline({ voiceTagId }: { voiceTagId: string }) {
 }
 
 function VoiceTagCustomPlayer({ url, autoPlay = false }: { url: string; autoPlay?: boolean }) {
+  const tActions = useTranslations("voice.actions");
+  const tPlayer = useTranslations("voice.player");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -239,99 +260,99 @@ function VoiceTagCustomPlayer({ url, autoPlay = false }: { url: string; autoPlay
     setIsMuted(!isMuted);
   };
 
-  const handleTimeUpdate = () => {
-    if (!audioRef.current) return;
-    setCurrentTime(audioRef.current.currentTime);
-  };
-
-  const handleLoadedMetadata = () => {
-    if (!audioRef.current) return;
-    setDuration(audioRef.current.duration);
-  };
-
-  const handleEnded = () => {
-    setIsPlaying(false);
-    setCurrentTime(0);
-  };
-
-  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+  const seekTo = (seconds: number) => {
     if (!audioRef.current || !duration) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const percentage = clickX / rect.width;
-    const newTime = percentage * duration;
-    audioRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
+    const clamped = Math.min(Math.max(seconds, 0), duration);
+    audioRef.current.currentTime = clamped;
+    setCurrentTime(clamped);
   };
 
-  const formatTime = (timeInSec: number) => {
-    if (!Number.isFinite(timeInSec)) return "0:00";
-    const mins = Math.floor(timeInSec / 60);
-    const secs = Math.floor(timeInSec % 60);
-    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  const handleSeekClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    seekTo(((e.clientX - rect.left) / rect.width) * duration);
+  };
+
+  const handleSeekKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      seekTo(currentTime + SEEK_STEP_SECONDS);
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      seekTo(currentTime - SEEK_STEP_SECONDS);
+    }
   };
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="flex items-center gap-3 rounded-lg bg-neutral-100/90 px-3.5 py-2.5 dark:bg-neutral-900/90 border border-neutral-300 dark:border-neutral-800 shadow-xs">
+    <div className="flex h-11 items-center gap-2.5 rounded-lg border border-border bg-secondary px-2.5">
       <audio
         ref={audioRef}
         src={url}
         autoPlay={autoPlay}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
-        onTimeUpdate={handleTimeUpdate}
-        onLoadedMetadata={handleLoadedMetadata}
-        onEnded={handleEnded}
+        onTimeUpdate={() => audioRef.current && setCurrentTime(audioRef.current.currentTime)}
+        onLoadedMetadata={() => audioRef.current && setDuration(audioRef.current.duration)}
+        onEnded={() => {
+          setIsPlaying(false);
+          setCurrentTime(0);
+        }}
       />
-      <button
-        type="button"
+
+      <Button
+        size="icon"
+        className="size-7 shrink-0 rounded-full"
         onClick={togglePlay}
-        className="flex size-8 shrink-0 items-center justify-center rounded-md bg-black text-white hover:bg-neutral-800 active:translate-y-[1px] dark:bg-white dark:text-black dark:hover:bg-neutral-200 transition-all"
-        aria-label={isPlaying ? "Pause" : "Play"}
+        aria-label={isPlaying ? tPlayer("pause") : tActions("play")}
       >
         {isPlaying ? (
-          <Pause className="size-3.5 fill-current" />
+          <Pause className="size-3 fill-current" aria-hidden="true" />
         ) : (
-          <Play className="size-3.5 fill-current ml-0.5" />
+          <Play className="ml-0.5 size-3 fill-current" aria-hidden="true" />
         )}
-      </button>
+      </Button>
 
-      {isPlaying && (
-        <span className="hidden sm:flex items-end gap-0.5 h-3.5 w-3 shrink-0" aria-hidden="true">
-          <span className="w-0.5 bg-neutral-800 dark:bg-neutral-200 animate-[bounce_1s_infinite_100ms] h-full rounded-full" />
-          <span className="w-0.5 bg-neutral-800 dark:bg-neutral-200 animate-[bounce_1s_infinite_300ms] h-2/3 rounded-full" />
-          <span className="w-0.5 bg-neutral-800 dark:bg-neutral-200 animate-[bounce_1s_infinite_200ms] h-4/5 rounded-full" />
-        </span>
-      )}
+      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+        {formatDuration(currentTime)}
+      </span>
 
-      <div className="flex flex-1 items-center gap-2 min-w-0">
-        <span className="text-[11px] font-mono text-neutral-600 dark:text-neutral-400 shrink-0 min-w-[28px]">
-          {formatTime(currentTime)}
-        </span>
-        <div
-          className="relative h-2 flex-1 overflow-hidden rounded-full bg-neutral-300 dark:bg-neutral-800 cursor-pointer group"
-          onClick={handleSeek}
-        >
+      <div
+        role="slider"
+        tabIndex={0}
+        aria-label={tPlayer("seek")}
+        aria-valuemin={0}
+        aria-valuemax={Math.round(duration)}
+        aria-valuenow={Math.round(currentTime)}
+        onClick={handleSeekClick}
+        onKeyDown={handleSeekKeyDown}
+        className="relative flex h-6 flex-1 cursor-pointer items-center rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
           <div
-            className="h-full rounded-full bg-black dark:bg-white transition-all"
+            className="h-full rounded-full bg-primary"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
-        <span className="text-[11px] font-mono text-neutral-500 shrink-0 min-w-[28px]">
-          {formatTime(duration)}
-        </span>
       </div>
 
-      <button
-        type="button"
+      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+        {formatDuration(duration)}
+      </span>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
         onClick={toggleMute}
-        className="text-neutral-500 hover:text-black dark:text-neutral-400 dark:hover:text-white transition-colors shrink-0 p-1"
-        aria-label={isMuted ? "Unmute" : "Muted"}
+        aria-label={isMuted ? tPlayer("unmute") : tPlayer("mute")}
       >
-        {isMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
-      </button>
+        {isMuted ? (
+          <VolumeX className="size-3.5" aria-hidden="true" />
+        ) : (
+          <Volume2 className="size-3.5" aria-hidden="true" />
+        )}
+      </Button>
     </div>
   );
 }

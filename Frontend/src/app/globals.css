@@ -245,6 +245,24 @@
   background-position: center;
 }
 
+/* Row affordances: quiet on a mouse, always reachable on a touch screen where
+   there is no hover to reveal them. */
+@utility hover-reveal {
+  transition-property: opacity;
+  transition-duration: var(--beat-16th);
+  transition-timing-function: var(--hammer-ease);
+
+  @media (hover: hover) and (pointer: fine) {
+    opacity: 0;
+
+    &:is(:where(.group):hover *),
+    &:is(:where(.group):focus-within *),
+    &:focus-within {
+      opacity: 1;
+    }
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

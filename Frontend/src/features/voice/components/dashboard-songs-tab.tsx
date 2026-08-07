@@ -5,16 +5,23 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Music, Upload, AlertCircle, SearchX, Pencil, Trash2, Check, X } from "lucide-react";
+import { Music, Upload, SearchX, Pencil, Trash2, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
-import { Spinner } from "@/components/ui/spinner";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { asApiError } from "@/lib/api-client";
 import { SongDeleteDialog } from "@/features/voice/components/song-delete-dialog";
 import { SongStatusBadge, SongVoiceTagBadge } from "@/features/voice/components/song-status-badge";
+import {
+  LibraryEmptyState,
+  LibraryErrorState,
+  LibraryPagination,
+  LibraryPanel,
+  LibraryRowsSkeleton,
+} from "@/features/voice/components/library-states";
 import { useListSongs, useSearchSongs, useUpdateSong } from "@/features/voice/api/songs";
+import { formatBytes, formatDuration } from "@/features/voice/lib/format-audio";
 import { resolveVoiceErrorMessage } from "@/features/voice/lib/resolve-voice-error-message";
 import { SONG_VIEW_STATUSES } from "@/features/voice/types";
 import type { Song, SongView } from "@/features/voice/types";
@@ -33,19 +40,6 @@ function parsePage(value: string | null): number {
   return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 0;
 }
 
-function formatBytes(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
-}
-
-function formatDuration(seconds: number) {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
-
 interface SongRowProps {
   song: Song;
   index: number;
@@ -53,15 +47,14 @@ interface SongRowProps {
 }
 
 function SongRow({ song, index, onDelete }: SongRowProps) {
-  const router = useRouter();
   const tActions = useTranslations("voice.actions");
   const tCommon = useTranslations("common");
   const tErrors = useTranslations("voice.errors");
+  const tStatus = useTranslations("voice.status");
 
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(song.title);
   const inputRef = useRef<HTMLInputElement>(null);
-  const isOdd = index % 2 === 0;
 
   const { mutate: updateSong, isPending } = useUpdateSong({
     mutationConfig: {
@@ -115,137 +108,134 @@ function SongRow({ song, index, onDelete }: SongRowProps) {
     }
   };
 
-  const handleRowClick = () => {
-    if (!isEditing) {
-      router.push(`/dashboard/songs/${song.id}`);
-    }
-  };
+  const durationLabel = song.durationSeconds !== null ? formatDuration(song.durationSeconds) : "—";
+  const sizeLabel = song.fileSizeBytes !== null ? formatBytes(song.fileSizeBytes) : "—";
+  const formatLabel = (song.format ?? "").toUpperCase();
 
   return (
-    <div
-      role="link"
-      tabIndex={0}
-      onClick={handleRowClick}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" && !isEditing) handleRowClick();
-      }}
-      className={`group relative flex items-center gap-3 px-4 py-3.5 transition-all cursor-pointer border-b border-neutral-100 dark:border-neutral-800/60 active:translate-y-[1px] ${
-        isOdd
-          ? "bg-white hover:bg-neutral-50 dark:bg-black dark:hover:bg-neutral-950"
-          : "bg-neutral-50/70 hover:bg-neutral-100/80 dark:bg-neutral-900/40 dark:hover:bg-neutral-900/80"
-      }`}
-    >
-      <div
-        className={`absolute left-0 top-0 h-full w-[4px] transition-colors ${
-          isOdd
-            ? "bg-black dark:bg-white"
-            : "bg-neutral-300 dark:bg-neutral-700 group-hover:bg-black dark:group-hover:bg-white"
-        }`}
-        aria-hidden="true"
-      />
+    <li className="group relative isolate beat-16th transition-colors ease-hammer hover:bg-muted/40">
+      {!isEditing && (
+        <Link
+          href={`/dashboard/songs/${song.id}`}
+          className="absolute inset-0 z-10 rounded-lg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+        >
+          <span className="sr-only">{song.title}</span>
+        </Link>
+      )}
 
-      <span className="w-8 shrink-0 text-center font-mono text-xs font-semibold text-neutral-400 dark:text-neutral-500">
-        {String(index + 1).padStart(2, "0")}
-      </span>
+      <div className="flex items-center gap-2 px-3 py-2 sm:gap-4 sm:px-4 sm:py-2.5">
+        <span className="hidden w-6 shrink-0 text-right text-xs tabular-nums text-muted-foreground sm:block">
+          {index + 1}
+        </span>
 
-      <div className="flex flex-1 items-center gap-3 min-w-0">
-        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-          <div className="flex items-center gap-2 min-w-0">
-            {isEditing ? (
-              <div className="flex items-center gap-1.5 min-w-0 flex-1" onClick={(e) => e.stopPropagation()}>
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  onBlur={cancelEdit}
-                  maxLength={200}
-                  disabled={isPending}
-                  className="min-w-0 flex-1 rounded border border-neutral-400 bg-white px-2 py-1 text-sm font-semibold text-neutral-900 outline-none focus:border-black dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-white"
-                />
-                <button
-                  type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    saveEdit();
-                  }}
-                  disabled={isPending || !editValue.trim()}
-                  className="flex size-7 shrink-0 items-center justify-center rounded border border-neutral-300 bg-neutral-100 text-neutral-800 hover:bg-neutral-200 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
-                  aria-label={tCommon("save")}
-                >
-                  <Check className="size-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    cancelEdit();
-                  }}
-                  className="flex size-7 shrink-0 items-center justify-center rounded border border-neutral-200 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-800"
-                  aria-label={tCommon("cancel")}
-                >
-                  <X className="size-3.5" />
-                </button>
-              </div>
-            ) : (
-              <>
-                <span className="truncate text-sm font-semibold tracking-tight text-neutral-900 dark:text-neutral-100 group-hover:underline decoration-neutral-400 underline-offset-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          {isEditing ? (
+            <div className="flex items-center gap-1.5">
+              <input
+                ref={inputRef}
+                type="text"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onBlur={cancelEdit}
+                maxLength={200}
+                disabled={isPending}
+                aria-label={tActions("edit")}
+                className="h-9 min-w-0 flex-1 rounded-lg border border-input bg-background px-2.5 text-sm font-medium text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 sm:h-8"
+              />
+              <Button
+                variant="secondary"
+                size="icon"
+                className="size-9 shrink-0 sm:size-8"
+                disabled={isPending || !editValue.trim()}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  saveEdit();
+                }}
+                aria-label={tCommon("save")}
+              >
+                <Check className="size-4" aria-hidden="true" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-9 shrink-0 sm:size-8"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  cancelEdit();
+                }}
+                aria-label={tCommon("cancel")}
+              >
+                <X className="size-4" aria-hidden="true" />
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="truncate text-sm font-medium text-foreground decoration-muted-foreground/40 underline-offset-4 group-hover:underline">
                   {song.title}
                 </span>
                 <SongStatusBadge status={song.status} />
-              </>
-            )}
-          </div>
-          <div className="flex items-center gap-2 sm:hidden">
-            <SongVoiceTagBadge hasVoiceTag={song.hasVoiceTag} />
-          </div>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground sm:hidden">
+                <span className="tabular-nums">{durationLabel}</span>
+                {formatLabel && (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span>{formatLabel}</span>
+                  </>
+                )}
+                <span aria-hidden="true">·</span>
+                <span className="truncate">
+                  {song.hasVoiceTag ? tStatus("hasVoiceTag") : sizeLabel}
+                </span>
+              </div>
+            </>
+          )}
         </div>
+
+        {!isEditing && (
+          <>
+            <div className="hidden w-24 shrink-0 sm:block">
+              <SongVoiceTagBadge hasVoiceTag={song.hasVoiceTag} />
+            </div>
+
+            <span className="hidden w-12 shrink-0 text-center text-xs text-muted-foreground md:block">
+              {formatLabel}
+            </span>
+
+            <span className="hidden w-16 shrink-0 text-right text-xs tabular-nums text-muted-foreground lg:block">
+              {sizeLabel}
+            </span>
+
+            <span className="hidden w-12 shrink-0 text-right text-xs tabular-nums text-foreground sm:block">
+              {durationLabel}
+            </span>
+
+            <div className="hover-reveal relative z-20 flex shrink-0 items-center gap-0.5 sm:w-18 sm:justify-end">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-11 text-muted-foreground hover:text-foreground sm:size-8"
+                onClick={startEdit}
+                aria-label={tActions("edit")}
+              >
+                <Pencil className="size-4 sm:size-3.5" aria-hidden="true" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-11 text-muted-foreground hover:text-destructive sm:size-8"
+                onClick={() => onDelete(song)}
+                aria-label={tActions("delete")}
+              >
+                <Trash2 className="size-4 sm:size-3.5" aria-hidden="true" />
+              </Button>
+            </div>
+          </>
+        )}
       </div>
-
-      <div className="hidden sm:flex items-center">
-        <SongVoiceTagBadge hasVoiceTag={song.hasVoiceTag} />
-      </div>
-
-      <span className="hidden md:block w-14 shrink-0 text-center font-mono text-[11px] font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-widest">
-        {(song.format ?? "").toUpperCase()}
-      </span>
-
-      <span className="hidden lg:block w-16 shrink-0 text-right font-mono text-xs text-neutral-500 dark:text-neutral-400">
-        {song.fileSizeBytes !== null ? formatBytes(song.fileSizeBytes) : "-"}
-      </span>
-
-      <span className="w-12 shrink-0 text-right font-mono text-xs font-semibold text-neutral-700 dark:text-neutral-200">
-        {song.durationSeconds !== null ? formatDuration(song.durationSeconds) : "-"}
-      </span>
-
-      <div className="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity sm:w-16 justify-end">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 rounded text-neutral-500 hover:bg-neutral-200 hover:text-black dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
-          onClick={(e) => {
-            e.stopPropagation();
-            startEdit();
-          }}
-          aria-label={tActions("edit")}
-        >
-          <Pencil className="size-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 rounded text-neutral-500 hover:bg-neutral-200 hover:text-black dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(song);
-          }}
-          aria-label={tActions("delete")}
-        >
-          <Trash2 className="size-3.5" />
-        </Button>
-      </div>
-    </div>
+    </li>
   );
 }
 
@@ -360,8 +350,8 @@ export function DashboardSongsTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-        <div className="flex-1">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div className="lg:max-w-sm lg:flex-1">
           <SearchInput
             value={keyword}
             onValueChange={setKeyword}
@@ -369,92 +359,94 @@ export function DashboardSongsTab() {
             placeholder={tList("searchSongsPlaceholder")}
             clearLabel={tList("clearSearch")}
             aria-label={tList("searchSongsPlaceholder")}
+            className="h-11 sm:h-9"
           />
         </div>
-        <select
-          value={view}
-          onChange={(e) => setView(e.target.value as SongView)}
-          className="h-9 shrink-0 appearance-none rounded-lg border border-neutral-200 bg-white px-3 pr-8 text-xs font-semibold text-neutral-700 outline-none transition-colors hover:border-neutral-300 focus-visible:ring-2 focus-visible:ring-ring/50 dark:border-neutral-800 dark:bg-black dark:text-neutral-300 dark:hover:border-neutral-700"
-          style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 8px center" }}
+
+        <div
+          role="group"
+          aria-label={tList("filterByStatus")}
+          className="flex gap-1 overflow-x-auto rounded-lg border border-border bg-secondary p-1 lg:ml-auto"
         >
-          {filters.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+          {filters.map((option) => {
+            const isActive = view === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setView(option.value)}
+                aria-pressed={isActive}
+                className={`key-press h-9 shrink-0 rounded-md px-3 text-sm font-medium beat-16th transition-colors ease-hammer sm:h-7 sm:text-xs ${
+                  isActive
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div
-        aria-busy={isFetching}
-        className={`overflow-hidden rounded-xl border border-neutral-200 bg-white transition-opacity dark:border-neutral-800 dark:bg-black ${
-          isFetching && !isLoading ? "opacity-60" : ""
-        }`}
-      >
-        {isLoading ? (
-          <div className="flex items-center justify-center gap-3 p-12 text-sm text-neutral-500">
-            <Spinner size="md" />
-            {tList("loading")}
-          </div>
-        ) : isError ? (
-          <div role="alert" className="flex flex-col items-center justify-center gap-3 p-12 text-center">
-            <AlertCircle className="h-8 w-8 text-red-500" />
-            <p className="text-sm font-medium text-red-600 dark:text-red-400">
-              {t("errorLoad")}
-            </p>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
-              {t("retry")}
-            </Button>
-          </div>
-        ) : items.length === 0 && searching ? (
-          <div className="flex flex-col items-center justify-center gap-4 p-12 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-900">
-              <SearchX className="h-8 w-8 text-neutral-400" />
-            </div>
-            <div className="max-w-sm space-y-1">
-              <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
-                {tList("noResults")}
-              </h3>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                {tList("noResultsHint", { query: debouncedKeyword })}
-              </p>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setKeyword("")}>
-              {tList("clearSearch")}
-            </Button>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-4 p-12 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-900">
-              <Music className="h-8 w-8 text-neutral-400" />
-            </div>
-            <div className="max-w-sm space-y-1">
-              <h3 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
-                {t("noSongs")}
-              </h3>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                {t("emptyHint")}
-              </p>
-            </div>
-            <Link href="/dashboard/songs/new">
-              <Button className="mt-2 flex items-center gap-2">
-                <Upload className="h-4 w-4" />
-                {t("upload")}
+      {isLoading ? (
+        <LibraryPanel>
+          <LibraryRowsSkeleton />
+        </LibraryPanel>
+      ) : isError ? (
+        <LibraryPanel>
+          <LibraryErrorState
+            message={t("errorLoad")}
+            retryLabel={t("retry")}
+            onRetry={() => refetch()}
+          />
+        </LibraryPanel>
+      ) : items.length === 0 && searching ? (
+        <LibraryPanel>
+          <LibraryEmptyState
+            icon={SearchX}
+            title={tList("noResults")}
+            hint={tList("noResultsHint", { query: debouncedKeyword })}
+            action={
+              <Button variant="outline" size="lg" onClick={() => setKeyword("")}>
+                {tList("clearSearch")}
               </Button>
-            </Link>
-          </div>
-        ) : (
-          <>
-            <div className="hidden sm:flex items-center gap-3 border-b border-neutral-200 bg-neutral-100/70 px-4 py-2 text-[11px] font-mono font-semibold uppercase tracking-widest text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900/60 dark:text-neutral-400">
-              <span className="w-8 shrink-0 text-center">#</span>
+            }
+          />
+        </LibraryPanel>
+      ) : items.length === 0 ? (
+        <LibraryPanel>
+          <LibraryEmptyState
+            icon={Music}
+            title={t("noSongs")}
+            hint={t("emptyHint")}
+            action={
+              <Link href="/dashboard/songs/new">
+                <Button size="lg" className="gap-2">
+                  <Upload className="size-4" aria-hidden="true" />
+                  {t("upload")}
+                </Button>
+              </Link>
+            }
+          />
+        </LibraryPanel>
+      ) : (
+        <LibraryPanel>
+          <div
+            aria-busy={isFetching}
+            className={`beat-8th transition-opacity ${isFetching ? "opacity-70" : ""}`}
+          >
+            <div className="hidden items-center gap-4 border-b border-border bg-muted/40 px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:flex">
+              <span className="w-6 shrink-0 text-right">#</span>
               <span className="flex-1">{tList("colTitle")}</span>
-              <span className="w-20" />
-              <span className="hidden md:block w-14 shrink-0 text-center">{tList("colFormat")}</span>
-              <span className="hidden lg:block w-16 shrink-0 text-right">{tList("colSize")}</span>
+              <span className="w-24 shrink-0" />
+              <span className="hidden w-12 shrink-0 text-center md:block">{tList("colFormat")}</span>
+              <span className="hidden w-16 shrink-0 text-right lg:block">{tList("colSize")}</span>
               <span className="w-12 shrink-0 text-right">{tList("colDuration")}</span>
-              <span className="w-16 shrink-0" />
+              <span className="w-18 shrink-0" />
             </div>
-            <div className="divide-y divide-neutral-100 dark:divide-neutral-800/40">
+
+            <ul className="divide-y divide-border">
               {items.map((song, i) => (
                 <SongRow
                   key={song.id}
@@ -463,39 +455,19 @@ export function DashboardSongsTab() {
                   onDelete={openDelete}
                 />
               ))}
-            </div>
-          </>
-        )}
-      </div>
-
-      {totalPages > 1 && (
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <span className="text-xs text-neutral-500 dark:text-neutral-400">
-            {tList("showingRange", { from: rangeFrom, to: rangeTo, total: totalElements })}
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page === 0}
-              onClick={() => setPage(Math.max(0, page - 1))}
-            >
-              {tList("prev")}
-            </Button>
-            <span className="text-xs text-neutral-500 dark:text-neutral-400">
-              {page + 1} / {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page + 1 >= totalPages}
-              onClick={() => setPage(page + 1)}
-            >
-              {tList("next")}
-            </Button>
+            </ul>
           </div>
-        </div>
+        </LibraryPanel>
       )}
+
+      <LibraryPagination
+        page={page}
+        totalPages={totalPages}
+        rangeFrom={rangeFrom}
+        rangeTo={rangeTo}
+        totalElements={totalElements}
+        onPageChange={setPage}
+      />
 
       <SongDeleteDialog
         song={items.find((song) => song.id === toDeleteId) ?? null}

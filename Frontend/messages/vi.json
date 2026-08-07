@@ -502,6 +502,7 @@
       "searchSongsPlaceholder": "Tìm bài hát theo tên...",
       "searchVoiceTagsPlaceholder": "Tìm voice tag theo tên...",
       "clearSearch": "Xoá tìm kiếm",
+      "filterByStatus": "Lọc theo trạng thái",
       "noResults": "Không tìm thấy kết quả",
       "noResultsHint": "Không có mục nào khớp với “{query}”. Thử từ khoá khác xem sao.",
       "songCount": "{count, plural, =0 {Chưa có bài hát} =1 {1 bài hát} other {# bài hát}}",
@@ -688,7 +689,11 @@
     "player": {
       "expiryWarning": "URL âm thanh sắp hết hạn, đang làm mới...",
       "loadError": "Không thể tải âm thanh",
-      "songLabel": "Bài hát"
+      "songLabel": "Bài hát",
+      "pause": "Tạm dừng",
+      "mute": "Tắt tiếng",
+      "unmute": "Bật tiếng",
+      "seek": "Tua đến vị trí"
     },
     "errors": {
       "fileTooLarge": "File vượt quá giới hạn 100MB",

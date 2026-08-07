@@ -502,6 +502,7 @@
       "searchSongsPlaceholder": "Search songs by title...",
       "searchVoiceTagsPlaceholder": "Search voice tags by name...",
       "clearSearch": "Clear search",
+      "filterByStatus": "Filter by status",
       "noResults": "No results found",
       "noResultsHint": "Nothing matches “{query}”. Try a different word.",
       "songCount": "{count, plural, =0 {No songs} =1 {1 song} other {# songs}}",
@@ -688,7 +689,11 @@
     "player": {
       "expiryWarning": "Audio URL expires soon, refreshing...",
       "loadError": "Failed to load audio",
-      "songLabel": "Song"
+      "songLabel": "Song",
+      "pause": "Pause",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "seek": "Seek position"
     },
     "errors": {
       "fileTooLarge": "File exceeds 100MB limit",
