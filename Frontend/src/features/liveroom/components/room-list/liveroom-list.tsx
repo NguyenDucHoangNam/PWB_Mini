@@ -70,16 +70,16 @@ export function LiveroomList() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-neutral-200 pb-4 dark:border-neutral-800">
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2">
-            <span className="h-5 w-1 rounded-full bg-black dark:bg-white" aria-hidden="true" />
-            <h1 className="text-2xl font-bold tracking-tight text-neutral-900 md:text-3xl dark:text-neutral-100">
+        <div className="flex items-start gap-3">
+          <div className="hidden h-12 w-1 shrink-0 rounded-full bg-foreground/80 sm:block" aria-hidden="true" />
+          <div className="flex flex-col gap-0.5">
+            <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
               {t("title")}
             </h1>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground/70">
+              {t("subtitle")}
+            </p>
           </div>
-          <p className="mt-0.5 text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 ml-3">
-            {t("subtitle")}
-          </p>
         </div>
         <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
           <div className="w-full sm:w-64 md:w-72 shrink-0">
@@ -95,14 +95,14 @@ export function LiveroomList() {
           <Link href="/dashboard/liveroom/join">
             <Button
               variant="outline"
-              className="h-9 min-h-[44px] sm:min-h-0 w-full sm:w-auto border-neutral-300 font-semibold text-neutral-800 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800 active:translate-y-[1px] transition-all"
+              className="h-9 min-h-[44px] sm:min-h-0 w-full sm:w-auto border-neutral-300 font-semibold text-neutral-800 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
             >
               <KeyRound className="size-4" />
               {t("joinByCode")}
             </Button>
           </Link>
           <Link href="/dashboard/liveroom/new">
-            <Button className="h-9 min-h-[44px] sm:min-h-0 w-full sm:w-auto bg-black font-semibold text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 active:translate-y-[1px] transition-all">
+            <Button className="h-9 min-h-[44px] sm:min-h-0 w-full sm:w-auto bg-black font-semibold text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200">
               <Plus className="size-4" />
               {t("create")}
             </Button>
@@ -124,7 +124,7 @@ export function LiveroomList() {
               type="button"
               aria-selected={isActive}
               onClick={() => selectTab(tab.value)}
-              className={`relative flex h-8 flex-1 items-center justify-center rounded-md px-3 text-xs font-semibold tracking-wide transition-all active:translate-y-[1px] ${
+              className={`key-press relative flex h-8 flex-1 items-center justify-center rounded-md px-3 text-xs font-semibold tracking-wide ${
                 isActive
                   ? "bg-white text-black shadow-xs dark:bg-black dark:text-white border border-neutral-200 dark:border-neutral-800"
                   : "text-neutral-500 hover:text-black dark:text-neutral-400 dark:hover:text-white"

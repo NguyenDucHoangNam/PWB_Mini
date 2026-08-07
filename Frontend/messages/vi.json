@@ -46,57 +46,145 @@
     "rights": "All rights reserved."
   },
   "landing": {
-    "hoverHint": "Di chuột để phát nhạc",
-    "tagline": {
-      "headline": "Không gian làm việc toàn diện cho nhà sản xuất âm nhạc",
-      "subheadline": "Quản lý beat, chia sẻ demo và cộng tác thời gian thực — tất cả trong một nơi."
+    "hoverHint": "Di chuột để chơi nốt nhạc",
+    "ticker": {
+      "item1": "Voice tag đóng dấu",
+      "item2": "Render trên server",
+      "item3": "Playback đồng bộ",
+      "item4": "Mã phòng 6 ký tự",
+      "item5": "Phòng chờ duyệt",
+      "item6": "Bình luận theo giây",
+      "item7": "Thoại ngang hàng",
+      "item8": "Link phát hết hạn",
+      "item9": "Tìm kiếm không dấu"
     },
-    "features": {
-      "sectionTitle": "Mọi thứ bạn cần",
-      "sectionSubtitle": "Được xây dựng cho những producer nghiêm túc với nghề.",
-      "playlist": {
-        "title": "Quản lý Playlist",
-        "description": "Upload, tổ chức và quản lý beat, demo với metadata, voice tag và artwork."
+    "problem": {
+      "eyebrow": "Vấn đề",
+      "title": "Gửi một bản demo không nên đánh đổi cả bài hát.",
+      "lead": "Hai thứ luôn phá hỏng một buổi duyệt bài từ xa: file rời khỏi tay bạn, và không ai nghe cùng một giây.",
+      "leak": {
+        "label": "Vấn đề 01",
+        "title": "File đi mất",
+        "body": "Một file WAV trong hộp thư là một file WAV trong ổ cứng người khác. Đã tải về rồi thì không còn phiên bản, không còn chủ sở hữu, và không lấy lại được.",
+        "answer": "Mỗi bản master đều mang giọng của bạn, và mọi link đều hết hạn."
       },
-      "voiceTags": {
-        "title": "Voice Tags",
-        "description": "Tạo và gắn producer tag riêng vào mỗi beat — xây dựng thương hiệu cá nhân."
-      },
-      "liveroom": {
-        "title": "LiveRoom",
-        "description": "Phòng nghe nhạc thời gian thực — chia sẻ demo trực tiếp với đối tác và nghệ sĩ."
+      "drift": {
+        "label": "Vấn đề 02",
+        "title": "Cả phòng lệch nhịp",
+        "body": "Người này tạm dừng, người kia tua, người thứ ba nghe đoạn drop chậm bốn giây. Góp ý thôi không còn nói về âm nhạc mà xoay quanh timecode.",
+        "answer": "Một playhead, một vị trí, phát cho cả phòng."
       }
     },
-    "demo": {
-      "sectionTitle": "Xem thực tế",
-      "step1Label": "Upload",
-      "step1Description": "Đưa beat vào Playlist của bạn",
-      "step2Label": "Gắn tag",
-      "step2Description": "Thêm voice tag & metadata",
-      "step3Label": "Chia sẻ",
-      "step3Description": "Mở LiveRoom & mời cộng tác viên"
+    "pillars": {
+      "eyebrow": "Bên trong có gì",
+      "title": "Ba phân hệ, một bàn làm việc.",
+      "lead": "Một thư viện giữ tác phẩm, một voice tag ký tên lên nó, và một căn phòng để cùng nghe.",
+      "library": {
+        "index": "01",
+        "title": "Thư viện",
+        "description": "Tải MP3, WAV hoặc FLAC thẳng lên kho lưu trữ và giữ mọi bản thu ở một nơi.",
+        "fact1": "Tối đa 200 MB mỗi bài",
+        "fact2": "Upload trực tiếp, tiến trình realtime",
+        "fact3": "Tìm kiếm chịu lỗi gõ và không dấu"
+      },
+      "voiceTag": {
+        "index": "02",
+        "title": "Voice Tag",
+        "description": "Gõ ra hoặc thu âm, rồi ghép vào bản master theo chu kỳ bạn đặt.",
+        "fact1": "Text-to-speech ba ngôn ngữ",
+        "fact2": "Hoặc tải file của bạn, tối đa 10 giây",
+        "fact3": "Nghe thử trước khi lưu"
+      },
+      "liveRoom": {
+        "index": "03",
+        "title": "Live Room",
+        "description": "Chia sẻ mã 6 ký tự và cùng nghe, cùng nhịp, có thoại kèm theo.",
+        "fact1": "Play, pause và seek luôn đồng bộ",
+        "fact2": "Tự duyệt ai được vào",
+        "fact3": "Tối đa 7 người mỗi phòng"
+      }
     },
-    "howItWorks": {
-      "sectionTitle": "Cách hoạt động",
-      "sectionSubtitle": "Ba bước đơn giản để tối ưu quy trình sản xuất.",
-      "step1Title": "Đăng ký",
-      "step1Description": "Tạo tài khoản miễn phí chỉ trong vài giây.",
-      "step2Title": "Upload",
-      "step2Description": "Thêm beat, demo và voice tag vào không gian làm việc cá nhân.",
-      "step3Title": "Cộng tác",
-      "step3Description": "Mở LiveRoom và mời đội nhóm nghe trực tiếp thời gian thực."
+    "voiceTag": {
+      "eyebrow": "Voice Tag",
+      "title": "Tên bạn, cứ mỗi ba mươi giây.",
+      "lead": "Tag được trộn vào bản master ngay trên server, không phải chèn ở trình phát — nên thứ rời khỏi hệ thống đã được ký sẵn.",
+      "point1Title": "Gõ ra hoặc thu âm",
+      "point1Body": "Giọng Wavenet và Neural2 cho tiếng Việt, tiếng Anh Mỹ và tiếng Anh Anh, nam hoặc nữ. Hoặc tải lên bản thu của chính bạn, tối đa mười giây.",
+      "point2Title": "Nghe trước khi giữ",
+      "point2Body": "Nghe thử bất kỳ tổ hợp câu chữ và giọng đọc nào. Không có gì được lưu cho tới khi bạn quyết định lưu.",
+      "point3Title": "Được render, không phải phủ lên",
+      "point3Body": "FFmpeg lặp voice tag, hạ âm lượng nhạc nền bên dưới rồi xuất ra một bản master MP3 mới. Cấu hình cố định ngay lúc upload nên kết quả luôn tái lập được.",
+      "specTitle": "Tham số trộn",
+      "spec1Label": "Chu kỳ",
+      "spec1Value": "5–600s",
+      "spec1Note": "mặc định 30",
+      "spec2Label": "Âm lượng",
+      "spec2Value": "0–100%",
+      "spec2Note": "mặc định 80",
+      "spec3Label": "Ducking",
+      "spec3Value": "0–100%",
+      "spec3Note": "mặc định 50",
+      "spec4Label": "Điểm bắt đầu",
+      "spec4Value": "0s +",
+      "spec4Note": "lần chèn đầu",
+      "trackLabel": "master.mp3",
+      "trackStatus": "Sẵn sàng",
+      "tagMarker": "TAG"
     },
-    "stats": {
-      "sectionTitle": "Cộng đồng đang phát triển",
-      "producers": "Producers",
-      "beats": "Beat đã upload",
-      "sessions": "Phiên LiveRoom"
+    "liveRoom": {
+      "eyebrow": "Live Room",
+      "title": "Cả phòng trên cùng một ô nhịp.",
+      "lead": "Chủ phòng giữ quyền điều khiển. Play, pause, seek và đổi bài đi qua WebSocket, nên cả phòng nghe một vị trí — không phải năm.",
+      "point1Title": "Có cửa trước khi vào phòng",
+      "point1Body": "Chia sẻ mã 6 ký tự. Yêu cầu vào phòng nằm ở phòng chờ, và không ai vào được cho tới khi bạn duyệt.",
+      "point2Title": "Góp ý ghim đúng giây",
+      "point2Body": "Bình luận gắn vào một vị trí trên timeline và hiện lên khi nhạc chạy tới đó. Không còn “khoảng 1:42 gì đó”.",
+      "point3Title": "Nói chuyện ngay trên nền nhạc",
+      "point3Body": "Thoại và video ngang hàng cho tối đa bảy người, thương lượng qua server và truyền thẳng giữa các trình duyệt.",
+      "roomCodeLabel": "Phòng",
+      "liveLabel": "Đang live",
+      "syncedLabel": "Đã đồng bộ",
+      "listenersLabel": "4 người đang nghe",
+      "commentSample": "chỗ này low end đá nhau với kick",
+      "hostLabel": "Chủ phòng"
+    },
+    "workflow": {
+      "eyebrow": "Cách hoạt động",
+      "title": "Từ upload tới buổi nghe chung, bốn bước.",
+      "step1Title": "Tải lên",
+      "step1Body": "File đi thẳng từ trình duyệt lên kho lưu trữ qua một link ký sẵn có hiệu lực một giờ. Bạn nhìn thanh tiến trình, không phải vòng xoay chờ.",
+      "step1Meta": "MP3 · WAV · FLAC",
+      "step2Title": "Cấu hình",
+      "step2Body": "Chọn voice tag, rồi đặt chu kỳ, âm lượng, ducking và điểm bắt đầu. Khoá lại ngay lúc upload để bản master luôn tái lập được.",
+      "step2Meta": "Bốn tham số",
+      "step3Title": "Render",
+      "step3Body": "Công việc được đẩy vào hàng đợi, một worker nhận và dùng FFmpeg trộn tag vào. Theo dõi từ đang xử lý tới sẵn sàng — lỗi thì chạy lại.",
+      "step3Meta": "Hàng đợi · Đang xử lý · Sẵn sàng",
+      "step4Title": "Cùng nghe",
+      "step4Body": "Mở phòng, gửi mã, duyệt người vào và bấm play. Tất cả nghe cùng một giây.",
+      "step4Meta": "Tối đa 7 người nghe"
+    },
+    "trust": {
+      "eyebrow": "Bên dưới lớp vỏ",
+      "title": "Nhàm chán ở đúng chỗ cần nhàm chán.",
+      "lead": "Những phần không ai đem đi demo, vẫn được làm tử tế.",
+      "item1Title": "Không chia sẻ nhầm",
+      "item1Body": "Mọi storage key đều được đối chiếu với tài khoản sở hữu trước khi đọc hay ghi file.",
+      "item2Title": "Link tự hết hạn",
+      "item2Body": "Phát nhạc chạy trên link ký sẵn có hiệu lực từ một phút tới hai mươi tư giờ, hết hạn là không dùng lại được.",
+      "item3Title": "Phiên đăng nhập trong tầm tay",
+      "item3Body": "Refresh token xoay vòng sau mỗi lần dùng, token thu hồi bị đưa vào blacklist, và bạn có thể tự kết thúc bất kỳ phiên nào đang hoạt động.",
+      "item4Title": "Xoá là xoá thật",
+      "item4Body": "Tài khoản đã đóng được ẩn danh hoá bằng job chạy nền, và xoá một bài hát cũng dọn sạch file của nó trên kho lưu trữ.",
+      "stackLabel": "Xây bằng"
     },
     "cta": {
-      "headline": "Sẵn sàng nâng tầm quy trình làm việc?",
-      "subheadline": "Tham gia thế hệ tiếp theo của các nhà sản xuất âm nhạc.",
-      "getStarted": "Bắt đầu miễn phí",
-      "exploreFeatures": "Khám phá tính năng"
+      "eyebrow": "Bắt đầu",
+      "headline": "Đưa bản demo tiếp theo của bạn vào một căn phòng.",
+      "subheadline": "Tạo tài khoản, tải một bài lên và gửi mã phòng. Mất khoảng một phút.",
+      "getStarted": "Tạo tài khoản",
+      "exploreFeatures": "Xem tính năng",
+      "footnote": "Miễn phí để bắt đầu · Không cần cài gì"
     }
   },
   "auth": {
@@ -545,7 +633,11 @@
         "previewHint": "Tạo bản đọc thử. Không có gì được lưu cho tới khi bạn bấm tạo voice tag.",
         "previewButton": "Nghe thử",
         "previewFailed": "Không tạo được bản nghe thử. Vui lòng thử lại.",
-        "previewRateLimited": "Bạn đã nghe thử quá nhiều lần. Thử lại sau {seconds} giây."
+        "previewRateLimited": "Bạn đã nghe thử quá nhiều lần. Thử lại sau {seconds} giây.",
+        "guideTitle": "Cách tạo Voice Tag",
+        "guideStep1": "Nhập tên và đoạn văn bản bạn muốn AI đọc thành giọng nói.",
+        "guideStep2": "Chọn ngôn ngữ và giọng đọc phù hợp với phong cách của bạn.",
+        "guideStep3": "Nghe thử kết quả, sau đó lưu lại. Voice Tag sẽ sẵn sàng gắn vào bất kỳ bài hát nào."
       },
       "delete": {
         "confirmTitle": "Xóa voice tag?",
@@ -623,6 +715,10 @@
         "timelinePositions": "Vị trí chèn:",
         "duckingStatus": "Nhạc nền giảm xuống {percent}% khi Voice Tag phát",
         "attachVoiceTag": "Gắn kèm Voice Tag ngay khi upload",
+        "attachVoiceTagDesc": "Voice Tag là đoạn âm thanh ngắn (tên thương hiệu, DJ tag, hoặc chữ ký) được hệ thống tự động chèn vào bài hát theo chu kỳ — bảo vệ bản quyền và khẳng định thương hiệu của bạn.",
+        "attachVoiceTagStep1": "Bật tùy chọn phía trên để gắn Voice Tag vào bài hát.",
+        "attachVoiceTagStep2": "Chọn Voice Tag, rồi tinh chỉnh chu kỳ, âm lượng và mức giảm nhạc nền.",
+        "attachVoiceTagStep3": "Bấm Upload — hệ thống sẽ mix và trả về bản hoàn chỉnh.",
         "selectVoiceTag": "Chọn Voice Tag",
         "selectVoiceTagPlaceholder": "Chọn một voice tag...",
         "noVoiceTags": "Chưa có Voice Tag nào. Bạn có thể tạo ở mục Voice Tag.",
@@ -651,6 +747,7 @@
       "retry": "Thử lại",
       "emptyHint": "Tải lên bài hát đầu tiên của bạn để bắt đầu gắn Voice Tag và bảo vệ bản quyền âm nhạc.",
       "detail": {
+        "pageTitle": "Chi tiết bài hát",
         "processingBanner": "Đang ghép Voice Tag vào bài hát. Trang sẽ tự cập nhật khi hoàn tất.",
         "processingTriggered": "Đã đưa bài hát vào hàng đợi xử lý lại",
         "processingCompleted": "Ghép Voice Tag hoàn tất. Bài hát đã sẵn sàng.",
@@ -693,7 +790,11 @@
       "pause": "Tạm dừng",
       "mute": "Tắt tiếng",
       "unmute": "Bật tiếng",
-      "seek": "Tua đến vị trí"
+      "volume": "Âm lượng",
+      "seek": "Tua đến vị trí",
+      "loop": "Lặp lại",
+      "loopOff": "Tắt lặp",
+      "speed": "Tốc độ phát"
     },
     "errors": {
       "fileTooLarge": "File vượt quá giới hạn 100MB",

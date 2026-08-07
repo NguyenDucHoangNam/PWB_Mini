@@ -7,7 +7,7 @@ import { useForm, useWatch, type UseFormRegisterReturn } from "react-hook-form";
 import { standardSchemaResolver as zodResolver } from "@hookform/resolvers/standard-schema";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Info, UploadCloud, FileAudio, Loader2, X } from "lucide-react";
+import { Info, UploadCloud, FileAudio, Loader2, RefreshCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,6 +42,20 @@ interface SongUploadFormProps {
   onSuccess?: () => void;
 }
 
+// A static bar pattern rather than a real waveform: decoding the file just to draw a preview isn't
+// worth it, and this reads as "audio" at a glance without pretending to reflect the actual track.
+const FILE_WAVE_HEIGHTS = [35, 70, 45, 90, 60, 100, 50, 80, 40, 65, 95, 55, 30, 75, 45, 85, 40, 60];
+
+function FileWaveform({ className = "" }: { className?: string }) {
+  return (
+    <div className={`flex items-end gap-0.5 ${className}`} aria-hidden="true">
+      {FILE_WAVE_HEIGHTS.map((h, i) => (
+        <span key={i} className="w-0.5 shrink-0 rounded-full bg-foreground/25" style={{ height: `${h}%` }} />
+      ))}
+    </div>
+  );
+}
+
 function SelectedFileSummary({
   fileName,
   sizeLabel,
@@ -51,24 +65,27 @@ function SelectedFileSummary({
   sizeLabel: string;
   durationSeconds: number;
 }) {
+  const extension = fileName.split(".").pop()?.toUpperCase() ?? "";
   return (
-    <div className="flex min-w-0 items-center gap-3">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+    <div className="flex min-w-0 items-center gap-3.5">
+      <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
         <FileAudio className="size-5" aria-hidden="true" />
       </span>
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <p className="truncate text-sm font-medium text-foreground">{fileName}</p>
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <div className="flex min-w-0 flex-col gap-1">
+        <p className="truncate text-sm font-semibold text-foreground">{fileName}</p>
+        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
           <span>{sizeLabel}</span>
           <span aria-hidden="true">·</span>
-          <span className="uppercase">{fileName.split(".").pop()}</span>
+          <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold tracking-wide text-foreground/70">
+            {extension}
+          </span>
           {durationSeconds > 0 && (
             <>
               <span aria-hidden="true">·</span>
               <span className="tabular-nums">{formatDuration(durationSeconds)}</span>
             </>
           )}
-        </p>
+        </div>
       </div>
     </div>
   );
@@ -464,7 +481,7 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
       // handleSubmit runs inside the event, not during render: the upload path reads xhrRef, and
       // building the handler while rendering made that look like a ref access mid-render.
       onSubmit={(event) => void handleSubmit(submitSong)(event)}
-      className="flex flex-col gap-5"
+      className="flex flex-1 flex-col gap-5"
     >
       <input
         id="song-file"
@@ -476,7 +493,7 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
         disabled={isBusy}
       />
 
-      <div className="grid gap-5 lg:grid-cols-2 lg:gap-6">
+      <div className="grid flex-1 gap-5 lg:grid-cols-2 lg:gap-6">
         <div className="flex flex-col gap-2">
           <Label htmlFor="song-file" className="text-sm font-medium">
             {t("fileLabel")} <span className="text-destructive">*</span>
@@ -501,7 +518,7 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
               <p className="mt-1 text-xs text-muted-foreground">{t("dropzoneHint")}</p>
             </div>
           ) : isBusy ? (
-            <div className="flex flex-1 flex-col gap-3 rounded-xl border border-border bg-muted/50 p-4">
+            <div className="flex flex-1 flex-col gap-4 rounded-2xl border border-border bg-muted/40 p-4 sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <SelectedFileSummary
                   fileName={file.name}
@@ -546,25 +563,29 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
               )}
             </div>
           ) : (
-            <div className="flex flex-1 items-start justify-between gap-3 rounded-xl border border-border bg-muted/50 p-4">
-              <SelectedFileSummary
-                fileName={file.name}
-                sizeLabel={`${fileSizeMB} MB`}
-                durationSeconds={fileDuration}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="shrink-0"
-                onClick={() => {
-                  setFile(null);
-                  setFileDuration(0);
-                  if (fileInputRef.current) fileInputRef.current.value = "";
-                }}
-              >
-                {t("changeFile")}
-              </Button>
+            <div className="group flex flex-1 flex-col justify-center gap-4 rounded-2xl border border-border bg-muted/40 p-4 beat-16th transition-colors ease-hammer hover:bg-muted/60 sm:p-5">
+              <div className="flex items-start justify-between gap-3">
+                <SelectedFileSummary
+                  fileName={file.name}
+                  sizeLabel={`${fileSizeMB} MB`}
+                  durationSeconds={fileDuration}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => {
+                    setFile(null);
+                    setFileDuration(0);
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                >
+                  <RefreshCcw className="mr-1 size-3.5" aria-hidden="true" />
+                  {t("changeFile")}
+                </Button>
+              </div>
+              <FileWaveform className="h-6 w-full opacity-60 beat-16th transition-opacity ease-hammer group-hover:opacity-100" />
             </div>
           )}
         </div>
@@ -600,6 +621,28 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
               />
               <span>{t("attachVoiceTag")}</span>
             </label>
+
+            {!attachVoiceTag && (
+              <div className="flex flex-1 flex-col justify-center gap-4 border-t border-dashed border-border/60 pt-4">
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {t("attachVoiceTagDesc")}
+                </p>
+                <ol className="flex flex-col gap-2 text-xs leading-relaxed text-muted-foreground">
+                  <li className="flex gap-2">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[10px] font-bold text-foreground">1</span>
+                    {t("attachVoiceTagStep1")}
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[10px] font-bold text-foreground">2</span>
+                    {t("attachVoiceTagStep2")}
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[10px] font-bold text-foreground">3</span>
+                    {t("attachVoiceTagStep3")}
+                  </li>
+                </ol>
+              </div>
+            )}
 
             {attachVoiceTag &&
               (voiceTags.length === 0 ? (

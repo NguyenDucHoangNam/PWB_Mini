@@ -47,56 +47,144 @@
   },
   "landing": {
     "hoverHint": "Hover to play notes",
-    "tagline": {
-      "headline": "The all-in-one workspace for music producers",
-      "subheadline": "Manage beats, share demos, and collaborate in real-time — all in one place."
+    "ticker": {
+      "item1": "Voice tag watermark",
+      "item2": "Rendered server-side",
+      "item3": "Synced playback",
+      "item4": "Six-character room codes",
+      "item5": "Waiting room",
+      "item6": "Timestamped notes",
+      "item7": "Peer-to-peer voice",
+      "item8": "Expiring stream links",
+      "item9": "Accent-tolerant search"
     },
-    "features": {
-      "sectionTitle": "Everything you need",
-      "sectionSubtitle": "Built for producers who take their craft seriously.",
-      "playlist": {
-        "title": "Playlist Management",
-        "description": "Upload, organize and manage your beats and demos with metadata, voice tags, and artwork."
+    "problem": {
+      "eyebrow": "The problem",
+      "title": "Sending a demo shouldn't cost you the track.",
+      "lead": "Two things break every remote review: the file leaves your hands, and nobody hears the same second.",
+      "leak": {
+        "label": "Problem 01",
+        "title": "The file walks",
+        "body": "A WAV in an inbox is a WAV on somebody else's drive. Once it has been downloaded there is no version, no owner, and no way back.",
+        "answer": "Every master carries your voice, and every link expires."
       },
-      "voiceTags": {
-        "title": "Voice Tags",
-        "description": "Create and attach your unique producer tag to every beat — build your brand identity."
-      },
-      "liveroom": {
-        "title": "LiveRoom",
-        "description": "Real-time listening room — share demos live with partners, artists and collaborators."
+      "drift": {
+        "label": "Problem 02",
+        "title": "The room drifts",
+        "body": "One person pauses, another seeks, a third hears the drop four seconds late. Notes stop being about the music and start being about timecode.",
+        "answer": "One playhead, one position, broadcast to the whole room."
       }
     },
-    "demo": {
-      "sectionTitle": "See it in action",
-      "step1Label": "Upload",
-      "step1Description": "Drop your beats into the Playlist",
-      "step2Label": "Tag",
-      "step2Description": "Attach your voice tag & metadata",
-      "step3Label": "Share",
-      "step3Description": "Open a LiveRoom & invite collaborators"
+    "pillars": {
+      "eyebrow": "What's inside",
+      "title": "Three modules, one workbench.",
+      "lead": "A library that holds the work, a tag that signs it, and a room to play it in.",
+      "library": {
+        "index": "01",
+        "title": "Library",
+        "description": "Upload MP3, WAV or FLAC straight to storage and keep every take in one place.",
+        "fact1": "Up to 200 MB per track",
+        "fact2": "Direct upload, live progress",
+        "fact3": "Typo- and accent-tolerant search"
+      },
+      "voiceTag": {
+        "index": "02",
+        "title": "Voice Tag",
+        "description": "Write it or record it, then bake it into the master on a loop you control.",
+        "fact1": "Text-to-speech in three locales",
+        "fact2": "Or upload your own, up to 10s",
+        "fact3": "Preview before you commit"
+      },
+      "liveRoom": {
+        "index": "03",
+        "title": "Live Room",
+        "description": "Share a six-character code and listen together, in step, with voice on top.",
+        "fact1": "Play, pause and seek stay in sync",
+        "fact2": "Approve who gets in",
+        "fact3": "Up to 7 people per room"
+      }
     },
-    "howItWorks": {
-      "sectionTitle": "How it works",
-      "sectionSubtitle": "Three steps to streamline your production workflow.",
-      "step1Title": "Sign Up",
-      "step1Description": "Create your free account in seconds.",
-      "step2Title": "Upload",
-      "step2Description": "Add your beats, demos and voice tags to your personal workspace.",
-      "step3Title": "Collaborate",
-      "step3Description": "Open a LiveRoom and invite your team to listen in real-time."
+    "voiceTag": {
+      "eyebrow": "Voice Tag",
+      "title": "Your name, every thirty seconds.",
+      "lead": "The tag is mixed into the master on the server, not layered on in the player — so what leaves the platform is already signed.",
+      "point1Title": "Write it or record it",
+      "point1Body": "Wavenet and Neural2 voices in Vietnamese, US English and UK English, male or female. Or upload a take of your own, up to ten seconds.",
+      "point2Title": "Hear it before you keep it",
+      "point2Body": "Preview any wording and voice together. Nothing is stored until you decide to save it.",
+      "point3Title": "Rendered, not overlaid",
+      "point3Body": "FFmpeg loops the tag, ducks the music underneath it and exports a new MP3 master. The settings are fixed at upload, so the result is reproducible.",
+      "specTitle": "Mix parameters",
+      "spec1Label": "Interval",
+      "spec1Value": "5–600s",
+      "spec1Note": "default 30",
+      "spec2Label": "Volume",
+      "spec2Value": "0–100%",
+      "spec2Note": "default 80",
+      "spec3Label": "Ducking",
+      "spec3Value": "0–100%",
+      "spec3Note": "default 50",
+      "spec4Label": "Start offset",
+      "spec4Value": "0s +",
+      "spec4Note": "first hit",
+      "trackLabel": "master.mp3",
+      "trackStatus": "Ready",
+      "tagMarker": "TAG"
     },
-    "stats": {
-      "sectionTitle": "Growing community",
-      "producers": "Producers",
-      "beats": "Beats Uploaded",
-      "sessions": "LiveRoom Sessions"
+    "liveRoom": {
+      "eyebrow": "Live Room",
+      "title": "Everyone on the same bar.",
+      "lead": "The host holds the transport. Play, pause, seek and track changes go out over WebSocket, so the room hears one position — not five.",
+      "point1Title": "A door before the room",
+      "point1Body": "Share a six-character code. Requests land in a waiting room, and nobody is inside until you let them in.",
+      "point2Title": "Notes pinned to the second",
+      "point2Body": "Comments attach to a position on the timeline and surface as playback reaches them. No more “around 1:42, I think”.",
+      "point3Title": "Talk over it",
+      "point3Body": "Peer-to-peer voice and video for up to seven people, negotiated through the server and carried directly between browsers.",
+      "roomCodeLabel": "Room",
+      "liveLabel": "Live",
+      "syncedLabel": "In sync",
+      "listenersLabel": "4 listening",
+      "commentSample": "the low end fights the kick here",
+      "hostLabel": "Host"
+    },
+    "workflow": {
+      "eyebrow": "How it works",
+      "title": "From upload to listening party in four moves.",
+      "step1Title": "Upload",
+      "step1Body": "The file goes straight from your browser to storage over a signed, one-hour link. You watch a progress bar, not a spinner.",
+      "step1Meta": "MP3 · WAV · FLAC",
+      "step2Title": "Configure",
+      "step2Body": "Pick a voice tag, then set the interval, volume, ducking and start offset. Locked in at upload so the master stays reproducible.",
+      "step2Meta": "Four parameters",
+      "step3Title": "Render",
+      "step3Body": "The job is queued and picked up by a worker that mixes the tag in with FFmpeg. Follow it from processing to ready — and retry if it fails.",
+      "step3Meta": "Queued · Processing · Ready",
+      "step4Title": "Play it together",
+      "step4Body": "Open a room, send the code, approve who joins and press play. Everyone hears the same second.",
+      "step4Meta": "Up to 7 listeners"
+    },
+    "trust": {
+      "eyebrow": "Under the hood",
+      "title": "Boring where it matters.",
+      "lead": "The parts nobody puts in a demo, built anyway.",
+      "item1Title": "Nothing shared by accident",
+      "item1Body": "Every storage key is checked against the account that owns it before a file is read or written.",
+      "item2Title": "Links that expire",
+      "item2Body": "Playback runs on signed URLs valid from one minute to twenty-four hours, and they cannot be reused after that.",
+      "item3Title": "Sessions you control",
+      "item3Body": "Refresh tokens rotate on every use, revoked ones are blacklisted, and you can end any active session yourself.",
+      "item4Title": "Deletion that means it",
+      "item4Body": "Closed accounts are anonymised by a scheduled job, and deleting a track clears its files from storage too.",
+      "stackLabel": "Built with"
     },
     "cta": {
-      "headline": "Ready to level up your workflow?",
-      "subheadline": "Join the next generation of music producers.",
-      "getStarted": "Get Started Free",
-      "exploreFeatures": "Explore Features"
+      "eyebrow": "Get started",
+      "headline": "Put your next demo in a room.",
+      "subheadline": "Create an account, upload a track and share the code. It takes about a minute.",
+      "getStarted": "Create an account",
+      "exploreFeatures": "See the features",
+      "footnote": "Free to start · Nothing to install"
     }
   },
   "auth": {
@@ -545,7 +633,11 @@
         "previewHint": "Synthesises a sample. Nothing is saved until you create the voice tag.",
         "previewButton": "Preview",
         "previewFailed": "Could not generate the preview. Please try again.",
-        "previewRateLimited": "Too many previews. Try again in {seconds} seconds."
+        "previewRateLimited": "Too many previews. Try again in {seconds} seconds.",
+        "guideTitle": "How to create a Voice Tag",
+        "guideStep1": "Enter a name and the text you want the AI to read aloud.",
+        "guideStep2": "Choose the language and voice style that suits your brand.",
+        "guideStep3": "Preview the result, then save. Your Voice Tag will be ready to attach to any song."
       },
       "delete": {
         "confirmTitle": "Delete voice tag?",
@@ -623,6 +715,10 @@
         "timelinePositions": "Insertion times:",
         "duckingStatus": "Background music dims to {percent}% when Voice Tag speaks",
         "attachVoiceTag": "Attach Voice Tag during upload",
+        "attachVoiceTagDesc": "A Voice Tag is a short audio clip (your brand name, DJ tag, or signature) that the system automatically overlays onto your music at regular intervals — protecting your work and reinforcing your identity.",
+        "attachVoiceTagStep1": "Check the box above to enable Voice Tag embedding.",
+        "attachVoiceTagStep2": "Pick one of your Voice Tags, then fine-tune interval, volume, and ducking.",
+        "attachVoiceTagStep3": "Upload — the server mixes everything and delivers the final track.",
         "selectVoiceTag": "Select Voice Tag",
         "selectVoiceTagPlaceholder": "Select a voice tag...",
         "noVoiceTags": "No Voice Tags available. You can create one under Voice Tags tab.",
@@ -651,6 +747,7 @@
       "retry": "Retry",
       "emptyHint": "Upload your first song to start adding Voice Tags and protect your music copyright.",
       "detail": {
+        "pageTitle": "Song Detail",
         "processingBanner": "Merging the voice tag into this song. The page updates itself once it finishes.",
         "processingTriggered": "The song has been queued for reprocessing",
         "processingCompleted": "Voice tag merged. The song is ready.",
@@ -693,7 +790,11 @@
       "pause": "Pause",
       "mute": "Mute",
       "unmute": "Unmute",
-      "seek": "Seek position"
+      "volume": "Volume",
+      "seek": "Seek position",
+      "loop": "Loop",
+      "loopOff": "Loop off",
+      "speed": "Playback speed"
     },
     "errors": {
       "fileTooLarge": "File exceeds 100MB limit",

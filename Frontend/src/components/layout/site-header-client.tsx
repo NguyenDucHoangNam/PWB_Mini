@@ -178,7 +178,7 @@ export function SiteHeaderClient() {
             onClick={() => setIsOpen(true)}
             type="button"
             aria-label="Open menu"
-            className="flex size-11 items-center justify-center rounded-lg border border-transparent text-neutral-500 hover:bg-neutral-100 hover:text-black xl:hidden dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
+            className="key-press flex size-11 items-center justify-center rounded-lg border border-transparent text-neutral-500 hover:bg-neutral-100 hover:text-black xl:hidden dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
           >
             <svg
               className="size-6"
@@ -237,11 +237,18 @@ export function SiteHeaderClient() {
   );
 }
 
+const PLAYLIST_PREFIXES = ["/dashboard/songs", "/dashboard/voice-tags"];
+
 function DesktopNav({ items, pathname }: { items: NavItem[]; pathname: string }) {
   return (
     <>
       {items.map((item) => {
-        const isActive = pathname === item.href;
+        const isPlaylistLink = PLAYLIST_PREFIXES.some((p) => item.href.startsWith(p));
+        const isActive = isPlaylistLink
+          ? PLAYLIST_PREFIXES.some((p) => pathname.startsWith(p))
+          : item.href === "/"
+            ? pathname === "/"
+            : pathname.startsWith(item.href);
         return (
           <Link
             key={item.href}

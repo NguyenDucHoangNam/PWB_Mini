@@ -1,67 +1,79 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { Eyebrow, Reveal } from "./section-primitives";
+
+const WHITE_KEY_COUNT = 21;
+/* Positions of the black keys inside each group of seven white keys. */
+const BLACK_KEY_SLOTS = [0, 1, 3, 4, 5];
+
+const FADE_UP_MASK = "linear-gradient(to top, black 35%, transparent)";
 
 export function SectionCta() {
   const t = useTranslations("landing.cta");
 
   return (
-    <section className="relative w-full overflow-hidden bg-neutral-50 px-4 py-24 sm:px-6 sm:py-32 md:px-8 dark:bg-neutral-950">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-1/2 h-[400px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-neutral-200/40 blur-[100px] dark:bg-neutral-800/20" />
-      </div>
+    <section className="relative w-full overflow-hidden bg-background px-5 pt-24 pb-44 sm:px-8 sm:pt-28 sm:pb-52 md:pt-32">
+      <Reveal className="relative z-10 mx-auto flex max-w-2xl flex-col items-center text-center">
+        <Eyebrow>{t("eyebrow")}</Eyebrow>
 
-      <div className="relative z-10 mx-auto max-w-2xl text-center">
-        <motion.h2
-          className="text-3xl font-bold tracking-tight text-black sm:text-4xl md:text-5xl dark:text-white"
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.7, ease: "easeOut" }}
-        >
+        <h2 className="mt-5 text-balance font-heading text-3xl font-semibold tracking-tight text-foreground sm:text-4xl md:text-5xl">
           {t("headline")}
-        </motion.h2>
-
-        <motion.p
-          className="mt-4 text-base text-neutral-500 sm:text-lg dark:text-neutral-400"
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.7, delay: 0.1, ease: "easeOut" }}
-        >
+        </h2>
+        <p className="mt-5 text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
           {t("subheadline")}
-        </motion.p>
+        </p>
 
-        <motion.div
-          className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-60px" }}
-          transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
-        >
-          <Link href="/register">
-            <Button
-              variant="default"
-              size="lg"
-              className="min-w-[200px] text-sm font-semibold sm:min-w-[180px]"
-            >
-              {t("getStarted")}
-            </Button>
-          </Link>
-          <Link href="/features">
-            <Button
-              variant="outline"
-              size="lg"
-              className="min-w-[200px] text-sm font-semibold sm:min-w-[180px]"
-            >
-              {t("exploreFeatures")}
-            </Button>
-          </Link>
-        </motion.div>
-      </div>
+        <div className="mt-10 flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row sm:gap-4">
+          <Button
+            render={<Link href="/register" />}
+            nativeButton={false}
+            size="lg"
+            className="h-11 w-full rounded-xl px-6 text-sm font-semibold sm:w-auto sm:min-w-[190px]"
+          >
+            {t("getStarted")}
+          </Button>
+          <Button
+            render={<Link href="/features" />}
+            variant="outline"
+            nativeButton={false}
+            size="lg"
+            className="h-11 w-full rounded-xl px-6 text-sm font-semibold sm:w-auto sm:min-w-[190px]"
+          >
+            {t("exploreFeatures")}
+          </Button>
+        </div>
+
+        <p className="mt-8 font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
+          {t("footnote")}
+        </p>
+      </Reveal>
+
+      <KeyboardFooter />
     </section>
+  );
+}
+
+/* Closing bookend to the hero keyboard: a silhouette of keys rising out of the bottom edge. */
+function KeyboardFooter() {
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-x-0 bottom-0 h-32 select-none sm:h-36"
+      style={{ maskImage: FADE_UP_MASK, WebkitMaskImage: FADE_UP_MASK }}
+    >
+      <div className="flex h-full w-full items-stretch opacity-70">
+        {Array.from({ length: WHITE_KEY_COUNT }, (_, index) => (
+          <div key={index} className="relative flex-1">
+            <div className="key-white h-full w-full" />
+            {BLACK_KEY_SLOTS.includes(index % 7) && (
+              <div className="key-black absolute right-0 top-0 z-10 h-3/5 w-3/5 translate-x-1/2" />
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

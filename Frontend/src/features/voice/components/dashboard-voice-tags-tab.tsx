@@ -97,8 +97,8 @@ export function DashboardVoiceTagsTab() {
   const rangeTo = Math.min(rangeFrom + items.length - 1, totalElements);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-1 flex-col gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="sm:max-w-sm sm:flex-1">
           <SearchInput
             value={keyword}
@@ -110,12 +110,22 @@ export function DashboardVoiceTagsTab() {
             className="h-11 sm:h-9"
           />
         </div>
-        {totalElements > 0 && (
-          <p className="hidden text-xs text-muted-foreground sm:block">
-            {tList("voiceTagCount", { count: totalElements })}
-          </p>
-        )}
+
+        <div className="flex items-center gap-3 sm:ml-auto">
+          {totalElements > 0 && (
+            <p className="hidden text-xs text-muted-foreground sm:block">
+              {tList("voiceTagCount", { count: totalElements })}
+            </p>
+          )}
+          <Link href="/dashboard/voice-tags/new" className="shrink-0">
+            <Button size="lg" className="h-11 gap-2 font-semibold sm:h-9">
+              <Plus className="size-4" aria-hidden="true" />
+              {tActions("create")}
+            </Button>
+          </Link>
+        </div>
       </div>
+
 
       {isLoading ? (
         <LibraryCardsSkeleton />

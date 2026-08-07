@@ -117,7 +117,7 @@ export function CreateRoomForm() {
               onClick={() =>
                 setValue("maxParticipants", option, { shouldValidate: true })
               }
-              className={`size-9 rounded-lg border font-mono text-sm font-bold transition-all active:translate-y-[1px] ${
+              className={`key-press size-9 rounded-lg border font-mono text-sm font-bold ${
                 capacity === option
                   ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black shadow-xs"
                   : "border-neutral-300 bg-white text-neutral-800 hover:border-black dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:border-white"
@@ -146,7 +146,7 @@ export function CreateRoomForm() {
               onClick={() =>
                 setValue("ownerGraceSeconds", preset, { shouldValidate: true })
               }
-              className={`h-9 rounded-lg border px-3 font-mono text-xs font-bold transition-all active:translate-y-[1px] ${
+              className={`key-press h-9 rounded-lg border px-3 font-mono text-xs font-bold ${
                 grace === preset
                   ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black shadow-xs"
                   : "border-neutral-300 bg-white text-neutral-800 hover:border-black dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:border-white"
@@ -184,7 +184,7 @@ export function CreateRoomForm() {
         </Button>
         <Button
           type="submit"
-          className="h-10 min-h-[44px] sm:min-h-0 bg-black font-semibold text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 active:translate-y-[1px] transition-all"
+          className="h-10 min-h-[44px] sm:min-h-0 bg-black font-semibold text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
           disabled={isPending}
         >
           {isPending ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}

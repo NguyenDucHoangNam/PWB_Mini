@@ -11,20 +11,17 @@ export default function JoinLiveroomPage() {
 
   return (
     <div className="flex flex-col gap-6 font-sans">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+          {t("title")}
+        </h1>
         <Link
           href="/dashboard/liveroom"
-          aria-label={tActions("back")}
-          className="flex size-9 min-h-[44px] sm:min-h-0 items-center justify-center rounded-lg border border-neutral-300 bg-neutral-100 hover:bg-neutral-200 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-800 transition-all active:translate-y-[1px]"
+          className="key-press flex shrink-0 items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground beat-16th transition-colors ease-hammer hover:bg-muted hover:text-foreground"
         >
-          <ArrowLeft className="size-4 text-neutral-800 dark:text-neutral-200" />
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          {tActions("back")}
         </Link>
-        <div className="flex items-center gap-2">
-          <span className="h-5 w-1 rounded-full bg-black dark:bg-white" aria-hidden="true" />
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
-            {t("title")}
-          </h1>
-        </div>
       </div>
       <div className="mx-auto w-full max-w-md rounded-xl border border-neutral-200 border-t-4 border-t-black bg-white p-6 dark:border-neutral-800 dark:border-t-white dark:bg-black shadow-xs">
         <RoomCodeForm />

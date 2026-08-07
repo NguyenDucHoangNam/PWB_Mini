@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, Repeat, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { usePresignedUrl } from "../hooks/use-presigned-url";
@@ -13,18 +13,20 @@ interface AudioPlayerProps {
   songId: string;
 }
 
-const WAVEFORM_BARS = 100;
-const MOBILE_WAVEFORM_BARS = 48;
 const MOBILE_BREAKPOINT_PX = 640;
 const SEEK_STEP_PERCENT = 5;
-const WAVEFORM_HEIGHT_PX = 64;
-const WAVEFORM_MIN_BAR_PX = 3;
+const DESKTOP_BARS = 80;
+const MOBILE_BARS = 40;
+const CREST_PX = 120;
+const REFLECTION_PX = 36;
+const MOBILE_CREST_PX = 80;
+const MOBILE_REFLECTION_PX = 24;
+const MIN_BAR_PX = 2;
+const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 
-// Deterministic stand-in for random skeleton bar heights. Keeping this pure means the
-// placeholder holds still across re-renders instead of reshuffling on every paint.
-function skeletonBarHeight(index: number): number {
+function skeletonBarHeight(index: number, maxPx: number): number {
   const noise = Math.abs((Math.sin((index + 1) * 12.9898) * 43758.5453) % 1);
-  return Math.max(WAVEFORM_MIN_BAR_PX, Math.round((0.2 + noise * 0.5) * WAVEFORM_HEIGHT_PX));
+  return Math.max(MIN_BAR_PX, Math.round((0.25 + noise * 0.55) * maxPx));
 }
 
 function extractWaveformData(audioBuffer: AudioBuffer, barCount: number): number[] {
@@ -33,16 +35,19 @@ function extractWaveformData(audioBuffer: AudioBuffer, barCount: number): number
   const bars: number[] = [];
 
   for (let i = 0; i < barCount; i++) {
+    let peak = 0;
     let sum = 0;
     const start = i * samplesPerBar;
     for (let j = start; j < start + samplesPerBar && j < rawData.length; j++) {
-      sum += Math.abs(rawData[j]);
+      const amplitude = Math.abs(rawData[j]);
+      sum += amplitude;
+      if (amplitude > peak) peak = amplitude;
     }
-    bars.push(sum / samplesPerBar);
+    bars.push(0.6 * (sum / samplesPerBar) + 0.4 * peak);
   }
 
   const maxVal = Math.max(...bars, 0.01);
-  return bars.map((v) => v / maxVal);
+  return bars.map((value) => Math.pow(value / maxVal, 0.85));
 }
 
 function resampleBars(bars: number[], targetCount: number): number[] {
@@ -52,45 +57,67 @@ function resampleBars(bars: number[], targetCount: number): number[] {
   return Array.from({ length: targetCount }, (_, i) => {
     const start = Math.floor(i * groupSize);
     const end = Math.min(Math.floor((i + 1) * groupSize), bars.length);
-    let sum = 0;
-    for (let j = start; j < end; j++) sum += bars[j];
-    return sum / Math.max(end - start, 1);
+    let peak = 0;
+    for (let j = start; j < end; j++) peak = Math.max(peak, bars[j]);
+    return peak;
   });
 }
 
-/** Fewer, wider bars on a phone: 100 bars across a 320px column renders as unreadable hairlines. */
-function useWaveformBarCount(): number {
-  const [barCount, setBarCount] = useState(WAVEFORM_BARS);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX - 1}px)`);
-    const sync = () => setBarCount(mediaQuery.matches ? MOBILE_WAVEFORM_BARS : WAVEFORM_BARS);
-
-    sync();
-    mediaQuery.addEventListener("change", sync);
-    return () => mediaQuery.removeEventListener("change", sync);
-  }, []);
-
-  return barCount;
+interface WaveformDimensions {
+  bars: number;
+  crestPx: number;
+  reflectionPx: number;
 }
 
-function WaveformBars({
+function useWaveformDimensions(): WaveformDimensions {
+  const [dims, setDims] = useState<WaveformDimensions>({
+    bars: DESKTOP_BARS,
+    crestPx: CREST_PX,
+    reflectionPx: REFLECTION_PX,
+  });
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX - 1}px)`);
+    const sync = () =>
+      setDims(
+        mq.matches
+          ? { bars: MOBILE_BARS, crestPx: MOBILE_CREST_PX, reflectionPx: MOBILE_REFLECTION_PX }
+          : { bars: DESKTOP_BARS, crestPx: CREST_PX, reflectionPx: REFLECTION_PX },
+      );
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  return dims;
+}
+
+function barTone(index: number, playedBars: number, hoveredBars: number): string {
+  if (index < playedBars) return "bg-foreground";
+  if (index < hoveredBars) return "bg-muted-foreground/50";
+  return "bg-muted-foreground/20";
+}
+
+function Waveform({
   bars,
+  dims,
   progressPercent,
   onSeek,
   label,
 }: {
   bars: number[];
+  dims: WaveformDimensions;
   progressPercent: number;
   onSeek: (percent: number) => void;
   label: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [hoverPercent, setHoverPercent] = useState<number | null>(null);
 
-  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    onSeek(((e.clientX - rect.left) / rect.width) * 100);
+  const percentFromClientX = (clientX: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0) return 0;
+    return Math.min(Math.max(((clientX - rect.left) / rect.width) * 100, 0), 100);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -103,13 +130,28 @@ function WaveformBars({
     }
   };
 
-  const playedBars = Math.floor((progressPercent / 100) * bars.length);
+  const playedBars = (progressPercent / 100) * bars.length;
+  const hoveredBars = hoverPercent === null ? 0 : (hoverPercent / 100) * bars.length;
+
+  const renderBars = (maxPx: number, alignClass: string) => (
+    <div className={`flex gap-[3px] ${alignClass}`} style={{ height: `${maxPx}px` }}>
+      {bars.map((height, i) => (
+        <div
+          key={i}
+          className={`min-w-[3px] flex-1 rounded-[2px] beat-16th transition-colors ease-hammer ${barTone(i, playedBars, hoveredBars)}`}
+          style={{ height: `${Math.max(MIN_BAR_PX, Math.round(height * maxPx))}px` }}
+        />
+      ))}
+    </div>
+  );
 
   return (
     <div
       ref={containerRef}
-      className="flex h-12 cursor-pointer items-end gap-px rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:h-16 sm:gap-0.5"
-      onClick={handleClick}
+      className="relative w-full cursor-pointer select-none rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+      onClick={(e) => onSeek(percentFromClientX(e.clientX))}
+      onMouseMove={(e) => setHoverPercent(percentFromClientX(e.clientX))}
+      onMouseLeave={() => setHoverPercent(null)}
       onKeyDown={handleKeyDown}
       role="slider"
       aria-label={label}
@@ -118,31 +160,86 @@ function WaveformBars({
       aria-valuenow={Math.round(progressPercent)}
       tabIndex={0}
     >
-      {bars.map((height, i) => (
+      {renderBars(dims.crestPx, "items-end")}
+      <div className="mt-px opacity-40">
+        {renderBars(dims.reflectionPx, "items-start")}
+      </div>
+
+      {hoverPercent !== null && (
         <div
-          key={i}
-          className={`flex-1 rounded-full beat-16th transition-colors ease-hammer ${
-            i < playedBars ? "bg-primary" : "bg-border"
-          }`}
-          style={{
-            height: `${Math.max(WAVEFORM_MIN_BAR_PX, Math.round(height * WAVEFORM_HEIGHT_PX))}px`,
-          }}
+          className="pointer-events-none absolute inset-y-0 w-px bg-foreground/30"
+          style={{ left: `${hoverPercent}%` }}
+          aria-hidden="true"
         />
-      ))}
+      )}
     </div>
   );
 }
 
-function WaveformSkeleton({ barCount }: { barCount: number }) {
+function WaveformSkeleton({ dims }: { dims: WaveformDimensions }) {
+  const bars = Array.from({ length: dims.bars });
+
   return (
-    <div className="flex h-12 items-end gap-px sm:h-16 sm:gap-0.5" aria-hidden="true">
-      {Array.from({ length: barCount }).map((_, i) => (
+    <div className="w-full" aria-hidden="true">
+      <div className="flex items-end gap-[3px]" style={{ height: `${dims.crestPx}px` }}>
+        {bars.map((_, i) => (
+          <div
+            key={i}
+            className="min-w-[3px] flex-1 animate-pulse rounded-[2px] bg-muted"
+            style={{
+              height: `${skeletonBarHeight(i, dims.crestPx)}px`,
+              animationDelay: `${i * 15}ms`,
+            }}
+          />
+        ))}
+      </div>
+      <div className="mt-px flex items-start gap-[3px] opacity-40" style={{ height: `${dims.reflectionPx}px` }}>
+        {bars.map((_, i) => (
+          <div
+            key={i}
+            className="min-w-[3px] flex-1 animate-pulse rounded-[2px] bg-muted"
+            style={{
+              height: `${skeletonBarHeight(i, dims.reflectionPx)}px`,
+              animationDelay: `${i * 15}ms`,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SeekBar({
+  progressPercent,
+  currentLabel,
+  durationLabel,
+  onSeek,
+}: {
+  progressPercent: number;
+  currentLabel: string;
+  durationLabel: string;
+  onSeek: (percent: number) => void;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="shrink-0 text-xs tabular-nums text-foreground">{currentLabel}</span>
+      <div
+        className="group/track relative h-6 flex-1 cursor-pointer"
+        onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          onSeek(((e.clientX - rect.left) / rect.width) * 100);
+        }}
+      >
+        <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full bg-muted-foreground/20">
+          <div className="h-full rounded-full bg-foreground" style={{ width: `${progressPercent}%` }} />
+        </div>
         <div
-          key={i}
-          className="flex-1 animate-pulse rounded-full bg-muted"
-          style={{ height: `${skeletonBarHeight(i)}px`, animationDelay: `${i * 15}ms` }}
+          className="absolute top-1/2 size-3 -translate-y-1/2 rounded-full bg-foreground opacity-0 shadow-sm beat-16th transition-opacity ease-hammer group-hover/track:opacity-100"
+          style={{ left: `calc(${progressPercent}% - 0.375rem)` }}
+          aria-hidden="true"
         />
-      ))}
+      </div>
+      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{durationLabel}</span>
     </div>
   );
 }
@@ -155,9 +252,12 @@ function SongCustomPlayer({ url }: { url: string }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
+  const [volume, setVolume] = useState(1);
+  const [isLooping, setIsLooping] = useState(false);
+  const [speedIndex, setSpeedIndex] = useState(2);
   const [waveform, setWaveform] = useState<number[]>([]);
   const [waveformLoading, setWaveformLoading] = useState(true);
-  const barCount = useWaveformBarCount();
+  const dims = useWaveformDimensions();
 
   useEffect(() => {
     let cancelled = false;
@@ -169,13 +269,13 @@ function SongCustomPlayer({ url }: { url: string }) {
         const arrayBuffer = await response.arrayBuffer();
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
         if (!cancelled) {
-          setWaveform(extractWaveformData(audioBuffer, WAVEFORM_BARS));
+          setWaveform(extractWaveformData(audioBuffer, DESKTOP_BARS));
           setWaveformLoading(false);
         }
         await audioContext.close();
       } catch {
         if (!cancelled) {
-          const fallback = Array.from({ length: WAVEFORM_BARS }, () => 0.2 + Math.random() * 0.8);
+          const fallback = Array.from({ length: DESKTOP_BARS }, () => 0.2 + Math.random() * 0.8);
           setWaveform(fallback);
           setWaveformLoading(false);
         }
@@ -188,7 +288,7 @@ function SongCustomPlayer({ url }: { url: string }) {
     };
   }, [url]);
 
-  const visibleBars = useMemo(() => resampleBars(waveform, barCount), [waveform, barCount]);
+  const visibleBars = useMemo(() => resampleBars(waveform, dims.bars), [waveform, dims.bars]);
 
   const togglePlay = () => {
     if (!audioRef.current) return;
@@ -205,6 +305,28 @@ function SongCustomPlayer({ url }: { url: string }) {
     setIsMuted(!isMuted);
   };
 
+  const toggleLoop = () => {
+    if (!audioRef.current) return;
+    const next = !isLooping;
+    audioRef.current.loop = next;
+    setIsLooping(next);
+  };
+
+  const cycleSpeed = () => {
+    if (!audioRef.current) return;
+    const next = (speedIndex + 1) % PLAYBACK_SPEEDS.length;
+    audioRef.current.playbackRate = PLAYBACK_SPEEDS[next];
+    setSpeedIndex(next);
+  };
+
+  const handleVolumeChange = (value: number) => {
+    if (!audioRef.current) return;
+    audioRef.current.volume = value;
+    audioRef.current.muted = value === 0;
+    setVolume(value);
+    setIsMuted(value === 0);
+  };
+
   const handleSeek = useCallback(
     (percent: number) => {
       if (!audioRef.current || !duration) return;
@@ -216,9 +338,10 @@ function SongCustomPlayer({ url }: { url: string }) {
   );
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const currentSpeed = PLAYBACK_SPEEDS[speedIndex];
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex w-full flex-col gap-4">
       <audio
         ref={audioRef}
         src={url}
@@ -234,68 +357,90 @@ function SongCustomPlayer({ url }: { url: string }) {
       />
 
       {waveformLoading ? (
-        <WaveformSkeleton barCount={barCount} />
+        <WaveformSkeleton dims={dims} />
       ) : (
-        <WaveformBars
+        <Waveform
           bars={visibleBars}
+          dims={dims}
           progressPercent={progressPercent}
           onSeek={handleSeek}
           label={tPlayer("seek")}
         />
       )}
 
-      <div className="flex items-center gap-3 sm:gap-4">
-        <Button
-          size="icon"
-          className="size-11 shrink-0 rounded-full sm:size-10"
-          onClick={togglePlay}
-          aria-label={isPlaying ? tPlayer("pause") : tActions("play")}
-        >
-          {isPlaying ? (
-            <Pause className="size-4 fill-current" aria-hidden="true" />
-          ) : (
-            <Play className="ml-0.5 size-4 fill-current" aria-hidden="true" />
-          )}
-        </Button>
+      <div className="flex flex-col gap-2">
+        <SeekBar
+          progressPercent={progressPercent}
+          currentLabel={formatDuration(currentTime)}
+          durationLabel={formatDuration(duration)}
+          onSeek={handleSeek}
+        />
 
-        <span className="shrink-0 text-xs tabular-nums text-foreground">
-          {formatDuration(currentTime)}
-        </span>
-
-        <div
-          className="group/track relative h-6 flex-1 cursor-pointer"
-          onClick={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            handleSeek(((e.clientX - rect.left) / rect.width) * 100);
-          }}
-        >
-          <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full bg-border">
-            <div className="h-full rounded-full bg-primary" style={{ width: `${progressPercent}%` }} />
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1">
+            <Button
+              size="icon"
+              className="size-10 rounded-full sm:size-9"
+              onClick={togglePlay}
+              aria-label={isPlaying ? tPlayer("pause") : tActions("play")}
+            >
+              {isPlaying ? (
+                <Pause className="size-4 fill-current" aria-hidden="true" />
+              ) : (
+                <Play className="ml-0.5 size-4 fill-current" aria-hidden="true" />
+              )}
+            </Button>
           </div>
-          <div
-            className="absolute top-1/2 size-3 -translate-y-1/2 rounded-full bg-primary opacity-0 shadow-sm beat-16th transition-opacity ease-hammer group-hover/track:opacity-100"
-            style={{ left: `calc(${progressPercent}% - 0.375rem)` }}
-            aria-hidden="true"
-          />
+
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`size-9 shrink-0 sm:size-8 ${isLooping ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              onClick={toggleLoop}
+              aria-label={isLooping ? tPlayer("loopOff") : tPlayer("loop")}
+              aria-pressed={isLooping}
+            >
+              <Repeat className="size-4" aria-hidden="true" />
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`h-8 gap-1.5 px-2 text-xs tabular-nums ${currentSpeed !== 1 ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              onClick={cycleSpeed}
+              aria-label={tPlayer("speed")}
+            >
+              <Gauge className="size-3.5" aria-hidden="true" />
+              {currentSpeed}x
+            </Button>
+
+            <div className="flex shrink-0 items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-9 shrink-0 text-muted-foreground hover:text-foreground sm:size-8"
+                onClick={toggleMute}
+                aria-label={isMuted ? tPlayer("unmute") : tPlayer("mute")}
+              >
+                {isMuted ? (
+                  <VolumeX className="size-4" aria-hidden="true" />
+                ) : (
+                  <Volume2 className="size-4" aria-hidden="true" />
+                )}
+              </Button>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={Math.round((isMuted ? 0 : volume) * 100)}
+                onChange={(e) => handleVolumeChange(Number(e.target.value) / 100)}
+                aria-label={tPlayer("volume")}
+                className="hidden h-1 w-16 cursor-pointer appearance-none rounded-full bg-muted-foreground/20 accent-foreground outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring sm:block [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-foreground [&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-foreground"
+              />
+            </div>
+          </div>
         </div>
-
-        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-          {formatDuration(duration)}
-        </span>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-9 shrink-0 text-muted-foreground hover:text-foreground sm:size-8"
-          onClick={toggleMute}
-          aria-label={isMuted ? tPlayer("unmute") : tPlayer("mute")}
-        >
-          {isMuted ? (
-            <VolumeX className="size-4" aria-hidden="true" />
-          ) : (
-            <Volume2 className="size-4" aria-hidden="true" />
-          )}
-        </Button>
       </div>
     </div>
   );
@@ -312,7 +457,7 @@ export function AudioPlayer({ songId }: AudioPlayerProps) {
 
   if (query.isLoading) {
     return (
-      <div role="status" className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+      <div role="status" className="flex min-h-[7rem] items-center justify-center gap-2 text-sm text-muted-foreground">
         <Spinner size="sm" />
         {t("songLabel")}
       </div>

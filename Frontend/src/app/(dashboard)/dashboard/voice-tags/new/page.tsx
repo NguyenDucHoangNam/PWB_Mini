@@ -17,24 +17,24 @@ export default function NewVoiceTagPage() {
   }
 
   return (
-    <div className="flex w-full flex-col gap-5 sm:gap-6">
-      <div className="flex items-start gap-3">
-        <Link
-          href="/dashboard/voice-tags"
-          aria-label={tActions("back")}
-          className="key-press flex size-11 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground beat-16th transition-colors ease-hammer hover:bg-muted hover:text-foreground sm:size-9"
-        >
-          <ArrowLeft className="size-4" aria-hidden="true" />
-        </Link>
-        <div className="flex min-w-0 flex-col gap-1">
-          <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+    <div className="flex w-full flex-1 flex-col gap-5 sm:gap-6">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
             {t("title")}
           </h1>
-          <p className="text-sm leading-relaxed text-muted-foreground">{t("subtitle")}</p>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground/70">{t("subtitle")}</p>
         </div>
+        <Link
+          href="/dashboard/voice-tags"
+          className="key-press flex shrink-0 items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground beat-16th transition-colors ease-hammer hover:bg-muted hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          {tActions("back")}
+        </Link>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-4 sm:p-6">
+      <div className="flex flex-1 flex-col rounded-xl border border-border bg-card p-4 sm:p-6">
         <VoiceTagForm />
       </div>
     </div>

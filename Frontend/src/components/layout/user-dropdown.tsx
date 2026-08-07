@@ -144,7 +144,7 @@ function UserDropdownImpl({ user, isPro = false, labels, items }: UserDropdownPr
               const isDestructive = item.variant === "destructive";
               const isDisabled = item.disabled === true;
               const baseClass = cn(
-                "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
+                "key-press flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
                 "focus:outline-none",
                 isDestructive
                   ? "text-neutral-700 hover:bg-red-50 hover:text-red-600 dark:text-neutral-300 dark:hover:bg-red-950/40 dark:hover:text-red-400"

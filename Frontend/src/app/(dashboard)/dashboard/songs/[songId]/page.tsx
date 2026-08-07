@@ -30,13 +30,15 @@ interface ConfigMetricProps {
 
 function ConfigMetric({ label, value, fillPercent }: ConfigMetricProps) {
   return (
-    <div className="flex flex-col gap-2 bg-card p-4">
-      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </span>
-      <span className="text-lg font-semibold tabular-nums text-foreground">{value}</span>
+    <div className="flex flex-col justify-center gap-1.5 bg-card px-4 py-3 sm:px-6">
+      <div className="flex items-baseline justify-between gap-3">
+        <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {label}
+        </dt>
+        <dd className="shrink-0 text-base font-semibold tabular-nums text-foreground">{value}</dd>
+      </div>
       {fillPercent !== undefined && (
-        <div className="h-1 w-full overflow-hidden rounded-full bg-border">
+        <div className="h-1 w-full overflow-hidden rounded-full bg-muted-foreground/20">
           <div
             className="h-full rounded-full bg-primary"
             style={{ width: `${Math.min(Math.max(fillPercent, 0), 100)}%` }}
@@ -190,110 +192,26 @@ export default function SongDetailPage() {
   ].filter((entry): entry is string => entry !== null);
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 sm:gap-6">
-      <button
-        type="button"
-        onClick={() => router.push("/dashboard/songs")}
-        className="flex items-center gap-1.5 self-start text-sm font-medium text-muted-foreground beat-16th transition-colors ease-hammer hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" aria-hidden="true" />
-        {tActions("back")}
-      </button>
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-        <div className="flex min-w-0 flex-col gap-2">
-          {isEditingTitle ? (
-            <div className="flex items-center gap-2">
-              <input
-                ref={titleInputRef}
-                type="text"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                onKeyDown={handleTitleKeyDown}
-                onBlur={cancelEditTitle}
-                maxLength={200}
-                disabled={isSaving}
-                aria-label={tActions("edit")}
-                className="h-11 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 text-xl font-semibold tracking-tight text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 sm:text-2xl"
-              />
-              <Button
-                variant="secondary"
-                size="icon"
-                className="size-11 shrink-0 sm:size-9"
-                disabled={isSaving || !editTitle.trim()}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  saveTitle();
-                }}
-                aria-label={tCommon("save")}
-              >
-                <Check className="size-4" aria-hidden="true" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-11 shrink-0 sm:size-9"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  cancelEditTitle();
-                }}
-                aria-label={tCommon("cancel")}
-              >
-                <X className="size-4" aria-hidden="true" />
-              </Button>
-            </div>
-          ) : (
-            <div className="flex min-w-0 items-center gap-2">
-              <h1 className="truncate text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-                {song.title}
-              </h1>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-9 shrink-0 text-muted-foreground hover:text-foreground sm:size-8"
-                onClick={startEditTitle}
-                aria-label={tActions("edit")}
-              >
-                <Pencil className="size-4 sm:size-3.5" aria-hidden="true" />
-              </Button>
-              <SongStatusBadge status={song.status} />
-            </div>
-          )}
-
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-            <SongVoiceTagBadge hasVoiceTag={song.hasVoiceTag} />
-            {metadata.map((entry, index) => (
-              <span key={`${index}-${entry}`} className="flex items-center gap-2">
-                {index > 0 && <span aria-hidden="true">·</span>}
-                {entry}
-              </span>
-            ))}
+    <div className="flex w-full flex-1 flex-col gap-4">
+      <header className="flex items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="hidden h-12 w-1 shrink-0 rounded-full bg-foreground/80 sm:block" aria-hidden="true" />
+          <div className="flex flex-col gap-0.5">
+            <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+              {t("pageTitle")}
+            </h1>
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          {song.status === "FAILED" && (
-            <Button
-              size="lg"
-              className="h-11 flex-1 sm:h-9 sm:flex-none"
-              disabled={isRetrying}
-              onClick={() => retryProcessing({ songId: song.id })}
-            >
-              {isRetrying && <Loader2 className="mr-2 size-3.5 animate-spin" aria-hidden="true" />}
-              {t("retryProcessing")}
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-11 shrink-0 text-muted-foreground hover:text-destructive sm:size-9"
-            onClick={() => setDeleteOpen(true)}
-            aria-label={tActions("delete")}
-          >
-            <Trash2 className="size-4" aria-hidden="true" />
-          </Button>
-        </div>
-      </div>
+        <button
+          type="button"
+          onClick={() => router.push("/dashboard/songs")}
+          className="key-press flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground beat-16th transition-colors ease-hammer hover:bg-muted hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          {tActions("back")}
+        </button>
+      </header>
 
       {song.status === "PROCESSING" && (
         <div
@@ -315,12 +233,113 @@ export default function SongDetailPage() {
         </div>
       )}
 
-      <div className="rounded-xl border border-border bg-card p-4 sm:px-5 sm:py-5">
-        <AudioPlayer songId={song.id} />
-      </div>
+      {/* The two cards split the leftover height 2:1, so the page fills the viewport instead
+          of leaving dead space under a short card. */}
+      <section className="flex min-h-[15rem] flex-[3] flex-col overflow-hidden rounded-xl border border-border bg-card">
+        <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:px-6">
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            {isEditingTitle ? (
+              <div className="flex items-center gap-2">
+                <input
+                  ref={titleInputRef}
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  onKeyDown={handleTitleKeyDown}
+                  onBlur={cancelEditTitle}
+                  maxLength={200}
+                  disabled={isSaving}
+                  aria-label={tActions("edit")}
+                  className="h-11 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 text-xl font-semibold tracking-tight text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 sm:text-2xl"
+                />
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="size-11 shrink-0 sm:size-9"
+                  disabled={isSaving || !editTitle.trim()}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    saveTitle();
+                  }}
+                  aria-label={tCommon("save")}
+                >
+                  <Check className="size-4" aria-hidden="true" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-11 shrink-0 sm:size-9"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    cancelEditTitle();
+                  }}
+                  aria-label={tCommon("cancel")}
+                >
+                  <X className="size-4" aria-hidden="true" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex min-w-0 items-center gap-2">
+                <h1 className="truncate text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+                  {song.title}
+                </h1>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-9 shrink-0 text-muted-foreground hover:text-foreground sm:size-8"
+                  onClick={startEditTitle}
+                  aria-label={tActions("edit")}
+                >
+                  <Pencil className="size-4 sm:size-3.5" aria-hidden="true" />
+                </Button>
+                <SongStatusBadge status={song.status} />
+              </div>
+            )}
 
-      <section className="overflow-hidden rounded-xl border border-border bg-card">
-        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-5">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <SongVoiceTagBadge hasVoiceTag={song.hasVoiceTag} />
+              {metadata.map((entry, index) => (
+                <span key={`${index}-${entry}`} className="flex items-center gap-2">
+                  {index > 0 && <span aria-hidden="true">·</span>}
+                  {entry}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            {song.status === "FAILED" && (
+              <Button
+                size="lg"
+                className="h-10 flex-1 sm:h-9 sm:flex-none"
+                disabled={isRetrying}
+                onClick={() => retryProcessing({ songId: song.id })}
+              >
+                {isRetrying && (
+                  <Loader2 className="mr-2 size-3.5 animate-spin" aria-hidden="true" />
+                )}
+                {t("retryProcessing")}
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="icon"
+              className="size-10 shrink-0 text-muted-foreground hover:text-destructive sm:size-9"
+              onClick={() => setDeleteOpen(true)}
+              aria-label={tActions("delete")}
+            >
+              <Trash2 className="size-4" aria-hidden="true" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex flex-1 flex-col justify-center px-4 py-5 sm:px-6 sm:py-6">
+          <AudioPlayer songId={song.id} />
+        </div>
+      </section>
+
+      <section className="flex flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
+        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-6">
           <h2 className="text-sm font-semibold text-foreground">{tConfig("title")}</h2>
           {voiceTagConfig && (
             <span className="truncate rounded-md bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground">
@@ -330,12 +349,13 @@ export default function SongDetailPage() {
         </div>
 
         {voiceTagConfig === null ? (
-          <p className="px-4 py-6 text-center text-sm text-muted-foreground sm:px-5">
+          <p className="px-4 py-6 text-center text-sm text-muted-foreground sm:px-6">
             {t("noVoiceTagHint")}
           </p>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-px bg-border lg:grid-cols-4">
+            {/* gap-px over a border-coloured backdrop draws the hairline dividers. */}
+            <dl className="grid flex-1 grid-cols-2 gap-px bg-border lg:grid-cols-4">
               <ConfigMetric
                 label={tConfig("volumePercentage")}
                 value={`${voiceTagConfig.volumePercentage}%`}
@@ -354,9 +374,9 @@ export default function SongDetailPage() {
                 label={tConfig("startOffsetSeconds")}
                 value={`${voiceTagConfig.startOffsetSeconds}s`}
               />
-            </div>
+            </dl>
 
-            <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground sm:px-5">
+            <p className="border-t border-border px-4 py-3 text-xs leading-relaxed text-muted-foreground sm:px-6">
               {t("configLockedHint")}
             </p>
           </>

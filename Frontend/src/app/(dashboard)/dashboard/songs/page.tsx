@@ -13,7 +13,7 @@ export default function DashboardSongsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5 sm:gap-6">
+    <div className="flex flex-1 flex-col gap-5 sm:gap-6">
       <DashboardHeader />
       <DashboardSongsTab />
     </div>

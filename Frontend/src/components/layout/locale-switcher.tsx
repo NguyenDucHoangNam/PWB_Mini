@@ -55,7 +55,7 @@ export function LocaleSwitcher() {
       <button
         onClick={() => switchLocale("vi")}
         type="button"
-        className={`hover:text-black dark:hover:text-white transition-colors cursor-pointer h-9 px-1.5 flex items-center ${
+        className={`key-press hover:text-black dark:hover:text-white transition-colors cursor-pointer h-9 px-1.5 flex items-center ${
           currentLocale === "vi" ? "text-black dark:text-white font-bold" : ""
         }`}
       >
@@ -65,7 +65,7 @@ export function LocaleSwitcher() {
       <button
         onClick={() => switchLocale("en")}
         type="button"
-        className={`hover:text-black dark:hover:text-white transition-colors cursor-pointer h-9 px-1.5 flex items-center ${
+        className={`key-press hover:text-black dark:hover:text-white transition-colors cursor-pointer h-9 px-1.5 flex items-center ${
           currentLocale === "en" ? "text-black dark:text-white font-bold" : ""
         }`}
       >

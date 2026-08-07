@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Music, Upload, SearchX, Pencil, Trash2, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
+import { Select } from "@/components/ui/select";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { asApiError } from "@/lib/api-client";
@@ -349,9 +350,9 @@ export function DashboardSongsTab() {
   const rangeTo = Math.min(rangeFrom + items.length - 1, totalElements);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <div className="lg:max-w-sm lg:flex-1">
+    <div className="flex flex-1 flex-col gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="sm:max-w-sm sm:flex-1">
           <SearchInput
             value={keyword}
             onValueChange={setKeyword}
@@ -363,31 +364,24 @@ export function DashboardSongsTab() {
           />
         </div>
 
-        <div
-          role="group"
-          aria-label={tList("filterByStatus")}
-          className="flex gap-1 overflow-x-auto rounded-lg border border-border bg-secondary p-1 lg:ml-auto"
-        >
-          {filters.map((option) => {
-            const isActive = view === option.value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => setView(option.value)}
-                aria-pressed={isActive}
-                className={`key-press h-9 shrink-0 rounded-md px-3 text-sm font-medium beat-16th transition-colors ease-hammer sm:h-7 sm:text-xs ${
-                  isActive
-                    ? "bg-background text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {option.label}
-              </button>
-            );
-          })}
+        <div className="flex items-center gap-2 sm:ml-auto">
+          <Select
+            options={filters}
+            value={view}
+            onValueChange={(v) => setView(v as SongView)}
+            aria-label={tList("filterByStatus")}
+            className="h-11 w-full sm:h-9 sm:w-40"
+          />
+
+          <Link href="/dashboard/songs/new" className="shrink-0">
+            <Button size="lg" className="h-11 gap-2 font-semibold sm:h-9">
+              <Upload className="size-4" aria-hidden="true" />
+              {t("upload")}
+            </Button>
+          </Link>
         </div>
       </div>
+
 
       {isLoading ? (
         <LibraryPanel>

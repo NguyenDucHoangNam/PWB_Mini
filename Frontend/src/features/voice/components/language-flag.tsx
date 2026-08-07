@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { Globe } from "lucide-react";
 
 export function FlagVN({ className = "h-3.5 w-[20px] rounded-[1px] shrink-0" }: { className?: string }) {
@@ -48,14 +49,17 @@ export function FlagUS({ className = "h-3.5 w-[20px] rounded-[1px] shrink-0" }: 
 }
 
 export function FlagGB({ className = "h-3.5 w-[20px] rounded-[1px] shrink-0" }: { className?: string }) {
+  const id = useId();
+  const clipS = `gb-s-${id}`;
+  const clipT = `gb-t-${id}`;
   return (
     <svg viewBox="0 0 60 30" className={className} aria-hidden="true">
-      <clipPath id="gb-s"><path d="M0,0 v30 h60 v-30 z"/></clipPath>
-      <clipPath id="gb-t"><path d="M30,15 m-30,0 l60,30 m0,-30 l-60,30 h60 v-30 z"/></clipPath>
-      <g clipPath="url(#gb-s)">
+      <clipPath id={clipS}><path d="M0,0 v30 h60 v-30 z"/></clipPath>
+      <clipPath id={clipT}><path d="M30,15 m-30,0 l60,30 m0,-30 l-60,30 h60 v-30 z"/></clipPath>
+      <g clipPath={`url(#${clipS})`}>
         <path d="M0,0 v30 h60 v-30 z" fill="#012169"/>
         <path d="M0,0 l60,30 M60,0 l-60,30" stroke="#fff" strokeWidth="6"/>
-        <path d="M0,0 l60,30 M60,0 l-60,30" stroke="#C8102E" strokeWidth="4" clipPath="url(#gb-t)"/>
+        <path d="M0,0 l60,30 M60,0 l-60,30" stroke="#C8102E" strokeWidth="4" clipPath={`url(#${clipT})`}/>
         <path d="M30,0 v30 M0,15 h60" stroke="#fff" strokeWidth="10"/>
         <path d="M30,0 v30 M0,15 h60" stroke="#C8102E" strokeWidth="6"/>
       </g>
@@ -82,4 +86,36 @@ export function LanguageFlagIcon({
     return <FlagUS className={className} />;
   }
   return <Globe className="size-3.5 text-neutral-500" />;
+}
+
+function GenderMale({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <circle cx="12" cy="7" r="4" />
+      <path d="M5.5 23v-2a6.5 6.5 0 0 1 13 0v2" />
+      <path d="M9 3.5c.6-1 1.5-1.5 3-1.5s2.4.5 3 1.5" />
+    </svg>
+  );
+}
+
+function GenderFemale({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <circle cx="12" cy="7" r="4" />
+      <path d="M5.5 23v-2a6.5 6.5 0 0 1 13 0v2" />
+      <path d="M7 8c0 0-1 3-1 5" />
+      <path d="M17 8c0 0 1 3 1 5" />
+    </svg>
+  );
+}
+
+export function GenderIcon({
+  gender,
+  className = "size-4",
+}: {
+  gender: string | null | undefined;
+  className?: string;
+}) {
+  if (gender === "FEMALE") return <GenderFemale className={className} />;
+  return <GenderMale className={className} />;
 }

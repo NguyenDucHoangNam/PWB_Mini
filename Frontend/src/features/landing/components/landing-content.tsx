@@ -6,11 +6,13 @@ import { useTranslations } from "next-intl";
 import { Keyboard } from "./keyboard";
 import { FALL_DELAY, LEFT_WORD, RIGHT_WORD } from "../lib/piano-positions";
 import { generateSandParticles } from "../lib/generate-sand-particles";
-import { SectionTagline } from "./section-tagline";
-import { SectionFeatures } from "./section-features";
-import { SectionDemo } from "./section-demo";
-import { SectionHowItWorks } from "./section-how-it-works";
-import { SectionStats } from "./section-stats";
+import { SectionTicker } from "./section-ticker";
+import { SectionProblem } from "./section-problem";
+import { SectionPillars } from "./section-pillars";
+import { SectionVoiceTag } from "./section-voice-tag";
+import { SectionLiveRoom } from "./section-live-room";
+import { SectionWorkflow } from "./section-workflow";
+import { SectionTrust } from "./section-trust";
 import { SectionCta } from "./section-cta";
 
 const KEYBOARD_GAP = "h-3 w-full sm:h-0 sm:w-2 md:w-16 lg:w-24";
@@ -35,11 +37,13 @@ export function LandingContent() {
         <PianoTitle />
         <HoverHint delay={HINT_DELAY} />
       </section>
-      <SectionTagline />
-      <SectionFeatures />
-      <SectionDemo />
-      <SectionHowItWorks />
-      <SectionStats />
+      <SectionTicker />
+      <SectionProblem />
+      <SectionPillars />
+      <SectionVoiceTag />
+      <SectionLiveRoom />
+      <SectionWorkflow />
+      <SectionTrust />
       <SectionCta />
     </>
   );

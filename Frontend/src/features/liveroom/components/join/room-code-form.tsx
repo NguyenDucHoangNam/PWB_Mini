@@ -48,7 +48,7 @@ export function RoomCodeForm() {
 
       <Button
         type="submit"
-        className="h-10 min-h-[44px] sm:min-h-0 w-full bg-black font-semibold text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 active:translate-y-[1px] transition-all"
+        className="h-10 min-h-[44px] sm:min-h-0 w-full bg-black font-semibold text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
         disabled={!complete}
       >
         <Search className="size-4 mr-1.5" />

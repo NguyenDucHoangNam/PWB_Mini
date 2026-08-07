@@ -65,7 +65,7 @@ export function PreJoinPanel({ media, submitting, disabled, onSubmit }: PreJoinP
           <Button
             type="button"
             variant="outline"
-            className={`h-9 font-mono text-xs font-bold transition-all active:translate-y-[1px] ${
+            className={`h-9 font-mono text-xs font-bold ${
               media.cameraOn
                 ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
                 : "border-neutral-300 bg-neutral-100 text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
@@ -79,7 +79,7 @@ export function PreJoinPanel({ media, submitting, disabled, onSubmit }: PreJoinP
           <Button
             type="button"
             variant="outline"
-            className={`h-9 font-mono text-xs font-bold transition-all active:translate-y-[1px] ${
+            className={`h-9 font-mono text-xs font-bold ${
               media.micOn
                 ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
                 : "border-neutral-300 bg-neutral-100 text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
@@ -100,7 +100,7 @@ export function PreJoinPanel({ media, submitting, disabled, onSubmit }: PreJoinP
 
         <Button
           type="button"
-          className="h-10 min-h-[44px] sm:min-h-0 w-full bg-black font-semibold text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 active:translate-y-[1px] transition-all"
+          className="h-10 min-h-[44px] sm:min-h-0 w-full bg-black font-semibold text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
           disabled={submitting || disabled}
           onClick={onSubmit}
         >

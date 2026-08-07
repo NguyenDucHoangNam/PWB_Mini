@@ -42,7 +42,7 @@ export function RoomCard({ room, onEnd, onReopen }: RoomCardProps) {
   };
 
   return (
-    <div className="group relative flex flex-col justify-between gap-4 rounded-xl border border-neutral-300 bg-white p-5 shadow-xs transition-all hover:border-black dark:border-neutral-800 dark:bg-black dark:hover:border-white active:translate-y-[1px]">
+    <div className="key-press group relative flex flex-col justify-between gap-4 rounded-xl border border-neutral-300 bg-white p-5 shadow-xs transition-all hover:border-black dark:border-neutral-800 dark:bg-black dark:hover:border-white">
       <div
         className={`absolute left-0 top-0 h-full w-[4px] rounded-l-xl transition-colors ${
           isActive
@@ -100,7 +100,7 @@ export function RoomCard({ room, onEnd, onReopen }: RoomCardProps) {
         {isActive ? (
           <>
             <Link href={`/liveroom/${room.id}`} className="sm:flex-1">
-              <Button className="h-9 min-h-[44px] sm:min-h-0 w-full bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 font-semibold active:translate-y-[1px] transition-all">
+              <Button className="h-9 min-h-[44px] sm:min-h-0 w-full bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 font-semibold">
                 <LogIn className="size-4" />
                 {t("openRoom")}
               </Button>

@@ -11,7 +11,7 @@ interface LibraryPanelProps {
 
 export function LibraryPanel({ children }: LibraryPanelProps) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card">{children}</div>
+    <div className="flex flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">{children}</div>
   );
 }
 
@@ -25,7 +25,7 @@ export function LibraryErrorState({ message, retryLabel, onRetry }: LibraryError
   return (
     <div
       role="alert"
-      className="flex flex-col items-center gap-4 px-6 py-12 text-center sm:py-16"
+      className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-12 text-center sm:py-16"
     >
       <TriangleAlert className="size-6 text-destructive" aria-hidden="true" />
       <p className="max-w-sm text-sm text-foreground">{message}</p>
@@ -45,7 +45,7 @@ interface LibraryEmptyStateProps {
 
 export function LibraryEmptyState({ icon: Icon, title, hint, action }: LibraryEmptyStateProps) {
   return (
-    <div className="flex flex-col items-center gap-3 px-6 py-12 text-center sm:py-16">
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-12 text-center sm:py-16">
       <Icon className="size-6 text-muted-foreground" aria-hidden />
       <div className="flex max-w-sm flex-col gap-1.5">
         <h3 className="text-base font-semibold tracking-tight text-foreground">{title}</h3>
