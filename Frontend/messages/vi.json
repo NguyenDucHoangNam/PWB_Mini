@@ -12,7 +12,15 @@
     "showPassword": "Hiển thị mật khẩu",
     "hidePassword": "Ẩn mật khẩu",
     "yes": "Có",
-    "no": "Không"
+    "no": "Không",
+    "pagination": {
+      "label": "Phân trang",
+      "prev": "Trang trước",
+      "next": "Trang sau",
+      "goToPage": "Đến trang {page}",
+      "morePages": "Thêm trang",
+      "showing": "Hiển thị {from}–{to} / {total}"
+    }
   },
   "header": {
     "home": "Trang chủ",

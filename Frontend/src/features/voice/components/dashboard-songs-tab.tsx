@@ -340,9 +340,6 @@ export function DashboardSongsTab() {
     updateQuery({ delete: null });
   };
 
-  const rangeFrom = page * DEFAULT_PAGE_SIZE + 1;
-  const rangeTo = Math.min(rangeFrom + items.length - 1, totalElements);
-
   return (
     <div className="flex flex-1 flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -449,8 +446,6 @@ export function DashboardSongsTab() {
       <LibraryPagination
         page={page}
         totalPages={totalPages}
-        rangeFrom={rangeFrom}
-        rangeTo={rangeTo}
         totalElements={totalElements}
         onPageChange={setPage}
       />

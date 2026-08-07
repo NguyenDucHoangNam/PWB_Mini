@@ -48,7 +48,7 @@ export function EndRoomDialog({ room, open, onOpenChange, onSuccess }: EndRoomDi
           <DialogHeader>
             <DialogTitle>{t("endConfirmTitle")}</DialogTitle>
             <DialogDescription>
-              <span className="font-medium text-black dark:text-white">{room.roomName}</span>
+              <span className="font-medium text-foreground">{room.roomName}</span>
               <br />
               {t("endConfirmBody")}
             </DialogDescription>

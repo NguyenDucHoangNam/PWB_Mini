@@ -12,7 +12,15 @@
     "showPassword": "Show password",
     "hidePassword": "Hide password",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "pagination": {
+      "label": "Pagination",
+      "prev": "Previous page",
+      "next": "Next page",
+      "goToPage": "Go to page {page}",
+      "morePages": "More pages",
+      "showing": "Showing {from}–{to} of {total}"
+    }
   },
   "header": {
     "home": "Home",

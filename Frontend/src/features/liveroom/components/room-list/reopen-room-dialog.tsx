@@ -49,7 +49,7 @@ export function ReopenRoomDialog({ room, open, onOpenChange }: ReopenRoomDialogP
           <DialogHeader>
             <DialogTitle>{t("reopen")}</DialogTitle>
             <DialogDescription>
-              <span className="font-medium text-black dark:text-white">{room.roomName}</span>
+              <span className="font-medium text-foreground">{room.roomName}</span>
               <br />
               {t("emptyHint")}
             </DialogDescription>

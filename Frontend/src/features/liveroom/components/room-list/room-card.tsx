@@ -42,22 +42,20 @@ export function RoomCard({ room, onEnd, onReopen }: RoomCardProps) {
   };
 
   return (
-    <div className="key-press group relative flex flex-col justify-between gap-4 rounded-xl border border-neutral-300 bg-white p-5 shadow-xs transition-all hover:border-black dark:border-neutral-800 dark:bg-black dark:hover:border-white">
+    <div className="key-press group relative flex flex-col justify-between gap-4 overflow-hidden rounded-xl border border-border bg-card p-5 shadow-xs beat-8th transition-colors ease-hammer hover:border-foreground/25 hover:shadow-sm">
       <div
-        className={`absolute left-0 top-0 h-full w-[4px] rounded-l-xl transition-colors ${
-          isActive
-            ? "bg-black dark:bg-white"
-            : "bg-neutral-300 dark:bg-neutral-700 group-hover:bg-black dark:group-hover:bg-white"
+        className={`absolute left-0 top-0 h-full w-1 beat-16th transition-colors ease-hammer ${
+          isActive ? "bg-foreground" : "bg-border group-hover:bg-muted-foreground"
         }`}
         aria-hidden="true"
       />
 
       <div className="flex items-start justify-between gap-3 pl-1">
         <div className="min-w-0">
-          <h3 className="truncate text-base font-bold tracking-tight text-neutral-900 md:text-lg dark:text-neutral-100 group-hover:underline underline-offset-4 decoration-neutral-400">
+          <h3 className="truncate text-base font-bold tracking-tight text-foreground decoration-muted-foreground/40 underline-offset-4 group-hover:underline md:text-lg">
             {room.roomName}
           </h3>
-          <p className="mt-1 flex items-center gap-1.5 font-mono text-xs text-neutral-500 md:text-sm dark:text-neutral-400">
+          <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground md:text-sm">
             <Users className="size-3.5" aria-hidden="true" />
             {t("participants", {
               count: room.currentParticipantCount,
@@ -69,7 +67,7 @@ export function RoomCard({ room, onEnd, onReopen }: RoomCardProps) {
       </div>
 
       <div className="flex items-center gap-2 pl-1">
-        <span className="rounded-lg border border-neutral-300 bg-neutral-100 px-3 py-1.5 font-mono text-sm font-semibold tracking-[0.2em] text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100">
+        <span className="rounded-lg border border-border bg-muted px-3 py-1.5 font-mono text-sm font-semibold tracking-[0.2em] text-foreground">
           {formatRoomCode(room.roomCode)}
         </span>
         <Button
@@ -77,37 +75,37 @@ export function RoomCard({ room, onEnd, onReopen }: RoomCardProps) {
           size="icon"
           onClick={copyCode}
           aria-label={t("copyCode")}
-          className="size-9 min-h-[44px] sm:min-h-0 border-neutral-300 dark:border-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-800"
+          className="size-9 min-h-[44px] sm:min-h-0"
         >
-          {copied ? <Check className="size-4 text-black dark:text-white" /> : <Copy className="size-4" />}
+          {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
         </Button>
       </div>
 
       {!isActive && room.endedAt ? (
-        <p className="pl-1 font-mono text-xs text-neutral-500 dark:text-neutral-400">
+        <p className="pl-1 text-xs text-muted-foreground">
           {t("endedAt", { date: new Date(room.endedAt).toLocaleString() })}
           {room.endedReason ? ` · ${tEnded(ENDED_REASON_KEY[room.endedReason])}` : ""}
         </p>
       ) : null}
 
       {room.reopenedCount > 0 ? (
-        <p className="pl-1 font-mono text-xs text-neutral-500 dark:text-neutral-400">
+        <p className="pl-1 text-xs text-muted-foreground">
           {t("reopenedCount", { count: room.reopenedCount })}
         </p>
       ) : null}
 
-      <div className="mt-auto flex flex-col gap-2 pt-2 sm:flex-row pl-1">
+      <div className="mt-auto flex flex-col gap-2 pt-2 pl-1 sm:flex-row">
         {isActive ? (
           <>
             <Link href={`/liveroom/${room.id}`} className="sm:flex-1">
-              <Button className="h-9 min-h-[44px] sm:min-h-0 w-full bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 font-semibold">
+              <Button className="h-9 min-h-[44px] w-full font-semibold sm:min-h-0">
                 <LogIn className="size-4" />
                 {t("openRoom")}
               </Button>
             </Link>
             <Button
               variant="outline"
-              className="h-9 min-h-[44px] sm:min-h-0 border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 font-semibold"
+              className="h-9 min-h-[44px] font-semibold sm:min-h-0"
               onClick={() => onEnd(room)}
             >
               <Square className="size-4" />
@@ -117,7 +115,7 @@ export function RoomCard({ room, onEnd, onReopen }: RoomCardProps) {
         ) : (
           <Button
             variant="outline"
-            className="h-9 min-h-[44px] sm:min-h-0 w-full border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-800 font-semibold"
+            className="h-9 min-h-[44px] w-full font-semibold sm:min-h-0"
             onClick={() => onReopen(room)}
           >
             <RotateCcw className="size-4" />

@@ -4,6 +4,8 @@ import type { ComponentType, ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 interface LibraryPanelProps {
   children: ReactNode;
@@ -113,8 +115,6 @@ export function LibraryCardsSkeleton({ rows = 6 }: LibrarySkeletonProps) {
 interface LibraryPaginationProps {
   page: number;
   totalPages: number;
-  rangeFrom: number;
-  rangeTo: number;
   totalElements: number;
   onPageChange: (page: number) => void;
 }
@@ -122,46 +122,16 @@ interface LibraryPaginationProps {
 export function LibraryPagination({
   page,
   totalPages,
-  rangeFrom,
-  rangeTo,
   totalElements,
   onPageChange,
 }: LibraryPaginationProps) {
-  const t = useTranslations("voice.list");
-
-  if (totalPages <= 1) return null;
-
   return (
-    <nav
-      aria-label={t("showingRange", { from: rangeFrom, to: rangeTo, total: totalElements })}
-      className="flex flex-col-reverse items-center gap-3 sm:flex-row sm:justify-between"
-    >
-      <p className="text-xs text-muted-foreground">
-        {t("showingRange", { from: rangeFrom, to: rangeTo, total: totalElements })}
-      </p>
-      <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
-        <Button
-          variant="outline"
-          size="lg"
-          className="min-w-20 sm:h-8"
-          disabled={page === 0}
-          onClick={() => onPageChange(Math.max(0, page - 1))}
-        >
-          {t("prev")}
-        </Button>
-        <span className="text-xs tabular-nums text-muted-foreground">
-          {page + 1} / {totalPages}
-        </span>
-        <Button
-          variant="outline"
-          size="lg"
-          className="min-w-20 sm:h-8"
-          disabled={page + 1 >= totalPages}
-          onClick={() => onPageChange(page + 1)}
-        >
-          {t("next")}
-        </Button>
-      </div>
-    </nav>
+    <Pagination
+      page={page}
+      totalPages={totalPages}
+      totalElements={totalElements}
+      pageSize={DEFAULT_PAGE_SIZE}
+      onPageChange={onPageChange}
+    />
   );
 }

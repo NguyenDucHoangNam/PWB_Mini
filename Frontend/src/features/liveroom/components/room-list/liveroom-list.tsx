@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { KeyRound, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -60,7 +61,6 @@ export function LiveroomList() {
   const { data, isPending, isFetching, isError, refetch } = searching ? searchQuery : listQuery;
 
   const rooms = data?.data?.content ?? [];
-  const isLast = data?.data?.last ?? true;
 
   const selectTab = (next: RoomStatus) => {
     setStatus(next);
@@ -69,7 +69,7 @@ export function LiveroomList() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-neutral-200 pb-4 dark:border-neutral-800">
+      <div className="flex flex-col gap-4 border-b border-border pb-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-start gap-3">
           <div className="hidden h-12 w-1 shrink-0 rounded-full bg-foreground/80 sm:block" aria-hidden="true" />
           <div className="flex flex-col gap-0.5">
@@ -95,14 +95,14 @@ export function LiveroomList() {
           <Link href="/dashboard/liveroom/join">
             <Button
               variant="outline"
-              className="h-9 min-h-[44px] sm:min-h-0 w-full sm:w-auto border-neutral-300 font-semibold text-neutral-800 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+              className="h-9 min-h-[44px] w-full font-semibold sm:min-h-0 sm:w-auto"
             >
               <KeyRound className="size-4" />
               {t("joinByCode")}
             </Button>
           </Link>
           <Link href="/dashboard/liveroom/new">
-            <Button className="h-9 min-h-[44px] sm:min-h-0 w-full sm:w-auto bg-black font-semibold text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200">
+            <Button className="h-9 min-h-[44px] w-full font-semibold sm:min-h-0 sm:w-auto">
               <Plus className="size-4" />
               {t("create")}
             </Button>
@@ -113,7 +113,7 @@ export function LiveroomList() {
       <div
         role="tablist"
         aria-label={t("title")}
-        className="flex h-10 items-center gap-1 rounded-t-lg bg-neutral-100 p-1 dark:bg-neutral-900 border border-b-0 border-neutral-200 dark:border-neutral-800"
+        className="flex h-10 items-center gap-1 rounded-lg border border-border bg-muted p-1"
       >
         {TABS.map((tab) => {
           const isActive = status === tab.value;
@@ -124,18 +124,12 @@ export function LiveroomList() {
               type="button"
               aria-selected={isActive}
               onClick={() => selectTab(tab.value)}
-              className={`key-press relative flex h-8 flex-1 items-center justify-center rounded-md px-3 text-xs font-semibold tracking-wide ${
+              className={`key-press relative flex h-8 flex-1 items-center justify-center rounded-md px-3 text-xs font-semibold tracking-wide beat-16th transition-colors ease-hammer ${
                 isActive
-                  ? "bg-white text-black shadow-xs dark:bg-black dark:text-white border border-neutral-200 dark:border-neutral-800"
-                  : "text-neutral-500 hover:text-black dark:text-neutral-400 dark:hover:text-white"
+                  ? "border border-border bg-card text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {isActive && (
-                <span
-                  className="absolute -bottom-1 left-1/2 h-[3px] w-5 -translate-x-1/2 rounded-full bg-black dark:bg-white"
-                  aria-hidden="true"
-                />
-              )}
               {t(tab.labelKey)}
             </button>
           );
@@ -143,23 +137,23 @@ export function LiveroomList() {
       </div>
 
       {isPending ? (
-        <div className="flex items-center justify-center gap-2 py-16 text-sm text-neutral-500 dark:text-neutral-400">
+        <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
           <Spinner size="sm" />
           {t("loading")}
         </div>
       ) : isError ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-neutral-200 bg-white p-8 text-center dark:border-neutral-800 dark:bg-black">
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("errorLoad")}</p>
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card p-8 text-center">
+          <p className="text-sm text-muted-foreground">{t("errorLoad")}</p>
           <Button variant="outline" onClick={() => refetch()}>
             {t("retry")}
           </Button>
         </div>
       ) : rooms.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-neutral-200 bg-white p-8 text-center md:p-12 dark:border-neutral-800 dark:bg-black">
-          <h2 className="text-lg font-semibold text-black dark:text-white">
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card p-8 text-center md:p-12">
+          <h2 className="text-lg font-semibold text-foreground">
             {searching ? t("noResults") : t("empty")}
           </h2>
-          <p className="max-w-md text-sm text-neutral-500 dark:text-neutral-400">
+          <p className="max-w-md text-sm text-muted-foreground">
             {searching ? t("noResultsHint", { query: debouncedKeyword }) : t("emptyHint")}
           </p>
           {searching ? (
@@ -181,26 +175,13 @@ export function LiveroomList() {
         </div>
       )}
 
-      {rooms.length > 0 ? (
-        <div className="flex items-center justify-between gap-3">
-          <Button
-            variant="outline"
-            className="h-11 md:h-9"
-            disabled={page === 0}
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-          >
-            {t("prev")}
-          </Button>
-          <Button
-            variant="outline"
-            className="h-11 md:h-9"
-            disabled={isLast}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            {t("next")}
-          </Button>
-        </div>
-      ) : null}
+      <Pagination
+        page={page}
+        totalPages={data?.data?.totalPages ?? 0}
+        totalElements={data?.data?.totalElements}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       <EndRoomDialog
         room={endTarget}
