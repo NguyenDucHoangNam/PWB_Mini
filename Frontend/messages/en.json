@@ -336,6 +336,23 @@
       }
     }
   },
+  "contact": {
+    "eyebrow": "Contact",
+    "title": "A question, a bug, or an idea — one address for all three.",
+    "lead": "Everything sent here is read by one person, so write it the way you would to a colleague. If something is broken, the steps you took and what happened instead are the most useful thing you can send.",
+    "emailCta": "Send an email",
+    "copyCta": "Copy the address",
+    "copiedShort": "Copied",
+    "copied": "Email address copied.",
+    "copyFailed": "Could not reach the clipboard — copy the address manually.",
+    "infoTitle": "Details",
+    "responseLabel": "First reply",
+    "responseValue": "Usually within one working day, two at the outside.",
+    "hoursLabel": "Where we are",
+    "hoursValue": "Vietnam, GMT+7. Anything sent overnight is answered the next morning.",
+    "languagesLabel": "Languages",
+    "languagesValue": "English and Vietnamese."
+  },
   "auth": {
     "layout": {
       "description": "Producer Workbench - Real-time music collaboration platform.",

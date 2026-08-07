@@ -336,6 +336,23 @@
       }
     }
   },
+  "contact": {
+    "eyebrow": "Liên hệ",
+    "title": "Một câu hỏi, một lỗi, hay một ý tưởng — chung một địa chỉ.",
+    "lead": "Mọi thứ gửi tới đây đều do một người đọc, nên cứ viết như nói với đồng nghiệp. Nếu có chỗ bị lỗi, thứ hữu ích nhất bạn gửi được là các bước bạn đã làm và kết quả thực tế nhận được.",
+    "emailCta": "Gửi email",
+    "copyCta": "Sao chép địa chỉ",
+    "copiedShort": "Đã chép",
+    "copied": "Đã chép địa chỉ email.",
+    "copyFailed": "Không truy cập được clipboard — hãy chép địa chỉ thủ công.",
+    "infoTitle": "Thông tin",
+    "responseLabel": "Phản hồi đầu",
+    "responseValue": "Thường trong một ngày làm việc, chậm nhất là hai.",
+    "hoursLabel": "Chúng tôi ở đâu",
+    "hoursValue": "Việt Nam, GMT+7. Thư gửi ban đêm sẽ được trả lời vào sáng hôm sau.",
+    "languagesLabel": "Ngôn ngữ",
+    "languagesValue": "Tiếng Anh và tiếng Việt."
+  },
   "auth": {
     "layout": {
       "description": "Producer Workbench Nền tảng cộng tác âm nhạc thời gian thực.",
