@@ -6,7 +6,7 @@ interface MinimalLayoutProps {
 
 export function MinimalLayout({ children }: MinimalLayoutProps) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-white px-6 py-12 dark:bg-black font-sans">
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-white px-6 py-12 dark:bg-black font-sans">
       <header className="mb-8">
         <Link
           href="/"

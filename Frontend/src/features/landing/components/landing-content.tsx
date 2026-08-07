@@ -32,7 +32,7 @@ const getServerMountedSnapshot = () => false;
 export function LandingContent() {
   return (
     <>
-      <section className="relative flex min-h-svh w-full flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-white via-neutral-50 to-neutral-100 px-3 py-24 sm:px-4 sm:py-0 dark:from-black dark:via-neutral-950 dark:to-neutral-900">
+      <section className="relative flex min-h-[calc(100dvh-4.5rem)] w-full flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-white via-neutral-50 to-neutral-100 px-3 py-24 sm:px-4 sm:py-0 dark:from-black dark:via-neutral-950 dark:to-neutral-900">
         <BackgroundGlow />
         <PianoTitle />
         <HoverHint delay={HINT_DELAY} />

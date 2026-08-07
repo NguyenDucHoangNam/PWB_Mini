@@ -7,7 +7,7 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
-    <div className="flex min-h-screen flex-col bg-white dark:bg-black font-sans">
+    <div className="flex min-h-dvh flex-col bg-white dark:bg-black font-sans">
       <SiteHeader />
       {/* min-h keeps the content area a full viewport tall (minus the h-18 header) so a short
           page never lets the footer creep up into the fold. */}

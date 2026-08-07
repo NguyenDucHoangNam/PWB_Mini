@@ -39,7 +39,7 @@ export default function DashboardRouteLayout({
   if (bootstrapping || !accessToken) {
     if (bootstrapping || !accessToken) {
       return (
-        <div className="flex h-screen w-screen items-center justify-center bg-white dark:bg-black">
+        <div className="flex h-dvh w-full items-center justify-center bg-white dark:bg-black">
           <svg className="animate-spin size-8 text-neutral-500" fill="none" viewBox="0 0 24 24">
             <circle
               className="opacity-25"
