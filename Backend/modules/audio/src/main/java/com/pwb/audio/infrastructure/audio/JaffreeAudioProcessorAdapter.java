@@ -31,6 +31,7 @@ public class JaffreeAudioProcessorAdapter implements AudioProcessorPort {
 
     private static final int DEFAULT_TIMEOUT_MINUTES = 15;
     private static final int ABORT_GRACE_SECONDS = 10;
+    private static final double DEFAULT_VOICE_TAG_HEADROOM_DB = 3.0;
 
     private final AudioProcessorProperties properties;
     private final StoragePort storagePort;
@@ -52,7 +53,10 @@ public class JaffreeAudioProcessorAdapter implements AudioProcessorPort {
             double voiceTagDuration = requireDuration(voiceTagFile, "voice tag");
             assertIntervalFitsTag(request, voiceTagDuration);
 
-            String filterComplex = WatermarkFilterBuilder.build(request, songDuration, voiceTagDuration);
+            double tagMatchGainDb = measureTagMatchGain(inputFile, voiceTagFile, request.songId());
+
+            String filterComplex =
+                    WatermarkFilterBuilder.build(request, songDuration, voiceTagDuration, tagMatchGainDb);
             log.debug("FFmpeg filter for songId={}: {}", request.songId(), filterComplex);
 
             FFmpegResultFuture render = binaries.ffmpeg()
@@ -145,6 +149,11 @@ public class JaffreeAudioProcessorAdapter implements AudioProcessorPort {
         return configured != null && configured > 0 ? configured : DEFAULT_TIMEOUT_MINUTES;
     }
 
+    private double headroomDb() {
+        Double configured = properties.getVoiceTagHeadroomDb();
+        return configured != null ? configured : DEFAULT_VOICE_TAG_HEADROOM_DB;
+    }
+
     private long estimateScratchBytes(AudioProcessingRequest request) {
         long sourceBytes = storagePort.findMetadata(request.inputKey())
                 .map(StoredObject::sizeBytes)
@@ -157,13 +166,34 @@ public class JaffreeAudioProcessorAdapter implements AudioProcessorPort {
         return target;
     }
 
+    /**
+     * The unrounded duration, because the voice tag is the input that cannot survive rounding. Tags run a
+     * couple of seconds, so truncating to whole seconds threw away a meaningful slice of one: a 2.6s tag
+     * ducked the song for 2s and left its last 0.6s fighting the song at full level, and anything under a
+     * second truncated to zero — which this method then rejected as an unreadable file.
+     */
     private double requireDuration(Path file, String what) {
-        Integer duration = audioProbe.probeDuration(file);
+        Double duration = audioProbe.probeExactDuration(file);
         if (duration == null || duration <= 0) {
             log.error("Could not read {} duration from {}", what, file);
             throw new AudioBusinessException(AudioErrorCode.AUDIO_PROBE_FAILED);
         }
         return duration;
+    }
+
+    /**
+     * Two extra decode passes, one per input, to find out how far apart the song and the tag actually sit.
+     * They buy the thing the volume slider could not: without them the tag mixes in at whatever level it
+     * was recorded, which on a mastered track is 10 to 15 dB down and effectively inaudible.
+     */
+    private double measureTagMatchGain(Path songFile, Path voiceTagFile, UUID songId) {
+        Double songLufs = audioProbe.probeLoudnessLufs(songFile);
+        Double tagLufs = audioProbe.probeLoudnessLufs(voiceTagFile);
+        double gainDb = TagLoudnessMatch.gainDb(songLufs, tagLufs, headroomDb());
+
+        log.info("Voice tag loudness match: songId={}, song={} LUFS, tag={} LUFS, gain={} dB",
+                songId, songLufs, tagLufs, gainDb);
+        return gainDb;
     }
 
     private void assertIntervalFitsTag(AudioProcessingRequest request, double voiceTagDuration) {

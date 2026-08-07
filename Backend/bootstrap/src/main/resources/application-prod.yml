@@ -69,6 +69,10 @@ pwb:
       cleanup-temp-files: true
       orphan-retention-hours: ${PWB_AUDIO_ORPHAN_RETENTION_HOURS:6}
       timeout-minutes: ${PWB_AUDIO_TIMEOUT_MINUTES:15}
+      # How far above the song the voice tag is placed before the user's volume percentage applies. The
+      # tag is matched to the song's measured loudness first, so this is the only figure deciding how far
+      # it stands out — raise it if tags still get lost, lower it if they sit on top of the music.
+      voice-tag-headroom-db: ${PWB_AUDIO_VOICE_TAG_HEADROOM_DB:3.0}
     upload:
       # Verified against object storage, not trusted from the client. Keep working-dir sized to roughly
       # 2.5x this value, since one job holds the source, the voice tag and the render at the same time.

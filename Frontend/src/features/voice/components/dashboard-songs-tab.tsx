@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Music, Upload, SearchX, Pencil, Trash2, Check, X } from "lucide-react";
+import { Music, Upload, SearchX, Pencil, Trash2, Check, X, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { Select } from "@/components/ui/select";
@@ -51,7 +51,6 @@ function SongRow({ song, index, onDelete }: SongRowProps) {
   const tActions = useTranslations("voice.actions");
   const tCommon = useTranslations("common");
   const tErrors = useTranslations("voice.errors");
-  const tStatus = useTranslations("voice.status");
 
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(song.title);
@@ -124,10 +123,22 @@ function SongRow({ song, index, onDelete }: SongRowProps) {
         </Link>
       )}
 
-      <div className="flex items-center gap-2 px-3 py-2 sm:gap-4 sm:px-4 sm:py-2.5">
-        <span className="hidden w-6 shrink-0 text-right text-xs tabular-nums text-muted-foreground sm:block">
+      <div className="flex items-center gap-3 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3">
+        <span className="hidden w-5 shrink-0 text-right text-xs tabular-nums text-muted-foreground sm:block">
           {index + 1}
         </span>
+
+        {/* Artwork tile: a music glyph that flips to a play glyph on row hover. */}
+        <div className="relative grid size-11 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-gradient-to-br from-muted/70 to-muted/30 sm:size-12">
+          <Music
+            className="size-5 text-muted-foreground beat-16th transition-opacity ease-hammer group-hover:opacity-0"
+            aria-hidden="true"
+          />
+          <Play
+            className="absolute size-5 fill-current text-foreground opacity-0 beat-16th transition-opacity ease-hammer group-hover:opacity-100"
+            aria-hidden="true"
+          />
+        </div>
 
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           {isEditing ? (
@@ -173,23 +184,18 @@ function SongRow({ song, index, onDelete }: SongRowProps) {
           ) : (
             <>
               <div className="flex min-w-0 items-center gap-2">
-                <span className="truncate text-sm font-medium text-foreground decoration-muted-foreground/40 underline-offset-4 group-hover:underline">
+                <span className="truncate text-sm font-semibold text-foreground decoration-muted-foreground/40 underline-offset-4 group-hover:underline sm:text-[0.95rem]">
                   {song.title}
                 </span>
                 <SongStatusBadge status={song.status} />
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground sm:hidden">
-                <span className="tabular-nums">{durationLabel}</span>
-                {formatLabel && (
-                  <>
-                    <span aria-hidden="true">·</span>
-                    <span>{formatLabel}</span>
-                  </>
-                )}
-                <span aria-hidden="true">·</span>
-                <span className="truncate">
-                  {song.hasVoiceTag ? tStatus("hasVoiceTag") : sizeLabel}
-                </span>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <SongVoiceTagBadge hasVoiceTag={song.hasVoiceTag} />
+                {formatLabel && <span className="hidden sm:inline">{formatLabel}</span>}
+                <span aria-hidden="true" className="hidden sm:inline">·</span>
+                <span className="tabular-nums">{sizeLabel}</span>
+                <span aria-hidden="true" className="sm:hidden">·</span>
+                <span className="tabular-nums sm:hidden">{durationLabel}</span>
               </div>
             </>
           )}
@@ -197,19 +203,7 @@ function SongRow({ song, index, onDelete }: SongRowProps) {
 
         {!isEditing && (
           <>
-            <div className="hidden w-24 shrink-0 sm:block">
-              <SongVoiceTagBadge hasVoiceTag={song.hasVoiceTag} />
-            </div>
-
-            <span className="hidden w-12 shrink-0 text-center text-xs text-muted-foreground md:block">
-              {formatLabel}
-            </span>
-
-            <span className="hidden w-16 shrink-0 text-right text-xs tabular-nums text-muted-foreground lg:block">
-              {sizeLabel}
-            </span>
-
-            <span className="hidden w-12 shrink-0 text-right text-xs tabular-nums text-foreground sm:block">
+            <span className="hidden shrink-0 text-sm tabular-nums text-foreground sm:block">
               {durationLabel}
             </span>
 
@@ -430,13 +424,11 @@ export function DashboardSongsTab() {
             aria-busy={isFetching}
             className={`beat-8th transition-opacity ${isFetching ? "opacity-70" : ""}`}
           >
-            <div className="hidden items-center gap-4 border-b border-border bg-muted/40 px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:flex">
-              <span className="w-6 shrink-0 text-right">#</span>
+            <div className="hidden items-center gap-4 border-b border-border bg-muted/40 px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:flex">
+              <span className="w-5 shrink-0 text-right">#</span>
+              <span className="w-12 shrink-0" />
               <span className="flex-1">{tList("colTitle")}</span>
-              <span className="w-24 shrink-0" />
-              <span className="hidden w-12 shrink-0 text-center md:block">{tList("colFormat")}</span>
-              <span className="hidden w-16 shrink-0 text-right lg:block">{tList("colSize")}</span>
-              <span className="w-12 shrink-0 text-right">{tList("colDuration")}</span>
+              <span className="shrink-0">{tList("colDuration")}</span>
               <span className="w-18 shrink-0" />
             </div>
 

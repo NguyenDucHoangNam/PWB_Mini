@@ -17,6 +17,17 @@ public final class WatermarkFilterBuilder {
     private static final int NO_DUCKING = 100;
 
     /**
+     * Where the summed mix is allowed to peak. Song and tag are added together at full scale, so a track
+     * already mastered close to 0 dBFS goes over the moment a tag lands on it, and libmp3lame clips what it
+     * is handed. Clipping does not make the tag louder — it flattens both signals into the same wall of
+     * distortion, which is the opposite of standing out. The limiter buys the sum somewhere to go.
+     */
+    private static final String OUTPUT_CEILING = "0.950";
+
+    /** Below a thousandth of a dB the match filter is a no-op, and the graph reads better without it. */
+    private static final double GAIN_EPSILON_DB = 0.001;
+
+    /**
      * What one buffered sample costs FFmpeg to hold: stereo, 32-bit planar float. Only an estimate, but the
      * budget below only needs to be the right order of magnitude.
      */
@@ -32,18 +43,28 @@ public final class WatermarkFilterBuilder {
     private WatermarkFilterBuilder() {
     }
 
+    /**
+     * @param tagMatchGainDb gain that puts the tag at a comparable loudness to the song, from
+     *                       {@link TagLoudnessMatch}. Applied before the user's percentage, so the
+     *                       percentage trims a tag that is already audible instead of one that is not.
+     */
     public static String build(AudioProcessingRequest request,
                                double songDurationSeconds,
-                               double voiceTagDurationSeconds) {
+                               double voiceTagDurationSeconds,
+                               double tagMatchGainDb) {
         int insertions = countInsertions(request, songDurationSeconds);
         if (insertions == 0) {
+            // Nothing is summed into the song, so it needs neither ducking nor a limiter.
             return "[0:a]anull" + OUTPUT_LABEL;
         }
 
         List<String> chains = new ArrayList<>();
-        chains.add(buildTagTrack(request, insertions));
+        chains.add(buildTagTrack(request, insertions, tagMatchGainDb));
         chains.add(buildSongBed(request, voiceTagDurationSeconds));
-        chains.add("[bed][tagtrack]amix=inputs=2:duration=first:normalize=0" + OUTPUT_LABEL);
+        chains.add("[bed][tagtrack]amix=inputs=2:duration=first:normalize=0"
+                // level=disabled: alimiter otherwise normalizes its output back up to 0 dBFS, which would
+                // undo the ducking and re-inflate quiet songs.
+                + ",alimiter=limit=" + OUTPUT_CEILING + ":level=disabled" + OUTPUT_LABEL);
         return String.join(";", chains);
     }
 
@@ -56,9 +77,11 @@ public final class WatermarkFilterBuilder {
         return Math.min(count, MAX_INSERTIONS);
     }
 
-    private static String buildTagTrack(AudioProcessingRequest request, int insertions) {
+    private static String buildTagTrack(AudioProcessingRequest request, int insertions, double matchGainDb) {
         double tagVolume = request.voiceTagVolumePercentage() / 100.0;
-        String prepared = "[1:a]aresample=" + SAMPLE_RATE + ",volume=" + decimal(tagVolume);
+        String prepared = "[1:a]aresample=" + SAMPLE_RATE
+                + matchFilter(matchGainDb)
+                + ",volume=" + decimal(tagVolume);
 
         if (insertions == 1) {
             return prepared + "," + delayOf(request, 0) + "[tagtrack]";
@@ -124,6 +147,18 @@ public final class WatermarkFilterBuilder {
         String expression = "'if(lt(t," + start + "),1,"
                 + "if(lt(mod(t-" + start + "," + interval + ")," + tagDuration + ")," + decimal(duckFactor) + ",1))'";
         return "[0:a]volume=" + expression + ":eval=frame[bed]";
+    }
+
+    /**
+     * The loudness match, kept as its own {@code volume} filter rather than folded into the linear figure
+     * beside it. The two are separate decisions — one the pipeline made, one the user made — and the logged
+     * filtergraph is the only place anyone can see either of them.
+     */
+    private static String matchFilter(double matchGainDb) {
+        if (Math.abs(matchGainDb) < GAIN_EPSILON_DB) {
+            return "";
+        }
+        return ",volume=" + decimal(matchGainDb) + "dB";
     }
 
     private static String decimal(double value) {

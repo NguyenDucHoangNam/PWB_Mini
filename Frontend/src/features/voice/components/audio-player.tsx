@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Play, Pause, Volume2, VolumeX, Repeat, Gauge } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, Repeat, Gauge, SkipBack, SkipForward } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { usePresignedUrl } from "../hooks/use-presigned-url";
@@ -15,12 +15,14 @@ interface AudioPlayerProps {
 
 const MOBILE_BREAKPOINT_PX = 640;
 const SEEK_STEP_PERCENT = 5;
-const DESKTOP_BARS = 80;
-const MOBILE_BARS = 40;
-const CREST_PX = 120;
-const REFLECTION_PX = 36;
-const MOBILE_CREST_PX = 80;
-const MOBILE_REFLECTION_PX = 24;
+const WAVE_RESOLUTION = 800;
+const DESKTOP_BARS = 360;
+const MOBILE_BARS = 170;
+// SoundCloud shape: tall crest on top, shorter dimmed reflection below the centre line.
+const CREST_PX = 78;
+const REFLECTION_PX = 40;
+const MOBILE_CREST_PX = 50;
+const MOBILE_REFLECTION_PX = 26;
 const MIN_BAR_PX = 2;
 const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 
@@ -31,23 +33,31 @@ function skeletonBarHeight(index: number, maxPx: number): number {
 
 function extractWaveformData(audioBuffer: AudioBuffer, barCount: number): number[] {
   const rawData = audioBuffer.getChannelData(0);
-  const samplesPerBar = Math.floor(rawData.length / barCount);
+  const samplesPerBar = Math.max(1, Math.floor(rawData.length / barCount));
   const bars: number[] = [];
 
   for (let i = 0; i < barCount; i++) {
     let peak = 0;
-    let sum = 0;
+    let sumSq = 0;
+    let count = 0;
     const start = i * samplesPerBar;
     for (let j = start; j < start + samplesPerBar && j < rawData.length; j++) {
       const amplitude = Math.abs(rawData[j]);
-      sum += amplitude;
       if (amplitude > peak) peak = amplitude;
+      sumSq += rawData[j] * rawData[j];
+      count++;
     }
-    bars.push(0.6 * (sum / samplesPerBar) + 0.4 * peak);
+    const rms = count > 0 ? Math.sqrt(sumSq / count) : 0;
+    // Peak drives the silhouette, RMS gives the body — this reads as a real wave.
+    bars.push(0.7 * peak + 0.3 * rms);
   }
 
-  const maxVal = Math.max(...bars, 0.01);
-  return bars.map((value) => Math.pow(value / maxVal, 0.85));
+  // Normalise to a high percentile, not the single loudest peak, so a lone spike
+  // doesn't crush the whole track flat — quiet and loud sections stay distinct.
+  const sorted = [...bars].sort((a, b) => a - b);
+  const reference = sorted[Math.floor(sorted.length * 0.95)] || Math.max(...bars, 0.01);
+  // Exponent > 1 deepens the valleys while peaks stay near full height — high contrast.
+  return bars.map((value) => Math.min(1, Math.pow(value / reference, 1.6)));
 }
 
 function resampleBars(bars: number[], targetCount: number): number[] {
@@ -94,8 +104,8 @@ function useWaveformDimensions(): WaveformDimensions {
 
 function barTone(index: number, playedBars: number, hoveredBars: number): string {
   if (index < playedBars) return "bg-foreground";
-  if (index < hoveredBars) return "bg-muted-foreground/50";
-  return "bg-muted-foreground/20";
+  if (index < hoveredBars) return "bg-muted-foreground/55";
+  return "bg-muted-foreground/25";
 }
 
 function Waveform({
@@ -133,12 +143,12 @@ function Waveform({
   const playedBars = (progressPercent / 100) * bars.length;
   const hoveredBars = hoverPercent === null ? 0 : (hoverPercent / 100) * bars.length;
 
-  const renderBars = (maxPx: number, alignClass: string) => (
-    <div className={`flex gap-[3px] ${alignClass}`} style={{ height: `${maxPx}px` }}>
+  const renderBars = (maxPx: number, alignClass: string, dimmed: boolean) => (
+    <div className={`flex gap-px ${alignClass}`} style={{ height: `${maxPx}px` }}>
       {bars.map((height, i) => (
         <div
           key={i}
-          className={`min-w-[3px] flex-1 rounded-[2px] beat-16th transition-colors ease-hammer ${barTone(i, playedBars, hoveredBars)}`}
+          className={`min-w-px flex-1 rounded-[1px] beat-16th transition-colors ease-hammer ${barTone(i, playedBars, hoveredBars)} ${dimmed ? "opacity-45" : ""}`}
           style={{ height: `${Math.max(MIN_BAR_PX, Math.round(height * maxPx))}px` }}
         />
       ))}
@@ -148,7 +158,7 @@ function Waveform({
   return (
     <div
       ref={containerRef}
-      className="relative w-full cursor-pointer select-none rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+      className="group/wave relative w-full cursor-pointer select-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
       onClick={(e) => onSeek(percentFromClientX(e.clientX))}
       onMouseMove={(e) => setHoverPercent(percentFromClientX(e.clientX))}
       onMouseLeave={() => setHoverPercent(null)}
@@ -160,14 +170,22 @@ function Waveform({
       aria-valuenow={Math.round(progressPercent)}
       tabIndex={0}
     >
-      {renderBars(dims.crestPx, "items-end")}
-      <div className="mt-px opacity-40">
-        {renderBars(dims.reflectionPx, "items-start")}
-      </div>
+      {renderBars(dims.crestPx, "items-end", false)}
+      {renderBars(dims.reflectionPx, "items-start", true)}
+
+      {/* Centre baseline where crest meets reflection. */}
+      <div
+        className="pointer-events-none absolute inset-x-0 h-px bg-muted-foreground/30"
+        style={{ top: `${dims.crestPx}px` }}
+        aria-hidden="true"
+      />
+
+      {/* Start marker at the left edge. */}
+      <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-px bg-foreground/40" aria-hidden="true" />
 
       {hoverPercent !== null && (
         <div
-          className="pointer-events-none absolute inset-y-0 w-px bg-foreground/30"
+          className="pointer-events-none absolute inset-y-0 w-px bg-foreground/40"
           style={{ left: `${hoverPercent}%` }}
           aria-hidden="true"
         />
@@ -179,67 +197,25 @@ function Waveform({
 function WaveformSkeleton({ dims }: { dims: WaveformDimensions }) {
   const bars = Array.from({ length: dims.bars });
 
-  return (
-    <div className="w-full" aria-hidden="true">
-      <div className="flex items-end gap-[3px]" style={{ height: `${dims.crestPx}px` }}>
-        {bars.map((_, i) => (
-          <div
-            key={i}
-            className="min-w-[3px] flex-1 animate-pulse rounded-[2px] bg-muted"
-            style={{
-              height: `${skeletonBarHeight(i, dims.crestPx)}px`,
-              animationDelay: `${i * 15}ms`,
-            }}
-          />
-        ))}
-      </div>
-      <div className="mt-px flex items-start gap-[3px] opacity-40" style={{ height: `${dims.reflectionPx}px` }}>
-        {bars.map((_, i) => (
-          <div
-            key={i}
-            className="min-w-[3px] flex-1 animate-pulse rounded-[2px] bg-muted"
-            style={{
-              height: `${skeletonBarHeight(i, dims.reflectionPx)}px`,
-              animationDelay: `${i * 15}ms`,
-            }}
-          />
-        ))}
-      </div>
+  const renderBars = (maxPx: number, alignClass: string, dimmed: boolean) => (
+    <div className={`flex gap-px ${alignClass} ${dimmed ? "opacity-45" : ""}`} style={{ height: `${maxPx}px` }}>
+      {bars.map((_, i) => (
+        <div
+          key={i}
+          className="min-w-px flex-1 animate-pulse rounded-[1px] bg-muted"
+          style={{
+            height: `${skeletonBarHeight(i, maxPx)}px`,
+            animationDelay: `${i * 6}ms`,
+          }}
+        />
+      ))}
     </div>
   );
-}
 
-function SeekBar({
-  progressPercent,
-  currentLabel,
-  durationLabel,
-  onSeek,
-}: {
-  progressPercent: number;
-  currentLabel: string;
-  durationLabel: string;
-  onSeek: (percent: number) => void;
-}) {
   return (
-    <div className="flex items-center gap-3">
-      <span className="shrink-0 text-xs tabular-nums text-foreground">{currentLabel}</span>
-      <div
-        className="group/track relative h-6 flex-1 cursor-pointer"
-        onClick={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          onSeek(((e.clientX - rect.left) / rect.width) * 100);
-        }}
-      >
-        <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full bg-muted-foreground/20">
-          <div className="h-full rounded-full bg-foreground" style={{ width: `${progressPercent}%` }} />
-        </div>
-        <div
-          className="absolute top-1/2 size-3 -translate-y-1/2 rounded-full bg-foreground opacity-0 shadow-sm beat-16th transition-opacity ease-hammer group-hover/track:opacity-100"
-          style={{ left: `calc(${progressPercent}% - 0.375rem)` }}
-          aria-hidden="true"
-        />
-      </div>
-      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{durationLabel}</span>
+    <div className="w-full" aria-hidden="true">
+      {renderBars(dims.crestPx, "items-end", false)}
+      {renderBars(dims.reflectionPx, "items-start", true)}
     </div>
   );
 }
@@ -269,13 +245,13 @@ function SongCustomPlayer({ url }: { url: string }) {
         const arrayBuffer = await response.arrayBuffer();
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
         if (!cancelled) {
-          setWaveform(extractWaveformData(audioBuffer, DESKTOP_BARS));
+          setWaveform(extractWaveformData(audioBuffer, WAVE_RESOLUTION));
           setWaveformLoading(false);
         }
         await audioContext.close();
       } catch {
         if (!cancelled) {
-          const fallback = Array.from({ length: DESKTOP_BARS }, () => 0.2 + Math.random() * 0.8);
+          const fallback = Array.from({ length: WAVE_RESOLUTION }, () => 0.2 + Math.random() * 0.8);
           setWaveform(fallback);
           setWaveformLoading(false);
         }
@@ -341,7 +317,7 @@ function SongCustomPlayer({ url }: { url: string }) {
   const currentSpeed = PLAYBACK_SPEEDS[speedIndex];
 
   return (
-    <div className="flex w-full flex-col gap-4">
+    <div className="flex w-full flex-col gap-5">
       <audio
         ref={audioRef}
         src={url}
@@ -356,43 +332,92 @@ function SongCustomPlayer({ url }: { url: string }) {
         }}
       />
 
-      {waveformLoading ? (
-        <WaveformSkeleton dims={dims} />
-      ) : (
-        <Waveform
-          bars={visibleBars}
-          dims={dims}
-          progressPercent={progressPercent}
-          onSeek={handleSeek}
-          label={tPlayer("seek")}
-        />
-      )}
+      <div className="flex items-stretch gap-3 sm:gap-4">
+        <div className="min-w-0 flex-1">
+          {waveformLoading ? (
+            <WaveformSkeleton dims={dims} />
+          ) : (
+            <Waveform
+              bars={visibleBars}
+              dims={dims}
+              progressPercent={progressPercent}
+              onSeek={handleSeek}
+              label={tPlayer("seek")}
+            />
+          )}
+        </div>
+
+        {/* Stacked time readout, SoundCloud-style: elapsed on top, total below. */}
+        <div className="flex w-10 shrink-0 flex-col justify-between py-0.5 text-right text-xs tabular-nums sm:w-12">
+          <span className="font-medium text-foreground">{formatDuration(currentTime)}</span>
+          <span className="text-muted-foreground">{formatDuration(duration)}</span>
+        </div>
+      </div>
 
       <div className="flex flex-col gap-2">
-        <SeekBar
-          progressPercent={progressPercent}
-          currentLabel={formatDuration(currentTime)}
-          durationLabel={formatDuration(duration)}
-          onSeek={handleSeek}
-        />
+        <div className="grid grid-cols-3 items-center gap-2">
+          {/* Left cluster: volume */}
+          <div className="flex items-center justify-start gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-9 shrink-0 text-muted-foreground hover:text-foreground sm:size-8"
+              onClick={toggleMute}
+              aria-label={isMuted ? tPlayer("unmute") : tPlayer("mute")}
+            >
+              {isMuted ? (
+                <VolumeX className="size-4" aria-hidden="true" />
+              ) : (
+                <Volume2 className="size-4" aria-hidden="true" />
+              )}
+            </Button>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={Math.round((isMuted ? 0 : volume) * 100)}
+              onChange={(e) => handleVolumeChange(Number(e.target.value) / 100)}
+              aria-label={tPlayer("volume")}
+              className="hidden h-1 w-20 cursor-pointer appearance-none rounded-full bg-muted-foreground/20 accent-foreground outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring sm:block [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-foreground [&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-foreground"
+            />
+          </div>
 
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1">
+          {/* Center cluster: transport */}
+          <div className="flex items-center justify-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-10 shrink-0 text-muted-foreground hover:text-foreground sm:size-9"
+              onClick={() => handleSeek(progressPercent - SEEK_STEP_PERCENT * 2)}
+              aria-label={tPlayer("seek")}
+            >
+              <SkipBack className="size-4" aria-hidden="true" />
+            </Button>
             <Button
               size="icon"
-              className="size-10 rounded-full sm:size-9"
+              className="size-14 rounded-full shadow-sm sm:size-12"
               onClick={togglePlay}
               aria-label={isPlaying ? tPlayer("pause") : tActions("play")}
             >
               {isPlaying ? (
-                <Pause className="size-4 fill-current" aria-hidden="true" />
+                <Pause className="size-5 fill-current" aria-hidden="true" />
               ) : (
-                <Play className="ml-0.5 size-4 fill-current" aria-hidden="true" />
+                <Play className="ml-0.5 size-5 fill-current" aria-hidden="true" />
               )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-10 shrink-0 text-muted-foreground hover:text-foreground sm:size-9"
+              onClick={() => handleSeek(progressPercent + SEEK_STEP_PERCENT * 2)}
+              aria-label={tPlayer("seek")}
+            >
+              <SkipForward className="size-4" aria-hidden="true" />
             </Button>
           </div>
 
-          <div className="flex items-center gap-1">
+          {/* Right cluster: loop + speed */}
+          <div className="flex items-center justify-end gap-1">
             <Button
               variant="ghost"
               size="icon"
@@ -414,31 +439,6 @@ function SongCustomPlayer({ url }: { url: string }) {
               <Gauge className="size-3.5" aria-hidden="true" />
               {currentSpeed}x
             </Button>
-
-            <div className="flex shrink-0 items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-9 shrink-0 text-muted-foreground hover:text-foreground sm:size-8"
-                onClick={toggleMute}
-                aria-label={isMuted ? tPlayer("unmute") : tPlayer("mute")}
-              >
-                {isMuted ? (
-                  <VolumeX className="size-4" aria-hidden="true" />
-                ) : (
-                  <Volume2 className="size-4" aria-hidden="true" />
-                )}
-              </Button>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={Math.round((isMuted ? 0 : volume) * 100)}
-                onChange={(e) => handleVolumeChange(Number(e.target.value) / 100)}
-                aria-label={tPlayer("volume")}
-                className="hidden h-1 w-16 cursor-pointer appearance-none rounded-full bg-muted-foreground/20 accent-foreground outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring sm:block [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-foreground [&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-foreground"
-              />
-            </div>
           </div>
         </div>
       </div>

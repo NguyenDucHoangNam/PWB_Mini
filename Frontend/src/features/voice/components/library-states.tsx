@@ -67,16 +67,16 @@ export function LibraryRowsSkeleton({ rows = 6 }: LibrarySkeletonProps) {
     <div role="status" aria-live="polite" className="divide-y divide-border">
       <span className="sr-only">{t("loading")}</span>
       {Array.from({ length: rows }).map((_, index) => (
-        <div key={index} className="flex items-center gap-3 px-3 py-4 sm:gap-4 sm:px-4">
-          <div className="hidden h-3 w-6 shrink-0 animate-pulse rounded bg-muted sm:block" />
+        <div key={index} className="flex items-center gap-3 px-3 py-3 sm:gap-4 sm:px-4">
+          <div className="hidden h-3 w-5 shrink-0 animate-pulse rounded bg-muted sm:block" />
+          <div className="size-11 shrink-0 animate-pulse rounded-lg bg-muted sm:size-12" />
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <div
               className="h-3.5 animate-pulse rounded bg-muted"
               style={{ width: `${45 + ((index * 13) % 35)}%` }}
             />
-            <div className="h-3 w-24 animate-pulse rounded bg-muted/60 sm:hidden" />
+            <div className="h-3 w-24 animate-pulse rounded bg-muted/60" />
           </div>
-          <div className="hidden h-3 w-12 shrink-0 animate-pulse rounded bg-muted/60 sm:block" />
           <div className="h-3 w-10 shrink-0 animate-pulse rounded bg-muted/60" />
         </div>
       ))}

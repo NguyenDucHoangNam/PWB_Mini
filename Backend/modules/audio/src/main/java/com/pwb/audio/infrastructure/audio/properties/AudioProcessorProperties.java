@@ -32,4 +32,12 @@ public class AudioProcessorProperties {
      * releases. Raising it costs encoding time and upload bytes, so it is a knob rather than a constant.
      */
     private String outputBitrate = "192k";
+
+    /**
+     * How far above the song's integrated loudness the voice tag is placed, in dB, before the user's own
+     * volume percentage is applied. A few dB is what it takes for a short phrase to read as sitting on top
+     * of the music rather than inside it; push it much further and the tag stops sounding like part of the
+     * track. Set to 0 to have the tag merely match the song.
+     */
+    private Double voiceTagHeadroomDb = 3.0;
 }
