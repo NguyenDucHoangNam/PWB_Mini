@@ -16,7 +16,7 @@ export default function DashboardLiveroomPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 font-sans">
+    <div className="flex flex-1 flex-col font-sans">
       <LiveroomList />
     </div>
   );

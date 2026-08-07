@@ -4,10 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { DoorClosed } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { asApiError } from "@/lib/api-client";
 import { JoinLobby } from "./join-lobby";
+import { JoinStateCard } from "./join-state-card";
 import { PreJoinPanel } from "./pre-join-panel";
 import { RoomLookupSummary } from "./room-lookup-summary";
 import { useFindRoomByCode } from "../../api/rooms";
@@ -99,7 +101,7 @@ export function JoinFlow({ roomCode }: { roomCode: string }) {
 
   if (!lookup && lookingUp) {
     return (
-      <div className="flex items-center justify-center gap-2 py-16 text-sm text-neutral-500 dark:text-neutral-400">
+      <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
         <Spinner size="sm" />
         {t("looking")}
       </div>
@@ -108,20 +110,24 @@ export function JoinFlow({ roomCode }: { roomCode: string }) {
 
   if (!lookup) {
     return (
-      <div className="flex flex-col items-center gap-4 rounded-xl border border-neutral-200 bg-white p-6 text-center md:p-8 dark:border-neutral-800 dark:bg-black">
-        <p className="text-lg font-semibold text-black dark:text-white">{t("notFound")}</p>
-        {lookupFailed ? (
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">
-            {resolveLiveroomErrorMessage(lookupError, tErrors, tCommon)}
-          </p>
-        ) : null}
-        <Button
-          variant="outline"
-          className="h-11 md:h-9"
-          onClick={() => router.push("/dashboard/liveroom/join")}
-        >
-          {t("continue")}
-        </Button>
+      <div className="flex h-full flex-col">
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-xl border border-border bg-card p-6 text-center shadow-xs md:p-8">
+          <div className="flex flex-col gap-1">
+            <p className="text-lg font-bold tracking-tight text-foreground">{t("notFound")}</p>
+            {lookupFailed ? (
+              <p className="text-sm text-muted-foreground">
+                {resolveLiveroomErrorMessage(lookupError, tErrors, tCommon)}
+              </p>
+            ) : null}
+          </div>
+          <Button
+            variant="outline"
+            className="h-11 md:h-9"
+            onClick={() => router.push("/dashboard/liveroom/join")}
+          >
+            {t("continue")}
+          </Button>
+        </div>
       </div>
     );
   }
@@ -129,31 +135,48 @@ export function JoinFlow({ roomCode }: { roomCode: string }) {
   const unavailable = lookup.status === "ENDED";
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex h-full flex-col gap-4">
       <RoomLookupSummary lookup={lookup} />
 
-      {recovering && !request ? (
-        <div className="flex items-center justify-center gap-2 py-8 text-sm text-neutral-500 dark:text-neutral-400">
-          <Spinner size="sm" />
-          {t("looking")}
-        </div>
-      ) : request ? (
-        <JoinLobby roomId={roomId} initialRequest={request} onRetry={restart} />
-      ) : (
-        <PreJoinPanel
-          media={media}
-          submitting={asking}
-          disabled={unavailable}
-          onSubmit={() => {
-            writeMediaIntent(roomId, { cameraOn: media.cameraOn, micOn: media.micOn });
-            media.stopAll();
-            askToJoin({
-              roomId,
-              data: { idempotencyKey: getOrCreateIdempotencyKey(roomId) },
-            });
-          }}
-        />
-      )}
+      <div className="flex min-h-0 flex-1 flex-col">
+        {unavailable ? (
+          <JoinStateCard
+            tone="danger"
+            icon={<DoorClosed className="size-8" aria-hidden />}
+            title={t("ended")}
+            body={t("endedHint")}
+            action={
+              <Button
+                variant="outline"
+                className="h-11 md:h-9"
+                onClick={() => router.push("/dashboard/liveroom/join")}
+              >
+                {t("tryAnotherCode")}
+              </Button>
+            }
+          />
+        ) : recovering && !request ? (
+          <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Spinner size="sm" />
+            {t("looking")}
+          </div>
+        ) : request ? (
+          <JoinLobby roomId={roomId} initialRequest={request} onRetry={restart} />
+        ) : (
+          <PreJoinPanel
+            media={media}
+            submitting={asking}
+            onSubmit={() => {
+              writeMediaIntent(roomId, { cameraOn: media.cameraOn, micOn: media.micOn });
+              media.stopAll();
+              askToJoin({
+                roomId,
+                data: { idempotencyKey: getOrCreateIdempotencyKey(roomId) },
+              });
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }

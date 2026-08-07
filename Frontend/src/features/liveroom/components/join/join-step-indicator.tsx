@@ -9,7 +9,7 @@ export function JoinStepIndicator({ current }: { current: number }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
+      <p className="text-xs font-medium text-muted-foreground">
         {t("step", { current, total: JOIN_TOTAL_STEPS })}
       </p>
       <div
@@ -22,10 +22,8 @@ export function JoinStepIndicator({ current }: { current: number }) {
         {Array.from({ length: JOIN_TOTAL_STEPS }, (_, index) => (
           <span
             key={index}
-            className={`h-1 flex-1 rounded-full ${
-              index < current
-                ? "bg-black dark:bg-white"
-                : "bg-neutral-200 dark:bg-neutral-800"
+            className={`h-1 flex-1 rounded-full beat-16th transition-colors ease-hammer ${
+              index < current ? "bg-foreground" : "bg-muted"
             }`}
           />
         ))}

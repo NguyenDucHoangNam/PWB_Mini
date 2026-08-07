@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Search } from "lucide-react";
+import { KeyRound, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,8 +28,21 @@ export function RoomCodeForm() {
     >
       <JoinStepIndicator current={1} />
 
+      <div className="flex flex-col items-center gap-3 text-center">
+        <div className="grid size-12 place-items-center rounded-xl border border-border bg-muted text-foreground">
+          <KeyRound className="size-5" aria-hidden="true" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <h2 className="text-lg font-bold tracking-tight text-foreground">{t("title")}</h2>
+          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+        </div>
+      </div>
+
       <div className="flex flex-col gap-2">
-        <Label htmlFor="liveroom-code" className="font-semibold text-xs uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
+        <Label
+          htmlFor="liveroom-code"
+          className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+        >
           {t("codeLabel")}
         </Label>
         <Input
@@ -42,16 +55,12 @@ export function RoomCodeForm() {
           spellCheck={false}
           inputMode="text"
           maxLength={ROOM_CODE_LENGTH}
-          className="h-14 text-center font-mono text-2xl font-bold tracking-[0.4em] border-neutral-300 bg-neutral-50 focus:border-black dark:border-neutral-700 dark:bg-neutral-900 dark:focus:border-white"
+          className="h-14 text-center font-mono text-2xl font-bold tracking-[0.4em]"
         />
       </div>
 
-      <Button
-        type="submit"
-        className="h-10 min-h-[44px] sm:min-h-0 w-full bg-black font-semibold text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
-        disabled={!complete}
-      >
-        <Search className="size-4 mr-1.5" />
+      <Button type="submit" className="h-11 w-full font-semibold" disabled={!complete}>
+        <Search className="mr-1.5 size-4" />
         {t("lookup")}
       </Button>
     </form>

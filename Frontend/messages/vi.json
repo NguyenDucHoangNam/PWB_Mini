@@ -892,6 +892,7 @@
     },
     "join": {
       "title": "Vào phòng",
+      "subtitle": "Nhập mã 6 ký tự được chia sẻ để vào phòng của họ.",
       "step": "Bước {current}/{total}",
       "codeLabel": "Mã phòng",
       "codePlaceholder": "ABC123",
@@ -901,6 +902,8 @@
       "capacityLine": "Đang có {count}/{max} người",
       "full": "Phòng đang đầy",
       "ended": "Phòng đã kết thúc",
+      "endedHint": "Chủ phòng đã đóng phòng này nên không thể vào được nữa.",
+      "tryAnotherCode": "Thử mã khác",
       "notFound": "Không có phòng nào với mã này",
       "continue": "Tiếp tục",
       "codeInvalid": "Mã phòng gồm 6 chữ cái hoặc chữ số"

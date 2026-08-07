@@ -892,6 +892,7 @@
     },
     "join": {
       "title": "Join a room",
+      "subtitle": "Enter the 6-character code someone shared to drop into their room.",
       "step": "Step {current} of {total}",
       "codeLabel": "Room code",
       "codePlaceholder": "ABC123",
@@ -901,6 +902,8 @@
       "capacityLine": "{count} of {max} people inside",
       "full": "This room is full right now",
       "ended": "This room has ended",
+      "endedHint": "The host closed this room, so it can no longer be joined.",
+      "tryAnotherCode": "Try another code",
       "notFound": "No room with that code",
       "continue": "Continue",
       "codeInvalid": "A room code is 6 letters or digits"

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { asApiError } from "@/lib/api-client";
 import { AutoJoinCountdown } from "./auto-join-countdown";
+import { JoinStateCard } from "./join-state-card";
 import { JoinStepIndicator } from "./join-step-indicator";
 import {
   myJoinRequestKey,
@@ -104,7 +105,7 @@ export function JoinLobby({ roomId, initialRequest, onRetry }: JoinLobbyProps) {
 
   if (request.state === "APPROVED") {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex h-full flex-col gap-5">
         <JoinStepIndicator current={4} />
         <AutoJoinCountdown onEnter={enterRoom} />
       </div>
@@ -113,7 +114,7 @@ export function JoinLobby({ roomId, initialRequest, onRetry }: JoinLobbyProps) {
 
   if (request.state === "LOCKED") {
     return (
-      <StateCard
+      <JoinStateCard
         tone="danger"
         icon={<Ban className="size-8" aria-hidden />}
         title={t("locked")}
@@ -129,7 +130,7 @@ export function JoinLobby({ roomId, initialRequest, onRetry }: JoinLobbyProps) {
 
   if (request.state === "REJECTED_BY_OWNER") {
     return (
-      <StateCard
+      <JoinStateCard
         tone="danger"
         icon={<XCircle className="size-8" aria-hidden />}
         title={t("rejected")}
@@ -147,7 +148,7 @@ export function JoinLobby({ roomId, initialRequest, onRetry }: JoinLobbyProps) {
 
   if (request.state === "REJECTED_BY_CAPACITY") {
     return (
-      <StateCard
+      <JoinStateCard
         tone="warning"
         icon={<Clock className="size-8" aria-hidden />}
         title={t("capacityFull")}
@@ -163,7 +164,7 @@ export function JoinLobby({ roomId, initialRequest, onRetry }: JoinLobbyProps) {
 
   if (request.state === "CANCELLED" || request.state === "EXPIRED") {
     return (
-      <StateCard
+      <JoinStateCard
         tone="neutral"
         icon={<Clock className="size-8" aria-hidden />}
         title={t("cancelled")}
@@ -178,16 +179,16 @@ export function JoinLobby({ roomId, initialRequest, onRetry }: JoinLobbyProps) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex h-full flex-col gap-5">
       <JoinStepIndicator current={3} />
-      <div className="flex flex-col items-center gap-4 rounded-xl border border-neutral-200 bg-white p-6 text-center md:p-8 dark:border-neutral-800 dark:bg-black">
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 rounded-xl border border-border bg-card p-6 text-center shadow-xs md:p-8">
         <Spinner size="sm" />
-        <p aria-live="polite" className="text-lg font-semibold text-black dark:text-white">
-          {t("waiting")}
-        </p>
-        <p className="max-w-sm text-sm text-neutral-500 dark:text-neutral-400">
-          {t("waitingHint")}
-        </p>
+        <div className="flex flex-col gap-1">
+          <p aria-live="polite" className="text-lg font-bold tracking-tight text-foreground">
+            {t("waiting")}
+          </p>
+          <p className="max-w-sm text-sm text-muted-foreground">{t("waitingHint")}</p>
+        </div>
         <Button
           variant="outline"
           className="h-11 md:h-9"
@@ -199,40 +200,6 @@ export function JoinLobby({ roomId, initialRequest, onRetry }: JoinLobbyProps) {
         </Button>
         {isFetching ? <span className="sr-only">{t("waiting")}</span> : null}
       </div>
-    </div>
-  );
-}
-
-const TONE_STYLES = {
-  danger:
-    "border-red-300 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200",
-  warning:
-    "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200",
-  neutral:
-    "border-neutral-200 bg-white text-black dark:border-neutral-800 dark:bg-black dark:text-white",
-} as const;
-
-function StateCard({
-  tone,
-  icon,
-  title,
-  body,
-  action,
-}: {
-  tone: keyof typeof TONE_STYLES;
-  icon: React.ReactNode;
-  title: string;
-  body: string;
-  action: React.ReactNode;
-}) {
-  return (
-    <div
-      className={`flex flex-col items-center gap-4 rounded-xl border p-6 text-center md:p-8 ${TONE_STYLES[tone]}`}
-    >
-      {icon}
-      <p className="text-lg font-semibold">{title}</p>
-      <p className="max-w-sm text-sm opacity-80">{body}</p>
-      {action}
     </div>
   );
 }

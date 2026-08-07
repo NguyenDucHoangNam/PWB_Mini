@@ -21,15 +21,18 @@ export default function NewLiveroomPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 font-sans">
+    <div className="flex flex-1 flex-col gap-6 font-sans">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex flex-col gap-0.5">
-          <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-            {t("title")}
-          </h1>
-          <p className="text-xs uppercase tracking-widest text-muted-foreground/70">
-            {t("subtitle")}
-          </p>
+        <div className="flex items-start gap-3">
+          <div className="hidden h-12 w-1 shrink-0 rounded-full bg-foreground/80 sm:block" aria-hidden="true" />
+          <div className="flex flex-col gap-0.5">
+            <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+              {t("title")}
+            </h1>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground/70 sm:text-[11px]">
+              {t("subtitle")}
+            </p>
+          </div>
         </div>
         <Link
           href="/dashboard/liveroom"
@@ -40,8 +43,10 @@ export default function NewLiveroomPage() {
         </Link>
       </div>
 
-      <div className="mx-auto w-full max-w-lg rounded-xl border border-neutral-200 border-t-4 border-t-black bg-white p-6 dark:border-neutral-800 dark:border-t-white dark:bg-black shadow-xs">
-        <CreateRoomForm />
+      <div className="flex flex-1 flex-col items-center justify-center pb-6">
+        <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-xs sm:p-8">
+          <CreateRoomForm />
+        </div>
       </div>
     </div>
   );
