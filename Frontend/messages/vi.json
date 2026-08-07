@@ -195,6 +195,147 @@
       "footnote": "Miễn phí để bắt đầu · Không cần cài gì"
     }
   },
+  "features": {
+    "hero": {
+      "eyebrow": "Tính năng",
+      "title": "Ba module, một luồng làm việc liền mạch.",
+      "lead": "Trang này đi theo đúng thứ tự bạn sẽ bấm: từ file demo đầu tiên đến một phòng nghe chung. Muốn biết bên dưới nó chạy thế nào thì có một trang riêng cho phần đó.",
+      "guideCta": "Bắt đầu hướng dẫn",
+      "techCta": "Phần kỹ thuật",
+      "stat1Label": "Module",
+      "stat1Value": "3",
+      "stat2Label": "Số bước",
+      "stat2Value": "12",
+      "stat3Label": "Thời gian",
+      "stat3Value": "~6 phút"
+    },
+    "guide": {
+      "eyebrow": "Cách dùng",
+      "title": "Đi từ file trống đến một phòng nghe chung.",
+      "lead": "Chọn một module để xem luồng đầy đủ. Mỗi bước là một màn hình thật trong ứng dụng.",
+      "tipsTitle": "Đáng lưu ý",
+      "library": {
+        "title": "Thư viện",
+        "meta": "~2 phút",
+        "summary": "Nơi mọi bản demo đi vào hệ thống. Tải lên, đặt thông tin, rồi tìm lại được kể cả khi bạn nhớ sai tên.",
+        "step1Title": "Mở Playlist",
+        "step1Body": "Sau khi đăng nhập, toàn bộ thư viện nằm ở mục Playlist trên thanh điều hướng. Lần đầu vào danh sách sẽ trống.",
+        "step2Title": "Tải bản nhạc lên",
+        "step2Body": "Kéo thả hoặc chọn file MP3, WAV, FLAC tối đa 200 MB. Thanh tiến trình chạy theo số byte đã gửi thật, không phải hoạt ảnh ước lượng.",
+        "step3Title": "Điền thông tin bài",
+        "step3Body": "Tên bài, nghệ sĩ, ảnh bìa. Thiếu ảnh thì hệ thống dùng ảnh mặc định, không chặn bạn lưu.",
+        "step4Title": "Tìm và phát",
+        "step4Body": "Ô tìm kiếm bỏ qua dấu tiếng Việt và chịu được lỗi gõ, nên 'khong the' vẫn ra 'Không Thể'.",
+        "tip1": "File vượt 200 MB bị chặn ngay ở trình duyệt — không tốn một byte băng thông nào.",
+        "tip2": "Đóng tab giữa chừng là mất phiên tải lên; hiện chưa có resume.",
+        "tip3": "File gốc luôn được giữ nguyên. Bản đã gắn tag được lưu thành một bản riêng."
+      },
+      "voiceTag": {
+        "title": "Voice Tag",
+        "meta": "~3 phút",
+        "summary": "Chữ ký âm thanh của bạn, ghép thẳng vào bản master theo chu kỳ lặp mà bạn tự đặt.",
+        "step1Title": "Mở tab Voice Tags",
+        "step1Body": "Tất cả tag đã tạo nằm chung một chỗ, nghe thử được ngay trong danh sách.",
+        "step2Title": "Tạo tag",
+        "step2Body": "Gõ chữ để hệ thống đọc bằng giọng tổng hợp, hoặc thu trực tiếp / tải lên giọng thật của bạn, tối đa 10 giây.",
+        "step3Title": "Nghe thử trước khi ghép",
+        "step3Body": "Bản preview chạy đúng pipeline xử lý của bản cuối, nên cái bạn nghe là cái bạn sẽ nhận.",
+        "step4Title": "Ghép vào bản nhạc",
+        "step4Body": "Chọn bài, đặt chu kỳ lặp và độ lớn của tag, hệ thống render ra một bản mới bên cạnh bản gốc.",
+        "tip1": "Bản gốc không bao giờ bị ghi đè — mỗi lần ghép sinh ra một file mới.",
+        "tip2": "Độ lớn của tag được cân theo độ lớn của bài, nên tag không bị chìm cũng không chói.",
+        "tip3": "Tag ngắn 1–2 giây, lặp thưa, thường nghe tự nhiên hơn tag dài."
+      },
+      "liveRoom": {
+        "title": "Live Room",
+        "meta": "~1 phút",
+        "summary": "Một mã sáu ký tự, tối đa bảy người, cùng nghe một bản nhạc ở cùng một giây — và nói chuyện đè lên trên.",
+        "step1Title": "Tạo phòng",
+        "step1Body": "Chủ phòng đặt tên và giới hạn số người, hệ thống trả về một mã sáu ký tự.",
+        "step2Title": "Mời bằng mã",
+        "step2Body": "Người khác nhập mã và gửi yêu cầu vào. Chủ phòng thấy hàng chờ và duyệt hoặc từ chối từng người.",
+        "step3Title": "Nghe cùng nhau",
+        "step3Body": "Chủ phòng chọn bài từ thư viện của mình. Play, pause và tua được đồng bộ cho tất cả mọi người.",
+        "step4Title": "Trao đổi",
+        "step4Body": "Bật mic để nói, gửi chat, hoặc ghim bình luận vào đúng giây đang phát của bài. Chủ phòng có thể mute từ xa hoặc mời ra.",
+        "tip1": "Bị chủ phòng từ chối ba lần thì bạn không gửi yêu cầu vào phòng đó được nữa.",
+        "tip2": "Tải lại trang giữa bài vẫn vào lại đúng vị trí đang phát.",
+        "tip3": "Kết thúc phòng có thể hoàn tác: nhạc chỉ bị tạm dừng chứ không mất."
+      }
+    },
+    "bridge": {
+      "eyebrow": "Trang kỹ thuật",
+      "title": "Còn phần bên dưới lớp giao diện?",
+      "lead": "Mỗi module ở trên đều bắt đầu từ một ràng buộc cụ thể. Trang kỹ thuật kể lại bài toán, hướng giải đã chọn, và cái giá phải trả cho hướng đó.",
+      "cta": "Đọc phân tích kỹ thuật"
+    },
+    "outro": {
+      "eyebrow": "Bắt đầu",
+      "title": "Đọc xong rồi thì nghe thử.",
+      "lead": "Tạo tài khoản, tải một bản demo lên và mở phòng đầu tiên trong vài phút.",
+      "primaryCta": "Tạo tài khoản",
+      "secondaryCta": "Liên hệ"
+    },
+    "technical": {
+      "back": "Quay lại hướng dẫn",
+      "eyebrow": "Phân tích kỹ thuật",
+      "title": "Ba bài toán khó nhất và cách chúng được giải.",
+      "lead": "Không phải danh sách công nghệ. Mỗi phần dưới đây là một ràng buộc thật gặp phải khi làm, hướng giải đã chọn, và cái đã phải đánh đổi để đi theo hướng đó.",
+      "tocTitle": "Nội dung",
+      "stat1Label": "Kiến trúc",
+      "stat1Value": "Hexagonal",
+      "stat2Label": "Realtime",
+      "stat2Value": "STOMP + WebRTC",
+      "stat3Label": "Xử lý âm thanh",
+      "stat3Value": "FFmpeg / EBU R128",
+      "outro": {
+        "eyebrow": "Tiếp theo",
+        "title": "Đọc xong rồi thì nghe thử.",
+        "lead": "Quay lại phần hướng dẫn để xem luồng dùng, hoặc tạo tài khoản và tự chạy thử.",
+        "primaryCta": "Xem hướng dẫn",
+        "secondaryCta": "Tạo tài khoản"
+      }
+    },
+    "engineering": {
+      "problemLabel": "Bài toán",
+      "approachLabel": "Hướng giải",
+      "detailLabel": "Chi tiết triển khai",
+      "decisionLabel": "Đánh đổi",
+      "library": {
+        "title": "Đưa file 200 MB lên mà không bóp nghẹt API server",
+        "subtitle": "Upload trực tiếp bằng presigned URL, và tìm kiếm chịu được lỗi gõ.",
+        "problem": "Cho file đi xuyên qua API server nghĩa là mỗi lần upload chiếm một luồng và một vùng nhớ của backend, rồi cùng lượng dữ liệu đó lại phải đi tiếp lên storage. Người dùng thì chỉ thấy một thanh tiến trình đứng im.",
+        "approach": "Backend không chạm vào byte nào của file. Nó ký một URL có hạn, trình duyệt tải thẳng lên object storage, và chỉ khi upload xong backend mới ghi metadata.",
+        "detail1": "Kiểm tra định dạng và dung lượng ở client trước khi xin URL — file sai bị chặn trước khi tốn băng thông.",
+        "detail2": "Tiến trình đọc từ sự kiện progress của XHR, nên phần trăm hiển thị là số byte thật đã lên.",
+        "detail3": "Metadata ghi trong một transaction sau khi upload thành công; upload dở dang không để lại bản ghi rác.",
+        "detail4": "Tìm kiếm chạy trên Elasticsearch với analyzer bỏ dấu và fuzzy matching, có đường lùi về truy vấn PostgreSQL khi Elasticsearch không phản hồi.",
+        "decision": "Không làm resume upload. Chia chunk, theo dõi state từng phần và dọn phần thừa là ba thứ phải bảo trì mãi mãi, đổi lấy giá trị rất nhỏ ở quy mô một file demo."
+      },
+      "voiceTag": {
+        "title": "Vì sao tag ở mức 100% vẫn nghe bé xíu",
+        "subtitle": "Đo loudness theo EBU R128 rồi cân tag theo bài trước khi mix.",
+        "problem": "Một bản master đã hoàn thiện nằm quanh -9 đến -12 LUFS. Một giọng đọc — tổng hợp hoặc thu bằng bất cứ thiết bị nào người dùng có — nằm quanh -20 đến -27. Khoảng cách 10–15 dB đó khiến thanh âm lượng hết đường chạy trước khi tag đủ nghe: 100% chỉ có nghĩa là 'giữ nguyên', chưa bao giờ có nghĩa là 'to bằng bài'.",
+        "approach": "Đo integrated loudness của cả hai nguồn, tính độ lợi cần thiết để tag nằm cao hơn bài một khoảng headroom cố định, rồi mới mix. Sau bước đó, phần trăm người dùng chọn mới thực sự làm đúng việc mà nhãn của nó hứa.",
+        "detail1": "Pipeline FFmpeg: đo LUFS hai nguồn → áp gain cho tag → dựng track tag lặp theo chu kỳ → mix xuống bản mới.",
+        "detail2": "Độ lợi bị kẹp trong khoảng −12 dB đến +18 dB. Quá ngưỡng đó thì việc chỉnh gây hại nhiều hơn lợi: kéo một tag quá nhỏ chỉ làm nổi tiếng nhiễu nền.",
+        "detail3": "File dưới −60 LUFS bị coi là không đo được chứ không tin: gần như im lặng thì phép đo sẽ đòi một mức boost vô lý.",
+        "detail4": "Giọng tổng hợp và giọng người dùng đi chung một đường sau khi đã thành WAV — chỉ khác nhau ở khâu tạo nguồn.",
+        "decision": "Render ở server thay vì dựng bằng Web Audio API trên trình duyệt. Kết quả phải giống nhau trên mọi máy, và bản cuối cần tồn tại thành file để còn chia sẻ được."
+      },
+      "liveRoom": {
+        "title": "Bảy người, một bản nhạc, cùng một giây",
+        "subtitle": "Server giữ một mốc thời gian, không phát nhạc. Và không ai nghe được tín hiệu của ai.",
+        "problem": "Mỗi người một đường mạng, một độ trễ khác nhau, và bất kỳ ai cũng có thể tải lại trang giữa bài. Nếu server đẩy vị trí phát mỗi giây thì vừa tốn vừa vẫn sai.",
+        "approach": "Server không stream nhạc và không đếm giây. Nó giữ một mốc: bài nào, đang ở giây thứ mấy, tại thời điểm nào, và đang chạy hay dừng. Client tự tính vị trí hiện tại từ mốc đó cộng thời gian đã trôi.",
+        "detail1": "Không có tiến trình nào tick mỗi giây để ghi vị trí — trạng thái chỉ đổi khi có người bấm nút.",
+        "detail2": "Mỗi sự kiện mang toàn bộ trạng thái; loại sự kiện chỉ nói cho client biết có phải nạp lại nguồn âm thanh hay không.",
+        "detail3": "Số thứ tự gắn trên mỗi sự kiện khiến một gói đến muộn trở thành vô hại thay vì kéo nhạc giật ngược.",
+        "detail4": "Tín hiệu WebRTC đi qua hàng đợi riêng theo danh tính từng người, không qua topic chung — SDP và ICE của một người không thể bị người khác trong phòng nghe lén.",
+        "decision": "Kết thúc phòng thì tạm dừng nhạc chứ không xoá, dù yêu cầu ban đầu viết là xoá. Chức năng hoàn tác phải khôi phục nguyên trạng buổi nghe — xoá bản ghi sẽ khiến nhạc là thứ duy nhất không quay lại."
+      }
+    }
+  },
   "auth": {
     "layout": {
       "description": "Producer Workbench Nền tảng cộng tác âm nhạc thời gian thực.",

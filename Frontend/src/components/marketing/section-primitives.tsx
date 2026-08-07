@@ -59,14 +59,17 @@ export function RevealItem({ children, className }: { children: ReactNode; class
 export function Section({
   children,
   className,
+  id,
   tone = "base",
 }: {
   children: ReactNode;
   className?: string;
+  id?: string;
   tone?: "base" | "raised";
 }) {
   return (
     <section
+      id={id}
       className={cn(
         "relative w-full overflow-hidden px-5 py-24 sm:px-8 sm:py-28 md:py-32",
         tone === "raised" ? "bg-muted/40" : "bg-background",

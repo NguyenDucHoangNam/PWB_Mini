@@ -11,7 +11,7 @@ import {
   Section,
   SectionLead,
   SectionTitle,
-} from "./section-primitives";
+} from "@/components/marketing/section-primitives";
 
 const PILLARS = [
   { key: "library", icon: ListMusic },

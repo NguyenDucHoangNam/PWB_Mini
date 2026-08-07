@@ -118,7 +118,7 @@ export function SiteHeaderClient() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-neutral-200 bg-white/80 backdrop-blur-md dark:border-neutral-800 dark:bg-black/80">
-      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 md:px-8 relative">
+      <div className="mx-auto flex h-18 w-full max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 md:px-8 relative">
         <div className="flex items-center gap-4 sm:gap-6 lg:gap-8 min-w-0">
           <Link href="/" className="shrink-0 px-3 py-0.5 border-2 border-black dark:border-white">
             <span className="text-xl sm:text-2xl font-bold tracking-tight text-black dark:text-white">

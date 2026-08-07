@@ -44,7 +44,7 @@ export function DashboardHeader() {
 
         <nav
           aria-label={heading}
-          className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-secondary p-1 sm:inline-flex sm:w-auto"
+          className="grid h-11 grid-cols-2 items-center gap-1 rounded-lg border border-border bg-secondary p-1 sm:inline-flex sm:h-9 sm:w-auto"
         >
           {TABS.map((tab) => {
             const isActive = activeTab === tab.key;
@@ -53,10 +53,10 @@ export function DashboardHeader() {
                 key={tab.key}
                 href={tab.href}
                 aria-current={isActive ? "page" : undefined}
-                className={`key-press flex h-10 items-center justify-center rounded-md px-5 text-sm font-medium beat-16th transition-all ease-hammer sm:h-8 sm:text-xs ${
+                className={`key-press flex h-9 items-center justify-center rounded-md px-5 text-xs font-semibold tracking-wide beat-16th transition-colors ease-hammer sm:h-7 ${
                   isActive
-                    ? "bg-foreground text-background shadow-sm"
-                    : "text-muted-foreground/60 hover:text-muted-foreground"
+                    ? "border border-border bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {t(`tabs.${tab.key}`)}

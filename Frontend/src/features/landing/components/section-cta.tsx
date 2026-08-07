@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { Eyebrow, Reveal } from "./section-primitives";
+import { Eyebrow, Reveal } from "@/components/marketing/section-primitives";
 
 const WHITE_KEY_COUNT = 21;
 /* Positions of the black keys inside each group of seven white keys. */

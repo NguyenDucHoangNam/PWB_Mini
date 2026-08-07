@@ -12,7 +12,7 @@ import {
   Section,
   SectionLead,
   SectionTitle,
-} from "./section-primitives";
+} from "@/components/marketing/section-primitives";
 
 export function SectionProblem() {
   const t = useTranslations("landing.problem");

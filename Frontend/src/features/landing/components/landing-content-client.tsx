@@ -10,7 +10,7 @@ const LandingContent = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex min-h-[calc(100vh-64px)] w-full items-center justify-center bg-neutral-50 dark:bg-neutral-950">
+      <div className="flex min-h-[calc(100vh-72px)] w-full items-center justify-center bg-neutral-50 dark:bg-neutral-950">
         <div className="size-6 rounded-full border-2 border-neutral-200 border-t-black animate-spin dark:border-neutral-800 dark:border-t-white" />
       </div>
     ),

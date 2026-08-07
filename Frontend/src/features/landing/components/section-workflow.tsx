@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { motion, useScroll, useSpring } from "framer-motion";
 import { useTranslations } from "next-intl";
-import { Eyebrow, Reveal, Section, SectionTitle } from "./section-primitives";
+import { Eyebrow, Reveal, Section, SectionTitle } from "@/components/marketing/section-primitives";
 
 const STEP_KEYS = ["step1", "step2", "step3", "step4"] as const;
 

@@ -11,7 +11,7 @@ import {
   SectionLead,
   SectionTitle,
   pseudoRandom,
-} from "./section-primitives";
+} from "@/components/marketing/section-primitives";
 
 const POINT_KEYS = ["point1", "point2", "point3"] as const;
 const SPEC_KEYS = ["spec1", "spec2", "spec3", "spec4"] as const;

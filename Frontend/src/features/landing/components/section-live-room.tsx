@@ -11,7 +11,7 @@ import {
   Section,
   SectionLead,
   SectionTitle,
-} from "./section-primitives";
+} from "@/components/marketing/section-primitives";
 
 const POINT_KEYS = ["point1", "point2", "point3"] as const;
 

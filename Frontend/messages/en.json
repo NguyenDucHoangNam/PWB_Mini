@@ -195,6 +195,147 @@
       "footnote": "Free to start · Nothing to install"
     }
   },
+  "features": {
+    "hero": {
+      "eyebrow": "Features",
+      "title": "Three modules, one continuous workflow.",
+      "lead": "This page follows the order you will actually click: from the first demo file to a room listening together. How it works underneath gets a page of its own.",
+      "guideCta": "Start the walkthrough",
+      "techCta": "Technical write-up",
+      "stat1Label": "Modules",
+      "stat1Value": "3",
+      "stat2Label": "Steps",
+      "stat2Value": "12",
+      "stat3Label": "Time",
+      "stat3Value": "~6 min"
+    },
+    "guide": {
+      "eyebrow": "How to use it",
+      "title": "From an empty library to a room listening together.",
+      "lead": "Pick a module to see the full flow. Every step is a real screen in the app.",
+      "tipsTitle": "Worth knowing",
+      "library": {
+        "title": "Library",
+        "meta": "~2 min",
+        "summary": "Where every demo enters the system. Upload it, name it, and find it again even when you misremember the title.",
+        "step1Title": "Open Playlist",
+        "step1Body": "Once you are signed in, the whole library lives under Playlist in the nav. It starts empty.",
+        "step2Title": "Upload a track",
+        "step2Body": "Drop or pick an MP3, WAV or FLAC up to 200 MB. The progress bar follows bytes actually sent, not an estimated animation.",
+        "step3Title": "Fill in the details",
+        "step3Body": "Title, artist, cover art. Skip the cover and a default one is used — it will not block you from saving.",
+        "step4Title": "Search and play",
+        "step4Body": "Search strips accents and tolerates typos, so a rough guess still lands on the right track.",
+        "tip1": "Files over 200 MB are rejected in the browser — not a single byte of bandwidth is spent.",
+        "tip2": "Closing the tab mid-upload loses the session; there is no resume yet.",
+        "tip3": "The original file is always kept. A tagged version is saved as a separate copy."
+      },
+      "voiceTag": {
+        "title": "Voice Tag",
+        "meta": "~3 min",
+        "summary": "Your audio signature, baked into the master on a loop interval you choose.",
+        "step1Title": "Open the Voice Tags tab",
+        "step1Body": "Every tag you have made lives in one place, previewable straight from the list.",
+        "step2Title": "Create a tag",
+        "step2Body": "Type text and have it spoken by a synthetic voice, or record and upload your own, up to 10 seconds.",
+        "step3Title": "Preview before you commit",
+        "step3Body": "The preview runs the same processing pipeline as the final render, so what you hear is what you get.",
+        "step4Title": "Bake it into a track",
+        "step4Body": "Pick a song, set the loop interval and the tag level, and a new version is rendered alongside the original.",
+        "tip1": "The original is never overwritten — each bake produces a new file.",
+        "tip2": "The tag level is matched to the song's, so it neither disappears nor cuts through.",
+        "tip3": "A short 1–2 second tag on a sparse loop usually sits better than a long one."
+      },
+      "liveRoom": {
+        "title": "Live Room",
+        "meta": "~1 min",
+        "summary": "A six-character code, up to seven people, one track at the same second — with voice on top.",
+        "step1Title": "Create a room",
+        "step1Body": "The owner sets a name and a headcount limit, and gets back a six-character code.",
+        "step2Title": "Invite with the code",
+        "step2Body": "Others enter the code and request to join. The owner sees the queue and approves or turns down each one.",
+        "step3Title": "Listen together",
+        "step3Body": "The owner picks a track from their library. Play, pause and seek stay in step for everyone.",
+        "step4Title": "Talk it through",
+        "step4Body": "Unmute to speak, send chat, or pin a comment to the exact second of the track. The owner can mute remotely or remove someone.",
+        "tip1": "Turned down three times by the owner and you can no longer request that room.",
+        "tip2": "Reloading mid-track drops you back at the right playback position.",
+        "tip3": "Ending a room can be undone: the music is paused, not lost."
+      }
+    },
+    "bridge": {
+      "eyebrow": "Technical page",
+      "title": "And underneath the interface?",
+      "lead": "Every module above started from a specific constraint. The technical page walks through the problem, the approach taken, and what that approach cost.",
+      "cta": "Read the technical write-up"
+    },
+    "outro": {
+      "eyebrow": "Get started",
+      "title": "Enough reading. Go listen.",
+      "lead": "Create an account, upload a demo and open your first room in a couple of minutes.",
+      "primaryCta": "Create an account",
+      "secondaryCta": "Contact"
+    },
+    "technical": {
+      "back": "Back to the walkthrough",
+      "eyebrow": "Technical write-up",
+      "title": "The three hardest problems, and how they were solved.",
+      "lead": "Not a stack list. Each case below is a real constraint hit while building, the approach taken, and what had to be given up to take it.",
+      "tocTitle": "Contents",
+      "stat1Label": "Architecture",
+      "stat1Value": "Hexagonal",
+      "stat2Label": "Realtime",
+      "stat2Value": "STOMP + WebRTC",
+      "stat3Label": "Audio",
+      "stat3Value": "FFmpeg / EBU R128",
+      "outro": {
+        "eyebrow": "Next",
+        "title": "Enough reading. Go listen.",
+        "lead": "Head back to the walkthrough for the usage flow, or create an account and try it yourself.",
+        "primaryCta": "See the walkthrough",
+        "secondaryCta": "Create an account"
+      }
+    },
+    "engineering": {
+      "problemLabel": "Problem",
+      "approachLabel": "Approach",
+      "detailLabel": "Implementation",
+      "decisionLabel": "Trade-off",
+      "library": {
+        "title": "Moving a 200 MB file without choking the API server",
+        "subtitle": "Direct upload with presigned URLs, and search that survives a typo.",
+        "problem": "Routing the file through the API server means every upload holds a thread and a buffer, and then the same bytes have to travel again to storage. All the user sees is a progress bar that does not move.",
+        "approach": "The backend never touches a byte. It signs a short-lived URL, the browser uploads straight to object storage, and only once that succeeds does the backend write metadata.",
+        "detail1": "Type and size are checked client-side before a URL is requested — a bad file is rejected before any bandwidth is spent.",
+        "detail2": "Progress comes from the XHR progress event, so the percentage is bytes genuinely delivered.",
+        "detail3": "Metadata is written in one transaction after the upload succeeds; a half-finished upload leaves no orphan row.",
+        "detail4": "Search runs on Elasticsearch with an accent-folding analyzer and fuzzy matching, falling back to a PostgreSQL query when Elasticsearch is unreachable.",
+        "decision": "No resumable uploads. Chunking, per-part state and orphan cleanup are three things to maintain forever, in exchange for very little at the scale of a single demo file."
+      },
+      "voiceTag": {
+        "title": "Why a tag at 100% still sounded tiny",
+        "subtitle": "Measure loudness to EBU R128, match the tag to the song, then mix.",
+        "problem": "A mastered track sits around -9 to -12 LUFS. A voice tag — synthesized, or recorded on whatever the user had — sits around -20 to -27. That 10 to 15 dB gap meant the volume slider ran out of travel long before the tag was audible: 100% only ever meant \"unchanged\", never \"as loud as the song\".",
+        "approach": "Measure the integrated loudness of both sources, work out the gain that puts the tag a fixed headroom above the song, and only then mix. After that the user's percentage finally does what its label promises.",
+        "detail1": "FFmpeg pipeline: measure LUFS on both → apply gain to the tag → build the looped tag track → mix down to a new file.",
+        "detail2": "The gain is clamped between −12 dB and +18 dB. Past that the correction does more harm than good: lifting a very quiet tag only surfaces its noise floor.",
+        "detail3": "Anything below −60 LUFS is treated as unmeasurable rather than believed — near-silence reports a number that would ask for an absurd boost.",
+        "detail4": "Synthesized and user-recorded voices share one path once they are WAV files; only the source step differs.",
+        "decision": "Rendered server-side rather than assembled with the Web Audio API in the browser. The result has to be identical on every machine, and the final mix needs to exist as a file to be shareable."
+      },
+      "liveRoom": {
+        "title": "Seven people, one track, the same second",
+        "subtitle": "The server holds an anchor, not a stream. And nobody can listen in on anyone's signalling.",
+        "problem": "Everyone is on a different connection with different latency, and anyone can reload mid-track. Pushing the playback position every second would be both expensive and still wrong.",
+        "approach": "The server neither streams audio nor counts seconds. It holds an anchor: which track, at what position, as of when, playing or paused. Each client derives the live position from that anchor plus elapsed time.",
+        "detail1": "No process ticks every second to write the position — state changes only when somebody presses a button.",
+        "detail2": "One event carries the whole state; its type only tells a client whether the audio source needs reloading.",
+        "detail3": "A sequence number on every event makes a late-arriving frame a harmless no-op instead of a jump backwards.",
+        "detail4": "WebRTC signalling goes through a per-principal user queue rather than a shared topic — one member's SDP and ICE cannot be subscribed to by another.",
+        "decision": "Ending a room pauses the music instead of clearing it, against the literal requirement. Undo has to restore the session whole — deleting the row would make music the one thing that did not come back."
+      }
+    }
+  },
   "auth": {
     "layout": {
       "description": "Producer Workbench - Real-time music collaboration platform.",
