@@ -1,0 +1,73 @@
+# Test gate. Runs on its own for pull requests, and is called by deploy.yml as the step that has to
+# pass before anything is built or shipped.
+#
+# Only the fast tests live here. Surefire is configured in Backend/pom.xml to exclude **/*IT.java,
+# so `mvn test` is pure unit work with nothing to spin up; the Testcontainers suites run under
+# failsafe in the separate integration-tests workflow, which is too slow to sit in front of a deploy.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      # AudioProbeService's tests shell out to the real ffprobe rather than mocking it, so the
+      # binary has to exist on the runner. It is not part of the base image on every runner
+      # generation, and when it is missing those tests fail on a message about the process, not
+      # about the package — installing it unconditionally is cheaper than diagnosing that later.
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Unit tests
+        working-directory: Backend
+        run: mvn -B -ntp test
+
+  frontend:
+    name: Frontend lint and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned to the same major the Frontend Dockerfile installs. A different pnpm here would
+      # resolve the lockfile differently from the image that actually ships.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: Frontend/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: Frontend
+        run: pnpm install --frozen-lockfile
+
+      # Reports 20 warnings and no errors today, so this passes. It is here to stop new *errors*,
+      # not to enforce a clean slate — adding --max-warnings 0 would fail the build on day one.
+      - name: Lint
+        working-directory: Frontend
+        run: pnpm lint
+
+      - name: Unit tests
+        working-directory: Frontend
+        run: pnpm test

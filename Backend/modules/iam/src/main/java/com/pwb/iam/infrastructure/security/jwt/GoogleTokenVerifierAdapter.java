@@ -1,0 +1,85 @@
+package com.pwb.iam.infrastructure.security.jwt;
+
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import com.pwb.iam.domain.exception.IamErrorCode;
+import com.pwb.iam.domain.model.GoogleUserInfo;
+import com.pwb.iam.domain.service.GoogleTokenVerifierPort;
+import com.pwb.iam.infrastructure.config.GoogleProperties;
+import com.pwb.shared.exception.BusinessException;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.util.Collections;
+
+@Slf4j
+@Component
+public class GoogleTokenVerifierAdapter implements GoogleTokenVerifierPort {
+
+    private static final String GOOGLE_ISSUER = "accounts.google.com";
+    private static final String GOOGLE_ISSUER_HTTPS = "https://accounts.google.com";
+
+    private final GoogleProperties googleProperties;
+    private final GoogleIdTokenVerifier delegate;
+
+    public GoogleTokenVerifierAdapter(GoogleProperties googleProperties) {
+        this.googleProperties = googleProperties;
+        this.delegate = new GoogleIdTokenVerifier.Builder(
+                new NetHttpTransport(),
+                GsonFactory.getDefaultInstance())
+                .setAudience(Collections.singletonList(googleProperties.getClientId()))
+                .setAcceptableTimeSkewSeconds(googleProperties.getClockSkewSeconds())
+                .build();
+    }
+
+    @Override
+    public GoogleUserInfo verify(String idTokenString) {
+        String clientId = googleProperties.getClientId();
+        if (clientId == null || clientId.isBlank()) {
+            log.warn("Google OAuth is not configured (pwb.iam.google.client-id is empty)");
+            throw new BusinessException(IamErrorCode.AUTH_GOOGLE_TOKEN_INVALID);
+        }
+
+        GoogleIdToken idToken;
+        try {
+            idToken = delegate.verify(idTokenString);
+        } catch (GeneralSecurityException | IOException ex) {
+            log.warn("Google token verification failed");
+            throw new BusinessException(IamErrorCode.AUTH_GOOGLE_TOKEN_INVALID);
+        }
+
+        if (idToken == null) {
+            log.warn("Google ID token rejected by verifier");
+            throw new BusinessException(IamErrorCode.AUTH_GOOGLE_TOKEN_INVALID);
+        }
+
+        GoogleIdToken.Payload payload = idToken.getPayload();
+        String issuer = payload.getIssuer();
+        if (issuer == null || (!GOOGLE_ISSUER.equals(issuer) && !GOOGLE_ISSUER_HTTPS.equals(issuer))) {
+            log.warn("Unexpected Google token issuer");
+            throw new BusinessException(IamErrorCode.AUTH_GOOGLE_TOKEN_INVALID);
+        }
+
+        String sub = payload.getSubject();
+        String email = payload.getEmail();
+        Boolean emailVerified = payload.getEmailVerified();
+        String name = (String) payload.get("name");
+        String picture = (String) payload.get("picture");
+
+        if (sub == null || sub.isBlank() || email == null || email.isBlank()) {
+            log.warn("Google ID token missing sub or email");
+            throw new BusinessException(IamErrorCode.AUTH_GOOGLE_TOKEN_INVALID);
+        }
+
+        if (emailVerified == null || !emailVerified) {
+            log.warn("Google email not verified");
+            throw new BusinessException(IamErrorCode.AUTH_GOOGLE_EMAIL_NOT_VERIFIED);
+        }
+
+        return new GoogleUserInfo(sub, email.trim().toLowerCase(), true, name, picture);
+    }
+}

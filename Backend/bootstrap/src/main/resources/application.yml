@@ -1,0 +1,187 @@
+spring:
+  application:
+    name: pwb-backend
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+    # The demo accounts in application-dev-users.yml include two ADMINs with a shared password, so
+    # that profile must never follow the application into production. A profile group binds it to
+    # `dev` alone. `profiles.include` cannot express this — Spring Boot rejects that property in a
+    # profile-specific document, which is why the include used to sit here unconditionally instead.
+    group:
+      dev: dev-users
+  jpa:
+    open-in-view: false
+  jackson:
+    # Spring Boot builds the ObjectMapper (registering JavaTimeModule from the classpath).
+    # A hand-rolled `new ObjectMapper()` marked @Primary used to override it, which silently
+    # re-enabled Jackson's raw defaults — notably FAIL_ON_UNKNOWN_PROPERTIES. That turned any
+    # extra field a client sent into a 400, and would break Kafka consumers reading messages
+    # written before a payload gained a field. The settings below are Boot's defaults, stated
+    # explicitly so the intent survives the next person who reaches for a custom mapper.
+    deserialization:
+      fail-on-unknown-properties: false
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+  flyway:
+    out-of-order: true
+  elasticsearch:
+    uris: ${SPRING_ELASTICSEARCH_URIS:http://localhost:9200}
+    # Deliberately short. A search request holds a Tomcat worker for as long as it waits, so a slow
+    # cluster would queue up joins, playback control and everything else behind it. Giving up quickly
+    # and answering from Postgres is strictly better than waiting.
+    connection-timeout: 1s
+    socket-timeout: 2s
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+  codec:
+    max-in-memory-size: 2MB
+
+server:
+  port: 8080
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Both of these restate Spring Boot's own defaults. They are written out because the
+        # defaults are what production depends on: exposing more than health would describe the
+        # application's internals to anyone who reaches the port, and health details would name
+        # infrastructure hosts. A future `include: "*"` added for debugging should look wrong here.
+        include: health
+  endpoint:
+    health:
+      show-details: never
+  health:
+    elasticsearch:
+      # Search degrades to a database query when the cluster is gone, so its absence must not mark the
+      # whole application unhealthy and get the container replaced.
+      enabled: false
+
+logging:
+  level:
+    com.pwb: INFO
+    org.springframework: WARN
+    org.hibernate: WARN
+
+pwb:
+  cors:
+    # A comma-separated string, not a YAML list. Both readers (WebMvcConfig and the live room's
+    # WebSocketConfig) bind this with @Value, which resolves the key verbatim and never sees the
+    # indexed keys a YAML list expands into. Written as a list this value was silently ignored and
+    # both readers fell through to the localhost default baked into their own annotations.
+    allowed-origins: ${PWB_CORS_ALLOWED_ORIGINS:http://localhost:3000}
+  rate-limit:
+    endpoint-limits:
+      # Every preview is a billed Google TTS synthesis, so it gets a much tighter cap than the
+      # global default that covers ordinary reads and writes.
+      tts-preview:
+        pattern: /api/v1/voice-tags/tts/preview
+        methods: [POST]
+        limit: 20
+        window-seconds: 60
+  outbox:
+    enabled: true
+    relay:
+      enabled: true
+      poll-interval-ms: 5000
+      batch-size: 20
+    retry:
+      max-attempts: 3
+      backoff-seconds: [1, 5, 30]
+  search:
+    enabled: true
+    # One cluster can host several environments as long as they do not share a prefix.
+    index-prefix: pwb
+    bulk-size: 100
+    reindex-page-size: 200
+  iam:
+    jwt:
+      # No default on purpose: a fallback here is a signing key published in the repository, and an
+      # environment that forgot to set the variable would boot and mint tokens anybody can forge.
+      # Failing to start is the loud, safe outcome.
+      secret: ${APP_JWT_SECRET}
+      issuer: pwb-iam
+      audience: pwb-clients
+      access-ttl-seconds: 900
+      clock-skew-seconds: 30
+    security:
+      public-endpoints:
+        # Stated here so the container healthcheck's dependency is visible in configuration rather
+        # than only in code. SecurityConfig.DEFAULT_PUBLIC_ENDPOINTS already permits this path and
+        # merges its list with this one, so removing the line changes nothing — which is exactly why
+        # it is worth writing down.
+        - /actuator/health
+        # The WebSocket handshake carries no Authorization header — a browser cannot set one on it.
+        # Authentication happens on the STOMP CONNECT frame instead, so the handshake itself is open.
+        - /ws/**
+        - /api/v1/auth/register
+        - /api/v1/auth/verify-otp
+        - /api/v1/auth/resend-otp
+        - /api/v1/auth/login
+        - /api/v1/auth/refresh
+        - /api/v1/auth/forgot-password
+        - /api/v1/auth/reset-password
+        - /api/v1/auth/google-login
+    otp:
+      ttl-minutes: 10
+      resend-cooldown-seconds: 60
+      max-attempts: 5
+      code-length: 6
+      daily-limit: 10
+    password-policy:
+      min-length: 12
+      max-length: 128
+    refresh-token:
+      ttl-seconds: 1209600
+      rotation-enabled: true
+      raw-token-bytes: 48
+    login-policy:
+      max-failures: 5
+      lock-minutes: 15
+      ip-max-failures: 20
+      ip-lock-minutes: 30
+    rate-limit:
+      login-per-minute: 10
+      refresh-per-minute: 30
+      google-login-per-minute: 10
+      reset-password-per-minute: 5
+      verify-otp-per-minute: 10
+      change-password-per-minute: 5
+      # Reject rather than wave requests through when Redis is down: an open rate limiter
+      # protects nothing precisely when the system is already degraded.
+      fail-closed-for-critical-ops: true
+    avatar:
+      max-size-bytes: 5242880
+      allowed-content-types:
+        - image/jpeg
+        - image/png
+        - image/webp
+      # Presigned URLs are minted per profile read, so they only need to outlive one page view.
+      url-ttl: 15m
+    password-reset:
+      # Unset must fail the startup rather than fall back — see the note on pwb.iam.jwt.secret.
+      token-secret: ${APP_PASSWORD_RESET_TOKEN_SECRET}
+      token-ttl-minutes: 30
+      cooldown-seconds: 60
+      frontend-url: ${FRONTEND_URL:http://localhost:3000}
+      reset-path: /reset-password
+    google:
+      client-id: ${GOOGLE_CLIENT_ID:}
+      clock-skew-seconds: 30
+
+kafka:
+  topics:
+    email: notification.email.v1
+    search-index: search.index.v1
+  admin:
+    new-topics:
+      - name: notification.email.v1.DLT
+        partitions: 1
+        replicas: 1
+      - name: search.index.v1.DLT
+        partitions: 1
+        replicas: 1

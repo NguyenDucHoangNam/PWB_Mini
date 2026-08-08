@@ -1,0 +1,52 @@
+{
+  "id": {
+    "type": "keyword"
+  },
+  "email": {
+    "type": "text",
+    "analyzer": "pwb_text",
+    "fields": {
+      "autocomplete": {
+        "type": "text",
+        "analyzer": "pwb_autocomplete",
+        "search_analyzer": "pwb_text"
+      },
+      "raw": {
+        "type": "keyword",
+        "normalizer": "pwb_keyword_lower",
+        "ignore_above": 256
+      }
+    }
+  },
+  "fullName": {
+    "type": "text",
+    "analyzer": "pwb_text",
+    "fields": {
+      "autocomplete": {
+        "type": "text",
+        "analyzer": "pwb_autocomplete",
+        "search_analyzer": "pwb_text"
+      },
+      "raw": {
+        "type": "keyword",
+        "normalizer": "pwb_keyword_lower",
+        "ignore_above": 256
+      }
+    }
+  },
+  "status": {
+    "type": "keyword"
+  },
+  "roleName": {
+    "type": "keyword"
+  },
+  "oauthProvider": {
+    "type": "keyword"
+  },
+  "deleted": {
+    "type": "boolean"
+  },
+  "createdAt": {
+    "type": "date"
+  }
+}

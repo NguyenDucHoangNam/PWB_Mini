@@ -1,0 +1,15 @@
+node_modules/
+.next/
+out/
+
+.git/
+.gitignore
+
+# Local Next.js env files. Every NEXT_PUBLIC_* value is baked in at build time and comes from a
+# build arg instead — see Frontend/Dockerfile. Leaving these in would let a developer's local
+# backend URL win over the one the image is built for.
+.env
+.env.*
+
+*.log
+tsconfig.tsbuildinfo

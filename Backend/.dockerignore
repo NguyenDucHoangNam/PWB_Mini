@@ -1,0 +1,11 @@
+target/
+*/target/
+*/*/target/
+tmp/
+.idea/
+*.iml
+.git/
+.gitignore
+
+# Never bake credentials into an image.
+**/src/main/resources/tts/*.json

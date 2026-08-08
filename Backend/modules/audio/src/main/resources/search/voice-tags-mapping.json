@@ -1,0 +1,42 @@
+{
+  "id": {
+    "type": "keyword"
+  },
+  "userId": {
+    "type": "keyword"
+  },
+  "name": {
+    "type": "text",
+    "analyzer": "pwb_text",
+    "fields": {
+      "autocomplete": {
+        "type": "text",
+        "analyzer": "pwb_autocomplete",
+        "search_analyzer": "pwb_text"
+      },
+      "raw": {
+        "type": "keyword",
+        "normalizer": "pwb_keyword_lower",
+        "ignore_above": 256
+      }
+    }
+  },
+  "tagType": {
+    "type": "keyword"
+  },
+  "languageCode": {
+    "type": "keyword"
+  },
+  "voiceName": {
+    "type": "keyword"
+  },
+  "durationSeconds": {
+    "type": "integer"
+  },
+  "isDefault": {
+    "type": "boolean"
+  },
+  "createdAt": {
+    "type": "date"
+  }
+}

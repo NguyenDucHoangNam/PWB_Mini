@@ -1,0 +1,40 @@
+{
+  "id": {
+    "type": "keyword"
+  },
+  "ownerId": {
+    "type": "keyword"
+  },
+  "roomName": {
+    "type": "text",
+    "analyzer": "pwb_text",
+    "fields": {
+      "autocomplete": {
+        "type": "text",
+        "analyzer": "pwb_autocomplete",
+        "search_analyzer": "pwb_text"
+      },
+      "raw": {
+        "type": "keyword",
+        "normalizer": "pwb_keyword_lower",
+        "ignore_above": 256
+      }
+    }
+  },
+  "roomCode": {
+    "type": "keyword",
+    "normalizer": "pwb_keyword_lower"
+  },
+  "status": {
+    "type": "keyword"
+  },
+  "currentParticipantCount": {
+    "type": "integer"
+  },
+  "maxParticipants": {
+    "type": "integer"
+  },
+  "createdAt": {
+    "type": "date"
+  }
+}

@@ -1,0 +1,29 @@
+import { z } from "zod";
+import { PASSWORD_COMPLEXITY_REGEX } from "../hooks/password-validators";
+
+export const registerSchema = z
+  .object({
+    email: z
+      .string()
+      .trim()
+      .min(1, "emailRequired")
+      .email("invalidEmail")
+      .max(255, "emailLength"),
+    password: z
+      .string()
+      .min(12, "passwordTooShort")
+      .max(128, "maxPassword")
+      .regex(PASSWORD_COMPLEXITY_REGEX, "passwordComplexity"),
+    fullName: z
+      .string()
+      .trim()
+      .min(1, "fullNameRequired")
+      .max(128, "fullNameLength"),
+    confirmPassword: z.string().min(1, "confirmPasswordRequired"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "passwordMismatch",
+  });
+
+export type RegisterFormValues = z.infer<typeof registerSchema>;

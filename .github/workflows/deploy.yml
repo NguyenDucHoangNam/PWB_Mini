@@ -1,0 +1,189 @@
+# Build on a GitHub runner, ship the image, let the VPS only pull.
+#
+# The VPS is a 4 vCPU / 7.6GB box whose running stack already accounts for roughly 6GB, and its root
+# disk is 19GB. Building there means a Maven reactor and a Next build competing with Elasticsearch
+# and Kafka for the last gigabyte, plus several gigabytes of build layers on a disk that does not
+# have them to spare. A GitHub runner has 4 vCPU / 16GB and is discarded afterwards, so the VPS ends
+# up handling only a ~700MB pull.
+#
+# Required repository settings — see docs/cicd.md:
+#   Secrets:   VPS_HOST, VPS_SSH_KEY
+#   Variables: FRONTEND_DOMAIN, API_DOMAIN, GOOGLE_CLIENT_ID, TURNSTILE_SITE_KEY,
+#              STORAGE_BUCKET, STORAGE_REGION, STORAGE_PUBLIC_URL_PREFIX
+name: Deploy
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+# Deploying twice at once would race two `up -d` against the same containers. cancel-in-progress
+# stays false on purpose: interrupting a deploy halfway is worse than queueing behind it.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  BACKEND_IMAGE: ghcr.io/nguyenduchoangnam/pwb-backend
+  FRONTEND_IMAGE: ghcr.io/nguyenduchoangnam/pwb-frontend
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    name: Build and push images
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Every deploy gets an immutable tag naming the exact commit, which is what makes rollback a
+      # one-line change on the VPS. The moving `develop` tag exists only so that a bare
+      # `docker compose up -d` on the VPS still resolves to something real.
+      - id: meta
+        run: echo "tag=sha-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./Backend
+          push: true
+          tags: |
+            ${{ env.BACKEND_IMAGE }}:${{ steps.meta.outputs.tag }}
+            ${{ env.BACKEND_IMAGE }}:develop
+          # Separate scopes: one shared cache would have the Maven and pnpm layers evicting each
+          # other on every run, which is the same as having no cache.
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      # NEXT_PUBLIC_* values are inlined into the client bundle by `next build`, so they belong here
+      # as build args and cannot be supplied at runtime. They are repository *variables*, not
+      # secrets: all of them are readable in the shipped bundle anyway, and marking them secret
+      # would only replace them with *** in the build log.
+      #
+      # next.config.ts derives the Content-Security-Policy from these. A wrong value does not
+      # degrade gracefully — the browser blocks the request and the server logs nothing.
+      - name: Frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./Frontend
+          push: true
+          tags: |
+            ${{ env.FRONTEND_IMAGE }}:${{ steps.meta.outputs.tag }}
+            ${{ env.FRONTEND_IMAGE }}:develop
+          build-args: |
+            NEXT_PUBLIC_API_BASE_URL=https://${{ vars.API_DOMAIN }}/api/v1
+            NEXT_PUBLIC_SITE_URL=https://${{ vars.FRONTEND_DOMAIN }}
+            NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}
+            NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ vars.TURNSTILE_SITE_KEY }}
+            NEXT_PUBLIC_STORAGE_BUCKET_NAME=${{ vars.STORAGE_BUCKET }}
+            NEXT_PUBLIC_STORAGE_REGION=${{ vars.STORAGE_REGION }}
+            NEXT_PUBLIC_STORAGE_PUBLIC_URL_PREFIX=${{ vars.STORAGE_PUBLIC_URL_PREFIX }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+  deploy:
+    name: Deploy to VPS
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Pull and restart
+        uses: appleboy/ssh-action@v1
+        env:
+          TAG: ${{ needs.build.outputs.tag }}
+          GHCR_USER: ${{ github.actor }}
+          # Valid only for the life of this job, so nothing long-lived is left on the VPS.
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ubuntu
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: TAG,GHCR_USER,GHCR_TOKEN
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd ~/PWB_MiNi
+
+            # The images carry the application, but nginx.conf, turnserver.conf and the compose file
+            # itself are read from disk on the VPS — without this they would stay at whatever commit
+            # was last checked out by hand.
+            git fetch origin develop
+            git checkout develop
+            git pull --ff-only
+
+            # Pin the exact build. Kept in its own file rather than exported into the shell so that a
+            # later manual `docker compose` on this box resolves to the same images that are running.
+            printf 'IMAGE_TAG=%s\n' "$TAG" > .env.deploy
+
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+
+            COMPOSE="docker compose -f docker-compose.prod.yml --env-file .env.prod --env-file .env.deploy"
+            $COMPOSE pull backend frontend
+            $COMPOSE up -d --no-build --remove-orphans
+
+            # A bind-mounted config file changing on disk does not make compose recreate the
+            # container, so a change to nginx.conf would otherwise land on the box and do nothing.
+            # `nginx -s reload` does not drop connections.
+            $COMPOSE exec -T nginx nginx -s reload
+
+            docker logout ghcr.io
+
+            # 19GB of disk and a new image pair per deploy. `-a` only removes images no container
+            # references, and the window keeps the last week of tags available for rollback.
+            docker image prune -af --filter "until=168h"
+
+      - name: Wait for backend health
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ubuntu
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script_stop: true
+          # Flyway runs during startup, so a broken migration surfaces here rather than as a
+          # half-working site. The Dockerfile healthcheck allows a 90s start period; 5 minutes of
+          # polling leaves room for a cold JVM on a loaded box.
+          script: |
+            set -euo pipefail
+            cd ~/PWB_MiNi
+            COMPOSE="docker compose -f docker-compose.prod.yml --env-file .env.prod --env-file .env.deploy"
+            for i in $(seq 1 30); do
+              if $COMPOSE exec -T backend wget -q -O - http://localhost:8080/actuator/health 2>/dev/null | grep -q '"status":"UP"'; then
+                echo "backend UP after $((i * 10))s"
+                exit 0
+              fi
+              sleep 10
+            done
+            echo "::error::backend did not report UP within 300s"
+            $COMPOSE logs --tail=120 backend
+            echo "Roll back with:  ssh ubuntu@<host> 'cd ~/PWB_MiNi && echo IMAGE_TAG=<previous-sha-tag> > .env.deploy && docker compose -f docker-compose.prod.yml --env-file .env.prod --env-file .env.deploy up -d --no-build'"
+            exit 1
+
+      - name: Verify search reached Elasticsearch
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ubuntu
+          key: ${{ secrets.VPS_SSH_KEY }}
+          # Not a gate. A misconfigured SPRING_ELASTICSEARCH_URIS leaves search working — queries
+          # silently fall back to Postgres — so it can never be caught by a health check. This
+          # surfaces the one startup line that distinguishes the two cases.
+          script: |
+            cd ~/PWB_MiNi
+            docker compose -f docker-compose.prod.yml --env-file .env.prod --env-file .env.deploy \
+              logs backend | grep 'SEARCH.startup' | tail -1 || echo "::warning::no SEARCH.startup line found"

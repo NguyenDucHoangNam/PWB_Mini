@@ -1,0 +1,44 @@
+# The Testcontainers suites (**/*IT.java, run by failsafe) — deliberately NOT in the deploy path.
+#
+# They start real Postgres, Kafka, Redis and Elasticsearch containers, which takes minutes rather
+# than seconds. Putting that in front of every deploy would mean either waiting for it or learning
+# to ignore it, and on a private repository it would burn the free Actions minutes that the deploy
+# itself needs. Nightly plus on-demand catches the same regressions a day earlier than a demo would.
+name: Integration tests
+
+on:
+  schedule:
+    # 02:00 UTC — 09:00 Vietnam time, so a red run is waiting at the start of the day.
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  integration:
+    name: Backend integration tests
+    runs-on: ubuntu-latest
+    # A cold pull of the Elasticsearch and Kafka images dominates the first run.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      # Docker is present on ubuntu-latest, so Testcontainers needs no setup beyond this.
+      - name: Verify
+        working-directory: Backend
+        run: mvn -B -ntp verify
+
+      - name: Upload failsafe reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failsafe-reports
+          path: Backend/**/target/failsafe-reports/
+          retention-days: 7

@@ -1,0 +1,144 @@
+spring:
+  # Every variable below uses Spring Boot's own relaxed-binding name for the property it fills, which
+  # is also what application-dev.yml and the repository .env already use. They previously carried
+  # bespoke names (POSTGRES_URL, MAIL_HOST) that existed nowhere else, so a correctly populated
+  # environment still failed to start with an unresolvable-placeholder error.
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD}
+      database: 0
+
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID:pwb-backend}
+      auto-offset-reset: earliest
+
+  # No default: application.yml falls back to http://localhost:9200, which inside the backend
+  # container resolves to the container itself. Every query would then fail and fall through to
+  # Postgres — search keeps answering, so nothing surfaces the misconfiguration except the log line
+  # `SEARCH.* fallback to database` appearing on every request.
+  elasticsearch:
+    uris: ${SPRING_ELASTICSEARCH_URIS}
+
+  mail:
+    host: ${SPRING_MAIL_HOST}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME}
+    password: ${SPRING_MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+app:
+  storage:
+    max-file-size-bytes: 10485760
+    s3:
+      bucket: ${STORAGE_S3_BUCKET}
+      region: ${STORAGE_S3_REGION}
+      access-key: ${STORAGE_S3_ACCESS_KEY}
+      secret-key: ${STORAGE_S3_SECRET_KEY}
+      endpoint: ${STORAGE_S3_ENDPOINT:}
+      path-style-access: ${STORAGE_S3_PATH_STYLE:false}
+      presigned-url-expiration-minutes: 60
+      multipart-upload-threshold-bytes: 26214400
+
+  mail:
+    from-address: ${MAIL_FROM_ADDRESS:noreply@pwb.com}
+    from-name: ${MAIL_FROM_NAME:PWB}
+
+pwb:
+  # No default, unlike application.yml which allows localhost:3000 for development. An unset value
+  # here would leave production serving CORS headers for localhost, which rejects the real frontend
+  # on both REST and the live room WebSocket handshake without logging a server-side error.
+  cors:
+    allowed-origins: ${PWB_CORS_ALLOWED_ORIGINS}
+
+  liveroom:
+    rtc:
+      # The STUN entry is restated here on purpose. Spring Boot *replaces* a bound list rather than
+      # merging it, so the moment this key exists the default in LiveroomConfig.Rtc is gone. Dropping
+      # it would force every peer through the relay: still working, but paying VPS bandwidth for
+      # connections that could have gone direct, and nothing surfaces that except an egress bill.
+      ice-servers:
+        - urls:
+            - "stun:stun.l.google.com:19302"
+      # Credentials are not configured — GetRtcConfigUseCaseImpl mints a short-lived HMAC pair per
+      # request, so the secret below never reaches a browser. TURN_URLS is comma-separated;
+      # TurnCredentialFactory fails startup if this is on with either value missing.
+      turn:
+        enabled: ${TURN_ENABLED:true}
+        urls: ${TURN_URLS:}
+        secret: ${TURN_STATIC_AUTH_SECRET:}
+        credential-ttl: ${TURN_CREDENTIAL_TTL:24h}
+
+  iam:
+    password-reset:
+      # The reset link mailed to the user is built from this. application.yml defaults it to
+      # http://localhost:3000 for development; left unset in production every recipient gets a link
+      # pointing at their own machine. Nothing on the server fails, the mail sends normally, and the
+      # breakage only shows up when someone clicks it — so this must fail startup instead.
+      frontend-url: ${FRONTEND_URL}
+
+  audio:
+    tts:
+      google:
+        # Mounted as a secret rather than packaged: no credential ever sits under
+        # src/main/resources, so nothing can be baked into the jar by a stray `mvn package`.
+        #
+        # A bare filesystem path, with no `file:` prefix. GoogleTtsAdapter.openCredentials resolves
+        # this itself rather than through Spring's ResourceLoader: it special-cases `classpath:`,
+        # then falls back to `new File(path)`. A `file:` prefix therefore matches neither branch —
+        # `new File("file:/run/secrets/gcp-tts.json")` is a relative path that does not exist — and
+        # the classpath fallback behind it throws FileNotFoundException. The adapter catches that,
+        # logs one WARN, and leaves the client null, so TTS answers AUDIO_016 for every request
+        # while the application stays healthy. Verify with the log line at startup, not with
+        # /actuator/health.
+        credentials-path: ${GCP_TTS_CREDENTIALS_PATH:/run/secrets/gcp-tts.json}
+    processor:
+      # ffmpeg and ffprobe ship in the application image on PATH; see Backend/Dockerfile.
+      ffmpeg-dir: ${PWB_AUDIO_FFMPEG_DIR:}
+      # Scratch space for a single job: the source, the voice tag and the rendered output. Sized for the
+      # largest song accepted, not for the number of songs queued — jobs run one at a time.
+      working-dir: ${PWB_AUDIO_PROCESSOR_WORKING_DIR:/var/tmp/pwb-audio}
+      cleanup-temp-files: true
+      orphan-retention-hours: ${PWB_AUDIO_ORPHAN_RETENTION_HOURS:6}
+      timeout-minutes: ${PWB_AUDIO_TIMEOUT_MINUTES:15}
+      # How far above the song the voice tag is placed before the user's volume percentage applies. The
+      # tag is matched to the song's measured loudness first, so this is the only figure deciding how far
+      # it stands out — raise it if tags still get lost, lower it if they sit on top of the music.
+      voice-tag-headroom-db: ${PWB_AUDIO_VOICE_TAG_HEADROOM_DB:3.0}
+    upload:
+      # Verified against object storage, not trusted from the client. Keep working-dir sized to roughly
+      # 2.5x this value, since one job holds the source, the voice tag and the render at the same time.
+      max-file-size-bytes: ${PWB_AUDIO_MAX_FILE_SIZE_BYTES:209715200}
+  outbox:
+    enabled: true
+    relay:
+      enabled: true
+      poll-interval-ms: 2000
+    retry:
+      max-attempts: 5
+      backoff-seconds: [5, 30, 120, 300, 600]

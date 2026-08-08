@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="content">
+
+    <p style="margin:0 0 16px 0;font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#737373;font-weight:700;">
+        <span th:text="${eyebrow}">Account linked</span>
+    </p>
+
+    <p style="margin:0 0 20px 0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:18px;font-weight:700;color:#0a0a0a;line-height:1.4;"
+       th:text="${greeting}">Hi Name,
+    </p>
+
+    <p style="margin:0;"
+       th:text="${bodyText}">Body</p>
+
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0"
+           style="margin:24px 0 0 0;width:100%;">
+        <tr>
+            <td style="background:#0a0a0a;border-radius:12px;padding:16px 18px;">
+                <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:0.25em;text-transform:uppercase;color:#ffffff;font-weight:700;">
+                    <span th:text="${cardTitle}">Google account linked</span>
+                </p>
+                <p style="margin:6px 0 0 0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.5;color:#d4d4d4;">
+                    <span th:text="${cardBody}">Your Google account is now linked to your PWB profile.</span>
+                </p>
+            </td>
+        </tr>
+    </table>
+
+</th:block>
+</body>
+</html>

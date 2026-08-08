@@ -1,0 +1,3 @@
+com.pwb.infra.config.InfraAutoConfiguration
+com.pwb.infra.config.MailAutoConfiguration
+com.pwb.infra.outbox.config.OutboxAutoConfiguration

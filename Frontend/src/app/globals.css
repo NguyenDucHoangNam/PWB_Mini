@@ -1,0 +1,618 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-brass: var(--brass);
+  --color-brass-foreground: var(--brass-foreground);
+  --ease-key: var(--key-ease);
+  --ease-hammer: var(--hammer-ease);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(0.99 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.955 0 0);
+  --secondary-foreground: oklch(0.145 0 0);
+  --muted: oklch(0.955 0 0);
+  --muted-foreground: oklch(0.5 0 0);
+  --accent: oklch(0.93 0 0);
+  --accent-foreground: oklch(0.145 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.895 0 0);
+  --input: oklch(0.895 0 0);
+  --ring: oklch(0.75 0 0);
+  --chart-1: oklch(0.25 0 0);
+  --chart-2: oklch(0.4 0 0);
+  --chart-3: oklch(0.55 0 0);
+  --chart-4: oklch(0.7 0 0);
+  --chart-5: oklch(0.85 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.93 0 0);
+  --sidebar-accent-foreground: oklch(0.145 0 0);
+  --sidebar-border: oklch(0.895 0 0);
+  --sidebar-ring: oklch(0.75 0 0);
+  --ghost-stroke: rgba(0, 0, 0, 0.7);
+
+  /* Tempo: every duration in the app is a note value at 120bpm */
+  --tempo-bpm: 120;
+  --beat: 500ms;
+  --beat-half: 1000ms;
+  --beat-8th: 250ms;
+  --beat-16th: 125ms;
+  --key-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --hammer-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* The single accent: piano pedal brass. Reserve for live/playing/recording. */
+  --brass: oklch(0.58 0.11 75);
+  --brass-foreground: oklch(0.985 0 0);
+
+  /* M1 key surface + M4 hammer travel */
+  --key-travel: 2px;
+  --key-scale: 0.985;
+  --key-edge: oklch(0.85 0 0);
+  --key-shadow-rest:
+    inset 0 1px 0 oklch(1 0 0 / 0.9), inset 0 -2px 4px oklch(0 0 0 / 0.06);
+  --key-shadow-pressed: inset 0 3px 6px oklch(0 0 0 / 0.18);
+  --key-face: linear-gradient(to bottom, oklch(1 0 0), oklch(0.985 0 0) 55%, oklch(0.955 0 0));
+  --key-grain: repeating-linear-gradient(
+    to right,
+    transparent 0,
+    transparent 1px,
+    oklch(0 0 0 / 0.03) 1px,
+    oklch(0 0 0 / 0.03) 2px
+  );
+
+  /* M2 staff */
+  --staff-gap: 0.6rem;
+  --staff-line: oklch(0.145 0 0 / 0.12);
+}
+
+.dark {
+  --background: oklch(0.11 0 0);
+  --foreground: oklch(0.975 0 0);
+  --card: oklch(0.16 0 0);
+  --card-foreground: oklch(0.975 0 0);
+  --popover: oklch(0.16 0 0);
+  --popover-foreground: oklch(0.975 0 0);
+  --primary: oklch(0.95 0 0);
+  --primary-foreground: oklch(0.11 0 0);
+  --secondary: oklch(0.22 0 0);
+  --secondary-foreground: oklch(0.975 0 0);
+  --muted: oklch(0.22 0 0);
+  --muted-foreground: oklch(0.65 0 0);
+  --accent: oklch(0.2 0 0);
+  --accent-foreground: oklch(0.975 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 8%);
+  --ring: oklch(0.6 0 0);
+  --chart-1: oklch(0.75 0 0);
+  --chart-2: oklch(0.6 0 0);
+  --chart-3: oklch(0.45 0 0);
+  --chart-4: oklch(0.3 0 0);
+  --chart-5: oklch(0.15 0 0);
+  --sidebar: oklch(0.16 0 0);
+  --sidebar-foreground: oklch(0.975 0 0);
+  --sidebar-primary: oklch(0.85 0 0);
+  --sidebar-primary-foreground: oklch(0.11 0 0);
+  --sidebar-accent: oklch(0.2 0 0);
+  --sidebar-accent-foreground: oklch(0.975 0 0);
+  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-ring: oklch(0.6 0 0);
+  --ghost-stroke: rgba(255, 255, 255, 0.8);
+
+  --brass: oklch(0.8 0.12 82);
+  --brass-foreground: oklch(0.11 0 0);
+
+  --key-edge: oklch(0.35 0 0);
+  --key-shadow-rest:
+    inset 0 1px 0 oklch(1 0 0 / 0.5), inset 0 -2px 4px oklch(0 0 0 / 0.12);
+  --key-shadow-pressed: inset 0 3px 6px oklch(0 0 0 / 0.3);
+  --key-face: linear-gradient(to bottom, oklch(0.93 0 0), oklch(0.9 0 0) 55%, oklch(0.86 0 0));
+
+  --staff-line: oklch(1 0 0 / 0.12);
+}
+
+/* Tempo utilities — use these instead of duration-200 */
+@utility beat {
+  transition-duration: var(--beat);
+}
+@utility beat-half {
+  transition-duration: var(--beat-half);
+}
+@utility beat-8th {
+  transition-duration: var(--beat-8th);
+}
+@utility beat-16th {
+  transition-duration: var(--beat-16th);
+}
+
+/* M4 — hammer travel. Composes with anything; never owns box-shadow so
+   focus rings survive. aria-haspopup is excluded so anchored popups stay put. */
+@utility key-press {
+  transition-property: all;
+  transition-duration: var(--beat-16th);
+  transition-timing-function: var(--key-ease);
+
+  &:active:not(:disabled):not([data-disabled]):not([aria-disabled="true"]):not([aria-haspopup]) {
+    translate: 0 var(--key-travel);
+    scale: var(--key-scale);
+  }
+}
+
+/* M1 — key surfaces. Pair with key-press. Use outline, not ring, for focus. */
+@utility key-white {
+  background-color: oklch(1 0 0);
+  background-image: var(--key-grain), var(--key-face);
+  border-right: 1px solid var(--key-edge);
+  border-radius: 0 0 3px 3px;
+  box-shadow: var(--key-shadow-rest);
+  color: oklch(0.145 0 0);
+
+  &:active:not(:disabled) {
+    box-shadow: var(--key-shadow-pressed);
+  }
+}
+
+@utility key-black {
+  --key-shadow-rest: inset 0 -3px 4px oklch(1 0 0 / 0.1), 0 4px 8px oklch(0 0 0 / 0.4);
+  --key-shadow-pressed:
+    inset 0 3px 5px oklch(0 0 0 / 0.9), inset 0 -1px 1px oklch(1 0 0 / 0.05);
+  background-color: oklch(0.05 0 0);
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent 1px,
+      oklch(1 0 0 / 0.04) 1px,
+      oklch(1 0 0 / 0.04) 2px
+    ),
+    linear-gradient(to bottom, oklch(0.22 0 0), oklch(0.08 0 0) 60%, oklch(0.02 0 0));
+  border-radius: 0 0 3px 3px;
+  box-shadow: var(--key-shadow-rest);
+  color: oklch(0.985 0 0);
+
+  &:active:not(:disabled) {
+    box-shadow: var(--key-shadow-pressed);
+  }
+}
+
+/* M2 — five staff lines, centred, drawn once */
+@utility staff-lines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--staff-line) 0,
+    var(--staff-line) 1px,
+    transparent 1px,
+    transparent var(--staff-gap)
+  );
+  background-size: 100% calc(var(--staff-gap) * 4 + 1px);
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* Row affordances: quiet on a mouse, always reachable on a touch screen where
+   there is no hover to reveal them. */
+@utility hover-reveal {
+  transition-property: opacity;
+  transition-duration: var(--beat-16th);
+  transition-timing-function: var(--hammer-ease);
+
+  @media (hover: hover) and (pointer: fine) {
+    opacity: 0;
+
+    &:is(:where(.group):hover *),
+    &:is(:where(.group):focus-within *),
+    &:focus-within {
+      opacity: 1;
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+@layer components {
+  .toaster:where([data-sonner-toaster]) {
+    z-index: 9999 !important;
+  }
+
+  [data-sonner-toaster][data-y-position="top"] {
+    top: max(72px, env(safe-area-inset-top, 0px)) !important;
+  }
+
+  [data-sonner-toaster][data-y-position="bottom"] {
+    bottom: max(var(--offset, 16px), env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  [data-sonner-toaster][data-x-position="right"] {
+    right: 16px !important;
+  }
+
+  [data-sonner-toaster][data-x-position="left"] {
+    left: 16px !important;
+  }
+
+  .cn-toast {
+    @apply relative flex items-center border text-popover-foreground rounded-xl py-4 pl-4 pr-16 shadow-md w-full min-h-[56px] gap-3;
+    width: calc(100dvw - 32px) !important;
+    max-width: calc(100dvw - 32px) !important;
+    border-left-width: 12px !important;
+    border-left-color: var(--cn-toast-neutral);
+    border-top-width: 0 !important;
+    border-right-width: 1px !important;
+    border-bottom-width: 1px !important;
+    background:
+      linear-gradient(to right, var(--border) 1px, transparent 1px) no-repeat right 52px top 0 / 1px 100%,
+      var(--popover) !important;
+    will-change: transform, opacity;
+    animation: cn-toast-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @media (min-width: 640px) and (max-width: 1023px) {
+    .cn-toast {
+      width: 420px !important;
+      max-width: 420px !important;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .cn-toast {
+      width: 380px !important;
+      max-width: 380px !important;
+    }
+  }
+
+  .cn-toast[data-type="success"] {
+    border-left-color: var(--cn-toast-success) !important;
+  }
+  .cn-toast[data-type="warning"] {
+    border-left-color: var(--cn-toast-warning) !important;
+  }
+  .cn-toast[data-type="error"] {
+    border-left-color: var(--cn-toast-error) !important;
+  }
+  .cn-toast[data-type="info"],
+  .cn-toast[data-type="default"],
+  .cn-toast[data-type="loading"] {
+    border-left-color: var(--cn-toast-neutral) !important;
+  }
+
+  .cn-toast__progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    overflow: hidden;
+    pointer-events: none;
+    border-bottom-left-radius: var(--radius);
+    border-bottom-right-radius: var(--radius);
+    z-index: 4;
+  }
+
+  .cn-toast__progress-fill {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background-color: var(--cn-toast-neutral);
+    transform-origin: left center;
+    transform: scaleX(1);
+    animation: cn-progress-shrink var(--cn-toast-duration) linear forwards;
+    will-change: transform;
+  }
+
+  .cn-toast[data-type="success"] .cn-toast__progress-fill {
+    background-color: var(--cn-toast-success);
+  }
+  .cn-toast[data-type="warning"] .cn-toast__progress-fill {
+    background-color: var(--cn-toast-warning);
+  }
+  .cn-toast[data-type="error"] .cn-toast__progress-fill {
+    background-color: var(--cn-toast-error);
+  }
+  .cn-toast[data-type="info"] .cn-toast__progress-fill,
+  .cn-toast[data-type="default"] .cn-toast__progress-fill,
+  .cn-toast[data-type="loading"] .cn-toast__progress-fill {
+    background-color: var(--cn-toast-neutral);
+  }
+
+  .cn-toast__title {
+    @apply text-sm font-semibold tracking-tight;
+  }
+  .cn-toast__description {
+    @apply text-xs text-muted-foreground mt-0.5;
+  }
+
+  .cn-toast [data-close-button] {
+    position: absolute !important;
+    top: 50% !important;
+    right: 20px !important;
+    left: auto !important;
+    transform: translateY(-50%) !important;
+    border: 0 !important;
+    background: transparent !important;
+    @apply size-7 flex items-center justify-center rounded-md text-neutral-400 dark:text-neutral-500 hover:text-black dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors;
+  }
+
+  .cn-toast::before {
+    content: "" !important;
+    position: absolute !important;
+    right: 0 !important;
+    left: auto !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 14px !important;
+    background: repeating-linear-gradient(to bottom, 
+      oklch(0.98 0 0) 0px, 
+      oklch(0.98 0 0) 13px, 
+      oklch(0.85 0 0) 13px, 
+      oklch(0.85 0 0) 14px
+    ) !important;
+    border-left: 1px solid oklch(0.85 0 0) !important;
+    border-right: 0 !important;
+    border-top-right-radius: 11px !important;
+    border-bottom-right-radius: 11px !important;
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    pointer-events: none !important;
+    z-index: 5 !important;
+  }
+
+  .dark .cn-toast::before {
+    background: repeating-linear-gradient(to bottom, 
+      oklch(0.9 0 0) 0px, 
+      oklch(0.9 0 0) 13px, 
+      oklch(0.65 0 0) 13px, 
+      oklch(0.65 0 0) 14px
+    ) !important;
+    border-left: 1px solid oklch(0.65 0 0) !important;
+  }
+
+  .cn-toast::after {
+    content: "" !important;
+    position: absolute !important;
+    right: 6px !important;
+    left: auto !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 8px !important;
+    background: repeating-linear-gradient(to bottom,
+      transparent 0px,
+      transparent 8px,
+      oklch(0.15 0 0) 8px,
+      oklch(0.15 0 0) 18px,
+      transparent 18px,
+      transparent 28px
+    ) !important;
+    pointer-events: none !important;
+    z-index: 6 !important;
+    clip-path: none !important;
+    height: auto !important;
+  }
+
+  .dark .cn-toast::after {
+    background: repeating-linear-gradient(to bottom,
+      transparent 0px,
+      transparent 8px,
+      oklch(0.05 0 0) 8px,
+      oklch(0.05 0 0) 18px,
+      transparent 18px,
+      transparent 28px
+    ) !important;
+  }
+}
+
+@layer utilities {
+  @keyframes cn-toast-in {
+    from {
+      transform: translateY(-12px) scale(0.98);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes cn-progress-shrink {
+    from {
+      transform: scaleX(1);
+    }
+    to {
+      transform: scaleX(0);
+    }
+  }
+
+  @keyframes cn-progress-slide {
+    0% {
+      transform: translateX(-100%) scaleX(1);
+    }
+    100% {
+      transform: translateX(350%) scaleX(1);
+    }
+  }
+
+  @keyframes cn-waveform {
+    0%, 100% {
+      transform: scaleY(0.35);
+      opacity: 0.55;
+    }
+    50% {
+      transform: scaleY(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes otp-flash {
+    0% {
+      border-color: oklch(0.65 0.16 155);
+      box-shadow: 0 0 0 0 oklch(0.65 0.16 155 / 0.45);
+    }
+    50% {
+      border-color: oklch(0.65 0.16 155);
+      box-shadow: 0 0 0 6px oklch(0.65 0.16 155 / 0);
+    }
+    100% {
+      border-color: var(--input);
+      box-shadow: 0 0 0 0 oklch(0.65 0.16 155 / 0);
+    }
+  }
+
+  /* M3 — waveform. Sizes to the font, colours to currentColor. */
+  .waveform {
+    @apply inline-flex items-end gap-[2px];
+    height: 1em;
+  }
+  .waveform > span {
+    @apply block w-[2px] rounded-full;
+    background-color: currentColor;
+    height: 100%;
+    transform-origin: bottom center;
+    will-change: transform, opacity;
+    animation: cn-waveform var(--beat-half) cubic-bezier(0.37, 0, 0.63, 1) infinite;
+  }
+  .waveform > span:nth-child(2) {
+    animation-delay: var(--beat-16th);
+  }
+  .waveform > span:nth-child(3) {
+    animation-delay: calc(var(--beat-16th) * 2);
+  }
+  .waveform > span:nth-child(4) {
+    animation-delay: calc(var(--beat-16th) * 3);
+  }
+  .waveform > span:nth-child(5) {
+    animation-delay: calc(var(--beat-16th) * 4);
+  }
+  .waveform[data-state="paused"] > span {
+    animation-play-state: paused;
+    transform: scaleY(0.35);
+  }
+  .cn-toast .waveform {
+    @apply ml-auto opacity-70;
+    height: 14px;
+  }
+
+  .otp-flash {
+    animation: otp-flash calc(var(--beat) * 1.5) ease-out;
+  }
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+}
+
+/* Landing hero keyboard.
+   Below sm the two words stack, so each one gets the full row and can afford ~10vw per key.
+   From sm up both words sit on one line (17 keys + gap), so the per-key budget drops. */
+:root {
+  --piano-key-box: min(10vw, 3.5rem);
+  --piano-key-glyph: min(8.6vw, 3.5rem);
+  --piano-white-height: min(26vw, 8rem);
+  --piano-black-height: min(15.5vw, 4.8rem);
+}
+
+@media (min-width: 640px) {
+  :root {
+    --piano-key-box: clamp(1.7rem, 4.5vw, 3.5rem);
+    --piano-key-glyph: clamp(1.25rem, 4vw, 3.5rem);
+    --piano-white-height: clamp(4.25rem, 11vw, 8rem);
+    --piano-black-height: clamp(2.6rem, 6.5vw, 4.8rem);
+  }
+}
+
+:root {
+  --cn-toast-success: oklch(0.65 0.16 155);
+  --cn-toast-warning: oklch(0.78 0.16 75);
+  --cn-toast-error: oklch(0.6 0.22 25);
+  --cn-toast-neutral: oklch(0.5 0 0);
+  --cn-toast-duration: 4000ms;
+}
+
+.dark {
+  --cn-toast-success: oklch(0.78 0.17 155);
+  --cn-toast-warning: oklch(0.85 0.16 80);
+  --cn-toast-error: oklch(0.72 0.2 25);
+  --cn-toast-neutral: oklch(0.7 0 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cn-toast,
+  .cn-toast__progress,
+  .waveform > span {
+    animation: none !important;
+  }
+
+  /* Drop the travel, keep the inset shadow: press still reads without motion */
+  .key-press:active {
+    translate: none !important;
+    scale: none !important;
+  }
+}

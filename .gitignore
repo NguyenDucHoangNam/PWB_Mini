@@ -2,6 +2,7 @@
 # 1. Cấu hình AI Agent (Quan trọng)
 # ==========================================
 .agents/
+.cursor/
 .gemini/
 *.agent
 transcript*.jsonl
@@ -17,16 +18,32 @@ transcript*.jsonl
 .env.production.local
 .env*.local
 *.env
+# Các mẫu ở trên KHÔNG bắt được `.env.prod`: `.env` khớp chính xác, `*.env` chỉ khớp phần đuôi,
+# còn `.env*.local` đòi hỏi hậu tố `.local`. Đây là file chứa toàn bộ secret của môi trường thật.
+.env.prod
+.env.production
+# File sao lưu khi dọn dẹp env. Không mẫu nào ở trên bắt được `.env.bak`, mà nội dung của nó
+# là toàn bộ secret của file gốc.
+.env.bak
+# Do GitHub Actions ghi lên VPS mỗi lần deploy, chỉ chứa duy nhất IMAGE_TAG của commit đang chạy.
+# Không phải secret, nhưng là trạng thái riêng của từng máy — commit nó vào repo sẽ khiến mọi máy
+# tưởng mình đang chạy phiên bản của máy khác. Xem docs/cicd.md.
+.env.deploy
+# Credential mount vào container (Google TTS service account, xem docker-compose.prod.yml)
+secrets/
 # Bỏ qua file cấu hình cục bộ của Spring Boot (chứa mật khẩu DB cục bộ)
 **/src/main/resources/application-local.yaml
 **/src/main/resources/application-local.yml
 **/src/main/resources/application-local.properties
+**/src/main/resources/application-dev-users.yml
 
 # ==========================================
 # 3. Cấu hình IDE / OS / Công cụ
 # ==========================================
 .idea/
 .vscode/
+.vs/
+.claude/
 *.suo
 .DS_Store
 Thumbs.db
@@ -36,10 +53,11 @@ Thumbs.db
 # ==========================================
 # 4. Backend (Java / Spring Boot / Maven)
 # ==========================================
-backend/target/
-backend/.mvn/wrapper/maven-wrapper.jar
-backend/bin/
-backend/build/
+**/target/
+**/bin/
+**/build/
+**/cp.txt
+**/cp-test.txt
 
 # ==========================================
 # 5. Frontend (Node.js / Next.js / pnpm)
@@ -55,3 +73,10 @@ frontend/yarn-error.log*
 frontend/pnpm-debug.log*
 frontend/.turbo/
 frontend/coverage/
+
+# GCP service-account keys - never commit; supply via GCP_TTS_CREDENTIALS_PATH.
+# Nơi chứa credential đúng là `secrets/` (đã ignore ở trên) — bất cứ file json nào rơi vào
+# `src/main/resources/tts/` đều bị Maven đóng thẳng vào jar, nên pattern dưới đây cố tình bao
+# mọi module chứ không chỉ `audio`: key đã từng nằm ở `bootstrap/` một lần (commit e279770),
+# và `.env` vẫn còn trỏ vào đó rất lâu sau khi thư mục ấy biến mất.
+**/src/main/resources/tts/*.json
