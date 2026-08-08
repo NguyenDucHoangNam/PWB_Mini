@@ -122,7 +122,7 @@ services:
     #
     # The fallback tag is the branch tag, which CI always moves to the newest successful build. A
     # deploy pins the exact commit instead through IMAGE_TAG in .env.deploy — see docs/cicd.md.
-    image: ghcr.io/nguyenduchoangnam/pwb-backend:${IMAGE_TAG:-develop}
+    image: ghcr.io/nguyenduchoangnam/pwb-backend:${IMAGE_TAG:-main}
     build:
       context: ./Backend
       dockerfile: Dockerfile
@@ -219,7 +219,7 @@ services:
     # domains and one bucket. CI passes them from repository *variables* rather than secrets — they
     # end up readable in the client bundle either way, and marking them secret only makes the build
     # log unreadable.
-    image: ghcr.io/nguyenduchoangnam/pwb-frontend:${IMAGE_TAG:-develop}
+    image: ghcr.io/nguyenduchoangnam/pwb-frontend:${IMAGE_TAG:-main}
     build:
       context: ./Frontend
       dockerfile: Dockerfile

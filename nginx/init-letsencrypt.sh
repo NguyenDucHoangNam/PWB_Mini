@@ -18,6 +18,15 @@ DOMAIN="producerworkbench.online"
 API_DOMAIN="api.producerworkbench.online"
 COMPOSE="docker compose -f docker-compose.prod.yml --env-file .env.prod"
 
+# .env.deploy pins IMAGE_TAG to the commit CI shipped. Without it compose falls back to the floating
+# tag in docker-compose.prod.yml, and because both application services still declare `build:`, the
+# `up -d nginx` below does not fail on a missing image — it builds backend and frontend from source
+# and recreates both containers on a different version than the one that was deployed. Nothing in
+# the output says so; the certificate still gets issued and the script still prints Done.
+if [ -f .env.deploy ]; then
+    COMPOSE="$COMPOSE --env-file .env.deploy"
+fi
+
 # Set to 1 to use Let's Encrypt's staging environment. The certificate it issues is not trusted by
 # browsers, but the rate limits are far looser — 5 failures per hour against production locks the
 # domain out for the rest of the week, which is a bad thing to discover the day before a demo.
@@ -39,7 +48,8 @@ $COMPOSE run --rm --entrypoint "\
            -subj \"/CN=localhost\"'" certbot
 
 echo "==> Starting nginx"
-$COMPOSE up -d nginx
+# --no-build so a wrong or missing tag fails loudly here instead of silently rebuilding from source.
+$COMPOSE up -d --no-build nginx
 # nginx binds and loads its configuration in well under this; the wait only avoids racing the
 # challenge request against a container that has not opened port 80 yet.
 sleep 5
