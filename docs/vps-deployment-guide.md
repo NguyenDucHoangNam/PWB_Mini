@@ -102,35 +102,7 @@ Kiểm tra: EC2 Console → Elastic IPs, tìm `52.63.23.58`. Instance cần gắ
 
 > Elastic IP đã gắn vào instance đang chạy thì miễn phí. Chỉ tính tiền khi allocate mà để không.
 
-### 1.2 🔴 DNS chưa trỏ về đâu cả
-
-**Blocker duy nhất chắc chắn còn nguyên** — đo lại ngày 2026-08-08 qua `8.8.8.8`, không đổi gì:
-
-| Bản ghi | Trạng thái hiện tại |
-|---|---|
-| `producerworkbench.online` | domain tồn tại nhưng **không có bản ghi A** |
-| `api.producerworkbench.online` | **NXDOMAIN** |
-| `turn.producerworkbench.online` | **NXDOMAIN** |
-
-Cần tạo ở nhà cung cấp domain:
-
-| Type | Name | Value | TTL |
-|---|---|---|---|
-| A | `@` | `52.63.23.58` | 300 |
-| A | `api` | `52.63.23.58` | 300 |
-| A | `turn` | `52.63.23.58` | 300 |
-
-Chờ propagate rồi xác nhận **cả ba** trước khi chạy `init-letsencrypt.sh`:
-
-```bash
-for h in producerworkbench.online api.producerworkbench.online turn.producerworkbench.online; do
-  echo -n "$h → "; dig +short A "$h" @8.8.8.8
-done
-```
-
-Cả ba phải trả về `52.63.23.58`. Bản ghi `turn` là tùy chọn về mặt kỹ thuật (không có TLS nên không cần chứng chỉ khớp tên), nhưng `.env.prod.example` đang dùng nó nên cứ tạo cho khớp. **Đừng thêm `turn` vào danh sách domain xin chứng chỉ.**
-
-### 1.3 🟡 S3 — còn IAM user và lifecycle rule
+### 1.2 🟡 S3 — còn IAM user và lifecycle rule
 
 Bucket, region và CORS **đã xong và đã đo lại** (§0.3). Hai thứ còn lại không kiểm ẩn danh được nên phải tự xác nhận trong console, theo đúng [deployment-plan.md §4.3](deployment-plan.md):
 
