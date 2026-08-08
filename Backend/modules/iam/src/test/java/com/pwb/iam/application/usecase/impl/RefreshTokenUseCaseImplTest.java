@@ -1,6 +1,7 @@
 package com.pwb.iam.application.usecase.impl;
 
 import com.pwb.iam.application.command.RefreshTokenCommand;
+import com.pwb.iam.application.service.RateLimitGuard;
 import com.pwb.iam.domain.event.AuthEventPublisher;
 import com.pwb.iam.domain.exception.IamErrorCode;
 import com.pwb.iam.domain.exception.RefreshTokenInvalidException;
@@ -48,10 +49,11 @@ class RefreshTokenUseCaseImplTest {
     void setUp() {
         userId = UUID.randomUUID();
         tokenManagerService = new StubTokenManagerService(userId);
-        loginPolicy = new LoginPolicy(10, 30, 10, 5, 15);
+        loginPolicy = new LoginPolicy(10, 30, 10, 5, 10, 5, 5, 15);
         lenient().when(throttlingService.consume(anyString(), anyInt(), any())).thenReturn(ThrottlingService.ThrottleDecision.allow(5L));
 
-        useCase = new RefreshTokenUseCaseImpl(tokenManagerService, userRepository, throttlingService, authEventPublisher, loginPolicy);
+        useCase = new RefreshTokenUseCaseImpl(tokenManagerService, userRepository,
+                new RateLimitGuard(throttlingService), authEventPublisher, loginPolicy);
     }
 
     @Test

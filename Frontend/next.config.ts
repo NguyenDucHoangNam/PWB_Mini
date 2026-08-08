@@ -148,6 +148,40 @@ function getStorageOrigins(): string[] {
 const storageOrigins = getStorageOrigins();
 
 /**
+ * A production build with no storage origin produces `media-src 'self' blob:`, which is a valid
+ * header for a site that never plays anything from S3 — so nothing here is malformed, nothing warns,
+ * and the build succeeds. The breakage surfaces later and somewhere else: every upload and every
+ * play is blocked by the browser, the server logs nothing because the request never leaves the tab,
+ * and the console shows a CSP violation naming a directive nobody edited.
+ *
+ * These values are only readable at build time (`NEXT_PUBLIC_*` are inlined into the bundle), so the
+ * build is the last moment this can be caught at all. Failing here costs one clear message; not
+ * failing costs a rebuild of the image, because a restart cannot fix an inlined value.
+ */
+if (!isDev && !backendOrigin) {
+  throw new Error(
+    "Content-Security-Policy would block every API call: NEXT_PUBLIC_API_BASE_URL is not a parseable " +
+      `URL (received ${JSON.stringify(process.env.NEXT_PUBLIC_API_BASE_URL)}). ` +
+      "Expected an absolute origin, e.g. https://api.example.com/api/v1",
+  );
+}
+
+if (!isDev && storageOrigins.length === 0) {
+  throw new Error(
+    [
+      "Content-Security-Policy would block all audio playback: no storage origin could be derived.",
+      "",
+      "Set NEXT_PUBLIC_STORAGE_BUCKET_NAME and NEXT_PUBLIC_STORAGE_REGION (or",
+      "NEXT_PUBLIC_STORAGE_PUBLIC_URL_PREFIX) as *build arguments* — not container environment",
+      "variables, which are read too late to affect the bundle.",
+      "",
+      "In docker-compose.prod.yml these come from STORAGE_S3_BUCKET, STORAGE_S3_REGION and",
+      "STORAGE_PUBLIC_URL_PREFIX in .env.prod.",
+    ].join("\n"),
+  );
+}
+
+/**
  * Content-Security-Policy. Intentionally permissive in development so HMR
  * and dev-time eval work; production locks it down to known origins only.
  */

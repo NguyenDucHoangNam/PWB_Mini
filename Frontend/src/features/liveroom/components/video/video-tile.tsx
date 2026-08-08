@@ -83,9 +83,7 @@ export function VideoTile({
         autoPlay
         playsInline
         muted
-        className={`size-full object-cover ${isMe ? "-scale-x-100" : ""} ${
-          showVideo ? "" : "hidden"
-        }`}
+        className={`size-full -scale-x-100 object-cover ${showVideo ? "" : "hidden"}`}
       />
 
       {!isMe ? <audio ref={audioRef} autoPlay playsInline /> : null}

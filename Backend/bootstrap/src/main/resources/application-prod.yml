@@ -76,6 +76,24 @@ pwb:
   cors:
     allowed-origins: ${PWB_CORS_ALLOWED_ORIGINS}
 
+  liveroom:
+    rtc:
+      # The STUN entry is restated here on purpose. Spring Boot *replaces* a bound list rather than
+      # merging it, so the moment this key exists the default in LiveroomConfig.Rtc is gone. Dropping
+      # it would force every peer through the relay: still working, but paying VPS bandwidth for
+      # connections that could have gone direct, and nothing surfaces that except an egress bill.
+      ice-servers:
+        - urls:
+            - "stun:stun.l.google.com:19302"
+      # Credentials are not configured — GetRtcConfigUseCaseImpl mints a short-lived HMAC pair per
+      # request, so the secret below never reaches a browser. TURN_URLS is comma-separated;
+      # TurnCredentialFactory fails startup if this is on with either value missing.
+      turn:
+        enabled: ${TURN_ENABLED:true}
+        urls: ${TURN_URLS:}
+        secret: ${TURN_STATIC_AUTH_SECRET:}
+        credential-ttl: ${TURN_CREDENTIAL_TTL:24h}
+
   iam:
     password-reset:
       # The reset link mailed to the user is built from this. application.yml defaults it to

@@ -13,8 +13,13 @@ import com.pwb.iam.domain.repository.PasswordResetTokenRepository;
 import com.pwb.iam.domain.repository.UserRepository;
 import com.pwb.iam.domain.service.PasswordHasher;
 import com.pwb.iam.domain.service.PasswordResetTokenService;
+import com.pwb.iam.domain.service.ThrottlingService;
 import com.pwb.iam.domain.service.TokenManagerService;
-import com.pwb.iam.infrastructure.persistence.repository.PasswordHistoryJpaRepository;
+import com.pwb.iam.application.service.AccountNotifier;
+import com.pwb.iam.application.service.PasswordHistoryGuard;
+import com.pwb.iam.application.service.RateLimitGuard;
+import com.pwb.iam.domain.model.LoginPolicy;
+import com.pwb.iam.domain.service.EmailDeliveryPort;
 import com.pwb.shared.exception.BusinessException;
 import com.pwb.iam.testsupport.StubPasswordHasher;
 import com.pwb.iam.testsupport.StubPasswordResetTokenService;
@@ -38,6 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -50,13 +56,14 @@ class ResetPasswordUseCaseImplTest {
     @Mock private UserRepository userRepository;
     @Mock private PasswordResetTokenRepository passwordResetTokenRepository;
     @Mock private PasswordHistoryRepository passwordHistoryRepository;
-    @Mock private PasswordHistoryJpaRepository passwordHistoryJpaRepository;
+    @Mock private EmailDeliveryPort emailDeliveryPort;
     @Mock private ValidatePasswordPolicyUseCase validatePasswordPolicyUseCase;
     @Mock private AuthEventPublisher authEventPublisher;
+    @Mock private ThrottlingService throttlingService;
 
     private StubPasswordHasher passwordHasher;
     private StubPasswordResetTokenService passwordResetTokenService;
-    private TokenManagerService tokenManagerService;
+    private StubTokenManagerService tokenManagerService;
     private ResetPasswordUseCaseImpl useCase;
     private UUID userId;
     private String signedToken;
@@ -71,10 +78,19 @@ class ResetPasswordUseCaseImplTest {
         signedToken = passwordResetTokenService.generateSignedToken();
         rawToken = passwordResetTokenService.extractRawToken(signedToken);
 
+        // Reset is now rate limited per client address before the token is even looked at, so the
+        // use case needs a guard. Allowing every call here keeps these tests about the reset flow;
+        // the rejection path is covered at the HTTP boundary in AuthControllerTest.
+        lenient().when(throttlingService.consume(anyString(), anyInt(), any()))
+                .thenReturn(ThrottlingService.ThrottleDecision.allow(5L));
+
         useCase = new ResetPasswordUseCaseImpl(
                 userRepository, passwordResetTokenRepository, passwordResetTokenService,
-                passwordHistoryRepository, passwordHistoryJpaRepository, passwordHasher,
-                validatePasswordPolicyUseCase, tokenManagerService, authEventPublisher);
+                new PasswordHistoryGuard(passwordHistoryRepository, passwordHasher),
+                new AccountNotifier(emailDeliveryPort),
+                passwordHasher, validatePasswordPolicyUseCase, tokenManagerService,
+                authEventPublisher, new RateLimitGuard(throttlingService),
+                new LoginPolicy(10, 30, 10, 5, 10, 5, 5, 15));
     }
 
     @Test
@@ -89,15 +105,23 @@ class ResetPasswordUseCaseImplTest {
         when(passwordHistoryRepository.findByUserIdOrderByCreatedAtDesc(eq(userId), anyInt())).thenReturn(List.of());
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
         when(passwordResetTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(passwordHistoryJpaRepository.countByUserIdAndDeletedFalse(userId)).thenReturn(0L);
+        when(passwordHistoryRepository.countByUserId(userId)).thenReturn(0L);
 
         var result = useCase.execute(new ResetPasswordCommand(signedToken, "NewPass123!@#", "ua"));
 
         assertThat(result.userId()).isEqualTo(userId);
-        verify(passwordResetTokenRepository).invalidateAllForUser(eq(userId), any());
+        // Not invalidateAllForUser: outstanding tokens are cleared when a new one is *issued*
+        // (see ForgotPasswordUseCaseImpl). Redeeming one burns that token alone, via markUsed —
+        // asserted in `should mark token used after successful reset`.
+        verify(passwordResetTokenRepository).save(any(PasswordResetToken.class));
         verify(passwordHistoryRepository).save(any(PasswordHistory.class));
-        verify(authEventPublisher).publishPasswordChanged(eq(userId), eq(user.getEmail().value()), eq(null), eq("ua"));
-        verify(tokenManagerService).revokeAllRefreshTokensForUser(userId);
+        // "unknown", not null: the short ResetPasswordCommand constructor fills in a missing address
+        // the same way LoginCommand does, so the audit trail never carries a null key.
+        verify(authEventPublisher).publishPasswordChanged(
+                eq(userId), eq(user.getEmail().value()), eq("unknown"), eq("ua"));
+        // Whoever requested the reset may not be who is still signed in, so every existing session
+        // goes — that is the point of the reset, not a side effect.
+        assertThat(tokenManagerService.revokedAllForUsers()).containsExactly(userId);
     }
 
     @Test
@@ -173,9 +197,9 @@ class ResetPasswordUseCaseImplTest {
         User user = TestUserBuilder.withUserId(userId);
         PasswordResetToken token = PasswordResetToken.create(userId, "hash", Instant.now().plus(30, ChronoUnit.MINUTES));
 
+        // No history stub: policy runs before the reuse guard, so a weak password never reaches it.
         when(passwordResetTokenRepository.findActiveByHash(any(), any())).thenReturn(Optional.of(token));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(passwordHistoryRepository.findByUserIdOrderByCreatedAtDesc(eq(userId), anyInt())).thenReturn(List.of());
         org.mockito.Mockito.doThrow(new BusinessException(IamErrorCode.WEAK_PASSWORD))
                 .when(validatePasswordPolicyUseCase).validate("weak");
 
@@ -195,7 +219,7 @@ class ResetPasswordUseCaseImplTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(passwordHistoryRepository.findByUserIdOrderByCreatedAtDesc(eq(userId), anyInt())).thenReturn(List.of());
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(passwordHistoryJpaRepository.countByUserIdAndDeletedFalse(userId)).thenReturn(0L);
+        when(passwordHistoryRepository.countByUserId(userId)).thenReturn(0L);
         when(passwordResetTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         useCase.execute(new ResetPasswordCommand(signedToken, "NewPass123!@#", "ua"));
@@ -216,7 +240,7 @@ class ResetPasswordUseCaseImplTest {
         when(passwordHistoryRepository.findByUserIdOrderByCreatedAtDesc(eq(userId), anyInt())).thenReturn(List.of());
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
         when(passwordResetTokenRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(passwordHistoryJpaRepository.countByUserIdAndDeletedFalse(userId))
+        when(passwordHistoryRepository.countByUserId(userId))
                 .thenReturn((long) (PasswordHistory.MAX_HISTORY_SIZE + 2));
 
         useCase.execute(new ResetPasswordCommand(signedToken, "NewPass123!@#", "ua"));

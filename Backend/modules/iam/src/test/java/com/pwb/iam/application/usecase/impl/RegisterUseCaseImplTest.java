@@ -1,11 +1,14 @@
 package com.pwb.iam.application.usecase.impl;
 
 import com.pwb.iam.application.command.RegisterCommand;
+import com.pwb.iam.application.service.OtpIssuer;
 import com.pwb.iam.application.usecase.ValidatePasswordPolicyUseCase;
+import com.pwb.iam.domain.model.OtpPolicy;
 import com.pwb.iam.domain.event.AuthEventPublisher;
 import com.pwb.iam.domain.event.OtpIssuedDomainEvent;
 import com.pwb.iam.domain.exception.IamErrorCode;
 import com.pwb.iam.domain.model.EmailAddress;
+import com.pwb.iam.domain.model.OtpCode;
 import com.pwb.iam.domain.model.Password;
 import com.pwb.iam.domain.model.Role;
 import com.pwb.iam.domain.model.RoleName;
@@ -17,7 +20,6 @@ import com.pwb.iam.domain.service.EmailDeliveryPort;
 import com.pwb.iam.domain.service.OtpGenerator;
 import com.pwb.iam.domain.service.PasswordHasher;
 import com.pwb.iam.domain.service.ThrottlingService;
-import com.pwb.iam.infrastructure.config.OtpProperties;
 import com.pwb.shared.exception.BusinessException;
 import com.pwb.iam.testsupport.InMemoryEmailDeliveryAdapter;
 import com.pwb.iam.testsupport.StubOtpGenerator;
@@ -31,10 +33,14 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -55,7 +61,6 @@ class RegisterUseCaseImplTest {
     @Mock private EmailDeliveryPort emailDeliveryPort;
     @Mock private ThrottlingService throttlingService;
     @Mock private AuthEventPublisher authEventPublisher;
-    @Mock private OtpProperties otpProperties;
 
     private StubOtpGenerator otpGenerator;
     private RegisterUseCaseImpl useCase;
@@ -63,17 +68,28 @@ class RegisterUseCaseImplTest {
     @BeforeEach
     void setUp() {
         otpGenerator = new StubOtpGenerator().presetNextCode("123456");
-        lenient().when(otpProperties.getTtlMinutes()).thenReturn(5);
         lenient().when(throttlingService.enforceCooldown(any(), any())).thenReturn(0L);
         lenient().when(passwordHasher.hash(any())).thenReturn("hashed:secret");
         lenient().when(roleRepository.findByName(RoleName.USER))
                 .thenReturn(Optional.of(Role.create(RoleName.USER, "Default role")));
         lenient().when(userRepository.findByEmail(any())).thenReturn(Optional.empty());
 
-        useCase = new RegisterUseCaseImpl(
-                userRepository, roleRepository, otpCodeRepository,
-                passwordHasher, validatePasswordPolicyUseCase, otpGenerator,
-                emailDeliveryPort, throttlingService, authEventPublisher, otpProperties);
+        useCase = useCaseWithOtpTtl(5);
+    }
+
+    /**
+     * Issuing the OTP moved out of this use case into {@link OtpIssuer}, which takes the timings as
+     * an {@code OtpPolicy} value rather than reading a properties bean. Building a real issuer here
+     * keeps the collaborators this test already mocks — the repository, the mail port, the event
+     * publisher — on the same seams they were on before, while letting a test choose the TTL.
+     */
+    private RegisterUseCaseImpl useCaseWithOtpTtl(int ttlMinutes) {
+        OtpPolicy otpPolicy = new OtpPolicy(ttlMinutes, 60, 5, 6, 10);
+        OtpIssuer otpIssuer = new OtpIssuer(
+                otpCodeRepository, otpGenerator, emailDeliveryPort, authEventPublisher, otpPolicy);
+        return new RegisterUseCaseImpl(
+                userRepository, roleRepository, passwordHasher,
+                validatePasswordPolicyUseCase, throttlingService, otpIssuer);
     }
 
     @Test
@@ -211,14 +227,19 @@ class RegisterUseCaseImplTest {
     }
 
     @Test
-    @DisplayName("should use OtpProperties ttlMinutes when computing expiresAt")
+    @DisplayName("should use the configured OTP ttl when computing expiresAt")
     void should_use_otp_properties_ttl() {
-        when(otpProperties.getTtlMinutes()).thenReturn(15);
+        useCase = useCaseWithOtpTtl(15);
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         useCase.execute(new RegisterCommand("user@example.com", "StrongP@ss123!", "Alice"));
 
-        verify(otpCodeRepository, times(1)).save(any(com.pwb.iam.domain.model.OtpCode.class));
+        // Asserts the deadline itself rather than just that a row was written — the old version
+        // only counted the save call, so it passed no matter which ttl the policy carried.
+        ArgumentCaptor<OtpCode> captor = ArgumentCaptor.forClass(OtpCode.class);
+        verify(otpCodeRepository, times(1)).save(captor.capture());
+        assertThat(captor.getValue().getExpiresAt())
+                .isCloseTo(Instant.now().plus(Duration.ofMinutes(15)), within(30, ChronoUnit.SECONDS));
     }
 
     @Test

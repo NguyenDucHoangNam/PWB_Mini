@@ -10,17 +10,38 @@ import { refreshAccessToken } from "./auth-refresh";
 import { isPublicPath } from "./config";
 import { SKIP_REFRESH_HEADER, shouldSkipRefresh } from "./request-flags";
 
+function toPositiveSeconds(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric > 0) {
+    return Math.ceil(numeric);
+  }
+  return undefined;
+}
+
 function parseRetryAfterHeader(headers: Record<string, string>): number | undefined {
   const candidates = ["retry-after", "ratelimit-reset", "x-ratelimit-reset"];
   for (const key of candidates) {
-    const value = headers[key] ?? headers[key.toUpperCase()];
-    if (value === undefined || value === null) continue;
-    const numeric = Number(value);
-    if (Number.isFinite(numeric) && numeric > 0) {
-      return Math.ceil(numeric);
-    }
+    const seconds = toPositiveSeconds(headers[key] ?? headers[key.toUpperCase()]);
+    if (seconds !== undefined) return seconds;
   }
   return undefined;
+}
+
+/**
+ * The same wait, read out of the response body.
+ *
+ * Headers are the primary source but not a reliable one from a browser: they only reach JavaScript
+ * when the API lists them in `Access-Control-Expose-Headers`, and any proxy in between is free to
+ * drop them. The backend therefore also puts `retryAfterSeconds` in the error payload of every
+ * throttled response, and that copy is what keeps the countdown working when the header does not
+ * survive the trip.
+ */
+function parseRetryAfterBody(data: unknown): number | undefined {
+  if (!data || typeof data !== "object") return undefined;
+  const details = (data as { error?: unknown }).error;
+  if (!details || typeof details !== "object") return undefined;
+  return toPositiveSeconds((details as Record<string, unknown>).retryAfterSeconds);
 }
 
 function getCookie(name: string): string | null {
@@ -210,7 +231,8 @@ apiClient.interceptors.response.use(
     const rawHeaders = Object.fromEntries(
       Object.entries(error.response.headers).map(([k, v]) => [k, String(v)]),
     );
-    const retryAfterSeconds = parseRetryAfterHeader(rawHeaders);
+    const retryAfterSeconds =
+      parseRetryAfterHeader(rawHeaders) ?? parseRetryAfterBody(error.response.data);
 
     const apiError = new ApiError({
       ...(error.response.data as ApiResponse<unknown>),

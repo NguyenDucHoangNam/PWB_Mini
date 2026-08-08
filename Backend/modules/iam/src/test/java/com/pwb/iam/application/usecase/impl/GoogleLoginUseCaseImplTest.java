@@ -1,6 +1,8 @@
 package com.pwb.iam.application.usecase.impl;
 
 import com.pwb.iam.application.command.GoogleLoginCommand;
+import com.pwb.iam.application.service.AccountNotifier;
+import com.pwb.iam.application.service.RateLimitGuard;
 import com.pwb.iam.domain.event.AuthEventPublisher;
 import com.pwb.iam.domain.exception.IamErrorCode;
 import com.pwb.iam.domain.model.EmailAddress;
@@ -65,12 +67,16 @@ class GoogleLoginUseCaseImplTest {
     void setUp() {
         googleTokenVerifier = new StubGoogleTokenVerifier();
         tokenManagerService = new StubTokenManagerService();
-        loginPolicy = new LoginPolicy(10, 30, 10, 5, 15);
+        loginPolicy = new LoginPolicy(10, 30, 10, 5, 10, 5, 5, 15);
         lenient().when(throttlingService.consume(anyString(), anyInt(), any())).thenReturn(ThrottlingService.ThrottleDecision.allow(5L));
 
+        // Both collaborators are thin wrappers over things already mocked here — the guard over
+        // throttlingService, the notifier over emailDeliveryPort — so real instances keep the
+        // existing stubbing and verifications pointed at the same seams as before.
         useCase = new GoogleLoginUseCaseImpl(
                 userRepository, roleRepository, googleTokenVerifier, tokenManagerService,
-                authEventPublisher, throttlingService, loginPolicy, emailDeliveryPort);
+                authEventPublisher, new RateLimitGuard(throttlingService), loginPolicy,
+                emailDeliveryPort, new AccountNotifier(emailDeliveryPort));
     }
 
     @Test
@@ -85,7 +91,7 @@ class GoogleLoginUseCaseImplTest {
             User u = inv.getArgument(0);
             return User.rehydrate(UUID.randomUUID(), u.getEmail().value(), u.getPassword() == null ? null : u.getPassword().hash(),
                     u.getFullName(), u.getAvatarUrl(), null, u.getStatus(), u.getRole().name(),
-                    u.getOauthProvider(), u.getOauthId());
+                    u.getOauthProvider(), u.getOauthId(), null, null, null);
         });
 
         var result = useCase.execute(new GoogleLoginCommand("id-token", "10.0.0.1", "ua", "vi"));
@@ -131,6 +137,11 @@ class GoogleLoginUseCaseImplTest {
         User banned = TestUserBuilder.banned();
         when(userRepository.findByOAuthProviderAndOAuthId(OAuthProvider.GOOGLE, "google-sub-1"))
                 .thenReturn(Optional.of(banned));
+        // The Google payload fills in the gaps on the stored user (name, avatar), which counts as a
+        // change and triggers a save. Unstubbed, that save returned null, the Optional.map collapsed
+        // to empty, and the use case fell through to creating a brand new account — so this test
+        // reported ROLE_NOT_FOUND and never reached the ban check it exists for.
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         assertThatThrownBy(() -> useCase.execute(new GoogleLoginCommand("id-token", "10.0.0.1", "ua", "vi")))
                 .isInstanceOf(BusinessException.class)

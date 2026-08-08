@@ -1,7 +1,11 @@
 package com.pwb.iam.application.usecase.impl;
 
 import com.pwb.iam.application.command.VerifyOtpCommand;
+import com.pwb.iam.application.service.OtpAttemptRecorder;
+import com.pwb.iam.application.service.RateLimitGuard;
 import com.pwb.iam.domain.event.AuthEventPublisher;
+import com.pwb.iam.domain.model.LoginPolicy;
+import com.pwb.iam.domain.model.OtpPolicy;
 import com.pwb.iam.domain.event.AuthSuccessEvent;
 import com.pwb.iam.domain.exception.IamErrorCode;
 import com.pwb.iam.domain.exception.OtpVerificationException;
@@ -64,8 +68,16 @@ class VerifyOtpUseCaseImplTest {
         tokenManagerService = new StubTokenManagerService(userId);
         lenient().when(throttlingService.consume(anyString(), anyInt(), any())).thenReturn(ThrottlingService.ThrottleDecision.allow(10L));
 
+        OtpPolicy otpPolicy = new OtpPolicy(10, 60, 5, 6, 10);
+        LoginPolicy loginPolicy = new LoginPolicy(10, 30, 10, 5, 10, 5, 5, 15);
+
+        // The attempt counter is written through OtpAttemptRecorder in its own transaction, so that
+        // a wrong code still costs an attempt after the failure rolls the main one back. A real
+        // recorder over the mocked repository keeps that write visible to this test's verifications.
         useCase = new VerifyOtpUseCaseImpl(
-                userRepository, otpCodeRepository, otpGenerator, tokenManagerService, authEventPublisher, throttlingService);
+                userRepository, otpCodeRepository, otpGenerator, tokenManagerService, authEventPublisher,
+                new RateLimitGuard(throttlingService), new OtpAttemptRecorder(otpCodeRepository, otpPolicy),
+                otpPolicy, loginPolicy);
     }
 
     @Test
@@ -120,9 +132,11 @@ class VerifyOtpUseCaseImplTest {
         User user = TestUserBuilder.withUserId(userId);
         OtpCode otp = OtpCode.create(userId, OtpPurpose.REGISTER, HASHED_CODE, Instant.now().plus(5, ChronoUnit.MINUTES));
 
+        // No save stub: a wrong code throws out of verify() before the use case saves, precisely so
+        // the rollback cannot swallow the attempt counter. The failed attempt is written separately
+        // through OtpAttemptRecorder instead.
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(otpCodeRepository.findActiveByUserAndPurpose(userId, OtpPurpose.REGISTER)).thenReturn(Optional.of(otp));
-        when(otpCodeRepository.save(any(OtpCode.class))).thenAnswer(inv -> inv.getArgument(0));
 
         assertThatThrownBy(() -> useCase.execute(new VerifyOtpCommand(userId, "WRONG", "10.0.0.1")))
                 .isInstanceOf(OtpVerificationException.class)
@@ -134,7 +148,11 @@ class VerifyOtpUseCaseImplTest {
     @DisplayName("should throw RATE_LIMITED when throttled by user id key")
     void should_throw_rate_limited_by_user() {
         lenient().when(throttlingService.consume(anyString(), anyInt(), any())).thenReturn(ThrottlingService.ThrottleDecision.allow(10L));
-        when(throttlingService.consume(org.mockito.ArgumentMatchers.contains("userId"), anyInt(), any()))
+        // RateLimitGuard.checkIpAndSubject spends two buckets: "verify-otp:ip:<addr>" and
+        // "verify-otp:subject:<userId>". Denying the second is what "throttled by user id" means —
+        // matching on the literal "userId" matched neither key, so this test used to sail past the
+        // limiter and fail later on a missing user.
+        when(throttlingService.consume(org.mockito.ArgumentMatchers.contains("subject"), anyInt(), any()))
                 .thenReturn(ThrottlingService.ThrottleDecision.deny(45L));
 
         assertThatThrownBy(() -> useCase.execute(new VerifyOtpCommand(userId, CODE, "10.0.0.1")))

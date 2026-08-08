@@ -17,6 +17,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class OtpCodeTest {
 
     private static final String CODE = "123456";
+
+    /**
+     * The attempt ceiling is no longer a constant on {@link OtpCode} — it comes from
+     * {@code OtpPolicy} and is passed into every call, so the entity works for any configured
+     * value. This mirrors the production default (`pwb.iam.otp.max-attempts`).
+     */
+    private static final int MAX_ATTEMPTS = 5;
+
     private UUID userId;
     private StubOtpGenerator generator;
 
@@ -38,9 +46,7 @@ class OtpCodeTest {
         assertThat(otp.getStatus()).isEqualTo(OtpCode.OtpStatus.PENDING);
         assertThat(otp.getAttempts()).isZero();
         assertThat(otp.getVerifiedAt()).isNull();
-        assertThat(otp.isLocked(OtpCode.MAX_ATTEMPTS)).isFalse();
-        assertThat(otp.isPending()).isTrue();
-        assertThat(otp.isLocked(OtpCode.MAX_ATTEMPTS)).isFalse();
+        assertThat(otp.isLocked(MAX_ATTEMPTS)).isFalse();
     }
 
     @Test
@@ -70,11 +76,11 @@ class OtpCodeTest {
     void should_mark_verified_for_correct_code() {
         OtpCode otp = OtpCode.create(userId, OtpPurpose.REGISTER, "hashed:" + CODE, Instant.now().plusSeconds(300));
 
-        otp.verify(CODE, generator, OtpCode.MAX_ATTEMPTS);
+        otp.verify(CODE, generator, MAX_ATTEMPTS);
 
         assertThat(otp.getStatus()).isEqualTo(OtpCode.OtpStatus.VERIFIED);
         assertThat(otp.getVerifiedAt()).isNotNull();
-        assertThat(otp.isPending()).isFalse();
+        assertThat(otp.isLocked(MAX_ATTEMPTS)).isFalse();
     }
 
     @Test
@@ -82,12 +88,12 @@ class OtpCodeTest {
     void should_increment_attempts_on_mismatch() {
         OtpCode otp = OtpCode.create(userId, OtpPurpose.REGISTER, "hashed:" + CODE, Instant.now().plusSeconds(300));
 
-        for (int i = 0; i < OtpCode.MAX_ATTEMPTS - 1; i++) {
-            assertThatThrownBy(() -> otp.verify("WRONG", generator, OtpCode.MAX_ATTEMPTS))
+        for (int i = 0; i < MAX_ATTEMPTS - 1; i++) {
+            assertThatThrownBy(() -> otp.verify("WRONG", generator, MAX_ATTEMPTS))
                     .isInstanceOf(OtpVerificationException.class);
         }
 
-        assertThat(otp.getAttempts()).isEqualTo(OtpCode.MAX_ATTEMPTS - 1);
+        assertThat(otp.getAttempts()).isEqualTo(MAX_ATTEMPTS - 1);
         assertThat(otp.getStatus()).isEqualTo(OtpCode.OtpStatus.PENDING);
     }
 
@@ -96,28 +102,28 @@ class OtpCodeTest {
     void should_lock_after_max_attempts() {
         OtpCode otp = OtpCode.create(userId, OtpPurpose.REGISTER, "hashed:" + CODE, Instant.now().plusSeconds(300));
 
-        for (int i = 0; i < OtpCode.MAX_ATTEMPTS; i++) {
-            assertThatThrownBy(() -> otp.verify("WRONG", generator, OtpCode.MAX_ATTEMPTS))
+        for (int i = 0; i < MAX_ATTEMPTS; i++) {
+            assertThatThrownBy(() -> otp.verify("WRONG", generator, MAX_ATTEMPTS))
                     .isInstanceOf(OtpVerificationException.class);
         }
 
         assertThat(otp.getStatus()).isEqualTo(OtpCode.OtpStatus.LOCKED);
-        assertThat(otp.isLocked(OtpCode.MAX_ATTEMPTS)).isTrue();
-        assertThat(otp.isLocked(OtpCode.MAX_ATTEMPTS)).isTrue();
+        assertThat(otp.isLocked(MAX_ATTEMPTS)).isTrue();
+        assertThat(otp.getAttempts()).isEqualTo(MAX_ATTEMPTS);
     }
 
     @Test
     @DisplayName("verify should throw AUTH_OTP_INVALID when locked")
     void should_throw_when_locked() {
         OtpCode otp = OtpCode.create(userId, OtpPurpose.REGISTER, "hashed:" + CODE, Instant.now().plusSeconds(300));
-        for (int i = 0; i < OtpCode.MAX_ATTEMPTS; i++) {
+        for (int i = 0; i < MAX_ATTEMPTS; i++) {
             try {
-                otp.verify("WRONG", generator, OtpCode.MAX_ATTEMPTS);
+                otp.verify("WRONG", generator, MAX_ATTEMPTS);
             } catch (OtpVerificationException ignored) {
             }
         }
 
-        assertThatThrownBy(() -> otp.verify(CODE, generator, OtpCode.MAX_ATTEMPTS))
+        assertThatThrownBy(() -> otp.verify(CODE, generator, MAX_ATTEMPTS))
                 .isInstanceOf(OtpVerificationException.class)
                 .extracting(ex -> ((IamErrorCode) ((OtpVerificationException) ex).getErrorCode()).name())
                         .isEqualTo("AUTH_OTP_INVALID");
@@ -129,7 +135,7 @@ class OtpCodeTest {
         Instant past = Instant.now().minus(1, ChronoUnit.HOURS);
         OtpCode otp = OtpCode.create(userId, OtpPurpose.REGISTER, "hashed:" + CODE, past);
 
-        assertThatThrownBy(() -> otp.verify(CODE, generator, OtpCode.MAX_ATTEMPTS))
+        assertThatThrownBy(() -> otp.verify(CODE, generator, MAX_ATTEMPTS))
                 .isInstanceOf(OtpVerificationException.class)
                 .extracting(ex -> ((IamErrorCode) ((OtpVerificationException) ex).getErrorCode()).name())
                         .isEqualTo("AUTH_OTP_EXPIRED");

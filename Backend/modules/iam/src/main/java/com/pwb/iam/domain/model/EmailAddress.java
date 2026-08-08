@@ -16,6 +16,7 @@ public record EmailAddress(String value) {
         if (normalized.contains("..")
                 || normalized.startsWith(".")
                 || normalized.endsWith(".")
+                || localPartEndsWithDot(normalized)
                 || !RFC_5322_SIMPLIFIED.matcher(normalized).matches()) {
             throw new IllegalArgumentException("email is not valid: " + value);
         }
@@ -24,6 +25,22 @@ public record EmailAddress(String value) {
 
     public static EmailAddress of(String raw) {
         return new EmailAddress(raw);
+    }
+
+    /**
+     * Rejects {@code foo.@example.com}. The guards above are deliberately symmetric about the dot —
+     * {@code startsWith(".")} covers a leading dot in the local part and {@code endsWith(".")} a
+     * trailing dot in the domain — but neither sees the character just before the {@code @}, and
+     * the pattern's {@code [A-Za-z0-9._%+-]+} happily allows one there.
+     *
+     * <p>Worth closing rather than tolerating, because such an address fails silently in the worst
+     * place: registration succeeds, the account is written as PENDING_VERIFICATION, and the OTP mail
+     * is then refused by the recipient's server. The user is left staring at a code entry screen
+     * for a mail that is never going to arrive, and nothing server-side reports an error.
+     */
+    private static boolean localPartEndsWithDot(String normalized) {
+        int at = normalized.indexOf('@');
+        return at > 0 && normalized.charAt(at - 1) == '.';
     }
 
     /**

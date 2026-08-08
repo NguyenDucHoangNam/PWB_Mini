@@ -34,13 +34,14 @@ class PasswordTest {
     }
 
     @Test
-    @DisplayName("should report isHashed false when hash is empty string")
+    @DisplayName("isHashed should hold for every constructed instance")
     void should_report_hashed_false_for_empty() {
-        Password empty = Password.fromHash("x");
-        Password dummy = Password.fromHash("dummy");
-
-        assertThat(empty.isHashed()).isFalse();
-        assertThat(dummy.isHashed()).isTrue();
+        // There is no such thing as an unhashed Password: a blank hash is rejected at construction,
+        // so isHashed() is true by definition and exists only so callers can write
+        // `p != null && p.isHashed()`. This test used to assert it could be false, which no value
+        // reachable through the constructor can produce.
+        assertThat(Password.fromHash("x").isHashed()).isTrue();
+        assertThat(Password.fromHash("dummy").isHashed()).isTrue();
     }
 
     @Test

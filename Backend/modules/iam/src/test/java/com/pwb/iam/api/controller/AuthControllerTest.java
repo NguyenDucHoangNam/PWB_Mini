@@ -41,6 +41,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -188,7 +189,9 @@ class AuthControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(harness.json(new ResendOtpRequest(harness.userId, null))))
                     .andExpect(status().isTooManyRequests())
-                    .andExpect(jsonPath("$.code").value("IAM_014"));
+                    .andExpect(jsonPath("$.code").value("IAM_014"))
+                    .andExpect(header().string("Retry-After", "60"))
+                    .andExpect(jsonPath("$.error.retryAfterSeconds").value(60));
         }
     }
 

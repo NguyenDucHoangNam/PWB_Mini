@@ -1,6 +1,7 @@
 package com.pwb.liveroom.application.usecase.impl;
 
 import com.pwb.liveroom.application.support.RoomSessions;
+import com.pwb.liveroom.application.support.TurnCredentialFactory;
 import com.pwb.liveroom.application.usecase.GetRtcConfigUseCase;
 import com.pwb.liveroom.application.view.RtcConfigView;
 import com.pwb.liveroom.domain.model.LiveRoom;
@@ -10,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,6 +21,7 @@ import java.util.UUID;
 public class GetRtcConfigUseCaseImpl implements GetRtcConfigUseCase {
 
     private final RoomSessions roomSessions;
+    private final TurnCredentialFactory turnCredentialFactory;
     private final LiveroomConfig config;
 
     @Override
@@ -27,13 +30,19 @@ public class GetRtcConfigUseCaseImpl implements GetRtcConfigUseCase {
         LiveRoom room = roomSessions.requireActiveRoom(roomId);
         roomSessions.requireInRoom(room, actorId);
 
-        List<RtcConfigView.IceServerView> iceServers = config.getRtc().getIceServers().stream()
-                .map(server -> new RtcConfigView.IceServerView(
-                        List.copyOf(server.getUrls()), server.getUsername(), server.getCredential()))
-                .toList();
+        List<RtcConfigView.IceServerView> iceServers = new ArrayList<>(
+                config.getRtc().getIceServers().stream()
+                        .map(server -> new RtcConfigView.IceServerView(
+                                List.copyOf(server.getUrls()), server.getUsername(), server.getCredential()))
+                        .toList());
+
+        turnCredentialFactory.create(actorId)
+                .map(turn -> new RtcConfigView.IceServerView(
+                        turn.urls(), turn.username(), turn.credential()))
+                .ifPresent(iceServers::add);
 
         return new RtcConfigView(
-                iceServers,
+                List.copyOf(iceServers),
                 room.effectiveMaxParticipants() - 1,
                 config.getRtc().getMaxSdpLength(),
                 config.getRtc().getMaxCandidateLength()

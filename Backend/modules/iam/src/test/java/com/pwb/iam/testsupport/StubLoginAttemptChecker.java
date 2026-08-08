@@ -33,7 +33,7 @@ public final class StubLoginAttemptChecker implements LoginAttemptChecker {
     }
 
     @Override
-    public void resetIpLock(String email, String clientIp) {
+    public void resetIpLock(String clientIp) {
         resetIpLockCount++;
     }
 

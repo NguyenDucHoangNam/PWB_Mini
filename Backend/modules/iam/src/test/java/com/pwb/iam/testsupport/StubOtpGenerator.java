@@ -27,7 +27,7 @@ public final class StubOtpGenerator implements OtpGenerator {
     }
 
     @Override
-    public String generate() {
+    public String generate(int length) {
         return nextCode;
     }
 

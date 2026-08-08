@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.MessageSource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
@@ -110,6 +111,57 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<ApiResponse<Void>> response = handler.handleBusiness(ex);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+    }
+
+    @Test
+    @DisplayName("should_expose_retry_after_in_header_and_body_when_details_carry_it")
+    void should_expose_retry_after_in_header_and_body_when_details_carry_it() {
+        BusinessException ex = new BusinessException(
+                testCode(ErrorCategory.TOO_MANY_REQUESTS), Map.of("retryAfterSeconds", 45L));
+
+        ResponseEntity<ApiResponse<Void>> response = handler.handleBusiness(ex);
+
+        assertThat(response.getHeaders().getFirst(HttpHeaders.RETRY_AFTER)).isEqualTo("45");
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getError()).isEqualTo(Map.of("retryAfterSeconds", 45L));
+    }
+
+    @Test
+    @DisplayName("should_normalise_cooldown_seconds_to_retry_after")
+    void should_normalise_cooldown_seconds_to_retry_after() {
+        BusinessException ex = new BusinessException(
+                testCode(ErrorCategory.TOO_MANY_REQUESTS), Map.of("cooldownSeconds", 30L));
+
+        ResponseEntity<ApiResponse<Void>> response = handler.handleBusiness(ex);
+
+        assertThat(response.getHeaders().getFirst(HttpHeaders.RETRY_AFTER)).isEqualTo("30");
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getError()).isEqualTo(Map.of("retryAfterSeconds", 30L));
+    }
+
+    @Test
+    @DisplayName("should_omit_retry_after_when_wait_is_not_positive")
+    void should_omit_retry_after_when_wait_is_not_positive() {
+        BusinessException ex = new BusinessException(
+                testCode(ErrorCategory.TOO_MANY_REQUESTS), Map.of("retryAfterSeconds", 0L));
+
+        ResponseEntity<ApiResponse<Void>> response = handler.handleBusiness(ex);
+
+        assertThat(response.getHeaders().getFirst(HttpHeaders.RETRY_AFTER)).isNull();
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getError()).isNull();
+    }
+
+    @Test
+    @DisplayName("should_not_echo_unrelated_details_into_the_response_body")
+    void should_not_echo_unrelated_details_into_the_response_body() {
+        BusinessException ex = new BusinessException(
+                testCode(ErrorCategory.VALIDATION), Map.of("violations", List.of("too short")));
+
+        ResponseEntity<ApiResponse<Void>> response = handler.handleBusiness(ex);
+
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getError()).isNull();
     }
 
     @Test

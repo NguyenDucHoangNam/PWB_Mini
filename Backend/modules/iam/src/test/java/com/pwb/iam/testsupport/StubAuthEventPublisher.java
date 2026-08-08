@@ -36,18 +36,8 @@ public final class StubAuthEventPublisher implements AuthEventPublisher {
     }
 
     @Override
-    public void publishAuthSuccess(UUID userId, String email, String clientIp, String userAgent) {
-        authSuccessEvents.add(AuthSuccessEvent.of(userId, email, clientIp, userAgent));
-    }
-
-    @Override
     public void publishLoginFailed(String email, String clientIp, String userAgent, String reason) {
         loginFailedEvents.add(new LoginFailedEvent(email, clientIp, userAgent, reason));
-    }
-
-    @Override
-    public void publishLogout(UUID userId, String email, String clientIp, String userAgent) {
-        logoutEvents.add(new LogoutEvent(userId, clientIp, userAgent));
     }
 
     @Override

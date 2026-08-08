@@ -13,6 +13,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class OtpCodeMapperTest {
 
+    /** Supplied by {@code OtpPolicy} in production; see the note in {@code OtpCodeTest}. */
+    private static final int MAX_ATTEMPTS = 5;
+
     private final OtpCodeMapper mapper = new OtpCodeMapper();
 
     @Test
@@ -35,7 +38,7 @@ class OtpCodeMapperTest {
     @DisplayName("toEntity with existing entity should update mutable fields")
     void should_update_existing_entity() {
         OtpCode otp = OtpCode.create(UUID.randomUUID(), OtpPurpose.REGISTER, "hash", Instant.now().plusSeconds(300));
-        otp.registerFailedAttempt(OtpCode.MAX_ATTEMPTS);
+        otp.registerFailedAttempt(MAX_ATTEMPTS);
         otp.markVerified(Instant.now());
 
         OtpCodeJpaEntity existing = OtpCodeJpaEntity.builder()

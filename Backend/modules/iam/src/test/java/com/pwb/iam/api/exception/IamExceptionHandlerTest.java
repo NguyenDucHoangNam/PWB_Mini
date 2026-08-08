@@ -31,7 +31,10 @@ class IamExceptionHandlerTest {
     @BeforeEach
     void setUp() {
         handler = new IamExceptionHandler(messageSource);
-        when(messageSource.getMessage(anyString(), any(), any(Locale.class))).thenReturn("DATA_INTEGRITY_VIOLATION");
+        // The overload that carries a default, which is the only one the handler uses — a missing
+        // translation must not turn a 409 into a 500.
+        when(messageSource.getMessage(anyString(), any(), anyString(), any(Locale.class)))
+                .thenReturn("DATA_INTEGRITY_VIOLATION");
     }
 
     @Test
@@ -61,14 +64,17 @@ class IamExceptionHandlerTest {
     }
 
     @Test
-    @DisplayName("should return 409 with constraint name as field when not email")
+    @DisplayName("should map a phone constraint to the request field, not the constraint name")
     void should_return_constraint_name_as_field() {
         DataIntegrityViolationException ex = new DataIntegrityViolationException(
                 "constraint [uk_iam_users_phone] violated");
 
         ResponseEntity<ApiResponse<Void>> response = handler.handleDataIntegrityViolation(ex);
 
-        assertThat((Map<String, Object>) response.getBody().getError()).containsEntry("field", "uk_iam_users_phone");
+        // The client is told which field of the body collided, in the name it sent. The constraint
+        // identifier stays server-side: it is an internal schema detail and naming it back at an
+        // anonymous caller describes the table layout for free.
+        assertThat((Map<String, Object>) response.getBody().getError()).containsEntry("field", "phone");
     }
 
     @Test

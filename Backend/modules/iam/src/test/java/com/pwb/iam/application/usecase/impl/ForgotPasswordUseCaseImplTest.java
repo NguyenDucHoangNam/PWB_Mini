@@ -34,6 +34,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -55,7 +56,10 @@ class ForgotPasswordUseCaseImplTest {
     void setUp() {
         passwordResetTokenService = new StubPasswordResetTokenService();
         passwordResetPolicy = new PasswordResetPolicy("super-secret-token-key-1234567890", 30L, 60L, "http://localhost:3000", "/reset-password");
-        when(throttlingService.enforceCooldownForPasswordReset(anyString())).thenReturn(0L);
+        // lenient: the command-defaults test below exercises the value object alone and never
+        // reaches the use case, so it would otherwise trip strict stubbing.
+        lenient().when(throttlingService.enforceCooldown(
+                anyString(), eq(ThrottlingService.CooldownPurpose.PASSWORD_RESET))).thenReturn(0L);
 
         useCase = new ForgotPasswordUseCaseImpl(
                 userRepository, passwordResetTokenRepository, passwordResetTokenService,
@@ -70,7 +74,11 @@ class ForgotPasswordUseCaseImplTest {
 
         var result = useCase.execute(new ForgotPasswordCommand("active@example.com", "ua", "vi", "10.0.0.1"));
 
-        assertThat(result.userId()).isEqualTo(user.getUserId());
+        // No userId comes back even on the path that really did send. The response is byte-identical
+        // to the unknown-address case below, which is the whole point: anything that differed would
+        // turn this public endpoint into an account-existence oracle. That the mail went out is
+        // asserted through the side effects instead.
+        assertThat(result.userId()).isNull();
         assertThat(result.status()).isEqualTo("SENT");
         verify(passwordResetTokenRepository).invalidateAllForUser(eq(user.getUserId()), any());
         verify(passwordResetTokenRepository).save(any(PasswordResetToken.class));
@@ -99,26 +107,34 @@ class ForgotPasswordUseCaseImplTest {
 
         var result = useCase.execute(new ForgotPasswordCommand("banned@example.com", "ua", "vi", "10.0.0.1"));
 
-        assertThat(result.userId()).isEqualTo(banned.getUserId());
+        assertThat(result.userId()).isNull();
+        assertThat(result.status()).isEqualTo("SENT");
         verify(emailDeliveryPort, never()).enqueue(any());
     }
 
     @Test
-    @DisplayName("should throw AUTH_OAUTH_USER_NO_PASSWORD when account is OAuth")
+    @DisplayName("should return silent result when account signs in with Google")
     void should_throw_for_oauth_user() {
         User google = TestUserBuilder.googleActive();
         when(userRepository.findByEmail("google@example.com")).thenReturn(Optional.of(google));
 
-        assertThatThrownBy(() -> useCase.execute(new ForgotPasswordCommand("google@example.com", "ua", "vi", "10.0.0.1")))
-                .isInstanceOf(BusinessException.class)
-                .extracting(ex -> ((IamErrorCode) ((BusinessException) ex).getErrorCode()).name())
-                .isEqualTo("AUTH_OAUTH_USER_NO_PASSWORD");
+        // Answering AUTH_OAUTH_USER_NO_PASSWORD here would say "this address exists and signs in
+        // with Google" to anyone who asked. Reset is simply not offered, silently; the OAuth error
+        // still exists on reset-password and change-password, where the caller is already
+        // authenticated and there is nothing left to disclose.
+        var result = useCase.execute(new ForgotPasswordCommand("google@example.com", "ua", "vi", "10.0.0.1"));
+
+        assertThat(result.userId()).isNull();
+        assertThat(result.status()).isEqualTo("SENT");
+        verify(emailDeliveryPort, never()).enqueue(any());
+        verify(passwordResetTokenRepository, never()).save(any());
     }
 
     @Test
     @DisplayName("should throw RATE_LIMITED when cooldown active")
     void should_throw_rate_limited() {
-        when(throttlingService.enforceCooldownForPasswordReset("user@example.com")).thenReturn(45L);
+        when(throttlingService.enforceCooldown(
+                "user@example.com", ThrottlingService.CooldownPurpose.PASSWORD_RESET)).thenReturn(45L);
 
         assertThatThrownBy(() -> useCase.execute(new ForgotPasswordCommand("user@example.com", "ua", "vi", "10.0.0.1")))
                 .isInstanceOf(BusinessException.class)

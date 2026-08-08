@@ -83,11 +83,25 @@ services:
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
+      # Never used by this application, and it runs a separate native controller process inside the
+      # container. Worth about 8MB — small, but it is 8MB of the margin measured below.
+      - xpack.ml.enabled=false
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
-    # Heap is only half of what Elasticsearch uses; Lucene wants off-heap room on top. Left uncapped
-    # it competes with Postgres for the same RAM on this one machine, and a Postgres pushed into
-    # swap slows down every part of the app, including the parts unrelated to search.
-    mem_limit: 1g
+    # Raised from 1g on 2026-08-08 after measuring, not estimating. On a 4-vCPU container running
+    # 8.12.0 with this heap, after indexing 10,000 documents and running 300 searches:
+    #
+    #   1024m limit -> 917MiB anonymous, ~90MiB spare  (8.8%)
+    #   1280m limit -> 945MiB anonymous, ~335MiB spare (26%)
+    #
+    # The old setting did survive that run, so this is widening a thin margin rather than fixing a
+    # reproduced crash. What makes the margin worth widening is that almost none of it is reclaimable:
+    # page cache measured 5MiB against ~950MiB of anonymous memory, so there is nothing for the kernel
+    # to evict when it gets tight — the next step past the limit is a SIGKILL, not a slowdown.
+    #
+    # -Xms equals -Xmx on Elasticsearch's own recommendation, so the heap is committed up front: 512m
+    # of the total is spoken for before the first document arrives, and the rest is thread stacks,
+    # metaspace and direct buffers that grow with load.
+    mem_limit: 1280m
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
     networks:
@@ -156,6 +170,34 @@ services:
       retries: 10
       start_period: 90s
 
+  coturn:
+    image: coturn/coturn:4.6-alpine
+    container_name: pwb-coturn
+    # The one service besides nginx that reaches the outside world, and the only one on the host
+    # network namespace. Publishing min-port..max-port through Docker would spawn one userland
+    # docker-proxy process per UDP port; coturn also hands out the address it sees on its own
+    # interface as the relay candidate, which behind a bridge is a 172.x address no browser can use.
+    #
+    # Host networking means this container is NOT on pwb-network. That is correct — the backend never
+    # calls coturn. They share only the HMAC secret below, and the browser talks to each separately.
+    network_mode: host
+    volumes:
+      - ./docker/coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    # The secret and realm arrive as flags rather than living in the mounted file, so the repository
+    # holds no credential. This secret must equal the backend's TURN_STATIC_AUTH_SECRET exactly:
+    # coturn recomputes the HMAC the backend signed, and a mismatch fails authentication with
+    # nothing logged on the backend side at all.
+    # No `-n` here, despite it being in the image's own default command: `-n` means "ignore the
+    # configuration file and take everything from the command line", which would silently discard
+    # the mounted file — including every denied-peer-ip line.
+    command:
+      - -c
+      - /etc/coturn/turnserver.conf
+      - --realm=${FRONTEND_DOMAIN}
+      - --static-auth-secret=${TURN_STATIC_AUTH_SECRET}
+    restart: unless-stopped
+    mem_limit: 256m
+
   frontend:
     build:
       context: ./Frontend
@@ -171,6 +213,10 @@ services:
         NEXT_PUBLIC_STORAGE_BUCKET_NAME: ${STORAGE_S3_BUCKET}
         NEXT_PUBLIC_STORAGE_REGION: ${STORAGE_S3_REGION}
         NEXT_PUBLIC_STORAGE_PUBLIC_URL_PREFIX: ${STORAGE_PUBLIC_URL_PREFIX}
+        # Blank for real AWS. Passed anyway so that an S3-compatible gateway configured for the
+        # backend through STORAGE_S3_ENDPOINT also reaches the frontend's Content-Security-Policy —
+        # otherwise the backend signs URLs for a host the browser is not allowed to fetch.
+        NEXT_PUBLIC_STORAGE_ENDPOINT: ${STORAGE_S3_ENDPOINT:-}
         NEXT_PUBLIC_AUTH_OTP_EXPIRY_SECONDS: ${NEXT_PUBLIC_AUTH_OTP_EXPIRY_SECONDS:-600}
         NEXT_PUBLIC_AUTH_OTP_RESEND_COOLDOWN_SECONDS: ${NEXT_PUBLIC_AUTH_OTP_RESEND_COOLDOWN_SECONDS:-60}
     container_name: pwb-frontend

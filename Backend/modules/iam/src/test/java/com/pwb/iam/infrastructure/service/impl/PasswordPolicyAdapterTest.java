@@ -11,6 +11,7 @@ import java.util.Locale;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -98,7 +99,9 @@ class PasswordPolicyAdapterTest {
     @Test
     @DisplayName("should pass min/max length args to message source")
     void should_pass_min_max_args() {
-        when(messageSource.getMessage(eq("password.violation.too_short"), any(), any(Locale.class)))
+        // The adapter uses the overload that falls back to the key itself, so an untranslated
+        // violation still reaches the user as something rather than blowing up mid-validation.
+        when(messageSource.getMessage(eq("password.violation.too_short"), any(), anyString(), any(Locale.class)))
                 .thenReturn("too short");
 
         PasswordPolicyResult result = adapter.validate("Aa1!short");

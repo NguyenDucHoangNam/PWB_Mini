@@ -11,6 +11,7 @@ import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -38,6 +39,16 @@ public class GlobalExceptionHandler {
 
     private static final String VALIDATION_FAILED_KEY = "VALIDATION_FAILED";
 
+    /**
+     * Detail keys that carry "come back in N seconds". Two spellings exist because the throttles grew
+     * up apart — the rate limiters say {@code retryAfterSeconds}, the OTP and registration cooldowns
+     * say {@code cooldownSeconds} — and both reach the client as {@code retryAfterSeconds}, so a form
+     * counting down does not have to know which throttle turned it away.
+     */
+    private static final List<String> RETRY_AFTER_DETAIL_KEYS = List.of("retryAfterSeconds", "cooldownSeconds");
+
+    private static final String RETRY_AFTER_RESPONSE_KEY = "retryAfterSeconds";
+
     private final MessageSource messageSource;
 
     public GlobalExceptionHandler(MessageSource messageSource) {
@@ -47,8 +58,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException ex) {
         logBusiness(ex);
-        Object[] args = extractArgs(ex.getDetails());
-        return respond(ex.getErrorCode(), args);
+        Map<String, Object> details = ex.getDetails();
+        return respond(ex.getErrorCode(), extractArgs(details), retryAfterSeconds(details));
     }
 
     @ExceptionHandler(ValidationException.class)
@@ -153,9 +164,46 @@ public class GlobalExceptionHandler {
     }
 
     private ResponseEntity<ApiResponse<Void>> respond(ErrorCode errorCode, Object[] args) {
+        return respond(errorCode, args, null);
+    }
+
+    /**
+     * The wait, when there is one, is sent twice on purpose: as {@code Retry-After} for anything
+     * speaking HTTP, and inside the body for the browser. The header alone is not enough — a
+     * cross-origin caller only sees it because {@code WebMvcConfig} exposes it, and a misconfigured
+     * proxy can still strip it, at which point a body copy is the difference between a countdown and
+     * a dead-end error.
+     */
+    private ResponseEntity<ApiResponse<Void>> respond(ErrorCode errorCode, Object[] args, Long retryAfterSeconds) {
         String resolvedMessage = resolve(errorCode.code(), args, errorCode.defaultMessage());
-        return ResponseEntity.status(WebErrorMapper.toHttpStatus(errorCode.category()))
-                .body(ApiResponse.error(errorCode, resolvedMessage));
+        ResponseEntity.BodyBuilder builder =
+                ResponseEntity.status(WebErrorMapper.toHttpStatus(errorCode.category()));
+        if (retryAfterSeconds == null) {
+            return builder.body(ApiResponse.error(errorCode, resolvedMessage));
+        }
+        return builder
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(retryAfterSeconds))
+                .body(ApiResponse.error(
+                        errorCode.code(),
+                        resolvedMessage,
+                        Map.of(RETRY_AFTER_RESPONSE_KEY, retryAfterSeconds)));
+    }
+
+    /**
+     * Only the wait is lifted out of the details map. The rest stays where it is: details also feed
+     * message interpolation and carry things like failed password rules, and echoing the whole map
+     * back would turn an internal argument bag into part of the public contract.
+     */
+    private Long retryAfterSeconds(Map<String, Object> details) {
+        if (details == null || details.isEmpty()) {
+            return null;
+        }
+        for (String key : RETRY_AFTER_DETAIL_KEYS) {
+            if (details.get(key) instanceof Number seconds && seconds.longValue() > 0) {
+                return seconds.longValue();
+            }
+        }
+        return null;
     }
 
     private ResponseEntity<ApiResponse<Void>> respondWithFieldErrors(Map<String, List<String>> fieldErrors) {

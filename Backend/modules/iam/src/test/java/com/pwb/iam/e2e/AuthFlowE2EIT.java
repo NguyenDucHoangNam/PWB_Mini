@@ -10,10 +10,12 @@ import com.pwb.shared.dto.ApiResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,6 +42,14 @@ class AuthFlowE2EIT extends AbstractE2EIT {
     }
 
     private AuthResponse verifyOtp(UUID userId, String code) {
+        return verifyOtpEntity(userId, code).getBody().getData();
+    }
+
+    /**
+     * Same call as {@link #verifyOtp}, but hands back the whole response so a caller can reach the
+     * refresh cookie — the token is not in the body any more.
+     */
+    private ResponseEntity<ApiResponse<AuthResponse>> verifyOtpEntity(UUID userId, String code) {
         ResponseEntity<ApiResponse<AuthResponse>> response = restClient().post()
                 .uri("/api/v1/auth/verify-otp")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -50,9 +60,19 @@ class AuthFlowE2EIT extends AbstractE2EIT {
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody().isSuccess()).isTrue();
-        AuthResponse data = response.getBody().getData();
-        assertThat(data.accessToken()).isNotBlank();
-        return data;
+        assertThat(response.getBody().getData().accessToken()).isNotBlank();
+        return response;
+    }
+
+    /** See the equivalent note in {@code RefreshTokenRotationIT}: httpOnly cookie, not body field. */
+    private static String refreshCookieOf(ResponseEntity<?> response) {
+        List<String> setCookies = response.getHeaders().get(HttpHeaders.SET_COOKIE);
+        assertThat(setCookies).isNotNull();
+        return setCookies.stream()
+                .filter(c -> c.startsWith("pwb_refresh_token="))
+                .map(c -> c.substring("pwb_refresh_token=".length(), c.indexOf(';')))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("no pwb_refresh_token cookie on the response"));
     }
 
     private AuthResponse login(String email, String password) {
@@ -159,21 +179,19 @@ class AuthFlowE2EIT extends AbstractE2EIT {
         String email = "frank@example.com";
         UUID userId = register(email);
         String otp = latestOtpCode(email);
-        AuthResponse verifyResponse = verifyOtp(userId, otp);
-
-        assertThat(verifyResponse.accessToken()).isNotBlank();
+        ResponseEntity<ApiResponse<AuthResponse>> verifyResponse = verifyOtpEntity(userId, otp);
 
         ResponseEntity<ApiResponse<AuthResponse>> refreshResponse = restClient().post()
                 .uri("/api/v1/auth/refresh")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(new com.pwb.iam.api.dto.request.RefreshTokenRequest(verifyResponse.getRefreshToken()))
+                .header(HttpHeaders.COOKIE, "pwb_refresh_token=" + refreshCookieOf(verifyResponse))
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, (req, resp) -> {})
                 .toEntity(new ParameterizedTypeReference<ApiResponse<AuthResponse>>() {});
 
         assertThat(refreshResponse.getStatusCode().value()).isEqualTo(200);
         assertThat(refreshResponse.getBody().isSuccess()).isTrue();
-        AuthResponse rotated = refreshResponse.getBody().getData();
-        assertThat(rotated.accessToken()).isNotBlank();
+        assertThat(refreshResponse.getBody().getData().accessToken()).isNotBlank();
+        assertThat(refreshCookieOf(refreshResponse)).isNotEqualTo(refreshCookieOf(verifyResponse));
     }
 }

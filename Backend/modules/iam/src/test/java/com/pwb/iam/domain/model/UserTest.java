@@ -62,7 +62,7 @@ class UserTest {
         }
 
         @Test
-        @DisplayName("should reject null or unhashed password")
+        @DisplayName("should reject a null password")
         void should_reject_invalid_password() {
             assertThatThrownBy(() -> User.createLocal(
                     EmailAddress.of("user@example.com"),
@@ -71,12 +71,11 @@ class UserTest {
                     RoleName.USER
             )).isInstanceOf(IllegalArgumentException.class);
 
-            assertThatThrownBy(() -> User.createLocal(
-                    EmailAddress.of("user@example.com"),
-                    Password.fromHash("x"),
-                    "Alice",
-                    RoleName.USER
-            )).isInstanceOf(IllegalArgumentException.class);
+            // The second half of this test used to pass Password.fromHash("x") and expect a
+            // rejection for being "unhashed". Password has no such notion — it only refuses a blank
+            // hash, and it does so in its own constructor, so User never sees an invalid one.
+            assertThatThrownBy(() -> Password.fromHash("  "))
+                    .isInstanceOf(IllegalArgumentException.class);
         }
 
         @Test
@@ -207,7 +206,10 @@ class UserTest {
                     UserStatus.BANNED,
                     "USER",
                     null,
-                    null
+                    null,
+                    "spam",
+                    Instant.now(),
+                    UUID.randomUUID()
             );
 
             assertThatThrownBy(user::verifyOtp)
@@ -227,6 +229,9 @@ class UserTest {
                     UserStatus.DELETED,
                     "USER",
                     null,
+                    null,
+                    null,
+                    null,
                     null
             );
 
@@ -235,8 +240,8 @@ class UserTest {
         }
 
         @Test
-        @DisplayName("markActiveFromRegistration should throw when not pending")
-        void should_throw_when_mark_active_not_pending() {
+        @DisplayName("verifyOtp should be a no-op when the account is already active")
+        void should_ignore_verify_otp_when_already_active() {
             User user = User.createLocal(
                     EmailAddress.of("user@example.com"),
                     Password.fromHash("hashed"),
@@ -245,8 +250,12 @@ class UserTest {
             );
             user.markActive();
 
-            assertThatThrownBy(user::markActiveFromRegistration)
-                    .isInstanceOf(com.pwb.iam.domain.exception.UserStateConflictException.class);
+            // Idempotent rather than an error: verify-otp is a public endpoint and a user who
+            // double-submits the form must not be shown a failure for a request that changed
+            // nothing. Only BANNED/DELETED are rejected — see the two tests above.
+            user.verifyOtp();
+
+            assertThat(user.getStatus()).isEqualTo(UserStatus.ACTIVE);
         }
 
         @Test
@@ -281,7 +290,7 @@ class UserTest {
         }
 
         @Test
-        @DisplayName("changePassword should reject unhashed password")
+        @DisplayName("changePassword should reject a null password")
         void should_reject_unhashed_password() {
             User user = User.createLocal(
                     EmailAddress.of("user@example.com"),
@@ -290,8 +299,9 @@ class UserTest {
                     RoleName.USER
             );
 
-            assertThatThrownBy(() -> user.changePassword(Password.fromHash("x")))
+            assertThatThrownBy(() -> user.changePassword(null))
                     .isInstanceOf(IllegalArgumentException.class);
+            assertThat(user.getPassword().hash()).isEqualTo("old");
         }
 
         @Test
@@ -328,7 +338,7 @@ class UserTest {
         }
 
         @Test
-        @DisplayName("updateProfile should update fields when provided")
+        @DisplayName("changeFullName and changeAvatarUrl should update their fields")
         void should_update_profile() {
             User user = User.createLocal(
                     EmailAddress.of("user@example.com"),
@@ -337,16 +347,16 @@ class UserTest {
                     RoleName.USER
             );
 
-            user.updateProfile("Alice Updated", "+84-12345", "https://example.com/pic.png");
+            user.changeFullName("  Alice Updated  ");
+            user.changeAvatarUrl("https://example.com/pic.png");
 
             assertThat(user.getFullName()).isEqualTo("Alice Updated");
-            assertThat(user.getPhone()).isEqualTo("+84-12345");
             assertThat(user.getAvatarUrl()).isEqualTo("https://example.com/pic.png");
         }
 
         @Test
-        @DisplayName("updateProfile with null fullName should keep existing")
-        void should_keep_full_name_when_null() {
+        @DisplayName("changeFullName should reject null or blank")
+        void should_reject_blank_full_name() {
             User user = User.createLocal(
                     EmailAddress.of("user@example.com"),
                     Password.fromHash("hashed"),
@@ -354,24 +364,11 @@ class UserTest {
                     RoleName.USER
             );
 
-            user.updateProfile(null, "+84-12345", null);
-
+            assertThatThrownBy(() -> user.changeFullName(null))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> user.changeFullName("   "))
+                    .isInstanceOf(IllegalArgumentException.class);
             assertThat(user.getFullName()).isEqualTo("Alice");
-            assertThat(user.getPhone()).isEqualTo("+84-12345");
-            assertThat(user.getAvatarUrl()).isNull();
-        }
-
-        @Test
-        @DisplayName("isOnboardingIncomplete should return false (current behavior)")
-        void should_return_false_for_is_onboarding_incomplete() {
-            User user = User.createLocal(
-                    EmailAddress.of("user@example.com"),
-                    Password.fromHash("hashed"),
-                    "Alice",
-                    RoleName.USER
-            );
-
-            assertThat(user.isOnboardingIncomplete()).isFalse();
         }
 
         @Test
@@ -388,6 +385,9 @@ class UserTest {
                     UserStatus.ACTIVE,
                     "PRO",
                     OAuthProvider.LOCAL,
+                    null,
+                    null,
+                    null,
                     null
             );
 
@@ -411,7 +411,10 @@ class UserTest {
                     UserStatus.ACTIVE,
                     "USER",
                     OAuthProvider.GOOGLE,
-                    "sub"
+                    "sub",
+                    null,
+                    null,
+                    null
             );
 
             assertThat(user.getEmail()).isNull();
@@ -431,6 +434,9 @@ class UserTest {
                     UserStatus.ACTIVE,
                     "NOT_A_ROLE",
                     OAuthProvider.LOCAL,
+                    null,
+                    null,
+                    null,
                     null
             );
 

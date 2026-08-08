@@ -1,7 +1,9 @@
 package com.pwb.iam.application.usecase.impl;
 
 import com.pwb.iam.application.command.LoginCommand;
+import com.pwb.iam.application.service.RateLimitGuard;
 import com.pwb.iam.domain.event.AuthEventPublisher;
+import com.pwb.iam.domain.event.AuthSuccessEvent;
 import com.pwb.iam.domain.exception.IamErrorCode;
 import com.pwb.iam.domain.model.LoginPolicy;
 import com.pwb.iam.domain.model.Password;
@@ -53,14 +55,18 @@ class LoginUseCaseImplTest {
     void setUp() {
         passwordHasher = new StubPasswordHasher();
         attemptChecker = new StubLoginAttemptChecker().notLocked();
-        loginPolicy = new LoginPolicy(10, 30, 10, 5, 15);
+        loginPolicy = new LoginPolicy(10, 30, 10, 5, 10, 5, 5, 15);
         UUID userId = UUID.randomUUID();
         tokenManagerService = new StubTokenManagerService(userId);
 
         lenient().when(throttlingService.consume(anyString(), any(int.class), any())).thenReturn(ThrottlingService.ThrottleDecision.allow(5L));
 
+        // The use case takes a RateLimitGuard rather than the ThrottlingService directly. The guard
+        // is a thin translation layer — it turns a denied decision into RATE_LIMITED — so a real one
+        // over the mocked service keeps the stubbing above meaningful instead of mocking the guard.
         useCase = new LoginUseCaseImpl(
-                userRepository, passwordHasher, throttlingService, attemptChecker, tokenManagerService, authEventPublisher, loginPolicy);
+                userRepository, passwordHasher, new RateLimitGuard(throttlingService), attemptChecker,
+                tokenManagerService, authEventPublisher, loginPolicy);
     }
 
     @Test
@@ -73,7 +79,7 @@ class LoginUseCaseImplTest {
 
         assertThat(result.accessToken()).isNotNull();
         assertThat(result.refreshToken()).isNotNull();
-        verify(authEventPublisher).publishAuthSuccess(any(), any(), any(), any());
+        verify(authEventPublisher).publishAuthSuccess(any(AuthSuccessEvent.class));
     }
 
     @Test
@@ -100,7 +106,11 @@ class LoginUseCaseImplTest {
                 .isEqualTo("LOGIN_BAD_CREDENTIALS");
 
         assertThat(attemptChecker.failureCount()).isEqualTo(1);
-        verify(authEventPublisher).publishLoginFailed(eq("missing@example.com"), any(), any(), eq("USER_NOT_FOUND"));
+        // BAD_CREDENTIALS, not USER_NOT_FOUND — the same reason the wrong-password case records.
+        // The audit trail is readable by operators but is fed from a public endpoint, so recording
+        // which of the two failed would rebuild the account-existence oracle that the identical
+        // client-facing error was written to close.
+        verify(authEventPublisher).publishLoginFailed(eq("missing@example.com"), any(), any(), eq("BAD_CREDENTIALS"));
     }
 
     @Test
@@ -192,9 +202,13 @@ class LoginUseCaseImplTest {
         var result = useCase.execute(new LoginCommand("active@example.com", "Pass1234!@#", null, "ua"));
 
         assertThat(result).isNotNull();
-        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
-        verify(authEventPublisher).publishAuthSuccess(any(), any(), captor.capture(), any());
-        assertThat(captor.getValue()).isEqualTo("unknown");
+        // LoginCommand's compact constructor substitutes "unknown", so the null never reaches the
+        // lockout counter or the audit trail — a caller with no resolvable address gets one shared
+        // bucket rather than a null key.
+        ArgumentCaptor<AuthSuccessEvent> captor = ArgumentCaptor.forClass(AuthSuccessEvent.class);
+        verify(authEventPublisher).publishAuthSuccess(captor.capture());
+        assertThat(captor.getValue().clientIp()).isEqualTo("unknown");
+        assertThat(captor.getValue().userAgent()).isEqualTo("ua");
     }
 
     @Test

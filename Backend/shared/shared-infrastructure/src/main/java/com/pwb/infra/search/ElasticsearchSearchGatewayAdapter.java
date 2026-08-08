@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 @Service
@@ -21,6 +22,12 @@ public class ElasticsearchSearchGatewayAdapter implements SearchGateway {
     private final SearchIndexNames indexNames;
     private final SearchConfig config;
 
+    /**
+     * Whether the last query reached the cluster. Only used to decide the log level, so a lost race
+     * between two threads costs one duplicated line and nothing else.
+     */
+    private final AtomicBoolean reachable = new AtomicBoolean(true);
+
     @Override
     public Optional<SearchPage<String>> searchIds(SearchQuerySpec spec) {
         if (!config.isEnabled()) {
@@ -28,6 +35,7 @@ public class ElasticsearchSearchGatewayAdapter implements SearchGateway {
         }
         try {
             SearchResponse<Void> response = client.search(toRequest(spec, false), Void.class);
+            markReachable();
             List<String> ids = response.hits().hits().stream()
                     .map(Hit::id)
                     .filter(Objects::nonNull)
@@ -46,6 +54,7 @@ public class ElasticsearchSearchGatewayAdapter implements SearchGateway {
         }
         try {
             SearchResponse<T> response = client.search(toRequest(spec, true), documentType);
+            markReachable();
             List<T> documents = response.hits().hits().stream()
                     .map(Hit::source)
                     .filter(Objects::nonNull)
@@ -83,11 +92,32 @@ public class ElasticsearchSearchGatewayAdapter implements SearchGateway {
     }
 
     /**
-     * Debug rather than warn: during an outage this fires on every keystroke, and the fallback means
-     * nothing is actually broken from the caller's side.
+     * Logged on the transition, not on the request.
+     *
+     * <p>This used to be unconditional {@code debug}, on the reasoning that an outage fires it on every
+     * keystroke while the fallback keeps the caller working. The first half is right and the second is
+     * the problem: results silently stop being ranked, autocomplete silently stops matching Vietnamese
+     * diacritics, and at the default {@code INFO} level production emits no evidence at all. The
+     * deployment checklist asked readers to look for a line that could never be printed.
+     *
+     * <p>So the first failure after a healthy period warns once, naming the reason, and every failure
+     * behind it drops back to debug. One line per outage instead of one per keystroke — and, paired
+     * with {@link #markReachable()}, an interval in the log rather than a single ambiguous moment.
      */
     private void logUnavailable(SearchQuerySpec spec, Exception ex) {
+        if (reachable.compareAndSet(true, false)) {
+            log.warn("SEARCH.unavailable: index={} reason={} — queries now answer from PostgreSQL, "
+                            + "without relevance ranking or Vietnamese diacritic matching",
+                    spec.index(), ex.getMessage());
+            return;
+        }
         log.debug("SEARCH.unavailable, falling back to database: index={} reason={}",
                 spec.index(), ex.getMessage());
+    }
+
+    private void markReachable() {
+        if (reachable.compareAndSet(false, true)) {
+            log.info("SEARCH.recovered: Elasticsearch is answering again");
+        }
     }
 }

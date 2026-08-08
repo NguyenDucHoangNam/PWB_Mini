@@ -11,7 +11,8 @@ import com.pwb.iam.domain.repository.UserRepository;
 import com.pwb.iam.domain.service.EmailDeliveryPort;
 import com.pwb.iam.domain.service.OtpGenerator;
 import com.pwb.iam.domain.service.ThrottlingService;
-import com.pwb.iam.infrastructure.config.OtpProperties;
+import com.pwb.iam.application.service.OtpIssuer;
+import com.pwb.iam.domain.model.OtpPolicy;
 import com.pwb.shared.exception.BusinessException;
 import com.pwb.iam.testsupport.StubOtpGenerator;
 import com.pwb.iam.testsupport.TestUserBuilder;
@@ -45,7 +46,6 @@ class ResendOtpUseCaseImplTest {
     @Mock private ThrottlingService throttlingService;
     @Mock private AuthEventPublisher authEventPublisher;
     @Mock private EmailDeliveryPort emailDeliveryPort;
-    @Mock private OtpProperties otpProperties;
 
     private StubOtpGenerator otpGenerator;
     private ResendOtpUseCaseImpl useCase;
@@ -55,12 +55,16 @@ class ResendOtpUseCaseImplTest {
     void setUp() {
         userId = UUID.randomUUID();
         otpGenerator = new StubOtpGenerator().presetNextCode("654321");
-        lenient().when(otpProperties.getTtlMinutes()).thenReturn(10);
-        lenient().when(otpProperties.getDailyLimit()).thenReturn(10);
         lenient().when(throttlingService.enforceCooldown(anyString(), any())).thenReturn(0L);
 
-        useCase = new ResendOtpUseCaseImpl(
-                userRepository, otpCodeRepository, otpGenerator, emailDeliveryPort, throttlingService, authEventPublisher, otpProperties);
+        // OTP issuing and the daily-quota check both moved into OtpIssuer, which takes the timings
+        // as an OtpPolicy value instead of reading a properties bean. A real issuer over the same
+        // mocks keeps this test pointed at the collaborators it already controls.
+        OtpPolicy otpPolicy = new OtpPolicy(10, 60, 5, 6, 10);
+        OtpIssuer otpIssuer = new OtpIssuer(
+                otpCodeRepository, otpGenerator, emailDeliveryPort, authEventPublisher, otpPolicy);
+
+        useCase = new ResendOtpUseCaseImpl(userRepository, throttlingService, otpIssuer);
     }
 
     @Test

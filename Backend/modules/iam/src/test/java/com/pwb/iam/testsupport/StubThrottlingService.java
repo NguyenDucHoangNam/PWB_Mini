@@ -48,11 +48,6 @@ public final class StubThrottlingService implements ThrottlingService {
         return 0L;
     }
 
-    @Override
-    public long enforceCooldownForPasswordReset(String email) {
-        return enforceCooldown(email, CooldownPurpose.PASSWORD_RESET);
-    }
-
     public void reset() {
         cooldowns.clear();
         rateLimitCounters.clear();

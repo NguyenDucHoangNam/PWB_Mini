@@ -11,6 +11,7 @@ import com.pwb.iam.infrastructure.persistence.entity.RoleJpaEntity;
 import com.pwb.iam.infrastructure.persistence.mapper.UserMapper;
 import com.pwb.iam.infrastructure.persistence.repository.RoleJpaRepository;
 import com.pwb.iam.infrastructure.persistence.repository.UserJpaRepository;
+import com.pwb.iam.infrastructure.search.IamSearchIndexWriter;
 import com.pwb.iam.testsupport.AbstractRepositoryIT;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 @DisplayName("UserRepositoryImpl — H2 integration")
 class UserRepositoryImplIT extends AbstractRepositoryIT {
@@ -34,7 +36,10 @@ class UserRepositoryImplIT extends AbstractRepositoryIT {
 
     @BeforeEach
     void setUp() {
-        repository = new UserRepositoryImpl(userJpaRepository, userMapper);
+        // Every save now also feeds the search index. That path ends in Kafka via the outbox, which
+        // this H2-only test has no business exercising — the indexing contract is covered by the
+        // search module's own tests. Mocked so the repository behaviour stays the subject here.
+        repository = new UserRepositoryImpl(userJpaRepository, userMapper, mock(IamSearchIndexWriter.class));
         userJpaRepository.deleteAll();
         roleJpaRepository.deleteAll();
         userRole = roleJpaRepository.save(RoleJpaEntity.builder()
@@ -107,12 +112,15 @@ class UserRepositoryImplIT extends AbstractRepositoryIT {
     }
 
     @Test
-    @DisplayName("should_find_by_id_and_status")
-    void should_find_by_id_and_status() {
+    @DisplayName("should_round_trip_status_through_find_by_id")
+    void should_round_trip_status_through_find_by_id() {
+        // findByIdAndStatus is gone: no caller wanted "this user, but only in that state", and the
+        // one that looked like it did was really asking whether the account was still unverified.
+        // What has to hold is that the status survives the round trip.
         User saved = repository.save(newLocalUser("carol@example.com"));
 
-        assertThat(repository.findByIdAndStatus(saved.getUserId(), UserStatus.PENDING_VERIFICATION)).isPresent();
-        assertThat(repository.findByIdAndStatus(saved.getUserId(), UserStatus.ACTIVE)).isEmpty();
+        User found = repository.findById(saved.getUserId()).orElseThrow();
+        assertThat(found.getStatus()).isEqualTo(UserStatus.PENDING_VERIFICATION);
     }
 
     @Test

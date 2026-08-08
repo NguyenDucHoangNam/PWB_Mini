@@ -98,9 +98,24 @@ public class LiveroomConfig {
         private List<IceServer> iceServers = new ArrayList<>(List.of(
                 new IceServer(List.of("stun:stun.l.google.com:19302"), null, null)));
 
+        private Turn turn = new Turn();
+
         private int maxSdpLength = 16384;
 
         private int maxCandidateLength = 1024;
+    }
+
+    @Getter
+    @Setter
+    public static class Turn {
+
+        private boolean enabled = false;
+
+        private List<String> urls = new ArrayList<>();
+
+        private String secret;
+
+        private Duration credentialTtl = Duration.ofHours(24);
     }
 
     @Getter

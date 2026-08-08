@@ -6,12 +6,16 @@ import io.jsonwebtoken.Claims;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 public final class StubTokenManagerService implements TokenManagerService {
 
     private final AccessTokenInfo accessToken;
     private final RefreshTokenInfo refreshToken;
+    private final List<UUID> revokedAllForUsers = new ArrayList<>();
 
     public StubTokenManagerService() {
         this.accessToken = new AccessTokenInfo(
@@ -68,6 +72,7 @@ public final class StubTokenManagerService implements TokenManagerService {
 
     @Override
     public void revokeAllRefreshTokensForUser(UUID userId) {
+        revokedAllForUsers.add(userId);
     }
 
     @Override
@@ -75,9 +80,13 @@ public final class StubTokenManagerService implements TokenManagerService {
         return false;
     }
 
-    /** No longer on {@code TokenManagerService}; kept because the adapter's own IT still exercises it. */
-    public boolean isRefreshTokenRevoked(String rawToken) {
-        return false;
+    /**
+     * Accounts whose sessions were dropped wholesale. Recorded because "changing a password kicks
+     * every other session" is a security property several use cases owe, and this stub is passed
+     * where a Mockito mock would otherwise be — {@code verify()} does not work on it.
+     */
+    public List<UUID> revokedAllForUsers() {
+        return Collections.unmodifiableList(revokedAllForUsers);
     }
 
     @Override

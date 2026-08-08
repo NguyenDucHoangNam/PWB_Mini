@@ -20,6 +20,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("OtpCodeRepositoryImpl — H2 integration")
 class OtpCodeRepositoryImplIT extends AbstractRepositoryIT {
 
+    /** Supplied by {@code OtpPolicy} in production; see the note in {@code OtpCodeTest}. */
+    private static final int MAX_ATTEMPTS = 5;
+
     @Autowired private OtpCodeJpaRepository jpaRepository;
     @Autowired private OtpCodeMapper otpCodeMapper;
 
@@ -115,12 +118,12 @@ class OtpCodeRepositoryImplIT extends AbstractRepositoryIT {
     void should_lock_otp_when_markLockedIfNotAlready_called() {
         OtpCode saved = repository.save(pendingOtp(UUID.randomUUID(), OtpPurpose.REGISTER));
 
-        boolean locked = repository.markLockedIfNotAlready(saved.getId(), OtpCode.MAX_ATTEMPTS);
+        boolean locked = repository.markLockedIfNotAlready(saved.getId(), MAX_ATTEMPTS);
 
         assertThat(locked).isTrue();
         OtpCode reloaded = repository.findById(saved.getId()).orElseThrow();
         assertThat(reloaded.getStatus()).isEqualTo(OtpCode.OtpStatus.LOCKED);
-        assertThat(reloaded.getAttempts()).isEqualTo(OtpCode.MAX_ATTEMPTS);
+        assertThat(reloaded.getAttempts()).isEqualTo(MAX_ATTEMPTS);
     }
 
     @Test
@@ -139,8 +142,8 @@ class OtpCodeRepositoryImplIT extends AbstractRepositoryIT {
     @DisplayName("should_update_existing_otp_when_save_called_twice")
     void should_update_existing_otp_when_save_called_twice() {
         OtpCode first = repository.save(pendingOtp(UUID.randomUUID(), OtpPurpose.REGISTER));
-        first.registerFailedAttempt(OtpCode.MAX_ATTEMPTS);
-        first.registerFailedAttempt(OtpCode.MAX_ATTEMPTS);
+        first.registerFailedAttempt(MAX_ATTEMPTS);
+        first.registerFailedAttempt(MAX_ATTEMPTS);
 
         OtpCode second = repository.save(first);
 

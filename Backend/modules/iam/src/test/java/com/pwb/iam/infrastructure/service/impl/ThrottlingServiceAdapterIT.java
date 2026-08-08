@@ -148,20 +148,20 @@ class ThrottlingServiceAdapterIT extends AbstractRedisIT {
     }
 
     @Test
-    @DisplayName("enforceCooldownForPasswordReset_returns_0_then_active")
-    void enforceCooldownForPasswordReset_returns_0_then_active() {
-        long first = adapter.enforceCooldownForPasswordReset("user@example.com");
+    @DisplayName("passwordReset_cooldown_returns_0_then_active")
+    void passwordReset_cooldown_returns_0_then_active() {
+        long first = adapter.enforceCooldown("user@example.com", CooldownPurpose.PASSWORD_RESET);
         assertThat(first).isEqualTo(0L);
 
-        long second = adapter.enforceCooldownForPasswordReset("user@example.com");
+        long second = adapter.enforceCooldown("user@example.com", CooldownPurpose.PASSWORD_RESET);
         assertThat(second).isGreaterThan(0L);
     }
 
     @Test
-    @DisplayName("enforceCooldownForPasswordReset_uses_password_reset_policy_cooldown")
-    void enforceCooldownForPasswordReset_uses_password_reset_policy_cooldown() {
-        long first = adapter.enforceCooldownForPasswordReset("user2@example.com");
-        long second = adapter.enforceCooldownForPasswordReset("user2@example.com");
+    @DisplayName("passwordReset_cooldown_uses_password_reset_policy_cooldown")
+    void passwordReset_cooldown_uses_password_reset_policy_cooldown() {
+        long first = adapter.enforceCooldown("user2@example.com", CooldownPurpose.PASSWORD_RESET);
+        long second = adapter.enforceCooldown("user2@example.com", CooldownPurpose.PASSWORD_RESET);
 
         assertThat(first).isEqualTo(0L);
         assertThat(second).isLessThanOrEqualTo(60L);
@@ -169,11 +169,11 @@ class ThrottlingServiceAdapterIT extends AbstractRedisIT {
     }
 
     @Test
-    @DisplayName("enforceCooldownForPasswordReset_returns_0_for_blank")
-    void enforceCooldownForPasswordReset_returns_0_for_blank() {
-        assertThat(adapter.enforceCooldownForPasswordReset(null)).isEqualTo(0L);
-        assertThat(adapter.enforceCooldownForPasswordReset("")).isEqualTo(0L);
-        assertThat(adapter.enforceCooldownForPasswordReset("   ")).isEqualTo(0L);
+    @DisplayName("passwordReset_cooldown_returns_0_for_blank")
+    void passwordReset_cooldown_returns_0_for_blank() {
+        assertThat(adapter.enforceCooldown(null, CooldownPurpose.PASSWORD_RESET)).isEqualTo(0L);
+        assertThat(adapter.enforceCooldown("", CooldownPurpose.PASSWORD_RESET)).isEqualTo(0L);
+        assertThat(adapter.enforceCooldown("   ", CooldownPurpose.PASSWORD_RESET)).isEqualTo(0L);
     }
 
     @Test

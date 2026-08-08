@@ -78,6 +78,9 @@ class UserMapperTest {
                 UserStatus.ACTIVE,
                 "USER",
                 OAuthProvider.LOCAL,
+                null,
+                null,
+                null,
                 null);
 
         UserJpaEntity existing = UserJpaEntity.builder()
@@ -142,6 +145,9 @@ class UserMapperTest {
                 UserStatus.ACTIVE,
                 null,
                 OAuthProvider.LOCAL,
+                null,
+                null,
+                null,
                 null);
 
         UserJpaEntity entity = mapper.toEntity(user, null);

@@ -31,12 +31,31 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Value("${pwb.cors.allowed-origins:http://localhost:3000}")
     private List<String> allowedOrigins;
 
+    /**
+     * Response headers the browser is allowed to hand to JavaScript. Without an explicit list a
+     * cross-origin reader sees only the seven CORS-safelisted headers, and everything the rate
+     * limiter sets is silently dropped before the client ever runs — the site and the API live on
+     * different hosts in production, so this is not a theoretical concern. The countdown a 429
+     * shows depends on {@code Retry-After} arriving intact.
+     */
+    private static final String[] EXPOSED_HEADERS = {
+            "Retry-After",
+            "RateLimit-Limit",
+            "RateLimit-Remaining",
+            "RateLimit-Reset",
+            "X-RateLimit-Limit",
+            "X-RateLimit-Remaining",
+            "X-RateLimit-Reset",
+            "X-Correlation-Id"
+    };
+
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
                 .allowedOrigins(allowedOrigins.toArray(new String[0]))
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("Authorization", "Content-Type", "X-Correlation-Id", "Accept-Language")
+                .exposedHeaders(EXPOSED_HEADERS)
                 .allowCredentials(true)
                 .maxAge(3600);
     }

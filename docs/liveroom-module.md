@@ -258,6 +258,12 @@ Mỗi video tile hiển thị:
 - Badge trạng thái mic (muted / unmuted / muted by owner).
 - Label email người tham gia.
 
+**Mọi video tile đều được lật ngang** (`-scale-x-100`), kể cả video của người khác — quyết định ngày 2026-08-08.
+
+Đây là **chệch khỏi quy ước** của Zoom/Meet/Teams, vốn chỉ lật video của chính mình (cho giống soi gương) và giữ nguyên video người khác. Chọn lật hết vì nhìn đồng nhất giữa các ô; đánh đổi là chữ trên áo hoặc trên giấy người khác giơ lên sẽ đọc ngược.
+
+Việc lật thuần túy là CSS ở tầng hiển thị — **không** ảnh hưởng tới stream gửi đi, nên hai bên có thể cấu hình khác nhau mà không xung đột.
+
 ---
 
 ## 8. Realtime (WebSocket)
