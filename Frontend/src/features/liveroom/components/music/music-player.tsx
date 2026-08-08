@@ -215,99 +215,101 @@ export function MusicPlayer({ roomId }: { roomId: string }) {
 
   return (
     <section className="flex shrink-0 flex-col gap-2 border-t border-neutral-200 bg-gradient-to-b from-neutral-50 to-white px-3 py-2.5 dark:border-neutral-800 dark:from-neutral-950 dark:to-black">
-      <div className="flex items-center gap-2 md:gap-4">
-        <div className="flex min-w-0 flex-1 items-center gap-2.5">
-          <span
-            aria-hidden
-            className={`grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-neutral-700 to-neutral-900 text-white shadow-sm dark:from-neutral-100 dark:to-neutral-400 dark:text-black ${
-              playing ? "animate-pulse" : ""
-            }`}
-          >
-            <Music2 className="size-5" />
-          </span>
-          <div className="min-w-0">
-            {music?.songTitle ? (
-              <>
-                <p className="truncate text-sm font-semibold text-black dark:text-white">
-                  {music.songTitle}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center md:gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <span
+              aria-hidden
+              className={`grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-neutral-700 to-neutral-900 text-white shadow-sm dark:from-neutral-100 dark:to-neutral-400 dark:text-black ${
+                playing ? "animate-pulse" : ""
+              }`}
+            >
+              <Music2 className="size-5" />
+            </span>
+            <div className="min-w-0">
+              {music?.songTitle ? (
+                <>
+                  <p className="truncate text-sm font-semibold text-black dark:text-white">
+                    {music.songTitle}
+                  </p>
+                  <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">
+                    {music.songArtist ? t("by", { artist: music.songArtist }) : t("nowPlaying")}
+                  </p>
+                </>
+              ) : (
+                <p className="truncate text-sm text-neutral-500 dark:text-neutral-400">
+                  {t("title")}
                 </p>
-                <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">
-                  {music.songArtist ? t("by", { artist: music.songArtist }) : t("nowPlaying")}
-                </p>
-              </>
-            ) : (
-              <p className="truncate text-sm text-neutral-500 dark:text-neutral-400">
-                {t("title")}
-              </p>
-            )}
+              )}
+            </div>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-10 shrink-0 rounded-full"
+                    aria-label={t("back10", { seconds: SKIP_SECONDS })}
+                    disabled={!hasSong}
+                    onClick={() => skipBy(-SKIP_SECONDS)}
+                  />
+                }
+              >
+                <RotateCcw className="size-4" />
+              </TooltipTrigger>
+              <TooltipContent>{t("back10", { seconds: SKIP_SECONDS })}</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    size="icon"
+                    className="size-12 shrink-0 rounded-full shadow-md md:size-11"
+                    aria-label={playing ? t("pause") : t("play")}
+                    disabled={!hasSong || (!playing && playBlocked)}
+                    onClick={() => {
+                      if (playing) publish(appDestinations.musicPause(roomId));
+                      else publish(appDestinations.musicPlay(roomId), {});
+                    }}
+                  />
+                }
+              >
+                {playing ? (
+                  <Pause className="size-5 fill-current" />
+                ) : (
+                  <Play className="size-5 fill-current" />
+                )}
+              </TooltipTrigger>
+              <TooltipContent>
+                {playBlocked ? t("ownerAbsentHint") : playing ? t("pause") : t("play")}
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-10 shrink-0 rounded-full"
+                    aria-label={t("forward10", { seconds: SKIP_SECONDS })}
+                    disabled={!hasSong}
+                    onClick={() => skipBy(SKIP_SECONDS)}
+                  />
+                }
+              >
+                <RotateCw className="size-4" />
+              </TooltipTrigger>
+              <TooltipContent>{t("forward10", { seconds: SKIP_SECONDS })}</TooltipContent>
+            </Tooltip>
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-10 shrink-0 rounded-full"
-                  aria-label={t("back10", { seconds: SKIP_SECONDS })}
-                  disabled={!hasSong}
-                  onClick={() => skipBy(-SKIP_SECONDS)}
-                />
-              }
-            >
-              <RotateCcw className="size-4" />
-            </TooltipTrigger>
-            <TooltipContent>{t("back10", { seconds: SKIP_SECONDS })}</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  size="icon"
-                  className="size-12 shrink-0 rounded-full shadow-md md:size-11"
-                  aria-label={playing ? t("pause") : t("play")}
-                  disabled={!hasSong || (!playing && playBlocked)}
-                  onClick={() => {
-                    if (playing) publish(appDestinations.musicPause(roomId));
-                    else publish(appDestinations.musicPlay(roomId), {});
-                  }}
-                />
-              }
-            >
-              {playing ? (
-                <Pause className="size-5 fill-current" />
-              ) : (
-                <Play className="size-5 fill-current" />
-              )}
-            </TooltipTrigger>
-            <TooltipContent>
-              {playBlocked ? t("ownerAbsentHint") : playing ? t("pause") : t("play")}
-            </TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-10 shrink-0 rounded-full"
-                  aria-label={t("forward10", { seconds: SKIP_SECONDS })}
-                  disabled={!hasSong}
-                  onClick={() => skipBy(SKIP_SECONDS)}
-                />
-              }
-            >
-              <RotateCw className="size-4" />
-            </TooltipTrigger>
-            <TooltipContent>{t("forward10", { seconds: SKIP_SECONDS })}</TooltipContent>
-          </Tooltip>
-        </div>
-
-        <div className="flex flex-1 items-center justify-end gap-2 md:gap-3">
+        <div className="flex flex-1 items-center justify-between gap-2 sm:justify-end md:gap-3">
           <span className="shrink-0 text-xs font-medium tabular-nums text-neutral-500 dark:text-neutral-400">
             {formatClock(position)}
             <span className="mx-0.5 text-neutral-300 dark:text-neutral-600">/</span>

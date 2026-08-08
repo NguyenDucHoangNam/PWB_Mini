@@ -125,7 +125,9 @@ export function SiteHeaderClient() {
               PWB
             </span>
           </Link>
-          <nav className="hidden items-center gap-6 xl:flex">
+          {/* Public links surface from md up — a tablet has room for them and should not be
+              forced through the drawer just to reach Features or Contact. */}
+          <nav className="hidden items-center gap-6 md:flex">
             {isMounted && <DesktopNav items={publicItems} pathname={pathname} />}
           </nav>
         </div>
@@ -133,7 +135,8 @@ export function SiteHeaderClient() {
         <HeaderSignature />
 
         <div className="flex shrink-0 items-center gap-3 sm:gap-6">
-          <div className="hidden items-center gap-4 sm:gap-6 xl:flex">
+          {/* The account cluster needs more room than the public links, so it waits for lg. */}
+          <div className="hidden items-center gap-4 sm:gap-6 lg:flex">
             {isMounted && isLoggedIn && (
               <nav className="flex items-center gap-6 mr-4">
                 <DesktopNav
@@ -169,7 +172,7 @@ export function SiteHeaderClient() {
               ))}
           </div>
 
-          <div className="flex items-center gap-1 xl:hidden">
+          <div className="flex items-center gap-1 lg:hidden">
             <ThemeToggle />
             <LocaleSwitcher />
           </div>
@@ -178,7 +181,7 @@ export function SiteHeaderClient() {
             onClick={() => setIsOpen(true)}
             type="button"
             aria-label="Open menu"
-            className="key-press flex size-11 items-center justify-center rounded-lg border border-transparent text-neutral-500 hover:bg-neutral-100 hover:text-black xl:hidden dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
+            className="key-press flex size-11 items-center justify-center rounded-lg border border-transparent text-neutral-500 hover:bg-neutral-100 hover:text-black lg:hidden dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
           >
             <svg
               className="size-6"
@@ -208,6 +211,7 @@ export function SiteHeaderClient() {
               <MobileAuthenticated
                 user={user}
                 isPro={isPro}
+                publicItems={publicItems}
                 labels={{
                   dashboard: t("dashboard"),
                   profile: t("profile"),
@@ -313,12 +317,14 @@ interface MobileMenuLabels {
 function MobileAuthenticated({
   user,
   isPro,
+  publicItems,
   labels,
   onLogout,
   onNavigate,
 }: {
   user: ReturnType<typeof useAuthStore.getState>["user"];
   isPro: boolean;
+  publicItems: NavItem[];
   labels: MobileMenuLabels;
   onLogout: () => void;
   onNavigate: () => void;
@@ -332,6 +338,13 @@ function MobileAuthenticated({
           {user?.email || labels.account}
         </p>
       </div>
+      <hr className="border-neutral-200 dark:border-neutral-800" />
+      {/* Signing in used to hide the public pages from the drawer entirely. */}
+      {publicItems.map((item) => (
+        <Link key={item.href} href={item.href} onClick={onNavigate} className={linkClass}>
+          {item.label}
+        </Link>
+      ))}
       <hr className="border-neutral-200 dark:border-neutral-800" />
       {isPro && (
         <Link href="/dashboard/songs" onClick={onNavigate} className={linkClass}>

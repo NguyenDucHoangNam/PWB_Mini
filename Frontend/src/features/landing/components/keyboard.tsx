@@ -5,8 +5,8 @@ import type { Side } from "../lib/piano-audio";
 import { BlackKey } from "./black-key";
 import { PianoKey } from "./piano-key";
 
-const KEY_BOX_SIZE = "clamp(1.2rem, 4.5vw, 3.5rem)";
-const BLACK_KEY_HEIGHT = "clamp(2rem, 6.5vw, 4.8rem)";
+const KEY_BOX_SIZE = "var(--piano-key-box)";
+const BLACK_KEY_HEIGHT = "var(--piano-black-height)";
 
 type KeyboardProps = {
   chars: string[];

@@ -569,6 +569,25 @@
   }
 }
 
+/* Landing hero keyboard.
+   Below sm the two words stack, so each one gets the full row and can afford ~10vw per key.
+   From sm up both words sit on one line (17 keys + gap), so the per-key budget drops. */
+:root {
+  --piano-key-box: min(10vw, 3.5rem);
+  --piano-key-glyph: min(8.6vw, 3.5rem);
+  --piano-white-height: min(26vw, 8rem);
+  --piano-black-height: min(15.5vw, 4.8rem);
+}
+
+@media (min-width: 640px) {
+  :root {
+    --piano-key-box: clamp(1.7rem, 4.5vw, 3.5rem);
+    --piano-key-glyph: clamp(1.25rem, 4vw, 3.5rem);
+    --piano-white-height: clamp(4.25rem, 11vw, 8rem);
+    --piano-black-height: clamp(2.6rem, 6.5vw, 4.8rem);
+  }
+}
+
 :root {
   --cn-toast-success: oklch(0.65 0.16 155);
   --cn-toast-warning: oklch(0.78 0.16 75);

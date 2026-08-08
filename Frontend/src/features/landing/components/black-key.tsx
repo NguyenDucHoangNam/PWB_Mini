@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { useCallback, useRef, useState } from "react";
 import { createAudioPlayer, getBlackNoteFrequency, type Side } from "../lib/piano-audio";
 
-const BLACK_KEY_HEIGHT = "clamp(2rem, 6.5vw, 4.8rem)";
+const BLACK_KEY_HEIGHT = "var(--piano-black-height)";
 const BLACK_KEY_MIN_WIDTH = "0.4rem";
 const BLACK_KEY_MAX_WIDTH = "2rem";
 const BLACK_KEY_WIDTH_RATIO = 0.6;

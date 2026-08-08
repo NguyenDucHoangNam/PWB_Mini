@@ -37,7 +37,9 @@ export function ShowcaseGuide() {
       </Reveal>
 
       <div className="mt-14 grid gap-8 lg:mt-16 lg:grid-cols-[minmax(0,17rem)_1fr] lg:gap-12">
-        <Reveal>
+        {/* min-w-0: without it the rail's intrinsic width sizes the grid track and pushes the
+            panel past the section edge on narrow screens. */}
+        <Reveal className="min-w-0">
           {/* Horizontal rail on small screens, a stacked list once there is room for it. */}
           <div
             role="tablist"

@@ -4,9 +4,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useRef, useState } from "react";
 import { createAudioPlayer, getWhiteNoteFrequency, type Side } from "../lib/piano-audio";
 
-const KEY_GLYPH_SIZE = "clamp(0.9rem, 4vw, 3.5rem)";
-const KEY_BOX_SIZE = "clamp(1.2rem, 4.5vw, 3.5rem)";
-const WHITE_KEY_HEIGHT = "clamp(3rem, 11vw, 8rem)";
+const KEY_GLYPH_SIZE = "var(--piano-key-glyph)";
+const KEY_BOX_SIZE = "var(--piano-key-box)";
+const WHITE_KEY_HEIGHT = "var(--piano-white-height)";
 
 type PianoKeyProps = {
   char: string;

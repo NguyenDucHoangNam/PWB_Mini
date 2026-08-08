@@ -189,13 +189,15 @@ function SongRow({ song, index, onDelete }: SongRowProps) {
                 </span>
                 <SongStatusBadge status={song.status} />
               </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {/* The badge is shrink-0, so without wrapping + nowrap the leftover space breaks
+                  "2.9 MB" across two lines. */}
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                 <SongVoiceTagBadge hasVoiceTag={song.hasVoiceTag} />
                 {formatLabel && <span className="hidden sm:inline">{formatLabel}</span>}
                 <span aria-hidden="true" className="hidden sm:inline">·</span>
-                <span className="tabular-nums">{sizeLabel}</span>
+                <span className="whitespace-nowrap tabular-nums">{sizeLabel}</span>
                 <span aria-hidden="true" className="sm:hidden">·</span>
-                <span className="tabular-nums sm:hidden">{durationLabel}</span>
+                <span className="whitespace-nowrap tabular-nums sm:hidden">{durationLabel}</span>
               </div>
             </>
           )}

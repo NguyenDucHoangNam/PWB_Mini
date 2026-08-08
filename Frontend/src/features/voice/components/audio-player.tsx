@@ -355,7 +355,9 @@ function SongCustomPlayer({ url }: { url: string }) {
       </div>
 
       <div className="flex flex-col gap-2">
-        <div className="grid grid-cols-3 items-center gap-2">
+        {/* Equal thirds are too narrow for the transport on a phone — it spills out of its own
+            track and lands on the loop button. Size the side clusters to content until sm. */}
+        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:grid-cols-3">
           {/* Left cluster: volume */}
           <div className="flex items-center justify-start gap-1">
             <Button

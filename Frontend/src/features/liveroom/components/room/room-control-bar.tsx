@@ -104,7 +104,7 @@ export function RoomControlBar({
   const waiting = isOwner ? pendingCount : 0;
 
   return (
-    <div className="flex h-20 shrink-0 items-center justify-center gap-2 border-t border-neutral-200 px-3 md:h-16 md:gap-3 dark:border-neutral-800">
+    <div className="flex h-20 shrink-0 items-center justify-center gap-1.5 border-t border-neutral-200 px-2 sm:gap-2 sm:px-3 md:h-16 md:gap-3 dark:border-neutral-800">
       <ControlButton
         label={micOn ? t("micOn") : t("micOff")}
         variant={micOn ? "default" : "outline"}

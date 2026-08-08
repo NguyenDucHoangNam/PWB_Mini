@@ -166,11 +166,13 @@ function PianoTitle() {
       animate={{ pointerEvents: "auto" }}
       transition={{ delay: POINTER_EVENTS_DELAY }}
     >
-      <div className="w-full max-w-[420px] sm:max-w-none sm:w-auto">
+      {/* Width comes from the per-key CSS vars, so both words size themselves — no max-w clamp
+          here or the glyphs and the grid columns drift apart. */}
+      <div className="w-auto">
         <Keyboard chars={LEFT_WORD} side="left" />
       </div>
       <div className={KEYBOARD_GAP} />
-      <div className="w-full max-w-[470px] sm:max-w-none sm:w-auto">
+      <div className="w-auto">
         <Keyboard chars={RIGHT_WORD} side="right" />
       </div>
     </motion.div>
