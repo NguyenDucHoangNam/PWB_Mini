@@ -271,9 +271,12 @@ function DesktopNav({ items, pathname }: { items: NavItem[]; pathname: string })
   );
 }
 
+// A flex sibling rather than an absolutely-centred overlay: the bar is capped at max-w-7xl and the
+// account cluster is ~110px wider than the logo side, so centring on the bar left this decorative
+// strip 5px from colliding at 1280. Taking the leftover space instead makes overlap impossible.
 function HeaderSignature() {
   return (
-    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden xl:flex items-center gap-4 pointer-events-none select-none">
+    <div className="hidden min-w-0 flex-1 items-center justify-center gap-4 overflow-hidden pointer-events-none select-none xl:flex">
       <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-neutral-400/40 dark:to-neutral-400/30" />
       <span className="font-mono text-[11px] uppercase tracking-[0.35em] text-neutral-400 opacity-45 dark:text-neutral-400 dark:opacity-30 transition-colors">
         NAM IN THE MIX
