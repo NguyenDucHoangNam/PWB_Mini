@@ -115,7 +115,9 @@ jobs:
           username: ubuntu
           key: ${{ secrets.VPS_SSH_KEY }}
           envs: TAG,GHCR_USER,GHCR_TOKEN
-          script_stop: true
+          # No `script_stop` here: ssh-action v1 dropped that input and only warns that it is
+          # unrecognised, so relying on it would mean a script that silently runs past its first
+          # failure. `set -euo pipefail` at the top of each script is what actually stops it.
           script: |
             set -euo pipefail
             cd ~/PWB_MiNi
@@ -123,9 +125,16 @@ jobs:
             # The images carry the application, but nginx.conf, turnserver.conf and the compose file
             # itself are read from disk on the VPS — without this they would stay at whatever commit
             # was last checked out by hand.
+            # reset --hard rather than pull --ff-only. Everything machine-specific lives in files git
+            # does not track — .env.prod, secrets/, .env.deploy — and reset leaves those alone, so
+            # this working tree is meant to be an exact mirror of main and nothing else. A pull
+            # refuses to run when any tracked file differs, including a bare mode change from a
+            # `chmod`, and that jams every later deploy until someone logs in and clears it by hand.
+            # The cost is that an edit made directly on the VPS is discarded without a word, which is
+            # the right outcome for a tree that is not supposed to have edits of its own.
             git fetch origin main
             git checkout main
-            git pull --ff-only
+            git reset --hard origin/main
 
             # Pin the exact build. Kept in its own file rather than exported into the shell so that a
             # later manual `docker compose` on this box resolves to the same images that are running.
@@ -154,7 +163,6 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ubuntu
           key: ${{ secrets.VPS_SSH_KEY }}
-          script_stop: true
           # Flyway runs during startup, so a broken migration surfaces here rather than as a
           # half-working site. The Dockerfile healthcheck allows a 90s start period; 5 minutes of
           # polling leaves room for a cold JVM on a loaded box.

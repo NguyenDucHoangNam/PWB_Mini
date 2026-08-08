@@ -349,6 +349,35 @@ chmod 644 secrets/gcp-tts.json
 >
 > Và thất bại đó đi vào một nhánh `catch` chỉ ghi **đúng một dòng WARN**: app vẫn `healthy`, Flyway vẫn chạy, mọi thứ bình thường, riêng TTS trả `AUDIO_016` cho mọi request. Xác minh bằng chính container chứ đừng tin `ls -l` trên host (§6, bước 6).
 
+### 3.3 🔴 Không bao giờ sửa file được git theo dõi trên VPS
+
+`~/PWB_MiNi` trên VPS là **bản sao y hệt `main`, không hơn không kém**. Mọi thứ riêng của máy này đều nằm ở file git không theo dõi:
+
+| File | Đường lên máy |
+|---|---|
+| `.env.prod`, `secrets/gcp-tts.json` | `scp` tay (§3.2) — `git pull` **không bao giờ** đụng tới |
+| `.env.deploy` | workflow tự ghi mỗi lần deploy |
+| Mọi file còn lại | chỉ đến từ `main`, qua CI |
+
+Muốn sửa `nginx.conf`, `turnserver.conf`, `docker-compose.prod.yml` hay bất kỳ file nào khác: sửa ở máy mình → commit → PR → merge `main`. Sửa thẳng trên VPS thì nhanh hơn đúng một lần, rồi lần deploy sau nó biến mất và bạn không hiểu vì sao.
+
+> **Chuyện đã xảy ra.** Chạy `init-letsencrypt.sh` báo `Permission denied`, chữa bằng `chmod +x` ngay trên VPS. Git theo dõi cả bit thực thi, nên `chmod` thành một sửa đổi cục bộ — `git diff` hiện `0 insertions, 0 deletions` nên nhìn như không có gì. Lần deploy kế tiếp chết ở đây:
+>
+> ```
+> error: Your local changes to the following files would be overwritten by merge:
+>       nginx/init-letsencrypt.sh
+> ```
+>
+> Và **mọi** lần deploy sau đó cũng chết y hệt cho tới khi có người SSH vào dọn. Cách chữa lúc đó: `git checkout -- <file>`.
+
+Vì kiểu kẹt này chặn toàn bộ đường deploy, [deploy.yml](../.github/workflows/deploy.yml) dùng `git reset --hard origin/main` chứ không phải `git pull --ff-only`. Deploy tự chữa được, đổi lại **mọi sửa đổi tay trên VPS bị xóa không báo trước** — đúng như mong muốn với một thư mục lẽ ra không có sửa đổi nào của riêng nó.
+
+Cần xem tạm một file để chẩn đoán thì cứ thoải mái. Chỉ đừng *sửa*. Kiểm bất cứ lúc nào:
+
+```bash
+cd ~/PWB_MiNi && git status --porcelain     # không ra dòng nào là đúng
+```
+
 ---
 
 ## 4. Soạn `.env.prod`
@@ -594,6 +623,8 @@ $COMPOSE logs -f backend
 | Vào phòng được, chat được, playlist sync — nhưng không ai nghe thấy ai (đặc biệt khi một bên dùng 4G) | **`TURN_EXTERNAL_IP` sai (§4)** — coturn đang quảng bá `172.31.x.x`. Nghi ngờ đầu tiên, vì nửa private của biến này đã sai một lần rồi. Kiểm bằng cột địa chỉ của dòng `relay` ở §7, và bằng `docker inspect` ở §6.2 |
 | Y hệt dòng trên, nhưng `--external-ip` đã đúng | UDP không tới được máy. Chạy `tcpdump` ở §0.2: không thấy gói → rule Security Group bị gỡ; thấy gói mà vẫn hỏng → `ufw` đã bị bật (§2.5) |
 | `docker compose ...` báo `required variable TURN_EXTERNAL_IP is missing` | Đúng như thiết kế — điền biến đó vào `.env.prod` (§4), đừng xóa dấu `:?` trong compose |
+| Deploy đỏ ở `Pull and restart`: `Your local changes ... would be overwritten by merge` | Có người sửa file tracked ngay trên VPS (§3.3). Gỡ: `git checkout -- <file>`. Từ khi workflow dùng `reset --hard` thì không còn gặp nữa |
+| Cấu hình sửa ở máy rồi mà VPS vẫn chạy bản cũ | `.env.prod` không đi qua git — phải `scp` tay (§3.2). Đối chiếu `sha256sum .env.prod` ở hai đầu |
 | Tìm kiếm vẫn ra kết quả nhưng không có dấu vết ES | `SPRING_ELASTICSEARCH_URIS` sai — `grep SEARCH.startup` để biết chắc |
 | TTS trả `AUDIO_016` cho mọi request, nhưng app vẫn `healthy` | `secrets/gcp-tts.json` container đọc không được (§3.2), hoặc đường dẫn có tiền tố `file:` |
 | Nút "Đăng nhập với Google" fail trên prod, dev vẫn chạy | Chưa thêm `https://producerworkbench.online` vào Authorized JavaScript origins |
