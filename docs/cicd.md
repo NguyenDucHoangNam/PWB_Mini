@@ -8,7 +8,7 @@
 ## 1. Hình dạng pipeline
 
 ```
-push → develop
+merge PR → main
      │
      ├─ ci.yml ──────────── backend: mvn test        (unit, ~2-3 ph)
      │                      frontend: lint + vitest  (~2 ph)
@@ -17,7 +17,7 @@ push → develop
      │                            │
      ├─ build ──────────── GitHub runner (4 vCPU / 16GB)
      │                      docker build ×2 → push ghcr.io
-     │                      tag: sha-<commit>  +  develop
+     │                      tag: sha-<commit>  +  main
      │                            │
      └─ deploy ─────────── ssh → VPS
                             git pull  (compose, nginx.conf, turnserver.conf)
@@ -41,7 +41,7 @@ VPS là máy 4 vCPU / 7.6 GB RAM / **19 GB đĩa**, mà stack đang chạy đã 
 | File | Chạy khi | Chặn deploy? |
 |---|---|---|
 | [ci.yml](../.github/workflows/ci.yml) | mọi PR, mọi push lên `develop`/`main` | **Có** — `deploy.yml` gọi lại nó qua `workflow_call` |
-| [deploy.yml](../.github/workflows/deploy.yml) | push lên `develop`, hoặc bấm tay | — |
+| [deploy.yml](../.github/workflows/deploy.yml) | push lên `main` (tức merge PR), hoặc bấm tay | — |
 | [integration-tests.yml](../.github/workflows/integration-tests.yml) | 02:00 UTC hằng ngày, hoặc bấm tay | **Không** — cố ý, xem §2.1 |
 
 ### 2.1 Vì sao integration test không chặn deploy
@@ -153,7 +153,7 @@ cd ~/PWB_MiNi
 # các lần deploy sau CI tự cấp token ngắn hạn nên không cần lưu gì lâu dài trên máy.
 echo <PAT> | docker login ghcr.io -u NguyenDucHoangNam --password-stdin
 
-echo "IMAGE_TAG=develop" > .env.deploy
+echo "IMAGE_TAG=main" > .env.deploy
 export COMPOSE="docker compose -f docker-compose.prod.yml --env-file .env.prod --env-file .env.deploy"
 
 $COMPOSE pull backend frontend
@@ -166,9 +166,9 @@ $COMPOSE up -d frontend
 $COMPOSE up -d coturn
 ```
 
-**Bước 5 — từ đây trở đi**, mỗi lần push lên `develop` là một lần deploy tự động.
+**Bước 5 — từ đây trở đi**, vòng làm việc là: code trên `develop` → mở PR → **merge vào `main` là một lần deploy tự động**. Push thẳng lên `develop` chỉ chạy `ci.yml`, không deploy — cố ý như vậy, để lần merge PR là chỗ duy nhất quyết định cái gì lên production.
 
-> Chú ý biến `$COMPOSE` giờ có **hai** `--env-file`. Mọi lệnh compose thủ công trên VPS phải dùng đúng dạng này, nếu không `IMAGE_TAG` rơi về `develop` và bạn sẽ thao tác nhầm phiên bản.
+> Chú ý biến `$COMPOSE` giờ có **hai** `--env-file`. Mọi lệnh compose thủ công trên VPS phải dùng đúng dạng này, nếu không `IMAGE_TAG` rơi về `main` và bạn sẽ thao tác nhầm phiên bản.
 
 ---
 

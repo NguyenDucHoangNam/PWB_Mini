@@ -14,7 +14,7 @@ name: Deploy
 
 on:
   push:
-    branches: [develop]
+    branches: [main]
   workflow_dispatch:
 
 # Deploying twice at once would race two `up -d` against the same containers. cancel-in-progress
@@ -45,7 +45,7 @@ jobs:
       - uses: actions/checkout@v4
 
       # Every deploy gets an immutable tag naming the exact commit, which is what makes rollback a
-      # one-line change on the VPS. The moving `develop` tag exists only so that a bare
+      # one-line change on the VPS. The moving `main` tag exists only so that a bare
       # `docker compose up -d` on the VPS still resolves to something real.
       - id: meta
         run: echo "tag=sha-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
@@ -65,7 +65,7 @@ jobs:
           push: true
           tags: |
             ${{ env.BACKEND_IMAGE }}:${{ steps.meta.outputs.tag }}
-            ${{ env.BACKEND_IMAGE }}:develop
+            ${{ env.BACKEND_IMAGE }}:main
           # Separate scopes: one shared cache would have the Maven and pnpm layers evicting each
           # other on every run, which is the same as having no cache.
           cache-from: type=gha,scope=backend
@@ -85,7 +85,7 @@ jobs:
           push: true
           tags: |
             ${{ env.FRONTEND_IMAGE }}:${{ steps.meta.outputs.tag }}
-            ${{ env.FRONTEND_IMAGE }}:develop
+            ${{ env.FRONTEND_IMAGE }}:main
           build-args: |
             NEXT_PUBLIC_API_BASE_URL=https://${{ vars.API_DOMAIN }}/api/v1
             NEXT_PUBLIC_SITE_URL=https://${{ vars.FRONTEND_DOMAIN }}
@@ -123,8 +123,8 @@ jobs:
             # The images carry the application, but nginx.conf, turnserver.conf and the compose file
             # itself are read from disk on the VPS — without this they would stay at whatever commit
             # was last checked out by hand.
-            git fetch origin develop
-            git checkout develop
+            git fetch origin main
+            git checkout main
             git pull --ff-only
 
             # Pin the exact build. Kept in its own file rather than exported into the shell so that a
