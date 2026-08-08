@@ -59,6 +59,17 @@ export function getTurnstileSiteKey(): string | null {
   return raw && raw.trim().length > 0 ? raw.trim() : null;
 }
 
+/**
+ * Locale used until the visitor picks one and the `locale` cookie exists.
+ *
+ * Lives here because three independent places need it and they must agree: the server request
+ * config that loads the message bundle and sets `<html lang>`, the switcher's pre-hydration
+ * snapshot, and the `Accept-Language` header the API client sends. When they drifted apart the
+ * result was not a visible error — the page rendered in one language while the backend returned
+ * its error messages in the other.
+ */
+export const DEFAULT_LOCALE = "en";
+
 export const isDev = process.env.NODE_ENV !== "production";
 
 /**

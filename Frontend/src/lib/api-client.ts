@@ -7,7 +7,7 @@ import type { ApiResponse } from "@/types/api";
 import { API_BASE_URL } from "@/lib/constants";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { refreshAccessToken } from "./auth-refresh";
-import { isPublicPath } from "./config";
+import { DEFAULT_LOCALE, isPublicPath } from "./config";
 import { SKIP_REFRESH_HEADER, shouldSkipRefresh } from "./request-flags";
 
 function toPositiveSeconds(value: unknown): number | undefined {
@@ -165,7 +165,7 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-  headers.set("Accept-Language", getCookie("locale") || "vi");
+  headers.set("Accept-Language", getCookie("locale") || DEFAULT_LOCALE);
   if (typeof FormData !== "undefined" && config.data instanceof FormData) {
     // The client-wide JSON content type is wrong for a multipart body, and leaving it in place does
     // more than mislabel the request: axios serialises FormData to JSON when it sees a JSON content

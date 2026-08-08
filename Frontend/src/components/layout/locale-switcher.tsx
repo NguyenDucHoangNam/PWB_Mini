@@ -3,7 +3,7 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
-const DEFAULT_LOCALE = "vi";
+import { DEFAULT_LOCALE } from "@/lib/config";
 
 function readLocale(): string {
   if (typeof document === "undefined") return DEFAULT_LOCALE;

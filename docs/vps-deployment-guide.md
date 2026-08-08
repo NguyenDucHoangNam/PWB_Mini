@@ -501,6 +501,16 @@ curl -I https://api.producerworkbench.online
 
 Script tự xử lý thế bí "nginx cần chứng chỉ để khởi động, certbot cần nginx để xin chứng chỉ" bằng một chứng chỉ tự ký tạm — xem [nginx/init-letsencrypt.sh](../nginx/init-letsencrypt.sh).
 
+> 🔴 **Đã cắn một lần, đã sửa.** Bản đầu của script khai `COMPOSE` **thiếu `--env-file .env.deploy`**. Vì backend và frontend vẫn giữ khoá `build:` bên cạnh `image:`, lệnh `up -d nginx` bên trong script không hề báo lỗi thiếu image — nó **build lại backend từ source ngay trên VPS** rồi recreate cả hai container sang một phiên bản khác với bản vừa deploy. Không một dòng nào trong output nói ra điều đó; chứng chỉ vẫn xin được, script vẫn in `Done`. Phát hiện được là nhờ nhìn `docker ps` thấy tag `:develop` thay vì `:sha-<commit>`, và đĩa tụt mất 2.8 GB vì build cache.
+>
+> Nay script đã tự nạp `.env.deploy` khi file đó tồn tại, và `up -d nginx` có thêm `--no-build` để sai tag thì **nổ ngay** thay vì âm thầm build. Sau mỗi lần chạy script vẫn nên kiểm lại:
+>
+> ```bash
+> docker ps --format '{{.Names}}  <-  {{.Image}}'
+> ```
+>
+> Hai dòng `pwb-backend` và `pwb-frontend` phải mang tag `sha-<commit>`, không phải `main`.
+
 Gia hạn về sau **tự động**, không cần cron trên host: service `certbot` thử `renew` mỗi 12 giờ, `nginx` reload mỗi 6 giờ.
 
 ### 6.2 Ghi chú về log coturn
