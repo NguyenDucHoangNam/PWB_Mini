@@ -16,15 +16,18 @@ ssh -i nam.pem ubuntu@52.63.23.58
 | Nhà cung cấp | AWS EC2 `c5ad.xlarge`, region `ap-southeast-2` (Sydney) | "Vultr/DO/Hetzner" | |
 | OS | **Ubuntu 26.04 LTS** (`resolute`), kernel 7.0.0-1006-aws | Ubuntu 24.04 LTS | ⚠️ |
 | CPU | 4 vCPU AMD EPYC 7R32 | 4 vCPU | ✅ |
-| RAM | 7.6 GiB, **swap = 0** | 8 GB | ⚠️ |
-| Đĩa root | `/dev/nvme0n1p1` — **18.9 GB, còn trống 16 GB** | 80 GB | ⚠️ |
+| RAM | 7.6 GiB — swap ban đầu **= 0**, đã bật 4 GB ở §2.2 | 8 GB | ⚠️ |
+| Đĩa root | `/dev/nvme0n1p1` — **18.9 GB**; trống 16 GB lúc đầu, còn ~12 GB sau khi cài Docker + swap | 80 GB | ⚠️ |
 | Đĩa phụ | `nvme1n1` **139.7 GB chưa format, chưa mount** — instance store | — | ⚠️ |
 | cgroup | v2 (`cgroup2fs`) — `mem_limit` trong compose có hiệu lực | — | ✅ |
 | Phần mềm đã có | `git 2.53.0` | — | |
-| Phần mềm **chưa có** | docker, docker compose, java, node, npm, nginx | — | ⚠️ |
+| Phần mềm ban đầu **chưa có** | docker, docker compose, java, node, npm, nginx | — | ⚠️ |
+| Đã cài (§2.3) | `docker-ce 29.7.2`, `docker compose v5.4.0`, `containerd 2.3.3` — repo chính chủ, codename `resolute` | — | ✅ |
 | `ufw` | inactive | — | |
 | Cổng đang listen | chỉ `22` (sshd) + DNS nội bộ | — | ✅ sạch |
-| Security Group | TCP `22/80/443/3478` **và** UDP `3478` + `49160-49200` đều cho qua | — | ✅ |
+| Security Group | `launch-wizard-1` — **mở toang, mọi cổng từ `0.0.0.0/0`** | "chỉ mở port cần" | ⚠️ |
+| Quyền AWS Console | **không có** — máy của một người bạn, mình chỉ có SSH bằng `nam.pem` | có toàn quyền | ⚠️ |
+| Loại instance | `on-demand` (không phải Spot) — AWS không thu hồi giữa chừng | — | ✅ |
 | IP private (`ens5`) | `172.31.6.161` | — | |
 | Instance | `i-00a614cc3293e5eff`, AZ `ap-southeast-2a` | — | |
 | User | `ubuntu`, có `sudo`, chưa có group `docker` | — | |
@@ -42,11 +45,17 @@ https://download.docker.com/linux/ubuntu/dists/resolute/Release  →  HTTP 200
 
 Ngoài ra repo Ubuntu cũng có sẵn `docker.io 29.1.3` làm đường lui. Cứ cài theo cách chuẩn ở §2.3, không cần workaround nào.
 
-### 0.2 Security Group — đã mở UDP, đã đo lại
+### 0.2 Security Group — UDP đã thông, nhưng vì nó mở toang
 
-Bản đầu của runbook này ghi UDP bị chặn. **Đã sửa và đã xác minh lại**: `tcpdump` trên `ens5` bắt được **24/24** gói probe gửi từ ngoài vào cả `3478` lẫn `49170`.
+Bản đầu của runbook ghi UDP bị chặn. **Đã thông**: `tcpdump` trên `ens5` bắt được **24/24** gói probe gửi từ ngoài vào cả `3478` lẫn `49170`.
 
-Phép thử này vẫn đáng giữ lại vì mỗi lần ai đó sửa Security Group là một lần có thể làm hỏng nó, và triệu chứng thì im lặng tuyệt đối (§7). Trên VPS:
+Nhưng lý do không phải "ai đó đã thêm đúng hai rule UDP". Thử 6 cổng chẳng liên quan gì — `5432`, `6379`, `9200`, `9092`, `8080`, `12345` — **cả sáu đều trả `ConnectionRefused`**, tức gói tin tới được máy. Security Group `launch-wizard-1` đang là **All traffic từ `0.0.0.0/0`**.
+
+> 🔴 **Thứ duy nhất che Postgres/Redis/Kafka/Elasticsearch lúc này là việc [docker-compose.prod.yml](../docker-compose.prod.yml) không publish port của chúng.** Thêm một dòng `ports: - "5432:5432"` để debug là database ra thẳng internet, và `ufw` **không** cứu được vì Docker đi vòng qua nó (§2.5). Đừng bao giờ publish port của service nội bộ, kể cả "chỉ để xem tí".
+>
+> Siết lại còn TCP `22/80/443/3478` + UDP `3478` và `49160-49200` là việc trong AWS Console, tức phải nhờ chủ tài khoản (§1.1).
+
+Phép thử UDP vẫn đáng giữ lại vì triệu chứng khi nó hỏng thì im lặng tuyệt đối (§7). Trên VPS:
 
 ```bash
 sudo timeout 30 tcpdump -n -i ens5 'udp and (port 3478 or portrange 49160-49200)'
@@ -82,25 +91,69 @@ curl -s -i -X OPTIONS "https://pwb-prod-bucket.s3.ap-southeast-2.amazonaws.com/p
   -H "Origin: https://producerworkbench.online" -H "Access-Control-Request-Method: PUT"
 ```
 
-Còn **IAM user** và **lifecycle rule** thì không kiểm ẩn danh được — xem §1.3.
+Còn **IAM user** và **lifecycle rule** thì không kiểm ẩn danh được — xem §1.2.
+
+### 0.4 DNS — đã trỏ đúng, đã đo lại
+
+Domain mua ở **iNET** (`portal.inet.vn`), DNS quản lý bằng **OneShield** — nameserver `hoalu.vclouddns.com` / `ninhbinh.vclouddns.com`. Thêm bản ghi ở nút **Quản lý OneShield**, không phải ở trang chi tiết domain.
+
+| Type | Name | Value | TTL | Bảo vệ |
+|---|---|---|---|---|
+| A | `@` | `52.63.23.58` | 5 phút | **Tắt** |
+| A | `api` | `52.63.23.58` | 5 phút | **Tắt** |
+| A | `turn` | `52.63.23.58` | 5 phút | **Tắt** |
+
+> 🔴 **Cột "Bảo vệ" phải Tắt cả ba.** Bật lên là OneShield đứng làm proxy và **ẩn IP gốc** — DNS trả về IP của họ chứ không phải VPS. `turn` chết hẳn (TURN chạy UDP, proxy HTTP không đẩy UDP qua được), `api` mất WebSocket và rate limiting đếm nhầm IP, `@` làm certbot fail vì Let's Encrypt không gọi thẳng được vào cổng 80. Nhìn cột "Bảo vệ" trong bảng là chưa đủ — phải `dig` ra đúng `52.63.23.58` mới chắc.
+
+Đã xác nhận qua **hai** resolver độc lập (`8.8.8.8` và `1.1.1.1`), và **không có bản ghi AAAA** nào — đúng, vì máy chỉ có IPv4; có AAAA thì trình duyệt thử IPv6 trước rồi mới lùi về, chậm vô cớ.
+
+```bash
+for h in producerworkbench.online api.producerworkbench.online turn.producerworkbench.online; do
+  echo -n "$h → "; dig +short A "$h" @8.8.8.8
+done
+```
+
+**Giữ TTL 5 phút, đừng nâng lên 3600** — không có Elastic IP thì TTL thấp chính là cần gạt phục hồi khi IP đổi (§1.1).
+
+Bản ghi `turn` là tùy chọn về mặt kỹ thuật (không có TLS nên không cần chứng chỉ khớp tên), nhưng `.env.prod` đang dùng nên cứ tạo cho khớp. **Đừng thêm `turn` vào danh sách domain xin chứng chỉ** ở §6.1.
 
 ---
 
-## 1. Ba việc còn lại phải xong TRƯỚC khi gõ lệnh trên VPS
+## 1. Hai việc còn lại — và cả hai đều nằm trong AWS Console
 
-Đây là các blocker. Cả ba đều nằm ngoài máy (AWS console, nhà cung cấp domain), nên làm trước để không phải chờ.
+**Máy này là của một người bạn.** Mình có `nam.pem` và `sudo` trên máy, nhưng **không có quyền vào AWS Console**. Nên hai mục dưới đây không tự làm được — phải nhờ, hoặc chấp nhận sống thiếu.
 
-> Security Group (UDP cho TURN) và bucket S3 từng là blocker ở đây. **Cả hai đã xong và đã đo lại** — chuyển sang §0.2 và §0.3 cùng lệnh kiểm lại, vì giờ chúng là hiện trạng chứ không còn là việc phải làm.
+Tin tốt: **không mục nào chặn việc deploy.** Toàn bộ §2 → §8 làm được ngay.
 
-### 1.1 🔴 Elastic IP — kiểm tra trước khi trỏ DNS
+> Security Group, bucket S3 và DNS từng là blocker ở đây. **Cả ba đã xong và đã đo lại** — chuyển sang §0.2, §0.3 và §0.4 cùng lệnh kiểm lại.
 
-IP hiện tại `52.63.23.58`. **Nếu đây là public IP mặc định (không phải Elastic IP), nó sẽ đổi mỗi lần stop/start instance.** Hậu quả dây chuyền: DNS trỏ sai → site chết → certbot không xác minh được → xin lại chứng chỉ, mà Let's Encrypt chỉ cho **5 chứng chỉ/domain/tuần**.
+### 1.1 🟡 Elastic IP — không có cũng deploy được
 
-**Việc này bắt buộc phải nhìn bằng mắt trong console** — không tự động kiểm từ xa được: IMDS trả cùng một giá trị ở `meta-data/public-ipv4` dù là Elastic IP hay IP mặc định, và reverse DNS của hai loại cũng giống hệt nhau.
+IP hiện tại `52.63.23.58`. Nếu đây là public IP mặc định (không phải Elastic IP) thì nó đổi mỗi lần stop/start instance. **Không kiểm từ xa được**: IMDS trả cùng một giá trị ở `meta-data/public-ipv4` cho cả hai loại, reverse DNS cũng giống hệt.
 
-Kiểm tra: EC2 Console → Elastic IPs, tìm `52.63.23.58`. Instance cần gắn là `i-00a614cc3293e5eff` (AZ `ap-southeast-2a`). Không thấy trong danh sách → **Allocate Elastic IP → Associate** ngay, trước khi làm §1.2.
+**IP chỉ đổi khi có người bấm Stop rồi Start trong console.** Reboot, kernel update, container chết, host bảo trì — đều không đổi. Máy lại là `on-demand` chứ không phải Spot nên AWS không tự tắt.
 
-> Elastic IP đã gắn vào instance đang chạy thì miễn phí. Chỉ tính tiền khi allocate mà để không.
+Và nếu nó đổi thật thì **không mất gì**: EBS root còn nguyên nên database, volume, image đều còn; chứng chỉ TLS gắn với tên miền chứ không gắn IP. Chỉ phải sửa lại 4 chỗ, tất cả đều trong tầm tay:
+
+| Việc | Thời gian |
+|---|---|
+| Sửa 3 bản ghi A ở OneShield | 2 ph + 5 ph chờ TTL |
+| Sửa nửa public của `TURN_EXTERNAL_IP`, tạo lại coturn (§4) | 3 ph |
+| Sửa secret `VPS_HOST` trên GitHub ([cicd.md §3](cicd.md)) | 2 ph |
+| SSH bằng IP mới | — |
+
+Rủi ro thật không phải "IP đổi thì khổ", mà là **nó hỏng im lặng và email retire instance của AWS gửi cho chủ tài khoản, không phải mình**. Ba biện pháp thay thế, rẻ hơn nhiều so với chờ:
+
+1. **Nhắn chủ máy một câu**: *"đừng Stop instance, reboot thì thoải mái; bắt buộc phải stop thì báo trước."* Hiệu quả nhất, tốn 10 giây.
+2. **Giữ TTL 5 phút vĩnh viễn** (§0.4) — đó là cần gạt phục hồi.
+3. **Kiểm 10 giây trước mỗi lần demo** — hai dòng phải khớp nhau:
+
+```bash
+echo "DNS  : $(dig +short A producerworkbench.online @8.8.8.8)"
+echo "Thuc : $(curl -s -H "X-aws-ec2-metadata-token: $(curl -sX PUT http://169.254.169.254/latest/api/token -H 'X-aws-ec2-metadata-token-ttl-seconds: 60')" http://169.254.169.254/latest/meta-data/public-ipv4)"
+```
+
+Nếu nhờ được: EC2 Console → Elastic IPs, tìm `52.63.23.58`; không có thì **Allocate → Associate** vào instance `i-00a614cc3293e5eff`. ⚠️ **Làm xong IP sẽ đổi** — AWS cấp một địa chỉ mới, phải chạy đúng bảng 4 việc ở trên. Elastic IP gắn vào máy đang chạy thì miễn phí; chỉ tính tiền khi allocate mà để không.
 
 ### 1.2 🟡 S3 — còn IAM user và lifecycle rule
 
@@ -128,9 +181,13 @@ Bản kế hoạch tính cho 80 GB. Máy này có 18.9 GB, còn trống 16 GB. �
 | Volume dữ liệu (postgres, ES, kafka) lúc demo | ~1 GB |
 | **Tổng** | **~9.5 GB, đỉnh trong lúc build cao hơn** |
 
-Vừa đủ, nhưng không còn chỗ cho một lần build lại thất bại giữa chừng. Chọn một trong hai:
+Vừa đủ, nhưng không còn chỗ cho một lần build lại thất bại giữa chừng.
 
-**Cách A — tăng đĩa (khuyến nghị).** EC2 Console → Volumes → chọn volume root → Actions → Modify volume → **50 GiB**. Resize online, không cần stop máy. Sau đó trên VPS:
+> **Trên máy này thì bảng trên phần lớn không áp dụng.** Cách làm đã chốt là build trên GitHub Actions rồi VPS chỉ pull (§5), nên toàn bộ ~4.5 GB tầng build không bao giờ chạm tới đĩa này. 16 GB trống là **đủ** — đừng nhờ chủ máy tăng đĩa cho việc này. Chỉ đọc tiếp nếu buộc phải build ngay trên VPS.
+
+Chọn một trong hai:
+
+**Cách A — tăng đĩa.** Cần AWS Console nên phải nhờ chủ tài khoản (§1.1): EC2 Console → Volumes → chọn volume root → Actions → Modify volume → **50 GiB**. Resize online, không cần stop máy. Sau đó trên VPS:
 
 ```bash
 sudo growpart /dev/nvme0n1 1
@@ -253,7 +310,7 @@ sudo ufw enable
 
 ```bash
 git clone https://<TOKEN>@github.com/NguyenDucHoangNam/PWB_Mini.git ~/PWB_MiNi
-cd ~/PWB_MiNi && git checkout develop
+cd ~/PWB_MiNi && git checkout main
 # xóa token khỏi remote để nó không nằm lại trong .git/config
 git remote set-url origin https://github.com/NguyenDucHoangNam/PWB_Mini.git
 ```
@@ -265,7 +322,7 @@ ssh-keygen -t ed25519 -f ~/.ssh/deploy_key -N ""
 cat ~/.ssh/deploy_key.pub          # dán vào GitHub Deploy keys (read-only là đủ)
 echo -e "Host github.com\n  IdentityFile ~/.ssh/deploy_key" >> ~/.ssh/config
 git clone git@github.com:NguyenDucHoangNam/PWB_Mini.git ~/PWB_MiNi
-cd ~/PWB_MiNi && git checkout develop
+cd ~/PWB_MiNi && git checkout main
 ```
 
 ### 3.2 Chép hai file không nằm trong git
@@ -375,13 +432,13 @@ Sau khi CI đã đẩy image lên lần đầu:
 ```bash
 cd ~/PWB_MiNi
 echo <PAT có quyền read:packages> | docker login ghcr.io -u NguyenDucHoangNam --password-stdin
-echo "IMAGE_TAG=develop" > .env.deploy
+echo "IMAGE_TAG=main" > .env.deploy
 
 export COMPOSE="docker compose -f docker-compose.prod.yml --env-file .env.prod --env-file .env.deploy"
 $COMPOSE pull backend frontend
 ```
 
-> ⚠️ Từ đây trở đi biến `$COMPOSE` có **hai** `--env-file`. Thiếu `.env.deploy` thì `IMAGE_TAG` rơi về tag `develop` và bạn sẽ thao tác nhầm phiên bản mà không nhận ra.
+> ⚠️ Từ đây trở đi biến `$COMPOSE` có **hai** `--env-file`. Thiếu `.env.deploy` thì `IMAGE_TAG` rơi về tag `main` và bạn sẽ thao tác nhầm phiên bản mà không nhận ra.
 
 <details>
 <summary><b>Nếu cần build ngay trên VPS</b> (chưa dựng CI, hoặc muốn thử nhanh)</summary>
@@ -503,7 +560,7 @@ chmod +x ~/backup-db.sh
 
 ### Cập nhật code
 
-Mỗi lần push lên `develop` là một lần deploy tự động — xem [cicd.md](cicd.md). Không cần thao tác tay trên VPS.
+Code trên `develop` → mở PR → **merge vào `main` là một lần deploy tự động** — xem [cicd.md](cicd.md). Không cần thao tác tay trên VPS. Push thẳng lên `develop` chỉ chạy test, không deploy.
 
 Downtime ~30–60s, và **mọi live room đang mở sẽ rớt** — broker STOMP nằm in-memory nên không tránh được. **Đừng deploy trong lúc demo**; chốt code trước ít nhất 1 ngày. Nếu muốn chắc chắn hơn quanh ngày demo, tạo environment `production` kèm *Required reviewers* để mỗi lần deploy phải bấm duyệt ([cicd.md §3](cicd.md)).
 
@@ -540,25 +597,24 @@ $COMPOSE logs -f backend
 
 ## 10. Tóm tắt việc phải làm
 
-Đã xong, không còn phải làm: rule UDP trên Security Group, bucket S3 + region + CORS, và `.env.prod` (§0.2, §0.3, §4).
+**Đã xong, không còn phải làm**: rule UDP trên Security Group (§0.2), bucket S3 + region + CORS (§0.3), **3 bản ghi DNS** (§0.4), và `.env.prod` (§4). Tăng đĩa thì không cần vì build trên CI (§2.1).
 
 | # | Việc | Ở đâu | Ước lượng |
 |---|---|---|---|
-| 1 | 🔴 Kiểm tra / gắn Elastic IP | AWS Console | 5 ph |
-| 2 | 🔴 Tạo 3 bản ghi A (`@`, `api`, `turn`) → `52.63.23.58` | DNS provider | 10 ph + chờ |
-| 3 | 🟡 IAM user riêng cho bucket + lifecycle rule 7 ngày (§1.3) | AWS Console | 15 ph |
-| 4 | 🟡 Tăng root EBS 20 → 50 GiB | AWS Console + VPS | 10 ph |
-| 5 | Bật swap 4 GB | VPS | 5 ph |
-| 6 | Cài Docker + `daemon.json` | VPS | 10 ph |
-| 7 | Clone repo bằng **deploy key** (CI cần `git pull`), chép `.env.prod` + `gcp-tts.json` | VPS | 20 ph |
-| 8 | Xác nhận `.env.prod` trên VPS: `TURN_EXTERNAL_IP` khớp IMDS, không sót placeholder, `compose config` chạy sạch (§4) | VPS | 5 ph |
-| 9 | Tạo secrets/variables + SSH key cho CI ([cicd.md §3–4](cicd.md)) | GitHub + VPS | 20 ph |
-| 10 | Chạy workflow Deploy lần đầu để có image ([cicd.md §5](cicd.md)) | GitHub | 15 ph |
-| 11 | Pull image, khởi động theo §6 + chứng chỉ | VPS | 30 ph |
-| 12 | Xác minh TURN (§7) — **đọc cột địa chỉ, không chỉ đọc chữ `relay`** | VPS + trình duyệt | 30 ph |
-| 13 | Smoke test | trình duyệt | 1 h |
-| 14 | Backup + cron | VPS | 20 ph |
+| 1 | Bật swap 4 GB | VPS | 5 ph |
+| 2 | Cài Docker + `daemon.json` | VPS | 10 ph |
+| 3 | Clone repo bằng **deploy key** (CI cần `git pull`), chép `.env.prod` + `gcp-tts.json` | VPS + GitHub | 20 ph |
+| 4 | Xác nhận `.env.prod` trên VPS: `TURN_EXTERNAL_IP` khớp IMDS, không sót placeholder, `compose config` chạy sạch (§4) | VPS | 5 ph |
+| 5 | Tạo secrets/variables + SSH key cho CI ([cicd.md §3–4](cicd.md)) — **làm trước khi push** | GitHub + VPS | 20 ph |
+| 6 | Commit + push `.github/` → workflow Deploy chạy lần đầu, image lên GHCR | GitHub | 15 ph |
+| 7 | Pull image, khởi động theo §6 + chứng chỉ TLS | VPS | 30 ph |
+| 8 | Xác minh TURN (§7) — **đọc cột địa chỉ, không chỉ đọc chữ `relay`** | VPS + trình duyệt | 30 ph |
+| 9 | Smoke test | trình duyệt | 1 h |
+| 10 | Backup + cron | VPS | 20 ph |
+| — | 🟡 *Nhờ chủ máy nếu được*: Elastic IP (§1.1), siết Security Group (§0.2), IAM user + lifecycle (§1.2) | AWS Console | — |
 
-**Tổng ~4 giờ làm việc**, chưa kể chờ DNS propagate. Việc #1 và #2 nên làm ngay vì chúng chặn phần cuối và có độ trễ nằm ngoài tầm kiểm soát.
+**Tổng ~3.5 giờ làm việc.** Không còn việc nào phải chờ bên ngoài — đường đi thông suốt từ #1 tới #10.
+
+> ⚠️ **Thứ tự #5 trước #6 là bắt buộc.** [deploy.yml](../.github/workflows/deploy.yml) chạy khi `push` vào `main` — tức mỗi lần merge PR. Merge trước khi có secrets thì workflow chạy ngay và fail.
 
 Từ sau lần đầu, mỗi lần cập nhật code chỉ còn là một lần `git push` — xem [cicd.md](cicd.md).
