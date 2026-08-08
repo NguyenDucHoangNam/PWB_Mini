@@ -18,6 +18,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -71,7 +72,12 @@ class OutboxJpaWriterIT extends AbstractPostgresKafkaIT {
     @Test
     @DisplayName("should_set_created_at_and_next_attempt_at_to_now")
     void should_set_created_at_and_next_attempt_at_to_now() {
-        Instant before = Instant.now();
+        // Truncated to the resolution PostgreSQL actually stores. `timestamp` keeps microseconds,
+        // so a value written with nanosecond precision comes back rounded *down* — and an untruncated
+        // lower bound then sits up to 999ns above what was persisted, failing an assertion about
+        // nothing. Whether it fires depends on the clock resolution of the machine running the
+        // suite, which is the worst kind of test to leave in place.
+        Instant before = Instant.now().truncatedTo(ChronoUnit.MICROS);
         writer.enqueue(createRequest());
         Instant after = Instant.now();
 

@@ -267,6 +267,7 @@ export function LoginForm() {
       {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
         <div
           ref={googleContainerRef}
+          data-google-button-container
           className={`flex justify-center w-full [&_iframe]:!visible ${isGooglePending ? "pointer-events-none opacity-50" : ""}`}
         />
       )}

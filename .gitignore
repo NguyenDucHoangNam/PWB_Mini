@@ -25,6 +25,10 @@ transcript*.jsonl
 # File sao lưu khi dọn dẹp env. Không mẫu nào ở trên bắt được `.env.bak`, mà nội dung của nó
 # là toàn bộ secret của file gốc.
 .env.bak
+# Do GitHub Actions ghi lên VPS mỗi lần deploy, chỉ chứa duy nhất IMAGE_TAG của commit đang chạy.
+# Không phải secret, nhưng là trạng thái riêng của từng máy — commit nó vào repo sẽ khiến mọi máy
+# tưởng mình đang chạy phiên bản của máy khác. Xem docs/cicd.md.
+.env.deploy
 # Credential mount vào container (Google TTS service account, xem docker-compose.prod.yml)
 secrets/
 # Bỏ qua file cấu hình cục bộ của Spring Boot (chứa mật khẩu DB cục bộ)

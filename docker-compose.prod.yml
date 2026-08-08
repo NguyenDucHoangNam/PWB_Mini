@@ -114,6 +114,15 @@ services:
       retries: 5
 
   backend:
+    # Named so the image can come from either direction. CI builds it on a GitHub runner and pushes
+    # it here, and the VPS only pulls — building on the VPS itself would put a Maven reactor and the
+    # running stack on the same 7.6GB of RAM. `build:` stays for the case where someone does want to
+    # build locally: `docker compose build` tags the result with this same name, so a later
+    # `up -d` finds it whether it was built here or pulled.
+    #
+    # The fallback tag is the branch tag, which CI always moves to the newest successful build. A
+    # deploy pins the exact commit instead through IMAGE_TAG in .env.deploy — see docs/cicd.md.
+    image: ghcr.io/nguyenduchoangnam/pwb-backend:${IMAGE_TAG:-develop}
     build:
       context: ./Backend
       dockerfile: Dockerfile
@@ -195,10 +204,22 @@ services:
       - /etc/coturn/turnserver.conf
       - --realm=${FRONTEND_DOMAIN}
       - --static-auth-secret=${TURN_STATIC_AUTH_SECRET}
+      # `public/private` on EC2 and GCP, a bare public address elsewhere. See the long note in
+      # turnserver.conf for what goes wrong without it. Interpolated with `:?` rather than left to
+      # default empty on purpose: an empty --external-ip= is the failure this whole service is
+      # written to avoid — relay candidates that point somewhere unreachable, with every other
+      # signal green. `docker compose config` refuses to run instead, before anything starts.
+      - --external-ip=${TURN_EXTERNAL_IP:?set TURN_EXTERNAL_IP in .env.prod - on EC2/GCP use PUBLIC/PRIVATE, elsewhere the public address alone}
     restart: unless-stopped
     mem_limit: 256m
 
   frontend:
+    # Same arrangement as backend above. Worth noting for this service in particular: because every
+    # NEXT_PUBLIC_* below is baked into the bundle at build time, the image is specific to one set of
+    # domains and one bucket. CI passes them from repository *variables* rather than secrets — they
+    # end up readable in the client bundle either way, and marking them secret only makes the build
+    # log unreadable.
+    image: ghcr.io/nguyenduchoangnam/pwb-frontend:${IMAGE_TAG:-develop}
     build:
       context: ./Frontend
       dockerfile: Dockerfile
