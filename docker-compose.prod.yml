@@ -1,0 +1,248 @@
+# Production stack for a single VPS. Read docs/deployment-plan.md before changing anything here.
+#
+# Two rules this file exists to enforce:
+#   1. Only Nginx publishes ports. Postgres, Redis, Kafka and Elasticsearch talk over the internal
+#      network only — the development compose publishes all of them, which on a public VPS would
+#      expose a database and an Elasticsearch running with authentication disabled.
+#   2. The backend runs as exactly one instance. Its STOMP broker is in-memory, so a second replica
+#      would put two people in "the same" live room without either seeing the other.
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pwb-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - pwb-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: pwb-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    networks:
+      - pwb-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: pwb-kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT'
+      # The development compose adds a PLAINTEXT_HOST listener advertised as localhost:9092 so tools
+      # on the developer's machine can reach the broker. Here every client is a container on this
+      # network, and an advertised `localhost` would send them to themselves.
+      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:29092'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:29093'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_LOG_DIRS: '/var/lib/kafka/data'
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - pwb-network
+    restart: unless-stopped
+    mem_limit: 1g
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:29092 --list || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  elasticsearch:
+    image: elasticsearch:8.12.0
+    container_name: pwb-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    # Heap is only half of what Elasticsearch uses; Lucene wants off-heap room on top. Left uncapped
+    # it competes with Postgres for the same RAM on this one machine, and a Postgres pushed into
+    # swap slows down every part of the app, including the parts unrelated to search.
+    mem_limit: 1g
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - pwb-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: pwb-backend
+    env_file:
+      - .env.prod
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      # Service names, not localhost. Inside this container localhost is the container itself —
+      # the reason SPRING_ELASTICSEARCH_URIS in particular has to be stated explicitly.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      # Derived from the same variables the postgres and redis services are configured with, rather
+      # than repeated under their Spring names in .env.prod. Two copies of a password is a bug
+      # waiting for the day someone rotates one of them: the containers start fine and the backend
+      # simply cannot authenticate.
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
+      # No `file:` prefix — the adapter resolves this path itself and only understands
+      # `classpath:`; see the note in application-prod.yml.
+      GCP_TTS_CREDENTIALS_PATH: /run/secrets/gcp-tts.json
+      # Origins the browser is allowed to call from, and the base of the password-reset link that
+      # goes out by email. Both derive from the same domain so they cannot drift apart.
+      PWB_CORS_ALLOWED_ORIGINS: https://${FRONTEND_DOMAIN}
+      FRONTEND_URL: https://${FRONTEND_DOMAIN}
+    secrets:
+      - gcp-tts.json
+    volumes:
+      # One audio job at a time holds the source, the voice tag and the render simultaneously, so
+      # this needs roughly 2.5x the largest accepted upload. On the container filesystem it would
+      # also be lost on every redeploy, stranding half-finished jobs.
+      - audio_work:/var/tmp/pwb-audio
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - pwb-network
+    restart: unless-stopped
+    mem_limit: 1500m
+    healthcheck:
+      # Alpine ships busybox wget; the JRE image has no curl. This path is public precisely so this
+      # check works — see pwb.iam.security.public-endpoints.
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8080/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+      # Build arguments, not runtime environment: Next inlines every NEXT_PUBLIC_* value into the
+      # client bundle during the build. Editing .env.prod and restarting will not change them —
+      # the image has to be rebuilt.
+      args:
+        NEXT_PUBLIC_API_BASE_URL: https://${API_DOMAIN}/api/v1
+        NEXT_PUBLIC_SITE_URL: https://${FRONTEND_DOMAIN}
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${APP_SECURITY_CAPTCHA_TURNSTILE_SITE_KEY}
+        NEXT_PUBLIC_STORAGE_BUCKET_NAME: ${STORAGE_S3_BUCKET}
+        NEXT_PUBLIC_STORAGE_REGION: ${STORAGE_S3_REGION}
+        NEXT_PUBLIC_STORAGE_PUBLIC_URL_PREFIX: ${STORAGE_PUBLIC_URL_PREFIX}
+        NEXT_PUBLIC_AUTH_OTP_EXPIRY_SECONDS: ${NEXT_PUBLIC_AUTH_OTP_EXPIRY_SECONDS:-600}
+        NEXT_PUBLIC_AUTH_OTP_RESEND_COOLDOWN_SECONDS: ${NEXT_PUBLIC_AUTH_OTP_RESEND_COOLDOWN_SECONDS:-60}
+    container_name: pwb-frontend
+    depends_on:
+      - backend
+    networks:
+      - pwb-network
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: pwb-nginx
+    # The only service allowed to publish. Port 80 must stay open even though everything redirects
+    # to 443 — the ACME challenge for every renewal arrives over plain HTTP.
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - certbot_conf:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - pwb-network
+    restart: unless-stopped
+    # A renewed certificate is written to disk by certbot, but nginx keeps serving the copy it read
+    # at startup until it is told to re-read. Reloading every 6 hours costs nothing and means a
+    # renewal can never quietly fail to take effect. `nginx -s reload` does not drop connections.
+    command: >
+      /bin/sh -c "while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g 'daemon off;'"
+
+  certbot:
+    image: certbot/certbot
+    container_name: pwb-certbot
+    volumes:
+      # Not read-only here: this is the one container that writes certificates.
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    restart: unless-stopped
+    # Certificates last 90 days and certbot renews inside the final 30, so a 12-hour retry gives
+    # roughly 60 chances before anything expires. `renew` exits successfully when there is nothing
+    # to do, so this is quiet on the vast majority of runs.
+    entrypoint: >
+      /bin/sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h & wait $${!}; done"
+
+secrets:
+  gcp-tts.json:
+    # Never baked into the image: Backend/.dockerignore excludes the credential from the build
+    # context on purpose. Place the file here on the VPS with chmod 600.
+    file: ./secrets/gcp-tts.json
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  kafka_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+  audio_work:
+    driver: local
+  # Issued certificates and the renewal state. Losing this volume means requesting them again, and
+  # Let's Encrypt allows only 5 certificates per domain per week.
+  certbot_conf:
+    driver: local
+  # Shared between nginx and certbot: certbot writes the challenge file, nginx serves it.
+  certbot_www:
+    driver: local
+
+networks:
+  pwb-network:
+    driver: bridge

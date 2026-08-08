@@ -38,6 +38,7 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -57,6 +58,16 @@ import java.util.UUID;
 
 /**
  * Every route below is authenticated by the security filter chain, so {@code userId} is always present.
+ *
+ * <p>The routes that mint new audio additionally require the PRO role — see {@link SongController} for the
+ * reasoning behind guarding creation rather than everything. Both synthesis routes matter more than the
+ * rest put together: each call is a billed Google request, and {@code /tts/preview} stores nothing, so
+ * before this guard existed any authenticated account could spend the project's TTS budget in a loop with
+ * nothing to show for it afterwards. The per-endpoint rate limit in {@code application.yml} narrows that
+ * tap; it does not decide who is allowed to open it.
+ *
+ * <p>{@code /tts/voices} is deliberately left to any authenticated caller: it returns a hard-coded catalog
+ * from {@code GoogleTtsAdapter} without contacting Google, so it costs nothing and reveals nothing.
  */
 @RestController
 @RequestMapping("/api/v1/voice-tags")
@@ -79,6 +90,7 @@ public class VoiceTagController {
     private final MessageResolver messageResolver;
 
     @PostMapping("/tts")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<VoiceTagResponse>> createVoiceTagTts(
             @CurrentUser UUID userId,
             @Valid @RequestBody CreateVoiceTagTtsRequest request
@@ -101,6 +113,7 @@ public class VoiceTagController {
      * the duration before it will accept them.
      */
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<VoiceTagResponse>> createVoiceTagUpload(
             @CurrentUser UUID userId,
             @RequestParam("name") @NotBlank @Size(max = 100) String name,
@@ -133,6 +146,7 @@ public class VoiceTagController {
      * and nothing was stored that a URL could point at.
      */
     @PostMapping("/tts/preview")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<byte[]> previewVoiceTagTts(
             @Valid @RequestBody PreviewVoiceTagTtsRequest request
     ) {

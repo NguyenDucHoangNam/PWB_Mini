@@ -981,7 +981,21 @@
       "genericError": "Đã có lỗi xảy ra. Vui lòng thử lại.",
       "fileRequired": "Vui lòng chọn file âm thanh",
       "invalidDuration": "Không thể xác định thời lượng file âm thanh. Vui lòng chọn file âm thanh hợp lệ.",
-      "duplicateVoiceTagName": "Tên voice tag đã tồn tại"
+      "duplicateVoiceTagName": "Tên voice tag đã tồn tại",
+      "fileSizeExceeded": "Tệp vượt quá dung lượng cho phép",
+      "fileEmpty": "Tệp đã chọn rỗng",
+      "invalidAudioFile": "Tệp này không phải là tệp âm thanh đọc được",
+      "uploadNotFound": "Không tìm thấy tệp đã tải lên. Vui lòng tải lại.",
+      "storageError": "Không kết nối được kho lưu trữ. Vui lòng thử lại.",
+      "unauthorizedAccess": "Bạn không có quyền truy cập mục này",
+      "intervalShorterThanTag": "Khoảng lặp phải dài hơn chính đoạn voice tag",
+      "retryNotAllowed": "Chỉ bài hát xử lý thất bại mới có thể xử lý lại",
+      "processingTimedOut": "Xử lý quá lâu và đã bị dừng. Vui lòng thử lại.",
+      "voiceTagTooLong": "Đoạn voice tag dài hơn giới hạn cho phép",
+      "textRequired": "Vui lòng nhập nội dung cần đọc",
+      "ttsFailed": "Tổng hợp giọng nói thất bại. Vui lòng thử lại.",
+      "ttsUnavailable": "Tính năng chuyển văn bản thành giọng nói tạm thời không khả dụng",
+      "ttsVoiceNotSupported": "Giọng đọc này không hỗ trợ ngôn ngữ đã chọn"
     },
     "actions": {
       "create": "Tạo mới",

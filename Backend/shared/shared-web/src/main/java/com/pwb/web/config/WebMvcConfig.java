@@ -57,18 +57,42 @@ public class WebMvcConfig implements WebMvcConfigurer {
         return registration;
     }
 
+    /**
+     * Built here but deliberately <em>not</em> installed here — {@code SecurityConfig} places it inside the
+     * security chain, just after the JWT filter.
+     *
+     * <p>It used to run as a servlet filter at {@code HIGHEST_PRECEDENCE + 20}, which put it ahead of the
+     * whole security chain (Spring Boot registers that at order -100). Everything therefore looked
+     * anonymous to it, and the only identity available was the client address. Rate limiting per account
+     * means running after authentication has happened, which means running inside the chain.
+     *
+     * <p>Position within the chain still matters: after the JWT filter so the principal is there, but well
+     * before authorization, so a request with no token or a bad one is counted rather than waved past on
+     * its way to a 401.
+     */
     @Bean
-    public FilterRegistrationBean<HttpRateLimitFilter> httpRateLimitFilter(
+    public HttpRateLimitFilter httpRateLimitFilter(
             HttpRateLimitService rateLimitService,
             RateLimitProperties rateLimitProperties,
             ObjectMapper objectMapper,
             MessageResolver messageResolver
     ) {
-        FilterRegistrationBean<HttpRateLimitFilter> registration = new FilterRegistrationBean<>(
-                new HttpRateLimitFilter(rateLimitService, rateLimitProperties, objectMapper, messageResolver));
-        registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 20);
-        registration.addUrlPatterns("/*");
-        registration.setName("httpRateLimitFilter");
+        return new HttpRateLimitFilter(rateLimitService, rateLimitProperties, objectMapper, messageResolver);
+    }
+
+    /**
+     * Cancels Spring Boot's automatic servlet registration of the bean above. Any {@code Filter} bean is
+     * picked up and mapped to {@code /*} by default, so without this the filter would run twice per
+     * request from two different positions — and the early copy would be the anonymous one this change
+     * exists to get rid of.
+     */
+    @Bean
+    public FilterRegistrationBean<HttpRateLimitFilter> httpRateLimitFilterRegistration(
+            HttpRateLimitFilter httpRateLimitFilter
+    ) {
+        FilterRegistrationBean<HttpRateLimitFilter> registration =
+                new FilterRegistrationBean<>(httpRateLimitFilter);
+        registration.setEnabled(false);
         return registration;
     }
 }

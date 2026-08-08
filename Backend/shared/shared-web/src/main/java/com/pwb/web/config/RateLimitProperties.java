@@ -18,6 +18,12 @@ public class RateLimitProperties {
     private Map<String, EndpointRule> endpointLimits = Map.of();
     private List<String> trustedProxies = List.of();
 
+    /**
+     * A {@code strategy} field used to sit here, fixed at {@code "per-ip"} and read by nothing. It is gone
+     * rather than implemented: the filter now counts an authenticated caller by account and falls back to
+     * the address only when there is no account yet, which is the behaviour every rule wants. Leaving a
+     * knob that described the old behaviour, and never controlled even that, was worse than having none.
+     */
     @Getter
     @Setter
     public static class EndpointRule {
@@ -25,6 +31,5 @@ public class RateLimitProperties {
         private List<String> methods;
         private int limit;
         private int windowSeconds = 60;
-        private String strategy = "per-ip";
     }
 }

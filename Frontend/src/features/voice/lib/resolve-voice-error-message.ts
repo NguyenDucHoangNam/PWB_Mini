@@ -5,6 +5,17 @@ type Translator = (key: string) => string;
 
 const VOICE_ERRORS_PREFIX = "voice.errors.";
 
+/**
+ * What the backend answers when the PRO guard on the audio controllers refuses a request.
+ *
+ * <p>Handled here rather than in the shared code map because the code itself is generic — it is the same
+ * one an ADMIN-only endpoint returns — and mapping it globally to a voice message would mislabel every
+ * other refusal in the application. Inside this module a 403 has exactly one cause: the routes that
+ * create audio require a subscription, and every one of them is reached from a screen the user opened
+ * expecting it to work. Telling them to upgrade is more useful than "access denied".
+ */
+const ACCESS_DENIED_CODE = "IAM_ACCESS_001";
+
 function extractValidationDetails(error: ApiError): string | null {
   const fieldErrors = error.fieldErrors;
   if (!fieldErrors || typeof fieldErrors !== "object") return null;
@@ -35,6 +46,10 @@ export function resolveVoiceErrorMessage(
     if (apiErr.code === "VALIDATION_FAILED") {
       const details = extractValidationDetails(apiErr);
       if (details) return details;
+    }
+
+    if (apiErr.code === ACCESS_DENIED_CODE) {
+      return tErrors("proOnly");
     }
 
     const key = resolveErrorI18nKey(apiErr);

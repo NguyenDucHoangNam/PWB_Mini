@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NextIntlClientProvider } from "next-intl";
 import enMessages from "@/../messages/en.json";
@@ -83,8 +83,37 @@ function renderForm() {
 }
 
 /**
+ * Runs the timers forward by {@code ms} and lets every promise the form is waiting on settle.
+ *
+ * <p>These tests used to reach for `waitFor`, which fails about one run in five here. The reason is not
+ * obvious: `waitFor` decides whether timers are faked by looking for a global `jest` object, and under
+ * Vitest there is none — so it always takes its real-timer branch and schedules its own polling through
+ * `setTimeout`, which *is* faked. It only made progress at all because the suite ran with
+ * `shouldAdvanceTime: true`, tying fake time to the wall clock. That left `waitFor`'s 1s default timeout
+ * racing the form's 2s poll interval: any assertion needing one more poll lost, and whether it needed one
+ * depended on where the promise chain happened to sit when the previous advance returned.
+ *
+ * <p>Driving the clock explicitly removes the race rather than widening it. Each call advances a known
+ * amount and returns with the resulting work already flushed, so a poll either has happened or has not —
+ * there is no window in which the answer depends on timing. `act` is what makes React apply the state
+ * updates the advance triggers; without it the assertions read a stale DOM.
+ */
+async function tick(ms = 0) {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(ms);
+  });
+}
+
+/** One turn of the form's merge poll. */
+const POLL = 2000;
+
+/**
  * Picks a file and submits. Whether a merge follows is decided by what `createSong` is stubbed to
  * return, not by the voice tag checkbox — the status on the response is what the form reacts to.
+ *
+ * <p>Returns once the submit chain has run as far as it can without the clock moving: the presigned URL,
+ * the storage PUT and `createSong` have all resolved, so a song that needs merging is already sitting on
+ * its first poll timer.
  */
 async function submitUpload() {
   renderForm();
@@ -92,13 +121,17 @@ async function submitUpload() {
   const file = new File(["x".repeat(1024)], "intro.mp3", { type: "audio/mpeg" });
   fireEvent.change(fileInput, { target: { files: [file] } });
 
-  await waitFor(() => expect(screen.getByText("intro.mp3")).toBeInTheDocument());
+  await tick();
+  expect(screen.getByText("intro.mp3")).toBeInTheDocument();
+
   fireEvent.click(screen.getByRole("button", { name: /upload song/i }));
+  await tick();
 }
 
 describe("SongUploadForm — waiting out the voice tag merge", () => {
   beforeEach(() => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    // No `shouldAdvanceTime`: the clock moves only when a test says so, which is the whole point.
+    vi.useFakeTimers();
     StubXhr.instances = [];
     vi.stubGlobal("XMLHttpRequest", StubXhr);
     push.mockClear();
@@ -128,9 +161,10 @@ describe("SongUploadForm — waiting out the voice tag merge", () => {
     await submitUpload();
 
     // Advance first: the poll is on a timer, so nothing has been asked yet at this point.
-    await vi.advanceTimersByTimeAsync(6000);
+    expect(getSong).not.toHaveBeenCalled();
+    await tick(POLL);
 
-    expect(getSong).toHaveBeenCalled();
+    expect(getSong).toHaveBeenCalledTimes(1);
     expect(push).not.toHaveBeenCalled();
     expect(toastSuccess).not.toHaveBeenCalled();
     // The user is still on the upload screen, told what is happening rather than shown a half-done song.
@@ -145,9 +179,14 @@ describe("SongUploadForm — waiting out the voice tag merge", () => {
 
     await submitUpload();
 
-    await vi.advanceTimersByTimeAsync(5000);
+    // First poll still says PROCESSING, so nothing may be announced yet.
+    await tick(POLL);
+    expect(push).not.toHaveBeenCalled();
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith(`/dashboard/songs/${SONG_ID}`));
+    // Second poll lands.
+    await tick(POLL);
+
+    expect(push).toHaveBeenCalledWith(`/dashboard/songs/${SONG_ID}`);
     expect(toastSuccess).toHaveBeenCalledTimes(1);
     expect(toastInfo).not.toHaveBeenCalled();
   });
@@ -157,9 +196,9 @@ describe("SongUploadForm — waiting out the voice tag merge", () => {
 
     await submitUpload();
 
-    await vi.advanceTimersByTimeAsync(3000);
+    await tick(POLL);
 
-    await waitFor(() => expect(toastError).toHaveBeenCalledTimes(1));
+    expect(toastError).toHaveBeenCalledTimes(1);
     expect(toastSuccess).not.toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith(`/dashboard/songs/${SONG_ID}`);
   });
@@ -171,9 +210,13 @@ describe("SongUploadForm — waiting out the voice tag merge", () => {
 
     await submitUpload();
 
-    await vi.advanceTimersByTimeAsync(5000);
+    // The read that fails must cost a poll, not the merge.
+    await tick(POLL);
+    expect(toastSuccess).not.toHaveBeenCalled();
 
-    await waitFor(() => expect(toastSuccess).toHaveBeenCalledTimes(1));
+    await tick(POLL);
+
+    expect(toastSuccess).toHaveBeenCalledTimes(1);
     expect(toastError).not.toHaveBeenCalled();
   });
 
@@ -185,7 +228,8 @@ describe("SongUploadForm — waiting out the voice tag merge", () => {
 
     await submitUpload();
 
-    await waitFor(() => expect(toastSuccess).toHaveBeenCalledTimes(1));
+    // No clock movement at all: without a merge to wait for there is nothing on a timer.
+    expect(toastSuccess).toHaveBeenCalledTimes(1);
     expect(getSong).not.toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith(`/dashboard/songs/${SONG_ID}`);
   });
@@ -195,8 +239,7 @@ describe("SongUploadForm — waiting out the voice tag merge", () => {
 
     await submitUpload();
 
-    const leave = await screen.findByRole("button", { name: /run in background/i });
-    fireEvent.click(leave);
+    fireEvent.click(screen.getByRole("button", { name: /run in background/i }));
 
     expect(push).toHaveBeenCalledWith(`/dashboard/songs/${SONG_ID}`);
     expect(toastInfo).toHaveBeenCalledTimes(1);
@@ -204,7 +247,8 @@ describe("SongUploadForm — waiting out the voice tag merge", () => {
 
     // The merge finishing after the handover must not produce a second announcement.
     getSong.mockResolvedValue({ success: true, data: { id: SONG_ID, status: "PROCESSED" } });
-    await vi.advanceTimersByTimeAsync(5000);
+    await tick(POLL);
+    await tick(POLL);
     expect(toastSuccess).not.toHaveBeenCalled();
   });
 });

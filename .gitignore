@@ -18,6 +18,15 @@ transcript*.jsonl
 .env.production.local
 .env*.local
 *.env
+# Các mẫu ở trên KHÔNG bắt được `.env.prod`: `.env` khớp chính xác, `*.env` chỉ khớp phần đuôi,
+# còn `.env*.local` đòi hỏi hậu tố `.local`. Đây là file chứa toàn bộ secret của môi trường thật.
+.env.prod
+.env.production
+# File sao lưu khi dọn dẹp env. Không mẫu nào ở trên bắt được `.env.bak`, mà nội dung của nó
+# là toàn bộ secret của file gốc.
+.env.bak
+# Credential mount vào container (Google TTS service account, xem docker-compose.prod.yml)
+secrets/
 # Bỏ qua file cấu hình cục bộ của Spring Boot (chứa mật khẩu DB cục bộ)
 **/src/main/resources/application-local.yaml
 **/src/main/resources/application-local.yml
@@ -61,5 +70,9 @@ frontend/pnpm-debug.log*
 frontend/.turbo/
 frontend/coverage/
 
-# GCP service-account keys - never commit; supply via GCP_TTS_CREDENTIALS_PATH
-Backend/modules/audio/src/main/resources/tts/*.json
+# GCP service-account keys - never commit; supply via GCP_TTS_CREDENTIALS_PATH.
+# Nơi chứa credential đúng là `secrets/` (đã ignore ở trên) — bất cứ file json nào rơi vào
+# `src/main/resources/tts/` đều bị Maven đóng thẳng vào jar, nên pattern dưới đây cố tình bao
+# mọi module chứ không chỉ `audio`: key đã từng nằm ở `bootstrap/` một lần (commit e279770),
+# và `.env` vẫn còn trỏ vào đó rất lâu sau khi thư mục ấy biến mất.
+**/src/main/resources/tts/*.json

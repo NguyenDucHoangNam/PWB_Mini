@@ -15,7 +15,10 @@ import java.util.List;
 @Service
 public class HttpRateLimitService {
 
-    private static final String RATE_LIMIT_PREFIX = "pwb:ratelimit:global:";
+    private static final String RATE_LIMIT_PREFIX = "pwb:ratelimit:";
+
+    /** Scope for requests that no endpoint rule matched, and so are counted against the global limit. */
+    public static final String GLOBAL_SCOPE = "global";
 
     private static final String RATE_LIMIT_LUA_SCRIPT = """
             local key = KEYS[1]
@@ -51,9 +54,30 @@ public class HttpRateLimitService {
         rateLimitScript.setResultType(List.class);
     }
 
+    /**
+     * Counts one request against the bucket for {@code scope} and {@code subject}.
+     *
+     * <p>Both halves of the key earned their place by having been missing:
+     *
+     * <ul>
+     *   <li>The <b>scope</b> used to be absent — every request incremented one counter per caller while
+     *       the ceiling it was compared against came from whichever rule matched — so the buckets bled
+     *       into each other in both directions. Ordinary browsing consumed the tight
+     *       {@code tts-preview} allowance, and conversely that allowance never constrained previews,
+     *       because the limit enforced depended on which request happened to arrive.</li>
+     *   <li>The <b>subject</b> used to be the client IP for everyone. Behind carrier-grade NAT, a
+     *       university or an office, that is one bucket for a whole building: twenty previews a minute
+     *       shared by everybody on the same public address, with no way for an affected user to tell why
+     *       they were refused. See {@code HttpRateLimitFilter#resolveSubject} for how a caller is
+     *       identified now.</li>
+     * </ul>
+     *
+     * @param scope   identifies the bucket: an endpoint rule's name, or {@link #GLOBAL_SCOPE}
+     * @param subject identifies the caller, already prefixed to say which kind of identity it is
+     */
     @SuppressWarnings("unchecked")
-    public RateLimitResult checkRateLimit(String clientIp, int limit, Duration window) {
-        String key = RATE_LIMIT_PREFIX + clientIp;
+    public RateLimitResult checkRateLimit(String scope, String subject, int limit, Duration window) {
+        String key = RATE_LIMIT_PREFIX + scope + ":" + subject;
         try {
             List<Object> result = (List<Object>) redis.execute(
                     rateLimitScript,
@@ -70,15 +94,18 @@ public class HttpRateLimitService {
             long ttl = ((Number) result.get(2)).longValue();
             long resetSeconds = ttl > 0 ? ttl : window.getSeconds();
             if (allowed == 0) {
-                recordMetric("deny", "global");
-                log.warn("Global rate limit exceeded: ip={} limit={}", clientIp, limit);
+                // Tagged and logged with the scope rather than a constant "global": with one bucket per
+                // rule, which bucket refused the request is the only thing that tells a tightened
+                // endpoint limit apart from the blanket one.
+                recordMetric("deny", scope);
+                log.warn("Rate limit exceeded: scope={} subject={} limit={}", scope, subject, limit);
                 return RateLimitResult.deny(resetSeconds);
             }
-            recordMetric("allow", "global");
+            recordMetric("allow", scope);
             return RateLimitResult.allow(remaining, resetSeconds);
         } catch (Exception ex) {
             recordMetric("allow", "fail-open");
-            log.warn("Redis unavailable for rate limit check: ip={} reason={}", clientIp, ex.getMessage());
+            log.warn("Redis unavailable for rate limit check: subject={} reason={}", subject, ex.getMessage());
             return RateLimitResult.allow(limit, window.getSeconds());
         }
     }

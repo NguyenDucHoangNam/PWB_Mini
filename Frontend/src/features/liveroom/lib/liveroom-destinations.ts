@@ -1,11 +1,18 @@
 import { API_BASE_URL } from "@/lib/constants";
+import { DEV_API_BASE_URL, PRODUCTION_API_BASE_URL } from "@/lib/site-defaults";
+
+// Only reached when API_BASE_URL is relative (server-side, where there is no window) or malformed.
+// It has to track the same environment split as constants.ts — a localhost origin baked into a
+// production bundle points the STOMP socket at the visitor's own machine.
+const fallbackApiBaseUrl =
+  process.env.NODE_ENV === "production" ? PRODUCTION_API_BASE_URL : DEV_API_BASE_URL;
 
 function backendOrigin(): string {
+  const base = typeof window === "undefined" ? fallbackApiBaseUrl : window.location.href;
   try {
-    return new URL(API_BASE_URL, typeof window === "undefined" ? "http://localhost" : window.location.href)
-      .origin;
+    return new URL(API_BASE_URL, base).origin;
   } catch {
-    return "http://localhost:8080";
+    return new URL(fallbackApiBaseUrl).origin;
   }
 }
 

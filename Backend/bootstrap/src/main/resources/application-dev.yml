@@ -77,7 +77,12 @@ pwb:
       max-file-size-bytes: ${PWB_AUDIO_MAX_FILE_SIZE_BYTES:209715200}
     tts:
       google:
-        credentials-path: ${GCP_TTS_CREDENTIALS_PATH:classpath:tts/producerworkbench-1059f8c52ba4.json}
+        # Một file ngoài source tree, không phải `classpath:`. Default cũ trỏ vào
+        # `classpath:tts/<service-account>.json`, tức là credential phải nằm trong
+        # src/main/resources — chỗ mà Maven đóng thẳng vào jar. Đường dẫn dưới đây tương đối
+        # so với working directory, và trỏ vào đúng file mà docker-compose.prod.yml mount
+        # làm secret, nên dev và prod không lệch nhau.
+        credentials-path: ${GCP_TTS_CREDENTIALS_PATH:secrets/gcp-tts.json}
   outbox:
     enabled: true
     relay:

@@ -3,7 +3,12 @@ spring:
     name: pwb-backend
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
-    include: dev-users
+    # The demo accounts in application-dev-users.yml include two ADMINs with a shared password, so
+    # that profile must never follow the application into production. A profile group binds it to
+    # `dev` alone. `profiles.include` cannot express this — Spring Boot rejects that property in a
+    # profile-specific document, which is why the include used to sit here unconditionally instead.
+    group:
+      dev: dev-users
   jpa:
     open-in-view: false
   jackson:
@@ -39,6 +44,17 @@ server:
   forward-headers-strategy: framework
 
 management:
+  endpoints:
+    web:
+      exposure:
+        # Both of these restate Spring Boot's own defaults. They are written out because the
+        # defaults are what production depends on: exposing more than health would describe the
+        # application's internals to anyone who reaches the port, and health details would name
+        # infrastructure hosts. A future `include: "*"` added for debugging should look wrong here.
+        include: health
+  endpoint:
+    health:
+      show-details: never
   health:
     elasticsearch:
       # Search degrades to a database query when the cluster is gone, so its absence must not mark the
@@ -53,8 +69,11 @@ logging:
 
 pwb:
   cors:
-    allowed-origins:
-      - http://localhost:3000
+    # A comma-separated string, not a YAML list. Both readers (WebMvcConfig and the live room's
+    # WebSocketConfig) bind this with @Value, which resolves the key verbatim and never sees the
+    # indexed keys a YAML list expands into. Written as a list this value was silently ignored and
+    # both readers fell through to the localhost default baked into their own annotations.
+    allowed-origins: ${PWB_CORS_ALLOWED_ORIGINS:http://localhost:3000}
   rate-limit:
     endpoint-limits:
       # Every preview is a billed Google TTS synthesis, so it gets a much tighter cap than the
@@ -81,13 +100,21 @@ pwb:
     reindex-page-size: 200
   iam:
     jwt:
-      secret: ${APP_JWT_SECRET:change-me-change-me-change-me-change-me-1234567890}
+      # No default on purpose: a fallback here is a signing key published in the repository, and an
+      # environment that forgot to set the variable would boot and mint tokens anybody can forge.
+      # Failing to start is the loud, safe outcome.
+      secret: ${APP_JWT_SECRET}
       issuer: pwb-iam
       audience: pwb-clients
       access-ttl-seconds: 900
       clock-skew-seconds: 30
     security:
       public-endpoints:
+        # Stated here so the container healthcheck's dependency is visible in configuration rather
+        # than only in code. SecurityConfig.DEFAULT_PUBLIC_ENDPOINTS already permits this path and
+        # merges its list with this one, so removing the line changes nothing — which is exactly why
+        # it is worth writing down.
+        - /actuator/health
         # The WebSocket handshake carries no Authorization header — a browser cannot set one on it.
         # Authentication happens on the STOMP CONNECT frame instead, so the handshake itself is open.
         - /ws/**
@@ -136,7 +163,8 @@ pwb:
       # Presigned URLs are minted per profile read, so they only need to outlive one page view.
       url-ttl: 15m
     password-reset:
-      token-secret: ${APP_PASSWORD_RESET_TOKEN_SECRET:dev-only-not-secure-replace-in-production-32chars}
+      # Unset must fail the startup rather than fall back — see the note on pwb.iam.jwt.secret.
+      token-secret: ${APP_PASSWORD_RESET_TOKEN_SECRET}
       token-ttl-minutes: 30
       cooldown-seconds: 60
       frontend-url: ${FRONTEND_URL:http://localhost:3000}

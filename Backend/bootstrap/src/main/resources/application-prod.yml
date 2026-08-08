@@ -1,8 +1,12 @@
 spring:
+  # Every variable below uses Spring Boot's own relaxed-binding name for the property it fills, which
+  # is also what application-dev.yml and the repository .env already use. They previously carried
+  # bespoke names (POSTGRES_URL, MAIL_HOST) that existed nowhere else, so a correctly populated
+  # environment still failed to start with an unresolvable-placeholder error.
   datasource:
-    url: ${POSTGRES_URL}
-    username: ${POSTGRES_USERNAME}
-    password: ${POSTGRES_PASSWORD}
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -26,14 +30,21 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
     consumer:
-      group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID}
+      group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID:pwb-backend}
       auto-offset-reset: earliest
 
+  # No default: application.yml falls back to http://localhost:9200, which inside the backend
+  # container resolves to the container itself. Every query would then fail and fall through to
+  # Postgres — search keeps answering, so nothing surfaces the misconfiguration except the log line
+  # `SEARCH.* fallback to database` appearing on every request.
+  elasticsearch:
+    uris: ${SPRING_ELASTICSEARCH_URIS}
+
   mail:
-    host: ${MAIL_HOST}
-    port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
+    host: ${SPRING_MAIL_HOST}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME}
+    password: ${SPRING_MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -59,7 +70,35 @@ app:
     from-name: ${MAIL_FROM_NAME:PWB}
 
 pwb:
+  # No default, unlike application.yml which allows localhost:3000 for development. An unset value
+  # here would leave production serving CORS headers for localhost, which rejects the real frontend
+  # on both REST and the live room WebSocket handshake without logging a server-side error.
+  cors:
+    allowed-origins: ${PWB_CORS_ALLOWED_ORIGINS}
+
+  iam:
+    password-reset:
+      # The reset link mailed to the user is built from this. application.yml defaults it to
+      # http://localhost:3000 for development; left unset in production every recipient gets a link
+      # pointing at their own machine. Nothing on the server fails, the mail sends normally, and the
+      # breakage only shows up when someone clicks it — so this must fail startup instead.
+      frontend-url: ${FRONTEND_URL}
+
   audio:
+    tts:
+      google:
+        # Mounted as a secret rather than packaged: no credential ever sits under
+        # src/main/resources, so nothing can be baked into the jar by a stray `mvn package`.
+        #
+        # A bare filesystem path, with no `file:` prefix. GoogleTtsAdapter.openCredentials resolves
+        # this itself rather than through Spring's ResourceLoader: it special-cases `classpath:`,
+        # then falls back to `new File(path)`. A `file:` prefix therefore matches neither branch —
+        # `new File("file:/run/secrets/gcp-tts.json")` is a relative path that does not exist — and
+        # the classpath fallback behind it throws FileNotFoundException. The adapter catches that,
+        # logs one WARN, and leaves the client null, so TTS answers AUDIO_016 for every request
+        # while the application stays healthy. Verify with the log line at startup, not with
+        # /actuator/health.
+        credentials-path: ${GCP_TTS_CREDENTIALS_PATH:/run/secrets/gcp-tts.json}
     processor:
       # ffmpeg and ffprobe ship in the application image on PATH; see Backend/Dockerfile.
       ffmpeg-dir: ${PWB_AUDIO_FFMPEG_DIR:}

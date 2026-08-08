@@ -981,7 +981,21 @@
       "genericError": "Something went wrong. Please try again.",
       "fileRequired": "Please select an audio file",
       "invalidDuration": "Unable to determine audio duration. Please select a valid audio file.",
-      "duplicateVoiceTagName": "Voice tag name already exists"
+      "duplicateVoiceTagName": "Voice tag name already exists",
+      "fileSizeExceeded": "File is larger than the allowed limit",
+      "fileEmpty": "The selected file is empty",
+      "invalidAudioFile": "This file is not a readable audio file",
+      "uploadNotFound": "The uploaded file could not be found. Please upload again.",
+      "storageError": "Could not reach file storage. Please try again.",
+      "unauthorizedAccess": "You do not have permission to access this item",
+      "intervalShorterThanTag": "Interval must be longer than the voice tag itself",
+      "retryNotAllowed": "Only a song whose processing failed can be reprocessed",
+      "processingTimedOut": "Processing took too long and was stopped. Please try again.",
+      "voiceTagTooLong": "The voice tag clip is longer than the allowed limit",
+      "textRequired": "Please enter the text to synthesize",
+      "ttsFailed": "Speech synthesis failed. Please try again.",
+      "ttsUnavailable": "Text-to-speech is temporarily unavailable",
+      "ttsVoiceNotSupported": "That voice is not available for the selected language"
     },
     "actions": {
       "create": "Create new",

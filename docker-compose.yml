@@ -20,21 +20,6 @@ services:
       timeout: 5s
       retries: 5
 
-  mongodb:
-    image: mongo:7.0
-    container_name: pwb-mongodb
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-    networks:
-      - pwb-network
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   redis:
     image: redis:7.2-alpine
     container_name: pwb-redis
@@ -106,8 +91,6 @@ services:
 
 volumes:
   postgres_data:
-    driver: local
-  mongodb_data:
     driver: local
   redis_data:
     driver: local

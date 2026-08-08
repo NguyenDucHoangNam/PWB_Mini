@@ -32,6 +32,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -49,6 +50,28 @@ import java.util.UUID;
 
 /**
  * Every route below is authenticated by the security filter chain, so {@code userId} is always present.
+ *
+ * <p>Beyond authentication, the routes that <em>create</em> something carry {@code @PreAuthorize} for the
+ * PRO role; the ones that read or tidy up existing rows do not. The split is deliberate rather than a
+ * half-finished blanket rule:
+ *
+ * <ul>
+ *   <li>Creation is what costs money — a presigned PUT invites bytes into the bucket, and registering a
+ *       song with a voice tag queues an FFmpeg render. Those are the routes a free account must not reach,
+ *       and until now nothing but the frontend's own {@code useProGuard} stopped it, so a plain
+ *       {@code curl} with any valid token had the paid feature set.</li>
+ *   <li>Reading is harmless: every query is already scoped to the caller's own rows, so a free account
+ *       sees an empty library rather than somebody else's. Guarding reads too would break the live room's
+ *       song picker, which any participant may open — see
+ *       {@code SelectSongUseCaseImpl}, where selecting a track is allowed for anyone in the room as long
+ *       as the track is theirs.</li>
+ *   <li>Editing a title and deleting stay open on purpose. A PRO account that lapses keeps the ability to
+ *       reach and remove what it already uploaded; locking someone out of their own data is a worse
+ *       outcome than letting them tidy it up.</li>
+ * </ul>
+ *
+ * <p>{@code hasRole('PRO')} matches the live room's {@code Actor.isPro()} exactly, ADMIN included: neither
+ * treats an administrator as a subscriber, so an ADMIN is refused here just as it is refused a new room.
  */
 @RestController
 @RequestMapping("/api/v1/songs")
@@ -73,6 +96,7 @@ public class SongController {
     private final MessageResolver messageResolver;
 
     @PostMapping("/upload-url")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<UploadUrlResponse>> createUploadUrl(
             @CurrentUser UUID userId,
             @Valid @RequestBody UploadUrlRequest request
@@ -86,6 +110,7 @@ public class SongController {
      * Registers a song whose audio the client has already put into storage using an upload URL.
      */
     @PostMapping
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<SongResponse>> createSong(
             @CurrentUser UUID userId,
             @Valid @RequestBody CreateSongRequest request
@@ -215,6 +240,7 @@ public class SongController {
      * Re-runs a merge that failed. Any other status is rejected — a song that finished merging is final.
      */
     @PostMapping("/{songId}/retry-processing")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<SongResponse>> retryProcessing(
             @CurrentUser UUID userId,
             @PathVariable UUID songId

@@ -1,21 +1,42 @@
 import type { ApiError } from "@/lib/api-client";
 
+// The audio module's codes. They were `VOICE_0xx` until the module was renamed to `audio`; the entries
+// here kept the old names long afterwards, so not one of the 27 codes the backend actually sends matched
+// anything. Nothing broke visibly — `resolveVoiceErrorMessage` falls through to the server's own
+// localized message — which is exactly why it went unnoticed: every translation below was dead, and the
+// text users saw came from `Backend/modules/audio/src/main/resources/audio/messages*.properties`.
+//
+// Several codes deliberately share one key. A user cannot act differently on "FFmpeg produced empty
+// output" than on "processing failed", and telling them which internal step broke is noise; the
+// distinction stays in the server logs, where it belongs.
 const EXACT_ERROR_CODE_TO_I18N_KEY: Record<string, string> = {
-  VOICE_001: "voice.errors.voiceTagNotFound",
-  VOICE_002: "voice.errors.songNotFound",
-  VOICE_003: "voice.errors.unsupportedFormat",
-  VOICE_004: "voice.errors.fileTooLarge",
-  VOICE_005: "voice.errors.processingFailed",
-  VOICE_006: "voice.errors.processingFailed",
-  VOICE_007: "voice.errors.intervalInvalid",
-  VOICE_008: "voice.errors.duplicateVoiceTagName",
-  VOICE_009: "voice.errors.streamNotReady",
-  VOICE_010: "voice.errors.proOnly",
-  VOICE_011: "voice.errors.voiceTagInUse",
-  VOICE_012: "voice.errors.textTooLong",
-  VOICE_013: "voice.errors.invalidLanguageCode",
-  VOICE_015: "voice.errors.processingInProgress",
-  VOICE_TAG_IN_USE: "voice.errors.voiceTagInUse",
+  AUDIO_001: "voice.errors.songNotFound",
+  AUDIO_002: "voice.errors.voiceTagNotFound",
+  AUDIO_003: "voice.errors.genericError",
+  AUDIO_004: "voice.errors.unsupportedFormat",
+  AUDIO_005: "voice.errors.fileSizeExceeded",
+  AUDIO_006: "voice.errors.duplicateVoiceTagName",
+  AUDIO_007: "voice.errors.voiceTagInUse",
+  AUDIO_008: "voice.errors.streamNotReady",
+  AUDIO_010: "voice.errors.storageError",
+  AUDIO_011: "voice.errors.ttsFailed",
+  AUDIO_012: "voice.errors.unauthorizedAccess",
+  AUDIO_013: "voice.errors.processingFailed",
+  AUDIO_014: "voice.errors.invalidAudioFile",
+  AUDIO_015: "voice.errors.invalidAudioFile",
+  AUDIO_016: "voice.errors.ttsUnavailable",
+  AUDIO_017: "voice.errors.textRequired",
+  AUDIO_018: "voice.errors.fileEmpty",
+  AUDIO_019: "voice.errors.unsupportedFormat",
+  AUDIO_020: "voice.errors.genericError",
+  AUDIO_021: "voice.errors.processingFailed",
+  AUDIO_022: "voice.errors.intervalShorterThanTag",
+  AUDIO_023: "voice.errors.processingFailed",
+  AUDIO_024: "voice.errors.uploadNotFound",
+  AUDIO_025: "voice.errors.ttsVoiceNotSupported",
+  AUDIO_026: "voice.errors.retryNotAllowed",
+  AUDIO_027: "voice.errors.voiceTagTooLong",
+  AUDIO_028: "voice.errors.processingTimedOut",
 
   LR_001: "liveroom.errors.roomNotFound",
   LR_002: "liveroom.errors.roomEnded",
