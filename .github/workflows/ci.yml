@@ -8,8 +8,15 @@ name: CI
 
 on:
   pull_request:
+  # `main` is deliberately absent. A push there already runs this workflow as deploy.yml's `test`
+  # job, and a second standalone run lands in the same concurrency group below — same ref, so the
+  # one that starts second cancels the other. Which one loses is a race decided by the scheduler.
+  # Losing the standalone run costs nothing; losing the one inside Deploy skips `build` and `deploy`
+  # through `needs:`, so the merge reports "cancelled" rather than "failed" and production is
+  # quietly left on the previous version. Coverage is unchanged: PRs into main run this through
+  # `pull_request`, and a direct push to main runs it through Deploy.
   push:
-    branches: [develop, main]
+    branches: [develop]
   workflow_call:
 
 concurrency:
