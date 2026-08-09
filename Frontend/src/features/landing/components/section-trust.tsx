@@ -4,13 +4,11 @@ import type { LucideIcon } from "lucide-react";
 import { Fingerprint, KeyRound, Timer, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
-  Eyebrow,
   Reveal,
   RevealGroup,
   RevealItem,
   Section,
-  SectionLead,
-  SectionTitle,
+  SectionHeader,
 } from "@/components/marketing/section-primitives";
 
 const ITEMS = [
@@ -41,20 +39,21 @@ export function SectionTrust() {
   const t = useTranslations("landing.trust");
 
   return (
-    <Section tone="raised">
+    <Section tone="trough">
       <span
         aria-hidden="true"
-        className="staff-lines absolute inset-x-0 top-0 h-20"
+        className="staff-lines pointer-events-none absolute inset-x-0 top-0 h-20"
         style={{ maskImage: FADE_DOWN, WebkitMaskImage: FADE_DOWN }}
       />
 
-      <Reveal className="relative">
-        <Eyebrow>{t("eyebrow")}</Eyebrow>
-        <SectionTitle>{t("title")}</SectionTitle>
-        <SectionLead>{t("lead")}</SectionLead>
-      </Reveal>
+      <SectionHeader
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        lead={t("lead")}
+        align="center"
+      />
 
-      <RevealGroup className="relative mt-14 grid gap-6 sm:grid-cols-2 lg:mt-16">
+      <RevealGroup className="relative mt-14 grid gap-7 sm:grid-cols-2 lg:mt-16">
         {ITEMS.map(({ key, icon }) => (
           <TrustItem
             key={key}
@@ -65,21 +64,24 @@ export function SectionTrust() {
         ))}
       </RevealGroup>
 
-      <Reveal className="relative mt-12 flex flex-wrap items-center gap-x-3 gap-y-3">
-        <span className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">
-          {t("stackLabel")}
-        </span>
-        <span aria-hidden="true" className="h-0.5 w-6 bg-indigo-600 dark:bg-indigo-400" />
-        <ul className="flex flex-wrap gap-2.5">
-          {STACK.map((tool) => (
-            <li
-              key={tool}
-              className="neu-pressed-sm rounded-full bg-[#e0e5ec] px-4 py-1.5 font-mono text-xs font-semibold text-slate-700 dark:bg-[#1e222b] dark:text-slate-300"
-            >
-              {tool}
-            </li>
-          ))}
-        </ul>
+      {/* The stack sits in a tray rather than loose on the plate, so it reads as a
+          footnote to the section instead of a fifth card. */}
+      <Reveal className="relative mt-12">
+        <div className="neu-pressed flex flex-col gap-5 rounded-3xl px-6 py-7 sm:flex-row sm:items-center sm:gap-7 sm:px-8">
+          <span className="shrink-0 font-mono text-xs font-bold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">
+            {t("stackLabel")}
+          </span>
+          <ul className="flex flex-wrap gap-2.5">
+            {STACK.map((tool) => (
+              <li
+                key={tool}
+                className="neu-raised-sm rounded-full px-4 py-1.5 font-mono text-xs font-semibold text-slate-700 dark:text-slate-300"
+              >
+                {tool}
+              </li>
+            ))}
+          </ul>
+        </div>
       </Reveal>
     </Section>
   );
@@ -88,12 +90,14 @@ export function SectionTrust() {
 function TrustItem({ icon: Icon, title, body }: { icon: LucideIcon; title: string; body: string }) {
   return (
     <RevealItem className="h-full">
-      <article className="neu-raised flex h-full flex-col rounded-3xl border-none bg-[#e0e5ec] p-7 sm:p-8 dark:bg-[#1e222b]">
-        <span className="neu-pressed-sm flex size-11 items-center justify-center rounded-2xl bg-[#e0e5ec] text-indigo-600 dark:bg-[#1e222b] dark:text-indigo-400">
+      <article className="neu-lift flex h-full items-start gap-5 rounded-3xl border-none p-7 sm:p-8">
+        <span className="neu-pressed flex size-12 shrink-0 items-center justify-center rounded-2xl text-indigo-600 dark:text-indigo-400">
           <Icon className="size-5" aria-hidden="true" />
         </span>
-        <h3 className="mt-5 text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">{title}</h3>
-        <p className="mt-2.5 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{body}</p>
+        <div>
+          <h3 className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">{title}</h3>
+          <p className="mt-2.5 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{body}</p>
+        </div>
       </article>
     </RevealItem>
   );

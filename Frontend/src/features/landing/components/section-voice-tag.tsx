@@ -1,15 +1,16 @@
 "use client";
 
+import { Fragment } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import {
-  Eyebrow,
+  Groove,
+  NumberedPoint,
   Reveal,
   RevealGroup,
   RevealItem,
   Section,
-  SectionLead,
-  SectionTitle,
+  SectionHeader,
   pseudoRandom,
 } from "@/components/marketing/section-primitives";
 
@@ -43,56 +44,27 @@ export function SectionVoiceTag() {
 
   return (
     <Section>
-      <Reveal>
-        <Eyebrow>{t("eyebrow")}</Eyebrow>
-        <SectionTitle>{t("title")}</SectionTitle>
-        <SectionLead>{t("lead")}</SectionLead>
-      </Reveal>
+      <SectionHeader eyebrow={t("eyebrow")} title={t("title")} lead={t("lead")} />
 
-      <div className="mt-14 grid items-start gap-12 lg:mt-16 lg:grid-cols-2 lg:gap-16">
+      <div className="mt-14 grid items-start gap-12 lg:mt-16 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)] lg:gap-16">
         <RevealGroup>
+          {/* Fragment, not a wrapper div: framer-motion only propagates variants through
+              motion children, so a plain element here would strand the reveal. */}
           {POINT_KEYS.map((key, index) => (
-            <RevealItem
-              key={key}
-              className="flex gap-5 border-b border-border py-6 first:pt-0 last:border-b-0"
-            >
-              <span className="mt-0.5 font-mono text-xs tabular-nums text-muted-foreground">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-              <div>
-                <h3 className="text-lg font-semibold tracking-tight text-foreground">
-                  {t(`${key}Title`)}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  {t(`${key}Body`)}
-                </p>
-              </div>
-            </RevealItem>
+            <Fragment key={key}>
+              {index > 0 && <Groove className="my-7" />}
+              <NumberedPoint
+                index={index + 1}
+                title={t(`${key}Title`)}
+                body={t(`${key}Body`)}
+              />
+            </Fragment>
           ))}
-
-          <RevealItem>
-            <p className="mt-10 font-mono text-xs font-bold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">
-              {t("specTitle")}
-            </p>
-            <dl className="mt-4 grid grid-cols-2 gap-4">
-              {SPEC_KEYS.map((key) => (
-                <div key={key} className="neu-raised-sm rounded-2xl bg-[#e0e5ec] p-5 dark:bg-[#1e222b]">
-                  <dt className="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
-                    {t(`${key}Label`)}
-                  </dt>
-                  <dd className="mt-2.5 text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                    {t(`${key}Value`)}
-                  </dd>
-                  <dd className="mt-1 font-mono text-xs text-slate-600 dark:text-slate-400">
-                    {t(`${key}Note`)}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </RevealItem>
         </RevealGroup>
 
-        <Reveal>
+        {/* Sticks while the points scroll past, so the waveform stays on screen for the
+            paragraph that describes it. */}
+        <Reveal className="lg:sticky lg:top-28">
           <TagTimeline
             trackLabel={t("trackLabel")}
             trackStatus={t("trackStatus")}
@@ -100,6 +72,31 @@ export function SectionVoiceTag() {
           />
         </Reveal>
       </div>
+
+      <RevealGroup className="mt-16">
+        <RevealItem>
+          <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">
+            {t("specTitle")}
+          </p>
+        </RevealItem>
+        <dl className="mt-5 grid grid-cols-2 gap-5 lg:grid-cols-4">
+          {SPEC_KEYS.map((key) => (
+            <RevealItem key={key} className="h-full">
+              <div className="neu-raised-sm flex h-full flex-col rounded-2xl p-5">
+                <dt className="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                  {t(`${key}Label`)}
+                </dt>
+                <dd className="mt-2.5 text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                  {t(`${key}Value`)}
+                </dd>
+                <dd className="mt-1 font-mono text-xs text-slate-600 dark:text-slate-400">
+                  {t(`${key}Note`)}
+                </dd>
+              </div>
+            </RevealItem>
+          ))}
+        </dl>
+      </RevealGroup>
     </Section>
   );
 }
@@ -114,10 +111,10 @@ function TagTimeline({ trackLabel, trackStatus, tagMarker }: TagTimelineProps) {
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <figure className="neu-raised rounded-3xl border-none bg-[#e0e5ec] p-6 sm:p-8 dark:bg-[#1e222b]">
+    <figure className="neu-raised-lg rounded-3xl border-none p-6 sm:p-8">
       <figcaption className="flex items-center justify-between gap-4">
         <span className="font-mono text-sm font-bold text-slate-900 dark:text-slate-100">{trackLabel}</span>
-        <span className="neu-pressed-sm inline-flex items-center gap-2 rounded-full bg-[#e0e5ec] px-4 py-1.5 font-mono text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 dark:bg-[#1e222b] dark:text-slate-300">
+        <span className="neu-pressed-sm inline-flex items-center gap-2 rounded-full px-4 py-1.5 font-mono text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-300">
           <span className="waveform" aria-hidden="true" data-state={prefersReducedMotion ? "paused" : undefined}>
             <span className="bg-indigo-600 dark:bg-indigo-400" />
             <span className="bg-indigo-600 dark:bg-indigo-400" />
@@ -134,7 +131,7 @@ function TagTimeline({ trackLabel, trackStatus, tagMarker }: TagTimelineProps) {
           {TAG_WINDOWS.map((start) => (
             <motion.span
               key={start}
-              className="neu-raised-sm absolute top-0 -translate-x-1/2 rounded-xl bg-indigo-600 px-3 py-1 font-mono text-xs font-bold tracking-[0.14em] text-white"
+              className="absolute top-0 -translate-x-1/2 rounded-xl bg-indigo-600 px-3 py-1 font-mono text-xs font-bold tracking-[0.14em] text-white shadow-neu-raised-sm dark:bg-indigo-500"
               style={{ left: `${((start + TAG_WIDTH_BARS / 2) / BAR_COUNT) * 100}%` }}
               initial={{ opacity: 0.4 }}
               animate={prefersReducedMotion ? { opacity: 0.7 } : { opacity: [0.4, 1, 0.4] }}
@@ -150,45 +147,49 @@ function TagTimeline({ trackLabel, trackStatus, tagMarker }: TagTimelineProps) {
           ))}
         </div>
 
-        <div className="@container relative h-32 w-full">
-          {TAG_WINDOWS.map((start) => (
-            <span
-              key={start}
-              className="absolute inset-y-0 w-px border-l border-dashed border-slate-400/40 dark:border-slate-600/40"
-              style={{ left: `${((start + TAG_WIDTH_BARS / 2) / BAR_COUNT) * 100}%` }}
+        {/* The waveform is cut into the card rather than sitting on it — the deepest
+            surface on the page, which is what makes the raised card read as a device. */}
+        <div className="neu-pressed relative mt-1 h-36 w-full rounded-2xl p-4">
+          <div className="@container relative h-full w-full">
+            {TAG_WINDOWS.map((start) => (
+              <span
+                key={start}
+                className="neu-groove-v absolute inset-y-3 opacity-70"
+                style={{ left: `${((start + TAG_WIDTH_BARS / 2) / BAR_COUNT) * 100}%` }}
+              />
+            ))}
+
+            <BarRow className="bg-slate-400/30 dark:bg-slate-600/30" />
+
+            <motion.div
+              className="absolute inset-y-0 left-0 overflow-hidden"
+              initial={{ width: "0%" }}
+              animate={prefersReducedMotion ? { width: "38%" } : { width: ["0%", "100%"] }}
+              transition={{
+                duration: PLAYHEAD_SECONDS,
+                ease: "linear",
+                repeat: prefersReducedMotion ? 0 : Infinity,
+              }}
+            >
+              <div className="absolute inset-y-0 left-0 w-[100cqw]">
+                <BarRow className="bg-indigo-600 dark:bg-indigo-400" />
+              </div>
+            </motion.div>
+
+            <motion.span
+              className="absolute inset-y-2 w-1 rounded-full bg-indigo-600 shadow-neu-raised-sm dark:bg-indigo-400"
+              initial={{ left: "0%" }}
+              animate={prefersReducedMotion ? { left: "38%" } : { left: ["0%", "100%"] }}
+              transition={{
+                duration: PLAYHEAD_SECONDS,
+                ease: "linear",
+                repeat: prefersReducedMotion ? 0 : Infinity,
+              }}
             />
-          ))}
-
-          <BarRow className="bg-slate-400/30 dark:bg-slate-600/30" />
-
-          <motion.div
-            className="absolute inset-y-0 left-0 overflow-hidden"
-            initial={{ width: "0%" }}
-            animate={prefersReducedMotion ? { width: "38%" } : { width: ["0%", "100%"] }}
-            transition={{
-              duration: PLAYHEAD_SECONDS,
-              ease: "linear",
-              repeat: prefersReducedMotion ? 0 : Infinity,
-            }}
-          >
-            <div className="absolute inset-y-0 left-0 w-[100cqw]">
-              <BarRow className="bg-indigo-600 dark:bg-indigo-400" />
-            </div>
-          </motion.div>
-
-          <motion.span
-            className="absolute inset-y-0 w-0.5 bg-indigo-600 dark:bg-indigo-400"
-            initial={{ left: "0%" }}
-            animate={prefersReducedMotion ? { left: "38%" } : { left: ["0%", "100%"] }}
-            transition={{
-              duration: PLAYHEAD_SECONDS,
-              ease: "linear",
-              repeat: prefersReducedMotion ? 0 : Infinity,
-            }}
-          />
+          </div>
         </div>
 
-        <div className="mt-4 flex items-center justify-between border-t border-slate-300/40 dark:border-slate-700/40 pt-3 font-mono text-xs font-semibold text-slate-500 dark:text-slate-400">
+        <div className="mt-5 flex items-center justify-between font-mono text-xs font-semibold text-slate-500 dark:text-slate-400">
           <span>0:00</span>
           <span>0:30</span>
           <span>1:00</span>

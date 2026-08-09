@@ -19,6 +19,7 @@ import {
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { useListRooms, useSearchRooms } from "../../api/rooms";
+import { CreateRoomDialog } from "./create-room-dialog";
 import { EndRoomDialog } from "./end-room-dialog";
 import { ReopenRoomDialog } from "./reopen-room-dialog";
 import { RoomCard } from "./room-card";
@@ -35,6 +36,7 @@ export function LiveroomList() {
   const t = useTranslations("liveroom.list");
   const [status, setStatus] = useState<RoomStatus>("ACTIVE");
   const [page, setPage] = useState(0);
+  const [createOpen, setCreateOpen] = useState(false);
   const [endTarget, setEndTarget] = useState<Room | null>(null);
   const [reopenTarget, setReopenTarget] = useState<Room | null>(null);
   const [keyword, setKeyword] = useState("");
@@ -87,10 +89,10 @@ export function LiveroomList() {
               <KeyRound className="size-4" aria-hidden="true" />
               {t("joinByCode")}
             </Link>
-            <Link href="/dashboard/liveroom/new" className={neuButton({ variant: "primary" })}>
+            <NeuButton variant="primary" onClick={() => setCreateOpen(true)}>
               <Plus className="size-4" aria-hidden="true" />
               {t("create")}
-            </Link>
+            </NeuButton>
           </>
         }
       />
@@ -195,6 +197,7 @@ export function LiveroomList() {
         />
       </div>
 
+      <CreateRoomDialog open={createOpen} onOpenChange={setCreateOpen} />
       <EndRoomDialog
         room={endTarget}
         open={Boolean(endTarget)}

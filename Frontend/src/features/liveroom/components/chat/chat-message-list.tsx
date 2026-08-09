@@ -57,7 +57,7 @@ export function ChatMessageList({ roomId }: { roomId: string }) {
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto"
+        className="neu-scroll-thin flex-1 overflow-y-auto"
         aria-live="polite"
       >
         {hasMore ? (

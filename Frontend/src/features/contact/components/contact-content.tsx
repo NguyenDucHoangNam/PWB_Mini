@@ -6,6 +6,7 @@ import { Check, Copy, Globe, Mail, Phone } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Eyebrow } from "@/components/marketing/section-primitives";
+import { ScrambleText } from "@/components/ui/scramble-text";
 import { FacebookIcon, InstagramIcon } from "./brand-icons";
 import {
   CONTACT_EMAIL,
@@ -13,6 +14,7 @@ import {
   CONTACT_PHONE_TEL,
   CONTACT_PORTRAIT,
   CONTACT_SOCIALS,
+  PARTNER_NAME,
   type SocialKey,
 } from "../lib/contact-details";
 
@@ -64,8 +66,11 @@ export function ContactContent() {
 
             <h1 className="mt-4 max-w-3xl text-balance font-heading text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl lg:text-4xl dark:text-slate-100">
               {t.rich("title", {
-                partner: (chunks) => (
-                  <span className="text-indigo-600 dark:text-indigo-400">{chunks}</span>
+                partner: () => (
+                  <ScrambleText
+                    text={PARTNER_NAME}
+                    className="text-indigo-600 dark:text-indigo-400"
+                  />
                 ),
               })}
             </h1>

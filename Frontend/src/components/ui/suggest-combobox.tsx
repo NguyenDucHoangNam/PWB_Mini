@@ -121,7 +121,7 @@ export function SuggestCombobox<T>({
         <ul
           id={listId}
           role="listbox"
-          className="neu-raised absolute z-50 mt-2.5 max-h-64 w-full overflow-y-auto rounded-2xl border-none p-2"
+          className="neu-raised neu-scroll-thin absolute z-50 mt-2.5 max-h-64 w-full overflow-y-auto rounded-2xl border-none p-2"
         >
           {items.length === 0 ? (
             <li className={cn("px-3 py-2 text-xs font-medium", NEU_TEXT_MUTED)}>

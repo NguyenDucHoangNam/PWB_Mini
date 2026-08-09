@@ -98,7 +98,7 @@ export function SongPickerDialog({ open, onOpenChange, onPick }: SongPickerDialo
               )}
             </div>
           ) : (
-            <ul className="max-h-[50vh] overflow-y-auto">
+            <ul className="neu-scroll-thin max-h-[50vh] overflow-y-auto">
               {songs.map((song) => (
                 <li key={song.id}>
                   <button

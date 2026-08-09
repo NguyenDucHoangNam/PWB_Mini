@@ -38,7 +38,7 @@ export function ParticipantList({ roomId }: { roomId: string }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <ul className="flex flex-1 flex-col gap-2 overflow-y-auto p-2.5">
+      <ul className="neu-scroll-thin flex flex-1 flex-col gap-2 overflow-y-auto p-2.5">
         {ordered.length === 0 ? (
           <li className={`px-2 py-6 text-center text-sm font-medium ${NEU_TEXT_MUTED}`}>
             {t("empty")}
