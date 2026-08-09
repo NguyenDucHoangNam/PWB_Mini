@@ -10,7 +10,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import {
+  NEU_DIALOG_CONTENT,
+  NEU_DIALOG_FOOTER,
+  NEU_TEXT,
+  NEU_TEXT_MUTED,
+  NeuButton,
+} from "@/components/ui/neu";
 import { asApiError } from "@/lib/api-client";
 import { useKickParticipant } from "../../api/participants";
 import { resolveLiveroomErrorMessage } from "../../lib/resolve-liveroom-error-message";
@@ -51,22 +57,22 @@ export function KickParticipantDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {open && participant ? (
-        <DialogContent>
+        <DialogContent showCloseButton={false} className={NEU_DIALOG_CONTENT}>
           <DialogHeader>
-            <DialogTitle>{t("kickConfirmTitle", { name: displayName(participant) })}</DialogTitle>
-            <DialogDescription>{t("kickConfirmBody")}</DialogDescription>
+            <DialogTitle className={`text-lg font-bold ${NEU_TEXT}`}>{t("kickConfirmTitle", { name: displayName(participant) })}</DialogTitle>
+            <DialogDescription className={NEU_TEXT_MUTED}>{t("kickConfirmBody")}</DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
+          <DialogFooter className={NEU_DIALOG_FOOTER}>
+            <NeuButton onClick={() => onOpenChange(false)} disabled={isPending}>
               {tCommon("cancel")}
-            </Button>
-            <Button
-              variant="destructive"
+            </NeuButton>
+            <NeuButton
+              variant="danger"
               disabled={isPending}
               onClick={() => kick({ roomId, targetUserId: participant.userId })}
             >
               {t("kick")}
-            </Button>
+            </NeuButton>
           </DialogFooter>
         </DialogContent>
       ) : null}

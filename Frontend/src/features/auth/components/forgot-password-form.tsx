@@ -5,11 +5,19 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useForgotPassword } from "../api/forgot-password";
 import { useRetryCountdown } from "../hooks/use-retry-countdown";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { asApiError } from "@/lib/api-client";
+import {
+  NEU_ACCENT_TEXT,
+  NEU_DANGER_TEXT,
+  NEU_INPUT,
+  NEU_LABEL,
+  NEU_TEXT,
+  NEU_TEXT_MUTED,
+  NeuButton,
+} from "@/components/ui/neu";
 
 export function ForgotPasswordForm() {
   const t = useTranslations("auth.forgot");
@@ -62,7 +70,7 @@ export function ForgotPasswordForm() {
   if (isSubmitted) {
     return (
       <div className="flex flex-col gap-6 text-center font-sans">
-        <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200">
+        <div className="neu-pressed mx-auto flex size-16 items-center justify-center rounded-full border-none text-indigo-600 dark:text-indigo-400">
           <svg
             className="size-8"
             fill="none"
@@ -79,18 +87,18 @@ export function ForgotPasswordForm() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
+          <h1 className={`text-2xl font-bold tracking-tight ${NEU_TEXT}`}>
             {t("submittedTitle")}
           </h1>
-          <p className="text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">
+          <p className={`text-sm font-medium leading-relaxed ${NEU_TEXT_MUTED}`}>
             {t("submittedDesc")}
           </p>
         </div>
 
         <Link href="/login" className="mt-2 w-full">
-          <Button variant="default" size="lg" className="w-full h-11 text-sm font-semibold">
+          <NeuButton variant="primary" size="lg" className="w-full">
             {t("backToLoginBtn")}
-          </Button>
+          </NeuButton>
         </Link>
       </div>
     );
@@ -99,23 +107,23 @@ export function ForgotPasswordForm() {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6 font-sans">
       <div className="flex flex-col gap-2 text-center">
-        <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
+        <h1 className={`text-2xl font-bold tracking-tight ${NEU_TEXT}`}>
           {t("title")}
         </h1>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("infoText")}</p>
+        <p className={`text-sm font-medium ${NEU_TEXT_MUTED}`}>{t("infoText")}</p>
       </div>
 
       {error && (
         <div
           role="alert"
-          className="rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-600 dark:bg-red-950/20 dark:text-red-400 border border-red-100/50 dark:border-red-950/30"
+          className={`neu-pressed rounded-2xl border-none p-3.5 text-xs font-semibold ${NEU_DANGER_TEXT}`}
         >
           {error}
         </div>
       )}
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="email">{t("emailLabel")}</Label>
+        <Label htmlFor="email" className={NEU_LABEL}>{t("emailLabel")}</Label>
         <Input
           id="email"
           type="email"
@@ -125,20 +133,21 @@ export function ForgotPasswordForm() {
           onChange={(e) => setEmail(e.target.value)}
           placeholder={t("emailPlaceholder")}
           required
+          className={`${NEU_INPUT} h-12`}
         />
       </div>
 
-      <Button
+      <NeuButton
         type="submit"
-        variant="default"
+        variant="primary"
         size="lg"
         disabled={isPending || retryCountdown.isActive}
-        className="w-full justify-center h-10 font-bold"
+        className="w-full"
       >
         {isPending ? (
           <span className="flex items-center gap-2">
             <svg
-              className="animate-spin size-4 text-white dark:text-black"
+              className="size-4 animate-spin text-white motion-reduce:animate-none"
               fill="none"
               viewBox="0 0 24 24"
             >
@@ -156,10 +165,10 @@ export function ForgotPasswordForm() {
         ) : (
           t("submit")
         )}
-      </Button>
+      </NeuButton>
 
-      <div className="text-center text-sm text-neutral-500 dark:text-neutral-400">
-        <Link href="/login" className="font-semibold text-black dark:text-white hover:underline">
+      <div className={`text-center text-sm font-medium ${NEU_TEXT_MUTED}`}>
+        <Link href="/login" className={`font-bold hover:underline ${NEU_ACCENT_TEXT}`}>
           &lt; {t("backToLogin")}
         </Link>
       </div>

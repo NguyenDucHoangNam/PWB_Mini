@@ -909,7 +909,7 @@
       "fullNamePlaceholder": "Họ và tên của bạn",
       "emailLabel": "Địa chỉ Email *",
       "emailPlaceholder": "email@example.com",
-      "passwordRequirementsLabel": "Mật khẩu * (12+ ký tự, 1 hoa, 1 thường, 1 số, 1 ký tự đặc biệt)",
+      "passwordRequirementsLabel": "Mật khẩu * (12+ ký tự)",
       "passwordPlaceholder": "Nhập mật khẩu",
       "confirmPasswordLabel": "Nhập lại mật khẩu *",
       "confirmPasswordPlaceholder": "Nhập lại mật khẩu",

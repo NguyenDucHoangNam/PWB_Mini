@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { NEU_TEXT, NeuButton, NeuPanel } from "@/components/ui/neu";
 import { asApiError } from "@/lib/api-client";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import { ConnectionBadge } from "./connection-badge";
@@ -237,34 +237,34 @@ export function RoomScreen({ roomId }: { roomId: string }) {
 
   if (phase === "denied" || phase === "kicked" || phase === "ended" || phase === "error") {
     return (
-      <div className="flex h-dvh flex-col items-center justify-center gap-4 bg-white p-6 text-center dark:bg-black">
-        <p className="text-lg font-semibold text-black dark:text-white">
-          {resolveLiveroomErrorMessage({ code: errorCode }, tErrors, tCommon)}
-        </p>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          {phase === "denied" ? (
-            <Button
-              className="h-11 md:h-9"
-              onClick={() => router.push("/dashboard/liveroom/join")}
-            >
-              {tLobby("backToJoin")}
-            </Button>
-          ) : (
-            <Button className="h-11 md:h-9" onClick={retry}>
-              {t("retry")}
-            </Button>
-          )}
-          <Button variant="outline" className="h-11 md:h-9" onClick={goHome}>
-            {tLobby("backToJoin")}
-          </Button>
-        </div>
+      <div className="flex h-dvh flex-col items-center justify-center bg-[#e0e5ec] p-6 dark:bg-[#1e222b]">
+        <NeuPanel className="flex w-full max-w-md flex-col items-center gap-5 p-8 text-center">
+          <p className={`text-lg font-bold ${NEU_TEXT}`}>
+            {resolveLiveroomErrorMessage({ code: errorCode }, tErrors, tCommon)}
+          </p>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            {phase === "denied" ? (
+              <NeuButton
+                variant="primary"
+                onClick={() => router.push("/dashboard/liveroom/join")}
+              >
+                {tLobby("backToJoin")}
+              </NeuButton>
+            ) : (
+              <NeuButton variant="primary" onClick={retry}>
+                {t("retry")}
+              </NeuButton>
+            )}
+            <NeuButton onClick={goHome}>{tLobby("backToJoin")}</NeuButton>
+          </div>
+        </NeuPanel>
       </div>
     );
   }
 
   if (!myUserId || phase !== "ready") {
     return (
-      <div className="flex h-dvh flex-col items-center justify-center gap-3 bg-white dark:bg-black">
+      <div className="flex h-dvh flex-col items-center justify-center gap-3 bg-[#e0e5ec] dark:bg-[#1e222b]">
         <Spinner size="sm" />
         <ConnectionBadge />
       </div>
@@ -274,14 +274,14 @@ export function RoomScreen({ roomId }: { roomId: string }) {
   const micBlocked = remoteMuted;
 
   return (
-    <div className="relative flex h-dvh flex-col overflow-hidden bg-white dark:bg-black">
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-[#e0e5ec] dark:bg-[#1e222b]">
       <RoomHeader />
       <OwnerAbsentBanner />
 
       {micSilent ? (
         <div
           role="status"
-          className="flex items-start gap-2 border-b border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
+          className="neu-pressed-sm mx-3 mt-2 flex items-start gap-2 rounded-2xl border-none px-3.5 py-2.5 text-sm font-semibold text-amber-800 dark:text-amber-400"
         >
           <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>

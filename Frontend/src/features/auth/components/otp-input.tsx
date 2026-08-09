@@ -134,10 +134,8 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
             onChange={(e) => handleChange(e.target.value, index)}
             onKeyDown={(e) => handleKeyDown(e, index)}
             onPaste={index === 0 ? handlePaste : undefined}
-            className={`size-10 sm:size-11 md:size-12 border text-center text-lg font-bold rounded-lg outline-none transition-colors focus:border-black focus:ring-3 focus:ring-black/10 disabled:bg-neutral-100 disabled:opacity-50 dark:bg-neutral-900 dark:focus:border-white dark:focus:ring-white/10 ${
-              invalid
-                ? "border-red-500 focus:border-red-500 focus:ring-red-500/20 dark:border-red-500"
-                : "border-neutral-200 dark:border-neutral-800"
+            className={`neu-pressed size-11 rounded-2xl border-none text-center text-lg font-bold text-slate-900 outline-none transition-all focus:outline-2 focus:outline-offset-2 focus:outline-indigo-600 disabled:opacity-50 sm:size-12 md:size-13 dark:text-slate-100 dark:focus:outline-indigo-400 ${
+              invalid ? "outline-2 outline-rose-700 dark:outline-rose-400" : ""
             } ${isFlashing ? "otp-flash" : ""}`}
           />
         ))}

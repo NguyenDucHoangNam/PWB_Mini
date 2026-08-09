@@ -19,13 +19,13 @@ export function DevicePermissionNotice({ kind }: { kind: MediaErrorKind }) {
   return (
     <div
       role="status"
-      className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+      className="neu-pressed-sm flex items-start gap-3 rounded-2xl border-none p-3.5 text-sm text-rose-700 dark:text-rose-400"
     >
       <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
       <div className="min-w-0">
-        <p className="font-medium">{t(TITLE_KEY[kind])}</p>
+        <p className="font-bold">{t(TITLE_KEY[kind])}</p>
         {kind === "denied" ? (
-          <p className="mt-1 text-destructive/80">{t("permissionDeniedHint")}</p>
+          <p className="mt-1 font-medium opacity-90">{t("permissionDeniedHint")}</p>
         ) : null}
       </div>
     </div>

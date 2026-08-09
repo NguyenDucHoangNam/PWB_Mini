@@ -10,7 +10,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { NEU_TEXT, NEU_TEXT_MUTED, NeuButton } from "@/components/ui/neu";
+import {
+  NEU_DIALOG_CONTENT,
+  NEU_DIALOG_FOOTER,
+  NEU_TEXT,
+  NEU_TEXT_MUTED,
+  NeuButton,
+} from "@/components/ui/neu";
 import { useDeleteSong } from "@/features/voice/api/songs";
 import { asApiError } from "@/lib/api-client";
 import { resolveVoiceErrorMessage } from "@/features/voice/lib/resolve-voice-error-message";
@@ -52,7 +58,7 @@ export function SongDeleteDialog({
       {open && song ? (
         <DialogContent
           showCloseButton={false}
-          className="neu-raised gap-6 rounded-3xl border-none bg-[#e0e5ec] p-6 ring-0 dark:bg-[#1e222b]"
+          className={NEU_DIALOG_CONTENT}
         >
           <DialogHeader>
             <DialogTitle className={`text-lg font-bold ${NEU_TEXT}`}>
@@ -64,7 +70,7 @@ export function SongDeleteDialog({
               {t("confirmMessage")}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="mx-0 mb-0 gap-3 border-t-0 bg-transparent p-0">
+          <DialogFooter className={NEU_DIALOG_FOOTER}>
             <NeuButton onClick={() => onOpenChange(false)} disabled={isPending}>
               {tCommon("cancel")}
             </NeuButton>

@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
+import { NEU_TEXT_MUTED, NeuButton } from "@/components/ui/neu";
 import { ChatMessageItem } from "./chat-message-item";
 import { useChatHistoryPaging } from "../../hooks/use-chat-history";
 import { useLiveroomStore } from "../../stores/use-liveroom-store";
@@ -62,14 +62,14 @@ export function ChatMessageList({ roomId }: { roomId: string }) {
       >
         {hasMore ? (
           <div className="flex justify-center py-2">
-            <Button variant="ghost" size="sm" disabled={loading} onClick={() => void loadOlder()}>
+            <NeuButton variant="ghost" size="sm" disabled={loading} onClick={() => void loadOlder()}>
               {loading ? t("loading") : t("loadOlder")}
-            </Button>
+            </NeuButton>
           </div>
         ) : null}
 
         {messages.length === 0 && pending.length === 0 ? (
-          <p className="px-3 py-8 text-center text-sm text-neutral-500 dark:text-neutral-400">
+          <p className={`px-3 py-8 text-center text-sm font-medium ${NEU_TEXT_MUTED}`}>
             {t("empty")}
           </p>
         ) : (
@@ -106,7 +106,7 @@ export function ChatMessageList({ roomId }: { roomId: string }) {
         <button
           type="button"
           onClick={jumpToLatest}
-          className="absolute inset-x-0 bottom-2 mx-auto w-fit rounded-full bg-black px-3 py-1.5 text-xs font-medium text-white shadow-lg dark:bg-white dark:text-black"
+          className="absolute inset-x-0 bottom-3 mx-auto w-fit rounded-full border-none bg-indigo-600 px-4 py-2 text-xs font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:focus-visible:outline-indigo-400"
         >
           {t("newMessages")}
         </button>

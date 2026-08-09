@@ -909,7 +909,7 @@
       "fullNamePlaceholder": "Your full name",
       "emailLabel": "Email Address *",
       "emailPlaceholder": "email@example.com",
-      "passwordRequirementsLabel": "Password * (12+ chars, 1 upper, 1 lower, 1 digit, 1 special char)",
+      "passwordRequirementsLabel": "Password * (12+ chars)",
       "passwordPlaceholder": "Enter password",
       "confirmPasswordLabel": "Confirm Password *",
       "confirmPasswordPlaceholder": "Confirm password",

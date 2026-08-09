@@ -67,7 +67,7 @@ describe("password-validators", () => {
         level: 0,
         label: "",
         percentage: 0,
-        colorClass: "bg-neutral-200",
+        colorClass: "bg-slate-400 dark:bg-slate-500",
       });
     });
 

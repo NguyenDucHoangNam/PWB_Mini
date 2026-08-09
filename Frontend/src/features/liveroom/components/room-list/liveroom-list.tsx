@@ -3,11 +3,19 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { KeyRound, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { KeyRound, Plus, Radio } from "lucide-react";
 import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
 import { Spinner } from "@/components/ui/spinner";
+import { PageHeader } from "@/components/layout/page-header";
+import {
+  NEU_FOCUS,
+  NEU_TEXT,
+  NEU_TEXT_MUTED,
+  NeuButton,
+  NeuPanel,
+  neuButton,
+} from "@/components/ui/neu";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { useListRooms, useSearchRooms } from "../../api/rooms";
@@ -68,53 +76,43 @@ export function LiveroomList() {
   };
 
   return (
-    <div className="flex flex-1 flex-col gap-5 sm:gap-6">
-      <header className="flex flex-col gap-4 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-5 sm:pb-5">
-        <div className="flex items-start gap-3">
-          <div className="hidden h-12 w-1 shrink-0 rounded-full bg-foreground/80 sm:block" aria-hidden="true" />
-          <div className="flex flex-col gap-0.5">
-            <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-              {t("title")}
-            </h1>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground/70 sm:text-[11px]">
-              {t("subtitle")}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href="/dashboard/liveroom/join" className="flex-1 sm:flex-none">
-            <Button variant="outline" className="h-10 w-full font-semibold sm:h-9 sm:w-auto">
-              <KeyRound className="size-4" />
+    <div className="flex flex-1 flex-col gap-6">
+      <PageHeader
+        title={t("title")}
+        subtitle={t("subtitle")}
+        icon={Radio}
+        actions={
+          <>
+            <Link href="/dashboard/liveroom/join" className={neuButton()}>
+              <KeyRound className="size-4" aria-hidden="true" />
               {t("joinByCode")}
-            </Button>
-          </Link>
-          <Link href="/dashboard/liveroom/new" className="flex-1 sm:flex-none">
-            <Button className="h-10 w-full font-semibold sm:h-9 sm:w-auto">
-              <Plus className="size-4" />
+            </Link>
+            <Link href="/dashboard/liveroom/new" className={neuButton({ variant: "primary" })}>
+              <Plus className="size-4" aria-hidden="true" />
               {t("create")}
-            </Button>
-          </Link>
-        </div>
-      </header>
+            </Link>
+          </>
+        }
+      />
 
-      <div className="flex flex-1 flex-col gap-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-1 flex-col gap-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="sm:max-w-xs sm:flex-1">
             <SearchInput
+              variant="neu"
               value={keyword}
               onValueChange={setKeyword}
               loading={searching && isFetching}
               placeholder={t("searchPlaceholder")}
               clearLabel={t("clearSearch")}
               aria-label={t("searchPlaceholder")}
-              className="h-11 sm:h-9"
             />
           </div>
 
           <div
             role="tablist"
             aria-label={t("title")}
-            className="flex h-11 shrink-0 items-center gap-1 rounded-lg border border-border bg-muted p-1 sm:h-9 sm:w-auto"
+            className="neu-pressed flex shrink-0 items-center gap-2 rounded-2xl border-none p-2"
           >
             {TABS.map((tab) => {
               const isActive = status === tab.value;
@@ -125,13 +123,19 @@ export function LiveroomList() {
                   type="button"
                   aria-selected={isActive}
                   onClick={() => selectTab(tab.value)}
-                  className={`key-press flex h-9 flex-1 items-center justify-center rounded-md px-4 text-xs font-semibold tracking-wide beat-16th transition-colors ease-hammer sm:h-7 sm:flex-none ${
+                  className={`flex h-9 flex-1 items-center justify-center gap-2 rounded-xl border-none px-5 text-xs font-bold tracking-wide transition-all sm:flex-none ${NEU_FOCUS} ${
                     isActive
-                      ? "border border-border bg-card text-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "neu-raised-sm text-indigo-600 dark:text-indigo-400"
+                      : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
                   }`}
                 >
                   {t(tab.labelKey)}
+                  {isActive ? (
+                    <span
+                      className="size-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400"
+                      aria-hidden="true"
+                    />
+                  ) : null}
                 </button>
               );
             })}
@@ -139,33 +143,37 @@ export function LiveroomList() {
         </div>
 
         {isPending ? (
-          <div className="flex flex-1 items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+          <div
+            className={`flex flex-1 items-center justify-center gap-2 py-16 text-sm font-medium ${NEU_TEXT_MUTED}`}
+          >
             <Spinner size="sm" />
             {t("loading")}
           </div>
         ) : isError ? (
-          <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card p-8 text-center">
-            <p className="text-sm text-muted-foreground">{t("errorLoad")}</p>
-            <Button variant="outline" onClick={() => refetch()}>
-              {t("retry")}
-            </Button>
-          </div>
+          <NeuPanel
+            tone="pressed"
+            className="flex flex-col items-center gap-4 p-8 text-center"
+          >
+            <p className={`text-sm font-medium ${NEU_TEXT_MUTED}`}>{t("errorLoad")}</p>
+            <NeuButton onClick={() => refetch()}>{t("retry")}</NeuButton>
+          </NeuPanel>
         ) : rooms.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-xl border border-border bg-card p-8 text-center md:p-12">
-            <h2 className="text-lg font-semibold text-foreground">
+          <NeuPanel
+            tone="pressed"
+            className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center md:p-12"
+          >
+            <h2 className={`text-lg font-bold tracking-tight ${NEU_TEXT}`}>
               {searching ? t("noResults") : t("empty")}
             </h2>
-            <p className="max-w-md text-sm text-muted-foreground">
+            <p className={`max-w-md text-sm leading-relaxed ${NEU_TEXT_MUTED}`}>
               {searching ? t("noResultsHint", { query: debouncedKeyword }) : t("emptyHint")}
             </p>
             {searching ? (
-              <Button variant="outline" onClick={() => setKeyword("")}>
-                {t("clearSearch")}
-              </Button>
+              <NeuButton onClick={() => setKeyword("")}>{t("clearSearch")}</NeuButton>
             ) : null}
-          </div>
+          </NeuPanel>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-5 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:gap-6 xl:grid-cols-3">
             {rooms.map((room) => (
               <RoomCard
                 key={room.id}
@@ -178,6 +186,7 @@ export function LiveroomList() {
         )}
 
         <Pagination
+          variant="neu"
           page={page}
           totalPages={data?.data?.totalPages ?? 0}
           totalElements={data?.data?.totalElements}

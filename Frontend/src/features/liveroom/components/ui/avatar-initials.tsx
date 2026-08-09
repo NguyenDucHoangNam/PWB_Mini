@@ -3,14 +3,14 @@
 import { initialsOf } from "../../utils/participant-sort";
 
 const PALETTE = [
-  "bg-rose-500",
-  "bg-orange-500",
-  "bg-amber-500",
-  "bg-emerald-500",
-  "bg-teal-500",
-  "bg-sky-500",
-  "bg-indigo-500",
-  "bg-fuchsia-500",
+  "bg-rose-700",
+  "bg-orange-700",
+  "bg-amber-700",
+  "bg-emerald-700",
+  "bg-teal-700",
+  "bg-sky-700",
+  "bg-indigo-700",
+  "bg-fuchsia-700",
 ];
 
 function paletteFor(seed: string): string {

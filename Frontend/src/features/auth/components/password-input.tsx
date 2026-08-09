@@ -2,6 +2,8 @@ import * as React from "react";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
+import { NEU_FOCUS, NEU_INPUT } from "@/components/ui/neu";
+import { cn } from "@/lib/utils";
 
 interface PasswordInputProps extends React.ComponentProps<"input"> {
   error?: string;
@@ -16,7 +18,12 @@ export const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputPro
       <div className="relative w-full">
         <Input
           type={showPassword ? "text" : "password"}
-          className={`pr-10 ${error ? "border-destructive focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40" : ""} ${className || ""}`}
+          className={cn(
+            NEU_INPUT,
+            "h-12 pr-12",
+            error && "outline-2 outline-rose-700 dark:outline-rose-400",
+            className,
+          )}
           ref={ref}
           {...props}
         />
@@ -29,7 +36,7 @@ export const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputPro
               setShowPassword(!showPassword);
             }
           }}
-          className="absolute inset-y-0 right-0 flex items-center pr-3 text-neutral-400 hover:text-black dark:hover:text-white cursor-pointer"
+          className={`absolute inset-y-0 right-0 flex cursor-pointer items-center rounded-2xl pr-4 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 ${NEU_FOCUS}`}
           aria-label={showPassword ? t("hidePassword") : t("showPassword")}
           tabIndex={0}
         >

@@ -68,13 +68,13 @@ export function VideoTile({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-xl bg-neutral-900 ${
+      className={`neu-pressed relative overflow-hidden rounded-2xl border-none ${
         featured ? "col-span-2 row-span-2" : ""
       } ${
         isRoomOwner
-          ? "shadow-[0_0_20px_-4px_rgba(251,191,36,0.65)]"
+          ? "outline-2 -outline-offset-2 outline-amber-700 dark:outline-amber-400"
           : speaking
-            ? "ring-2 ring-emerald-400"
+            ? "outline-2 -outline-offset-2 outline-emerald-700 dark:outline-emerald-400"
             : ""
       }`}
     >
@@ -98,7 +98,7 @@ export function VideoTile({
               featured
                 ? "size-24 text-3xl md:size-28 md:text-4xl"
                 : "size-16 text-xl md:size-20 md:text-2xl"
-            } ${isRoomOwner ? "ring-2 ring-amber-300/80" : ""}`}
+            } ${isRoomOwner ? "outline-2 outline-offset-2 outline-amber-700 dark:outline-amber-400" : ""}`}
           />
         </div>
       ) : null}
@@ -106,13 +106,7 @@ export function VideoTile({
       {isRoomOwner ? (
         <>
           <span
-            aria-hidden
-            className={`pointer-events-none absolute inset-0 rounded-xl border-2 ${
-              speaking ? "border-emerald-400" : "border-amber-400"
-            }`}
-          />
-          <span
-            className="absolute top-1.5 left-1.5 flex items-center gap-1 rounded-full bg-gradient-to-b from-amber-200 to-amber-500 px-1.5 py-0.5 text-[10px] leading-none font-bold text-amber-950 shadow-md ring-1 ring-amber-600/40"
+            className="neu-raised-sm absolute top-2 left-2 flex items-center gap-1 rounded-full border-none px-2 py-1 text-[10px] leading-none font-bold text-amber-800 dark:text-amber-400"
             title={tParticipants("owner")}
           >
             <Crown className="size-3" aria-hidden />
@@ -122,26 +116,26 @@ export function VideoTile({
       ) : null}
 
       {connecting ? (
-        <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/40 text-xs text-white">
-          <Loader2 className="size-4 animate-spin" aria-hidden />
+        <div className="absolute inset-0 flex items-center justify-center gap-2 bg-slate-900/45 text-xs font-semibold text-white">
+          <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden />
           {t("connecting")}
         </div>
       ) : failed ? (
-        <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/50 text-xs text-white">
+        <div className="absolute inset-0 flex items-center justify-center gap-2 bg-slate-900/55 text-xs font-semibold text-white">
           <WifiOff className="size-4" aria-hidden />
           {t("connectionLost")}
         </div>
       ) : null}
 
-      <div className="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5">
+      <div className="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-gradient-to-t from-slate-900/75 to-transparent px-2.5 py-2">
         {mutedByOwner ? (
           <ShieldOff
-            className="size-3.5 shrink-0 text-red-400"
+            className="size-3.5 shrink-0 text-rose-300"
             aria-label={tParticipants("mutedByOwner")}
           />
         ) : !participant.micOn ? (
           <MicOff
-            className="size-3.5 shrink-0 text-neutral-300"
+            className="size-3.5 shrink-0 text-slate-200"
             aria-label={tParticipants("selfMuted")}
           />
         ) : (
@@ -154,14 +148,14 @@ export function VideoTile({
               <span
                 key={bar}
                 className={`w-0.5 rounded-full ${
-                  audioLevel >= bar ? "bg-emerald-400" : "bg-white/30"
+                  audioLevel >= bar ? "bg-emerald-300" : "bg-white/35"
                 }`}
                 style={{ height: `${3 + bar * 2}px` }}
               />
             ))}
           </span>
         )}
-        <span className="truncate text-xs font-medium text-white">
+        <span className="truncate text-xs font-semibold text-white">
           {isMe ? t("you") : displayName(participant)}
         </span>
       </div>

@@ -11,12 +11,20 @@ import { useRetryCountdown } from "../hooks/use-retry-countdown";
 import { PasswordInput } from "./password-input";
 import { PasswordStrengthBar } from "./password-strength-bar";
 import { PasswordRules } from "./password-rules";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { asApiError } from "@/lib/api-client";
 import { IamErrorCode } from "../lib/iam-error-codes";
 import { changePasswordSchema, type ChangePasswordFormValues } from "../schemas/change-password-schema";
+import {
+  NEU_ACCENT_TEXT,
+  NEU_DANGER_TEXT,
+  NEU_ERROR_TEXT,
+  NEU_LABEL,
+  NEU_TEXT,
+  NEU_TEXT_MUTED,
+  NeuButton,
+} from "@/components/ui/neu";
 
 export function ChangePasswordForm() {
   const t = useTranslations("profile.changePassword");
@@ -95,14 +103,14 @@ export function ChangePasswordForm() {
   if (isOauthOnly) {
     return (
       <div className="flex flex-col gap-6 items-center text-center py-6 font-sans">
-        <div className="flex size-14 items-center justify-center rounded-full bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-neutral-800 dark:text-neutral-200">
+        <div className="neu-pressed flex size-14 items-center justify-center rounded-full border-none text-indigo-600 dark:text-indigo-400">
           <svg className="size-6" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114-3.524 0-6.386-2.862-6.386-6.386 0-3.524 2.862-6.386 6.386-6.386 1.63 0 3.116.618 4.256 1.63l3.056-3.056C19.34 2.502 16.035 1 12.24 1 6.136 1 1.18 5.956 1.18 12.06c0 6.104 4.956 11.06 11.06 11.06 6.368 0 11.06-4.475 11.06-11.06 0-.745-.074-1.463-.207-2.149H12.24z" />
           </svg>
         </div>
         <div className="flex flex-col gap-2">
-          <h2 className="text-lg font-bold text-black dark:text-white">{t("title")}</h2>
-          <p className="text-sm leading-relaxed text-neutral-500 dark:text-neutral-400 max-w-xs">
+          <h2 className={`text-lg font-bold ${NEU_TEXT}`}>{t("title")}</h2>
+          <p className={`max-w-xs text-sm font-medium leading-relaxed ${NEU_TEXT_MUTED}`}>
             {t("oauthOnly")}
           </p>
         </div>
@@ -111,13 +119,13 @@ export function ChangePasswordForm() {
             href="https://myaccount.google.com/security"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm font-medium text-blue-600 hover:underline"
+            className={`text-sm font-semibold hover:underline ${NEU_ACCENT_TEXT}`}
           >
             {t("manageInGoogle")}
           </a>
-          <Button variant="ghost" onClick={() => router.back()} className="text-sm">
+          <NeuButton onClick={() => router.back()} className="text-sm">
             {t("goBack")}
-          </Button>
+          </NeuButton>
         </div>
       </div>
     );
@@ -125,12 +133,12 @@ export function ChangePasswordForm() {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-6 font-sans">
-      <h2 className="text-xl font-bold tracking-tight text-black dark:text-white">{t("title")}</h2>
+      <h2 className={`text-xl font-bold tracking-tight ${NEU_TEXT}`}>{t("title")}</h2>
 
       {formError && (
         <div
           role="alert"
-          className="rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-600 dark:bg-red-950/20 dark:text-red-400 border border-red-100/50 dark:border-red-950/30"
+          className={`neu-pressed rounded-2xl border-none p-3.5 text-xs font-semibold ${NEU_DANGER_TEXT}`}
         >
           {formError}
         </div>
@@ -138,7 +146,7 @@ export function ChangePasswordForm() {
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="currentPassword">{t("oldPassword")}</Label>
+          <Label htmlFor="currentPassword" className={NEU_LABEL}>{t("oldPassword")}</Label>
           <PasswordInput
             id="currentPassword"
             disabled={isPending}
@@ -147,14 +155,14 @@ export function ChangePasswordForm() {
             aria-invalid={!!errors.currentPassword}
           />
           {errors.currentPassword?.message && (
-            <span className="text-xs text-red-600 dark:text-red-400 font-semibold">
+            <span className={NEU_ERROR_TEXT}>
               {t(errors.currentPassword.message as never)}
             </span>
           )}
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="newPassword">{t("newPassword")}</Label>
+          <Label htmlFor="newPassword" className={NEU_LABEL}>{t("newPassword")}</Label>
           <PasswordInput
             id="newPassword"
             disabled={isPending}
@@ -163,7 +171,7 @@ export function ChangePasswordForm() {
             aria-invalid={!!errors.newPassword}
           />
           {errors.newPassword?.message && (
-            <span className="text-xs text-red-600 dark:text-red-400 font-semibold">
+            <span className={NEU_ERROR_TEXT}>
               {t(errors.newPassword.message as never)}
             </span>
           )}
@@ -172,7 +180,7 @@ export function ChangePasswordForm() {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="confirmPassword">{t("confirmPassword")}</Label>
+          <Label htmlFor="confirmPassword" className={NEU_LABEL}>{t("confirmPassword")}</Label>
           <PasswordInput
             id="confirmPassword"
             disabled={isPending}
@@ -181,23 +189,23 @@ export function ChangePasswordForm() {
             aria-invalid={!!errors.confirmPassword}
           />
           {errors.confirmPassword?.message && (
-            <span className="text-xs text-red-600 dark:text-red-400 font-semibold">
+            <span className={NEU_ERROR_TEXT}>
               {t(errors.confirmPassword.message as never)}
             </span>
           )}
         </div>
       </div>
 
-      <Button
+      <NeuButton
         type="submit"
-        variant="default"
+        variant="primary"
         size="lg"
         disabled={isPending || retryCountdown.isActive}
-        className="w-full justify-center h-10 font-bold mt-2"
+        className="mt-2 w-full"
       >
         {isPending ? (
           <span className="flex items-center gap-2">
-            <svg className="animate-spin size-4 text-white dark:text-black" fill="none" viewBox="0 0 24 24">
+            <svg className="size-4 animate-spin text-white motion-reduce:animate-none" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path
                 className="opacity-75"
@@ -212,7 +220,7 @@ export function ChangePasswordForm() {
         ) : (
           t("submit")
         )}
-      </Button>
+      </NeuButton>
     </form>
   );
 }

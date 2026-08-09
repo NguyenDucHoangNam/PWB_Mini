@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Send } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { NEU_INPUT, NEU_TEXT_MUTED, NeuButton } from "@/components/ui/neu";
 import { appDestinations } from "../../lib/liveroom-destinations";
 import { liveroomSocket } from "../../lib/liveroom-socket";
 import { useLiveroomStore } from "../../stores/use-liveroom-store";
@@ -48,7 +48,7 @@ export function ChatComposer({ roomId }: { roomId: string }) {
   };
 
   return (
-    <div className="shrink-0 border-t border-neutral-200 p-2 dark:border-neutral-800">
+    <div className="shrink-0 p-2.5">
       <div className="flex items-end gap-2">
         <label className="sr-only" htmlFor="liveroom-chat-input">
           {t("placeholder")}
@@ -65,22 +65,22 @@ export function ChatComposer({ roomId }: { roomId: string }) {
           }}
           rows={1}
           placeholder={t("placeholder")}
-          className="max-h-28 min-h-11 flex-1 resize-none rounded-lg border border-input bg-transparent px-2.5 py-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:min-h-9 md:py-1.5 dark:bg-input/30"
+          className={`${NEU_INPUT} max-h-28 min-h-11 flex-1 resize-none py-3 md:min-h-11`}
         />
-        <Button
+        <NeuButton
+          variant="primary"
           size="icon"
-          className="size-11 md:size-9"
           aria-label={t("send")}
           disabled={!canSend}
           onClick={send}
         >
           <Send className="size-4" />
-        </Button>
+        </NeuButton>
       </div>
       {used > CHAT_MAX_CONTENT_LENGTH * 0.8 ? (
         <p
-          className={`mt-1 text-right text-xs ${
-            remaining < 0 ? "text-red-600 dark:text-red-400" : "text-neutral-500 dark:text-neutral-400"
+          className={`mt-1.5 text-right text-xs font-semibold ${
+            remaining < 0 ? "text-rose-700 dark:text-rose-400" : NEU_TEXT_MUTED
           }`}
         >
           {t("charactersLeft", { count: remaining })}

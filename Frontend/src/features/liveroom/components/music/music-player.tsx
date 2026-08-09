@@ -14,7 +14,7 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { NEU_TEXT, NEU_TEXT_MUTED, NeuButton } from "@/components/ui/neu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getRoomAudioUrl } from "../../api/music";
 import { appDestinations } from "../../lib/liveroom-destinations";
@@ -214,14 +214,16 @@ export function MusicPlayer({ roomId }: { roomId: string }) {
   const VolumeIcon = volume === 0 ? VolumeX : volume < 50 ? Volume1 : Volume2;
 
   return (
-    <section className="flex shrink-0 flex-col gap-2 border-t border-neutral-200 bg-gradient-to-b from-neutral-50 to-white px-3 py-2.5 dark:border-neutral-800 dark:from-neutral-950 dark:to-black">
+    <section className="neu-raised m-3 mt-0 flex shrink-0 flex-col gap-3 rounded-2xl border-none px-3 py-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center md:gap-4">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <span
               aria-hidden
-              className={`grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-neutral-700 to-neutral-900 text-white shadow-sm dark:from-neutral-100 dark:to-neutral-400 dark:text-black ${
-                playing ? "animate-pulse" : ""
+              className={`grid size-11 shrink-0 place-items-center rounded-2xl border-none ${
+                playing
+                  ? "bg-indigo-600 text-white motion-safe:animate-pulse dark:bg-indigo-500"
+                  : "neu-pressed-sm text-indigo-600 dark:text-indigo-400"
               }`}
             >
               <Music2 className="size-5" />
@@ -229,17 +231,15 @@ export function MusicPlayer({ roomId }: { roomId: string }) {
             <div className="min-w-0">
               {music?.songTitle ? (
                 <>
-                  <p className="truncate text-sm font-semibold text-black dark:text-white">
+                  <p className={`truncate text-sm font-bold ${NEU_TEXT}`}>
                     {music.songTitle}
                   </p>
-                  <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">
+                  <p className={`truncate text-xs font-medium ${NEU_TEXT_MUTED}`}>
                     {music.songArtist ? t("by", { artist: music.songArtist }) : t("nowPlaying")}
                   </p>
                 </>
               ) : (
-                <p className="truncate text-sm text-neutral-500 dark:text-neutral-400">
-                  {t("title")}
-                </p>
+                <p className={`truncate text-sm font-medium ${NEU_TEXT_MUTED}`}>{t("title")}</p>
               )}
             </div>
           </div>
@@ -248,9 +248,8 @@ export function MusicPlayer({ roomId }: { roomId: string }) {
             <Tooltip>
               <TooltipTrigger
                 render={
-                  <Button
-                    variant="ghost"
-                    size="icon"
+                  <NeuButton
+                    size="icon-sm"
                     className="size-10 shrink-0 rounded-full"
                     aria-label={t("back10", { seconds: SKIP_SECONDS })}
                     disabled={!hasSong}
@@ -266,9 +265,10 @@ export function MusicPlayer({ roomId }: { roomId: string }) {
             <Tooltip>
               <TooltipTrigger
                 render={
-                  <Button
-                    size="icon"
-                    className="size-12 shrink-0 rounded-full shadow-md md:size-11"
+                  <NeuButton
+                    variant="primary"
+                    size="icon-lg"
+                    className="size-12 shrink-0 rounded-full md:size-11"
                     aria-label={playing ? t("pause") : t("play")}
                     disabled={!hasSong || (!playing && playBlocked)}
                     onClick={() => {
@@ -292,9 +292,8 @@ export function MusicPlayer({ roomId }: { roomId: string }) {
             <Tooltip>
               <TooltipTrigger
                 render={
-                  <Button
-                    variant="ghost"
-                    size="icon"
+                  <NeuButton
+                    size="icon-sm"
                     className="size-10 shrink-0 rounded-full"
                     aria-label={t("forward10", { seconds: SKIP_SECONDS })}
                     disabled={!hasSong}
@@ -310,9 +309,9 @@ export function MusicPlayer({ roomId }: { roomId: string }) {
         </div>
 
         <div className="flex flex-1 items-center justify-between gap-2 sm:justify-end md:gap-3">
-          <span className="shrink-0 text-xs font-medium tabular-nums text-neutral-500 dark:text-neutral-400">
+          <span className={`shrink-0 text-xs font-bold tabular-nums ${NEU_TEXT_MUTED}`}>
             {formatClock(position)}
-            <span className="mx-0.5 text-neutral-300 dark:text-neutral-600">/</span>
+            <span className="mx-0.5 opacity-50">/</span>
             {formatClock(duration)}
           </span>
 
@@ -320,10 +319,10 @@ export function MusicPlayer({ roomId }: { roomId: string }) {
             <Tooltip>
               <TooltipTrigger
                 render={
-                  <Button
+                  <NeuButton
                     variant="ghost"
                     size="icon-sm"
-                    className="shrink-0 rounded-full text-neutral-500 dark:text-neutral-400"
+                    className="shrink-0 rounded-full"
                     aria-label={volume === 0 ? t("unmute") : t("mute")}
                     disabled={!hasSong}
                     onClick={toggleMute}
@@ -348,9 +347,7 @@ export function MusicPlayer({ roomId }: { roomId: string }) {
           <Tooltip>
             <TooltipTrigger
               render={
-                <Button
-                  variant="outline"
-                  size="lg"
+                <NeuButton
                   className="shrink-0 rounded-full"
                   onClick={() => setPickerOpen(true)}
                 />
@@ -368,7 +365,7 @@ export function MusicPlayer({ roomId }: { roomId: string }) {
         <button
           type="button"
           onClick={resumeAudio}
-          className="flex items-center justify-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/70"
+          className="neu-button flex items-center justify-center gap-2 rounded-2xl border-none px-3.5 py-2 text-xs font-bold text-amber-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:text-amber-400 dark:focus-visible:outline-indigo-400"
         >
           <VolumeX className="size-4 shrink-0" aria-hidden />
           {t("blockedHint")}
@@ -393,7 +390,7 @@ export function MusicPlayer({ roomId }: { roomId: string }) {
       />
 
       {playBlocked ? (
-        <p className="text-xs text-amber-700 dark:text-amber-400">{t("ownerAbsentHint")}</p>
+        <p className="text-xs font-semibold text-amber-800 dark:text-amber-400">{t("ownerAbsentHint")}</p>
       ) : null}
 
       <SongPickerDialog

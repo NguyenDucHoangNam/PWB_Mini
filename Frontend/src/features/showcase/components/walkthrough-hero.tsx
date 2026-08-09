@@ -10,8 +10,8 @@ export function WalkthroughHero() {
   const t = useTranslations("features.walkthrough");
 
   return (
-    <section className="neu-raised relative w-full overflow-hidden rounded-3xl bg-[#e0e5ec] p-6 sm:p-10 dark:bg-[#1e222b] border-none">
-      <div className="relative mx-auto grid w-full max-w-6xl gap-x-16 gap-y-12 lg:grid-cols-12 lg:items-start">
+    <section className="neu-raised relative w-full min-h-[calc(100dvh-7rem)] sm:min-h-[calc(100dvh-8rem)] md:min-h-[calc(100dvh-9rem)] flex flex-col justify-center overflow-hidden rounded-3xl bg-[#e0e5ec] p-6 sm:p-10 dark:bg-[#1e222b] border-none">
+      <div className="relative mx-auto grid w-full max-w-6xl gap-x-16 gap-y-12 lg:grid-cols-12 lg:items-center">
         <div className="lg:col-span-7">
           <Eyebrow>{t("hero.eyebrow")}</Eyebrow>
 

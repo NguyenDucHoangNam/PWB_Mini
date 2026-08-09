@@ -105,12 +105,6 @@ export function PageHeader({
               >
                 {TabIcon && <TabIcon className="size-4" aria-hidden="true" />}
                 <span>{tab.label}</span>
-                {isActive && (
-                  <span
-                    className="size-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400"
-                    aria-hidden="true"
-                  />
-                )}
               </Link>
             );
           })}

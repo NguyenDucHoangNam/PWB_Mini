@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { CheckCircle2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { NEU_TEXT, NEU_TEXT_MUTED, NeuButton } from "@/components/ui/neu";
 import { useAutoJoinCountdown } from "../../hooks/use-auto-join-countdown";
 
 interface AutoJoinCountdownProps {
@@ -14,25 +14,21 @@ export function AutoJoinCountdown({ onEnter }: AutoJoinCountdownProps) {
   const { remaining, cancelled, cancel } = useAutoJoinCountdown(onEnter);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 rounded-xl border border-border bg-card p-6 text-center shadow-xs">
-      <div className="grid size-12 place-items-center rounded-full border border-border bg-muted text-foreground">
-        <CheckCircle2 className="size-6" aria-hidden />
+    <div className="neu-pressed flex min-h-0 flex-1 flex-col items-center justify-center gap-5 rounded-3xl border-none p-6 text-center">
+      <div className="neu-raised grid size-16 place-items-center rounded-full border-none text-indigo-600 dark:text-indigo-400">
+        <CheckCircle2 className="size-7" aria-hidden />
       </div>
-      <div className="flex flex-col gap-1">
-        <p className="text-lg font-bold tracking-tight text-foreground">{t("approved")}</p>
-        <p aria-live="polite" className="text-sm text-muted-foreground">
+      <div className="flex flex-col gap-1.5">
+        <p className={`text-lg font-bold tracking-tight ${NEU_TEXT}`}>{t("approved")}</p>
+        <p aria-live="polite" className={`text-sm font-medium ${NEU_TEXT_MUTED}`}>
           {cancelled ? t("waitingHint") : t("autoJoinIn", { seconds: remaining })}
         </p>
       </div>
-      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-        <Button className="h-11 font-semibold md:h-9" onClick={onEnter}>
+      <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+        <NeuButton variant="primary" onClick={onEnter}>
           {t("enterNow")}
-        </Button>
-        {!cancelled ? (
-          <Button variant="outline" className="h-11 md:h-9" onClick={cancel}>
-            {t("stayHere")}
-          </Button>
-        ) : null}
+        </NeuButton>
+        {!cancelled ? <NeuButton onClick={cancel}>{t("stayHere")}</NeuButton> : null}
       </div>
     </div>
   );

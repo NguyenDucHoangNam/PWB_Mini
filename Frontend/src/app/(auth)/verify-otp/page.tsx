@@ -34,7 +34,7 @@ export default async function VerifyOtpPage({
     <Suspense
       fallback={
         <div className="flex justify-center py-12">
-          <span className="size-6 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-500" />
+          <span className="neu-pressed-sm size-6 animate-spin rounded-full border-none motion-reduce:animate-none" />
         </div>
       }
     >

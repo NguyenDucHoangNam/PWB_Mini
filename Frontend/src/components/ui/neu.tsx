@@ -53,6 +53,16 @@ export const NEU_LABEL = cn(
 
 export const NEU_ERROR_TEXT = cn("text-xs font-semibold", NEU_DANGER_TEXT);
 
+/**
+ * Pass to the shared Dialog so a popup is a slab lifted off the same matte plane:
+ * no ring, no divider under the footer, just depth.
+ */
+export const NEU_DIALOG_CONTENT = cn(
+  "neu-raised gap-6 rounded-3xl border-none p-6 ring-0",
+  NEU_SURFACE,
+);
+export const NEU_DIALOG_FOOTER = "mx-0 mb-0 gap-3 border-t-0 bg-transparent p-0";
+
 type NeuButtonVariant = "default" | "primary" | "ghost" | "danger";
 type NeuButtonSize = "sm" | "md" | "lg" | "icon-sm" | "icon" | "icon-lg";
 

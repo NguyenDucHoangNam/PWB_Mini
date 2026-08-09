@@ -260,9 +260,6 @@ function DesktopNav({ items, pathname }: { items: NavItem[]; pathname: string })
             }`}
           >
             <span>{item.label}</span>
-            {isActive && (
-              <span className="size-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400" aria-hidden="true" />
-            )}
           </Link>
         );
       })}

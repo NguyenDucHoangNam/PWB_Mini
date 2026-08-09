@@ -7,7 +7,7 @@ import { WalkthroughVoiceTag } from "./walkthrough-voice-tag";
 
 export function ShowcaseContent() {
   return (
-    <div className="flex w-full flex-col font-sans bg-[#e0e5ec] dark:bg-[#1e222b] gap-12 p-4 sm:p-6 md:p-8 rounded-3xl border-none transition-colors">
+    <div className="flex w-full flex-col font-sans bg-[#e0e5ec] dark:bg-[#1e222b] gap-12 p-4 sm:p-6 md:p-8 border-none transition-colors">
       <WalkthroughHero />
       <WalkthroughVoiceTag />
       <WalkthroughSong />

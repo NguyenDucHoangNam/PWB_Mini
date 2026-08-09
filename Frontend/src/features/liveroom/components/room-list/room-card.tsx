@@ -5,7 +5,13 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Check, Copy, LogIn, RotateCcw, Square, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {
+  NEU_TEXT,
+  NEU_TEXT_MUTED,
+  NeuButton,
+  NeuPanel,
+  neuButton,
+} from "@/components/ui/neu";
 import { RoomStatusBadge } from "./room-status-badge";
 import { formatRoomCode } from "../../utils/format-room-code";
 import type { EndedReason, Room } from "../../types";
@@ -42,20 +48,17 @@ export function RoomCard({ room, onEnd, onReopen }: RoomCardProps) {
   };
 
   return (
-    <div className="key-press group relative flex flex-col justify-between gap-4 overflow-hidden rounded-xl border border-border bg-card p-5 shadow-xs beat-8th transition-colors ease-hammer hover:border-foreground/25 hover:shadow-sm">
-      <div
-        className={`absolute left-0 top-0 h-full w-1 beat-16th transition-colors ease-hammer ${
-          isActive ? "bg-foreground" : "bg-border group-hover:bg-muted-foreground"
-        }`}
-        aria-hidden="true"
-      />
-
-      <div className="flex items-start justify-between gap-3 pl-1">
+    <NeuPanel tone="tile" className="group flex flex-col justify-between gap-4 p-5">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="truncate text-base font-bold tracking-tight text-foreground decoration-muted-foreground/40 underline-offset-4 group-hover:underline md:text-lg">
+          <h3
+            className={`truncate text-base font-bold tracking-tight decoration-slate-400 underline-offset-4 group-hover:underline md:text-lg ${NEU_TEXT}`}
+          >
             {room.roomName}
           </h3>
-          <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground md:text-sm">
+          <p
+            className={`mt-2 flex items-center gap-1.5 text-xs font-medium md:text-sm ${NEU_TEXT_MUTED}`}
+          >
             <Users className="size-3.5" aria-hidden="true" />
             {t("participants", {
               count: room.currentParticipantCount,
@@ -66,63 +69,57 @@ export function RoomCard({ room, onEnd, onReopen }: RoomCardProps) {
         <RoomStatusBadge status={room.status} />
       </div>
 
-      <div className="flex items-center gap-2 pl-1">
-        <span className="rounded-lg border border-border bg-muted px-3 py-1.5 font-mono text-sm font-semibold tracking-[0.2em] text-foreground">
+      <div className="flex items-center gap-3">
+        <span
+          className={`neu-pressed-sm rounded-xl border-none px-3.5 py-2 font-mono text-sm font-bold tracking-[0.2em] ${NEU_TEXT}`}
+        >
           {formatRoomCode(room.roomCode)}
         </span>
-        <Button
-          variant="outline"
-          size="icon"
+        <NeuButton
+          size="icon-sm"
           onClick={copyCode}
           aria-label={t("copyCode")}
-          className="size-9 min-h-[44px] sm:min-h-0"
+          className={copied ? "text-indigo-600 dark:text-indigo-400" : ""}
         >
           {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-        </Button>
+        </NeuButton>
       </div>
 
       {!isActive && room.endedAt ? (
-        <p className="pl-1 text-xs text-muted-foreground">
+        <p className={`text-xs font-medium ${NEU_TEXT_MUTED}`}>
           {t("endedAt", { date: new Date(room.endedAt).toLocaleString() })}
           {room.endedReason ? ` · ${tEnded(ENDED_REASON_KEY[room.endedReason])}` : ""}
         </p>
       ) : null}
 
       {room.reopenedCount > 0 ? (
-        <p className="pl-1 text-xs text-muted-foreground">
+        <p className={`text-xs font-medium ${NEU_TEXT_MUTED}`}>
           {t("reopenedCount", { count: room.reopenedCount })}
         </p>
       ) : null}
 
-      <div className="mt-auto flex flex-col gap-2 pt-2 pl-1 sm:flex-row">
+      <div className="mt-auto flex flex-col gap-3 pt-2 sm:flex-row">
         {isActive ? (
           <>
-            <Link href={`/liveroom/${room.id}`} className="sm:flex-1">
-              <Button className="h-9 min-h-[44px] w-full font-semibold sm:min-h-0">
-                <LogIn className="size-4" />
-                {t("openRoom")}
-              </Button>
-            </Link>
-            <Button
-              variant="outline"
-              className="h-9 min-h-[44px] font-semibold sm:min-h-0"
-              onClick={() => onEnd(room)}
+            <Link
+              href={`/liveroom/${room.id}`}
+              className={neuButton({ variant: "primary" }, "w-full sm:flex-1")}
             >
-              <Square className="size-4" />
+              <LogIn className="size-4" aria-hidden="true" />
+              {t("openRoom")}
+            </Link>
+            <NeuButton onClick={() => onEnd(room)}>
+              <Square className="size-4" aria-hidden="true" />
               {t("end")}
-            </Button>
+            </NeuButton>
           </>
         ) : (
-          <Button
-            variant="outline"
-            className="h-9 min-h-[44px] w-full font-semibold sm:min-h-0"
-            onClick={() => onReopen(room)}
-          >
-            <RotateCcw className="size-4" />
+          <NeuButton className="w-full" onClick={() => onReopen(room)}>
+            <RotateCcw className="size-4" aria-hidden="true" />
             {t("reopen")}
-          </Button>
+          </NeuButton>
         )}
       </div>
-    </div>
+    </NeuPanel>
   );
 }
