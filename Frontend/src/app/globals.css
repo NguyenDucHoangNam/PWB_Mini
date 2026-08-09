@@ -553,17 +553,16 @@
   }
 
   .cn-toast {
-    @apply relative flex items-center border text-popover-foreground rounded-xl py-4 pl-4 pr-16 shadow-md w-full min-h-[56px] gap-3;
+    @apply relative flex items-center rounded-3xl w-full min-h-[64px] gap-3;
     width: calc(100dvw - 32px) !important;
     max-width: calc(100dvw - 32px) !important;
-    border-left-width: 12px !important;
-    border-left-color: var(--cn-toast-neutral);
-    border-top-width: 0 !important;
-    border-right-width: 1px !important;
-    border-bottom-width: 1px !important;
-    background:
-      linear-gradient(to right, var(--border) 1px, transparent 1px) no-repeat right 52px top 0 / 1px 100%,
-      var(--popover) !important;
+    /* Sonner's own padding wins over @apply, so the room for the rail (left),
+       the close button (right) and the progress groove (bottom) is forced here. */
+    padding: 16px 56px 26px 32px !important;
+    border: 0 !important;
+    color: var(--neu-text) !important;
+    background: var(--neu-surface) !important;
+    box-shadow: -6px -6px 14px var(--neu-light-shadow), 6px 6px 14px var(--neu-dark-shadow) !important;
     will-change: transform, opacity;
     animation: cn-toast-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
   }
@@ -582,31 +581,51 @@
     }
   }
 
-  .cn-toast[data-type="success"] {
-    border-left-color: var(--cn-toast-success) !important;
+  /* Status rail. Shadows carry depth but cannot carry meaning, so type is signalled
+     by a saturated fill that clears 3:1 against the matte on its own. */
+  .cn-toast::before {
+    content: "" !important;
+    position: absolute !important;
+    left: 14px !important;
+    right: auto !important;
+    top: 16px !important;
+    bottom: 26px !important;
+    width: 5px !important;
+    border-radius: 999px !important;
+    background: var(--cn-toast-neutral) !important;
+    pointer-events: none !important;
   }
-  .cn-toast[data-type="warning"] {
-    border-left-color: var(--cn-toast-warning) !important;
+
+  .cn-toast::after {
+    content: none !important;
   }
-  .cn-toast[data-type="error"] {
-    border-left-color: var(--cn-toast-error) !important;
+
+  .cn-toast[data-type="success"]::before {
+    background: var(--cn-toast-success) !important;
   }
-  .cn-toast[data-type="info"],
-  .cn-toast[data-type="default"],
-  .cn-toast[data-type="loading"] {
-    border-left-color: var(--cn-toast-neutral) !important;
+  .cn-toast[data-type="warning"]::before {
+    background: var(--cn-toast-warning) !important;
+  }
+  .cn-toast[data-type="error"]::before {
+    background: var(--cn-toast-error) !important;
+  }
+  .cn-toast[data-type="info"]::before,
+  .cn-toast[data-type="default"]::before,
+  .cn-toast[data-type="loading"]::before {
+    background: var(--cn-toast-neutral) !important;
   }
 
   .cn-toast__progress {
     position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 3px;
+    left: 14px;
+    right: 14px;
+    bottom: 10px;
+    height: 6px;
     overflow: hidden;
     pointer-events: none;
-    border-bottom-left-radius: var(--radius);
-    border-bottom-right-radius: var(--radius);
+    border-radius: 999px;
+    background: var(--neu-surface);
+    box-shadow: inset 2px 2px 4px var(--neu-dark-shadow), inset -2px -2px 4px var(--neu-light-shadow);
     z-index: 4;
   }
 
@@ -614,6 +633,7 @@
     display: block;
     width: 100%;
     height: 100%;
+    border-radius: 999px;
     background-color: var(--cn-toast-neutral);
     transform-origin: left center;
     transform: scaleX(1);
@@ -636,90 +656,49 @@
     background-color: var(--cn-toast-neutral);
   }
 
+  /* success/error/info/warning ship no icon, but sonner still lays out the slot.
+     The loading spinner is a child element, so :empty leaves it alone. */
+  .cn-toast [data-icon]:empty {
+    display: none !important;
+  }
+
   .cn-toast__title {
     @apply text-sm font-semibold tracking-tight;
+    color: var(--neu-text);
   }
   .cn-toast__description {
-    @apply text-xs text-muted-foreground mt-0.5;
+    @apply text-xs mt-0.5;
+    color: var(--cn-toast-muted);
   }
 
   .cn-toast [data-close-button] {
     position: absolute !important;
-    top: 50% !important;
-    right: 20px !important;
+    top: 18px !important;
+    right: 16px !important;
     left: auto !important;
-    transform: translateY(-50%) !important;
+    transform: none !important;
     border: 0 !important;
-    background: transparent !important;
-    @apply size-7 flex items-center justify-center rounded-md text-neutral-400 dark:text-neutral-500 hover:text-black dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors;
+    background: var(--neu-surface) !important;
+    color: var(--neu-text-muted) !important;
+    box-shadow: -3px -3px 8px var(--neu-light-shadow), 3px 3px 8px var(--neu-dark-shadow) !important;
+    transition: box-shadow 0.2s ease-in-out, color 0.2s ease-in-out;
+    @apply size-7 flex items-center justify-center rounded-full;
   }
 
-  .cn-toast::before {
-    content: "" !important;
-    position: absolute !important;
-    right: 0 !important;
-    left: auto !important;
-    top: 0 !important;
-    bottom: 0 !important;
-    width: 14px !important;
-    background: repeating-linear-gradient(to bottom, 
-      oklch(0.98 0 0) 0px, 
-      oklch(0.98 0 0) 13px, 
-      oklch(0.85 0 0) 13px, 
-      oklch(0.85 0 0) 14px
-    ) !important;
-    border-left: 1px solid oklch(0.85 0 0) !important;
-    border-right: 0 !important;
-    border-top-right-radius: 11px !important;
-    border-bottom-right-radius: 11px !important;
-    border-top-left-radius: 0 !important;
-    border-bottom-left-radius: 0 !important;
-    pointer-events: none !important;
-    z-index: 5 !important;
+  .cn-toast [data-close-button]:hover {
+    color: var(--neu-text) !important;
   }
 
-  .dark .cn-toast::before {
-    background: repeating-linear-gradient(to bottom, 
-      oklch(0.9 0 0) 0px, 
-      oklch(0.9 0 0) 13px, 
-      oklch(0.65 0 0) 13px, 
-      oklch(0.65 0 0) 14px
-    ) !important;
-    border-left: 1px solid oklch(0.65 0 0) !important;
+  .cn-toast [data-close-button]:active {
+    box-shadow: inset -2px -2px 5px var(--neu-light-shadow), inset 2px 2px 5px var(--neu-dark-shadow) !important;
   }
 
-  .cn-toast::after {
-    content: "" !important;
-    position: absolute !important;
-    right: 6px !important;
-    left: auto !important;
-    top: 0 !important;
-    bottom: 0 !important;
-    width: 8px !important;
-    background: repeating-linear-gradient(to bottom,
-      transparent 0px,
-      transparent 8px,
-      oklch(0.15 0 0) 8px,
-      oklch(0.15 0 0) 18px,
-      transparent 18px,
-      transparent 28px
-    ) !important;
-    pointer-events: none !important;
-    z-index: 6 !important;
-    clip-path: none !important;
-    height: auto !important;
+  /* Shadows alone are not a state cue that survives WCAG 1.4.11, so focus gets a real outline. */
+  .cn-toast [data-close-button]:focus-visible {
+    outline: 2px solid var(--neu-spark) !important;
+    outline-offset: 2px !important;
   }
 
-  .dark .cn-toast::after {
-    background: repeating-linear-gradient(to bottom,
-      transparent 0px,
-      transparent 8px,
-      oklch(0.05 0 0) 8px,
-      oklch(0.05 0 0) 18px,
-      transparent 18px,
-      transparent 28px
-    ) !important;
-  }
 }
 
 @layer utilities {
@@ -845,11 +824,16 @@
 }
 
 :root {
-  --cn-toast-success: oklch(0.65 0.16 155);
-  --cn-toast-warning: oklch(0.78 0.16 75);
+  /* Darkened from 0.65/0.78: on the light matte the old pair sat at 2.37:1 and 1.62:1,
+     under the 3:1 that a status cue has to hold on its own. */
+  --cn-toast-success: oklch(0.56 0.15 155);
+  --cn-toast-warning: oklch(0.6 0.15 70);
   --cn-toast-error: oklch(0.6 0.22 25);
   --cn-toast-neutral: oklch(0.5 0 0);
   --cn-toast-duration: 4000ms;
+  /* --neu-text-muted only reaches 3.76:1 on the light matte, short of the 4.5:1 that
+     12px description text needs. Dark mode already clears it, so only light is darkened. */
+  --cn-toast-muted: #475569;
 }
 
 .dark {
@@ -857,13 +841,19 @@
   --cn-toast-warning: oklch(0.85 0.16 80);
   --cn-toast-error: oklch(0.72 0.2 25);
   --cn-toast-neutral: oklch(0.7 0 0);
+  --cn-toast-muted: var(--neu-text-muted);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .cn-toast,
   .cn-toast__progress,
+  .cn-toast__progress-fill,
   .waveform > span {
     animation: none !important;
+  }
+
+  .cn-toast [data-close-button] {
+    transition: none !important;
   }
 
   /* Drop the travel, keep the inset shadow: press still reads without motion */
