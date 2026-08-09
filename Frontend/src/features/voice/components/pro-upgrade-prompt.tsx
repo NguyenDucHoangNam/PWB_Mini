@@ -15,7 +15,7 @@ export function ProUpgradePrompt() {
       className="flex min-h-[60vh] flex-1 flex-col items-center justify-center gap-5 p-12 text-center"
     >
       <span className="neu-raised grid size-16 place-items-center rounded-full border-none">
-        <Crown className="size-7 text-indigo-600 dark:text-indigo-400" aria-hidden="true" />
+        <Crown className="size-7 text-amber-500 dark:text-amber-400" aria-hidden="true" />
       </span>
       <h2 className={`text-xl font-bold tracking-tight ${NEU_TEXT}`}>{t("proOnly")}</h2>
       <p className={`max-w-md text-sm font-medium leading-relaxed ${NEU_TEXT_MUTED}`}>

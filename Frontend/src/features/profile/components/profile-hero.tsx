@@ -62,8 +62,8 @@ export function ProfileHero({
               )}
             </div>
             {isPro && (
-              <span className="neu-raised absolute top-0 right-0 z-10 flex size-8 items-center justify-center rounded-full bg-[#e0e5ec] text-indigo-600 dark:bg-[#1e222b] dark:text-indigo-400">
-                <Crown className="size-4" aria-hidden="true" />
+              <span className="neu-raised absolute top-0 right-0 z-10 flex size-8 items-center justify-center rounded-full bg-[#e0e5ec] text-amber-500 dark:bg-[#1e222b] dark:text-amber-400">
+                <Crown className="size-4 text-amber-500 dark:text-amber-400" aria-hidden="true" />
               </span>
             )}
           </div>
@@ -109,7 +109,7 @@ export function ProfileHero({
         <div className="min-w-0 flex-1">
           {isPro ? (
             <span className="neu-raised-sm inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-              <Crown className="size-3.5" aria-hidden="true" />
+              <Crown className="size-3.5 text-amber-500 dark:text-amber-400" aria-hidden="true" />
               {roleLabel}
             </span>
           ) : (

@@ -39,6 +39,11 @@ export interface PageHeaderProps {
  * sunken tab track whose active pill is the only thing lifted out of it. The
  * active tab is *also* marked by accent colour and a dot, because a shadow on
  * its own is invisible to anyone who cannot see the shadow.
+ *
+ * The tab track shares the title row on desktop rather than taking a band of its
+ * own below it — the header is chrome, and it should not spend a second row of
+ * vertical space on two links. It drops under the title only on phones, where
+ * there is no width to share.
  */
 export function PageHeader({
   title,
@@ -79,37 +84,48 @@ export function PageHeader({
           </div>
         </div>
 
-        {actions && <div className="flex shrink-0 items-center gap-3">{actions}</div>}
-      </div>
-
-      {tabs && tabs.length > 0 && (
-        <nav
-          aria-label={tabsLabel ?? title}
-          className="neu-pressed grid grid-cols-2 gap-2 rounded-2xl border-none p-2 sm:inline-flex sm:w-auto sm:self-start"
-        >
-          {tabs.map((tab) => {
-            const TabIcon = tab.icon;
-            const isActive = tab.key === activeTabKey;
-            return (
-              <Link
-                key={tab.key}
-                href={tab.href}
-                aria-current={isActive ? "page" : undefined}
+        {(actions || (tabs && tabs.length > 0)) && (
+          <div className="flex flex-col gap-3 sm:flex-row sm:shrink-0 sm:items-center sm:gap-3">
+            {tabs && tabs.length > 0 && (
+              <nav
+                aria-label={tabsLabel ?? title}
                 className={cn(
-                  "flex h-10 items-center justify-center gap-2 rounded-xl border-none px-4 text-xs font-bold tracking-wide transition-all sm:px-6",
-                  NEU_FOCUS,
-                  isActive
-                    ? cn("neu-raised-sm", NEU_ACCENT_TEXT)
-                    : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100",
+                  "neu-pressed rounded-2xl border-none p-2",
+                  // Two equal columns is the only layout that fits on a phone; from sm the
+                  // track shrinks to its links so it can sit beside the title.
+                  "grid gap-2",
+                  tabs.length === 2 ? "grid-cols-2" : "grid-cols-1",
+                  "sm:inline-flex sm:w-auto",
                 )}
               >
-                {TabIcon && <TabIcon className="size-4" aria-hidden="true" />}
-                <span>{tab.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      )}
+                {tabs.map((tab) => {
+                  const TabIcon = tab.icon;
+                  const isActive = tab.key === activeTabKey;
+                  return (
+                    <Link
+                      key={tab.key}
+                      href={tab.href}
+                      aria-current={isActive ? "page" : undefined}
+                      className={cn(
+                        "flex h-10 items-center justify-center gap-2 rounded-xl border-none px-4 text-xs font-bold tracking-wide transition-all",
+                        NEU_FOCUS,
+                        isActive
+                          ? cn("neu-raised-sm", NEU_ACCENT_TEXT)
+                          : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100",
+                      )}
+                    >
+                      {TabIcon && <TabIcon className="size-4" aria-hidden="true" />}
+                      <span>{tab.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+            {actions && <div className="flex shrink-0 items-center gap-3">{actions}</div>}
+          </div>
+        )}
+      </div>
     </NeuPanel>
   );
 }

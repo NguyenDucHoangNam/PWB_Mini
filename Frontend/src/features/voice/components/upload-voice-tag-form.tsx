@@ -173,7 +173,11 @@ export function UploadVoiceTagForm({ onCancel, onSuccess }: UploadVoiceTagFormPr
         onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
       />
 
-      <div className="grid gap-5 lg:grid-cols-2 lg:gap-6">
+      {/* Two side-by-side columns left the short name field stranded next to a tall
+          dropzone. Stacked, each step reads in the order it is done — name, then file,
+          then submit — and the column is capped so neither control stretches the width
+          of a desktop panel. */}
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
         <div className="flex flex-col gap-2">
           <label htmlFor="upload-tag-name" className={NEU_LABEL}>
             {t("nameLabel")}
@@ -194,7 +198,12 @@ export function UploadVoiceTagForm({ onCancel, onSuccess }: UploadVoiceTagFormPr
           </label>
 
           {!file ? (
-            <NeuDropzone inputRef={fileInputRef} disabled={isPending} onFiles={handleFileChange}>
+            <NeuDropzone
+              inputRef={fileInputRef}
+              disabled={isPending}
+              onFiles={handleFileChange}
+              className="min-h-44 flex-none"
+            >
               {({ isDragging }) => (
                 <>
                   <span
@@ -214,7 +223,7 @@ export function UploadVoiceTagForm({ onCancel, onSuccess }: UploadVoiceTagFormPr
               )}
             </NeuDropzone>
           ) : (
-            <NeuPanel tone="pressed" className="flex flex-1 flex-col gap-4 rounded-2xl p-4">
+            <NeuPanel tone="pressed" className="flex flex-col gap-4 rounded-2xl p-4">
               <div className="flex items-center gap-3">
                 <span className="neu-raised-sm grid size-11 shrink-0 place-items-center rounded-2xl border-none text-indigo-600 dark:text-indigo-400">
                   <FileAudio className="size-5" aria-hidden="true" />
@@ -265,25 +274,25 @@ export function UploadVoiceTagForm({ onCancel, onSuccess }: UploadVoiceTagFormPr
             </p>
           )}
         </div>
-      </div>
 
-      {phase && <UploadProgress phase={phase} percent={percent} />}
+        {phase && <UploadProgress phase={phase} percent={percent} />}
 
-      <div className="flex justify-end gap-3">
-        {onCancel && (
-          <NeuButton type="button" onClick={onCancel} disabled={isPending}>
-            {tActions("back")}
+        <div className="flex justify-end gap-3">
+          {onCancel && (
+            <NeuButton type="button" onClick={onCancel} disabled={isPending}>
+              {tActions("back")}
+            </NeuButton>
+          )}
+          <NeuButton
+            type="submit"
+            variant="primary"
+            disabled={!canSubmit || isPending}
+            className="min-w-36"
+          >
+            {isPending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+            {t("submitButton")}
           </NeuButton>
-        )}
-        <NeuButton
-          type="submit"
-          variant="primary"
-          disabled={!canSubmit || isPending}
-          className="min-w-36"
-        >
-          {isPending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-          {t("submitButton")}
-        </NeuButton>
+        </div>
       </div>
     </form>
   );

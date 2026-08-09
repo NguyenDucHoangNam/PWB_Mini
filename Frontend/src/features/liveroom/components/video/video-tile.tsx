@@ -109,7 +109,7 @@ export function VideoTile({
             className="neu-raised-sm absolute top-2 left-2 flex items-center gap-1 rounded-full border-none px-2 py-1 text-[10px] leading-none font-bold text-amber-800 dark:text-amber-400"
             title={tParticipants("owner")}
           >
-            <Crown className="size-3" aria-hidden />
+            <Crown className="size-3 text-amber-500 dark:text-amber-400" aria-hidden />
             <span className="sr-only sm:not-sr-only">{tParticipants("owner")}</span>
           </span>
         </>
