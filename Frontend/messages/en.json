@@ -196,71 +196,566 @@
     }
   },
   "features": {
-    "hero": {
-      "eyebrow": "Features",
-      "title": "Three modules, one continuous workflow.",
-      "lead": "This page follows the order you will actually click: from the first demo file to a room listening together. How it works underneath gets a page of its own.",
-      "guideCta": "Start the walkthrough",
-      "techCta": "Technical write-up",
-      "stat1Label": "Modules",
-      "stat1Value": "3",
-      "stat2Label": "Steps",
-      "stat2Value": "12",
-      "stat3Label": "Time",
-      "stat3Value": "~6 min"
-    },
-    "guide": {
-      "eyebrow": "How to use it",
-      "title": "From an empty library to a room listening together.",
-      "lead": "Pick a module to see the full flow. Every step is a real screen in the app.",
-      "tipsTitle": "Worth knowing",
-      "library": {
-        "title": "Library",
-        "meta": "~2 min",
-        "summary": "Where every demo enters the system. Upload it, name it, and find it again even when you misremember the title.",
-        "step1Title": "Open Playlist",
-        "step1Body": "Once you are signed in, the whole library lives under Playlist in the nav. It starts empty.",
-        "step2Title": "Upload a track",
-        "step2Body": "Drop or pick an MP3, WAV or FLAC up to 200 MB. The progress bar follows bytes actually sent, not an estimated animation.",
-        "step3Title": "Fill in the details",
-        "step3Body": "Title, artist, cover art. Skip the cover and a default one is used — it will not block you from saving.",
-        "step4Title": "Search and play",
-        "step4Body": "Search strips accents and tolerates typos, so a rough guess still lands on the right track.",
-        "tip1": "Files over 200 MB are rejected in the browser — not a single byte of bandwidth is spent.",
-        "tip2": "Closing the tab mid-upload loses the session; there is no resume yet.",
-        "tip3": "The original file is always kept. A tagged version is saved as a separate copy."
+    "walkthrough": {
+      "mediaPending": "Media pending",
+      "hero": {
+        "eyebrow": "Walkthrough",
+        "title": "Three modules, walked through step by step.",
+        "lead": "Every module below is the real flow, in the order the screens appear: what you click, what the app asks for, and what comes back. The illustrations are captured from the running app.",
+        "indexTitle": "On this page",
+        "tally": "{modules} modules · {steps} steps · ~{minutes} min",
+        "moduleMeta": "{steps} steps · ~{minutes} min",
+        "statusSoon": "Soon",
+        "techLink": "Or read how it is built underneath"
+      },
+      "modules": {
+        "voiceTag": {
+          "title": "Voice Tag"
+        },
+        "song": {
+          "title": "Song"
+        },
+        "liveRoom": {
+          "title": "Live Room"
+        }
       },
       "voiceTag": {
-        "title": "Voice Tag",
-        "meta": "~3 min",
-        "summary": "Your audio signature, baked into the master on a loop interval you choose.",
-        "step1Title": "Open the Voice Tags tab",
-        "step1Body": "Every tag you have made lives in one place, previewable straight from the list.",
-        "step2Title": "Create a tag",
-        "step2Body": "Type text and have it spoken by a synthetic voice, or record and upload your own, up to 10 seconds.",
-        "step3Title": "Preview before you commit",
-        "step3Body": "The preview runs the same processing pipeline as the final render, so what you hear is what you get.",
-        "step4Title": "Bake it into a track",
-        "step4Body": "Pick a song, set the loop interval and the tag level, and a new version is rendered alongside the original.",
-        "tip1": "The original is never overwritten — each bake produces a new file.",
-        "tip2": "The tag level is matched to the song's, so it neither disappears nor cuts through.",
-        "tip3": "A short 1–2 second tag on a sparse loop usually sits better than a long one."
+        "eyebrow": "Module 01 — Voice Tag",
+        "title": "Create a voice tag, end to end.",
+        "lead": "A voice tag is the audio signature stamped over your demos. This is the whole path: from opening the tab to a saved tag waiting in the picker.",
+        "specs": {
+          "plan": {
+            "label": "Plan",
+            "value": "Pro"
+          },
+          "time": {
+            "label": "Time",
+            "value": "~3 min"
+          },
+          "ways": {
+            "label": "Ways to create",
+            "value": "TTS or upload"
+          },
+          "length": {
+            "label": "Max length",
+            "value": "10s for an uploaded clip"
+          }
+        },
+        "steps": {
+          "open": {
+            "title": "Open the Voice Tags tab",
+            "body": "Sign in, then go to Dashboard → Voice Tags. Every tag you own lives here and plays straight from the list. The first time, the list is empty and offers a single button: Create.",
+            "note": "Voice Tags is a Pro module. On a free account the list is replaced by an upgrade prompt.",
+            "mediaHint": "The Voice Tags tab in its empty state, with the Create button.",
+            "facts": {
+              "route": {
+                "label": "Route",
+                "value": "/dashboard/voice-tags"
+              },
+              "plan": {
+                "label": "Requires",
+                "value": "A signed-in Pro account"
+              }
+            }
+          },
+          "create": {
+            "title": "Press Create and pick a method",
+            "body": "Two cards, one choice: let a synthetic voice read a line you type, or upload a clip you recorded yourself. Nothing is locked in — you can come back and make another tag the other way.",
+            "mediaHint": "The two creation cards: Generate with AI (TTS) and Upload your own audio.",
+            "facts": {
+              "route": {
+                "label": "Route",
+                "value": "/dashboard/voice-tags/new"
+              }
+            }
+          },
+          "fork": {
+            "title": "Fill in the branch you chose",
+            "body": "The two methods ask for different things, and only the one you picked needs finishing.",
+            "tts": {
+              "badge": "A · TTS",
+              "title": "Generate with a synthetic voice",
+              "body": "Name the tag, type the line to be spoken, then choose a language and a voice. Switching language clears the voice, because each language carries its own set.",
+              "mediaHint": "The TTS form with the language and voice dropdowns open.",
+              "facts": {
+                "name": {
+                  "label": "Name",
+                  "value": "Up to 100 characters"
+                },
+                "text": {
+                  "label": "Text",
+                  "value": "Up to 2000 characters"
+                },
+                "language": {
+                  "label": "Language",
+                  "value": "Vietnamese, English (US), English (UK)"
+                },
+                "voice": {
+                  "label": "Voice",
+                  "value": "Male or female, or the system default"
+                }
+              }
+            },
+            "upload": {
+              "badge": "B · Upload",
+              "title": "Upload a clip you recorded",
+              "body": "Drop a file into the box or click to choose one. The name is filled in from the filename, and stays yours the moment you edit it. The browser reads the duration before anything is sent, so an over-length clip is refused without spending bandwidth.",
+              "mediaHint": "Dropping a file into the dropzone: the duration read back, and the inline player underneath.",
+              "facts": {
+                "formats": {
+                  "label": "Formats",
+                  "value": "MP3, WAV or FLAC"
+                },
+                "length": {
+                  "label": "Max length",
+                  "value": "10 seconds"
+                },
+                "size": {
+                  "label": "Max size",
+                  "value": "100 MB"
+                },
+                "name": {
+                  "label": "Name",
+                  "value": "Taken from the filename, editable"
+                }
+              }
+            }
+          },
+          "preview": {
+            "title": "Listen before you save",
+            "body": "Preview synthesises a sample from exactly what the form holds right now. Nothing is stored yet — leave at this point and no tag exists. Change the text, the language or the voice and the old sample is dropped, so you never judge a stale one.",
+            "note": "Previews are rate limited. Past the ceiling the app tells you how many seconds to wait before the next one.",
+            "mediaHint": "Short clip: pressing Preview, the loader, then the sample playing.",
+            "facts": {
+              "scope": {
+                "label": "TTS branch",
+                "value": "Synthesised on the server, never stored"
+              },
+              "upload": {
+                "label": "Upload branch",
+                "value": "Played locally; the file has not left the browser"
+              }
+            }
+          },
+          "save": {
+            "title": "Create the tag",
+            "body": "Create voice tag saves it and returns you to the list with a confirmation. The new card carries the name, the language flag and the duration measured from the audio itself.",
+            "mediaHint": "The list right after saving, with the new card and the confirmation toast.",
+            "facts": {
+              "result": {
+                "label": "Result",
+                "value": "One tag in your library, ready to use"
+              }
+            }
+          },
+          "manage": {
+            "title": "Play it, rename it, or take it to a song",
+            "body": "On a card, Preview asks for a fresh signed link only when you press it, so opening the tab does not pull audio you were never going to hear. The pencil renames in place — Enter saves, Esc cancels. The bin asks once. When you upload a song, this tag shows up in the picker: search matches without diacritics and forgives a typo.",
+            "note": "Renaming is the only edit. The audio of a saved tag is fixed — a different take means a new tag.",
+            "mediaHint": "One card: the preview playing, an inline rename, and the delete dialog.",
+            "facts": {
+              "rename": {
+                "label": "Rename",
+                "value": "Inline on the card — Enter to save, Esc to cancel"
+              },
+              "remove": {
+                "label": "Delete",
+                "value": "Confirmed once, and it is gone"
+              }
+            }
+          }
+        },
+        "next": {
+          "eyebrow": "Next module",
+          "title": "Song — upload a track and bake the tag in",
+          "body": "Where the loop interval, the tag volume and how far the music ducks underneath are set, and the tagged copy is rendered next to an untouched original."
+        }
+      },
+      "song": {
+        "eyebrow": "Module 02 — Song",
+        "title": "Upload a track and bake the tag in.",
+        "lead": "This is where a voice tag stops being a clip and becomes part of a master. Seven steps: pick the file, decide whether it gets a tag, tune how the tag sits under the music, and listen to what comes out.",
+        "specs": {
+          "plan": {
+            "label": "Plan",
+            "value": "Pro"
+          },
+          "time": {
+            "label": "Time",
+            "value": "~5 min"
+          },
+          "formats": {
+            "label": "Accepts",
+            "value": "MP3, WAV, FLAC · 100 MB"
+          },
+          "tag": {
+            "label": "Voice tag",
+            "value": "Optional, chosen at upload"
+          }
+        },
+        "steps": {
+          "open": {
+            "title": "Open the Songs tab",
+            "body": "Dashboard → Songs. The list holds every track you have uploaded, with a search box, a status filter and the Upload button. On a fresh account it is empty and points at that same button.",
+            "note": "While any track is still merging, the list refreshes itself every few seconds — you never have to reload to watch a status change.",
+            "mediaHint": "The Songs tab: search box, status filter, Upload button, and the empty state.",
+            "facts": {
+              "route": {
+                "label": "Route",
+                "value": "/dashboard/songs"
+              },
+              "filter": {
+                "label": "Status filter",
+                "value": "All · Ready · Processing · Failed"
+              }
+            }
+          },
+          "file": {
+            "title": "Choose the audio file",
+            "body": "Drop the file on the box or click to browse. The browser reads its length before anything is sent, and fills the title in from the filename — type your own and yours is kept. Change file swaps it without starting the form over.",
+            "mediaHint": "A file just dropped in: name, size, format, length, and the waveform strip.",
+            "facts": {
+              "formats": {
+                "label": "Formats",
+                "value": "MP3, WAV or FLAC"
+              },
+              "size": {
+                "label": "Max size",
+                "value": "100 MB, checked in the browser"
+              },
+              "title": {
+                "label": "Title",
+                "value": "Up to 200 characters"
+              }
+            }
+          },
+          "fork": {
+            "title": "Decide whether it gets a voice tag",
+            "body": "One checkbox — Attach Voice Tag during upload — splits the rest of the form. Choose carefully: the answer is written into the release and cannot be changed afterwards.",
+            "plain": {
+              "badge": "A · No tag",
+              "title": "Leave it as plain music",
+              "body": "Skip the checkbox and the track is stored exactly as you uploaded it. Useful for a reference, or for a master you tag somewhere else. Its page and its row both label it plain music afterwards.",
+              "mediaHint": "The form with the checkbox unticked, showing the three-line explainer.",
+              "facts": {
+                "result": {
+                  "label": "Result",
+                  "value": "One file, untouched"
+                },
+                "status": {
+                  "label": "Status",
+                  "value": "Ready the moment the upload lands"
+                },
+                "later": {
+                  "label": "Want one later",
+                  "value": "Upload again with a tag attached"
+                }
+              }
+            },
+            "tagged": {
+              "badge": "B · With a tag",
+              "title": "Attach one of your voice tags",
+              "body": "Tick the box and the picker appears. From two characters it asks the server, which matches without diacritics and forgives a typo; below that it filters the tags the form already holds. Each row shows the language and the voice, so two tags both called intro stay apart.",
+              "mediaHint": "The picker open, with matches, language flags and voice names.",
+              "facts": {
+                "source": {
+                  "label": "Source",
+                  "value": "The tags you made in module 01"
+                },
+                "search": {
+                  "label": "Search",
+                  "value": "Server-side from 2 characters"
+                },
+                "missing": {
+                  "label": "No tags yet",
+                  "value": "The form says so and sends you back"
+                }
+              }
+            }
+          },
+          "tune": {
+            "title": "Tune how the tag sits in the track",
+            "body": "Four numbers decide the result, each with a slider and a box you can type into. Above them a simulated three-minute timeline marks every insertion as you drag and counts them, so the interval is a picture rather than a guess.",
+            "note": "Ducking is the one worth reading twice: it is the level the music is held at while the tag speaks, not the amount it drops by. 50% means the music sits at half volume underneath.",
+            "mediaHint": "Short clip: dragging the interval slider while the timeline markers rearrange.",
+            "facts": {
+              "interval": {
+                "label": "Interval",
+                "value": "5–600s, default 30"
+              },
+              "volume": {
+                "label": "Tag volume",
+                "value": "0–100%, default 80"
+              },
+              "ducking": {
+                "label": "Ducking",
+                "value": "0–100%, default 50"
+              },
+              "offset": {
+                "label": "Start offset",
+                "value": "0–120s, default 0"
+              }
+            }
+          },
+          "send": {
+            "title": "Upload, and wait for the merge",
+            "body": "The button walks through four states. It asks for a signed upload link, sends the bytes straight to storage behind a progress bar that follows what actually left your machine, registers the song, then waits for the merge. Only the sending stage can be cancelled — after that the server owns the job.",
+            "note": "Don't want to watch? Run in background hands you to the song's own page, which picks up the same wait. Either way the merge keeps going; closing the tab mid-transfer is what loses it, and the browser warns you before it happens.",
+            "mediaHint": "Short clip: the four phases in order — preparing, uploading with a percentage, finishing, merging.",
+            "facts": {
+              "phases": {
+                "label": "Phases",
+                "value": "Preparing → Uploading → Finishing → Merging"
+              },
+              "cancel": {
+                "label": "Cancel",
+                "value": "During the transfer only"
+              },
+              "merge": {
+                "label": "Merging",
+                "value": "Only with a tag; checked every 2s for up to 5 min"
+              }
+            }
+          },
+          "listen": {
+            "title": "Listen to what came out",
+            "body": "You land on the song's own page. The player decodes the file in the browser to draw the real waveform, not a decoration — click anywhere on it to seek, and loop or change speed from 0.5x to 2x. Under it sits the voice tag configuration the track was built with.",
+            "note": "Arrived while it was still merging? The banner says so and the page updates itself the moment it finishes. If it failed, the reason is printed and Retry processing queues it again.",
+            "mediaHint": "The song page: waveform player, status badge, and the read-only configuration grid.",
+            "facts": {
+              "waveform": {
+                "label": "Waveform",
+                "value": "Decoded from the audio itself"
+              },
+              "player": {
+                "label": "Player",
+                "value": "Seek, loop, 0.5x–2x"
+              },
+              "config": {
+                "label": "Configuration",
+                "value": "Read-only — fixed at upload"
+              }
+            }
+          },
+          "manage": {
+            "title": "Find it again later",
+            "body": "Back on the list, the pencil renames a track in place and the bin removes it. Search ignores accents and tolerates a typo, so a half-remembered title still lands; the filter narrows to Ready, Processing or Failed when only one of them matters.",
+            "note": "Deleting takes the original and every processed version with it. The confirmation says as much, and it cannot be undone.",
+            "mediaHint": "The list with several tracks: an inline rename, the status filter open, and a search result.",
+            "facts": {
+              "rename": {
+                "label": "Rename",
+                "value": "Inline — Enter to save, Esc to cancel"
+              },
+              "search": {
+                "label": "Search",
+                "value": "Accent-insensitive, typo tolerant"
+              },
+              "remove": {
+                "label": "Delete",
+                "value": "Takes the processed versions too"
+              }
+            }
+          }
+        },
+        "next": {
+          "eyebrow": "Next module",
+          "title": "Live Room — play it to other people, together",
+          "body": "A six-character code, one track in step for everyone in the room, and voice on top of it."
+        }
       },
       "liveRoom": {
-        "title": "Live Room",
-        "meta": "~1 min",
-        "summary": "A six-character code, up to seven people, one track at the same second — with voice on top.",
-        "step1Title": "Create a room",
-        "step1Body": "The owner sets a name and a headcount limit, and gets back a six-character code.",
-        "step2Title": "Invite with the code",
-        "step2Body": "Others enter the code and request to join. The owner sees the queue and approves or turns down each one.",
-        "step3Title": "Listen together",
-        "step3Body": "The owner picks a track from their library. Play, pause and seek stay in step for everyone.",
-        "step4Title": "Talk it through",
-        "step4Body": "Unmute to speak, send chat, or pin a comment to the exact second of the track. The owner can mute remotely or remove someone.",
-        "tip1": "Turned down three times by the owner and you can no longer request that room.",
-        "tip2": "Reloading mid-track drops you back at the right playback position.",
-        "tip3": "Ending a room can be undone: the music is paused, not lost."
+        "eyebrow": "Module 03 — Live Room",
+        "title": "Play it to other people, in the same second.",
+        "lead": "A room is a six-character code, up to seven people, and one track everybody hears at the same position. Seven steps, split by the role you are in: the host who opens the door, or the guest who knocks.",
+        "specs": {
+          "plan": {
+            "label": "Plan",
+            "value": "Pro to host, free to join"
+          },
+          "time": {
+            "label": "Time",
+            "value": "~6 min"
+          },
+          "capacity": {
+            "label": "Capacity",
+            "value": "1–7, host included"
+          },
+          "code": {
+            "label": "Invite",
+            "value": "A 6-character code"
+          }
+        },
+        "steps": {
+          "open": {
+            "title": "Open the Live rooms tab",
+            "body": "Dashboard → Live rooms. The list holds the rooms you own, split into Active and Ended, with search across their names. Two buttons sit above it: Create room, and Join by code.",
+            "note": "Hosting is Pro. Joining someone else's room is not — any signed-in account can walk in with a code, which is what makes a room usable for a client review.",
+            "mediaHint": "The Live rooms list: Active/Ended tabs, a room card with its code and headcount, and both buttons.",
+            "facts": {
+              "route": {
+                "label": "Route",
+                "value": "/dashboard/liveroom"
+              },
+              "plan": {
+                "label": "Requires",
+                "value": "Pro to create a room"
+              }
+            }
+          },
+          "fork": {
+            "title": "Open a room, or knock on one",
+            "body": "The two roles reach the same room from opposite sides. Read the one you are.",
+            "host": {
+              "badge": "A · Host",
+              "title": "Create the room",
+              "body": "Name it, set how many people it holds and how long it survives you stepping away. The system hands back a six-character code — that code is the whole invitation, and it stays the same for the life of the room.",
+              "mediaHint": "The create form filled in, and the room card that comes back carrying its code.",
+              "facts": {
+                "name": {
+                  "label": "Room name",
+                  "value": "Up to 100 characters"
+                },
+                "capacity": {
+                  "label": "Capacity",
+                  "value": "1–7, default 7"
+                },
+                "grace": {
+                  "label": "Owner grace",
+                  "value": "30–1800s, default 60"
+                },
+                "code": {
+                  "label": "Code",
+                  "value": "6 characters, generated for you"
+                }
+              }
+            },
+            "guest": {
+              "badge": "B · Guest",
+              "title": "Enter the code",
+              "body": "Join by code takes six characters and formats them as you type. The lookup answers with the room's name and how full it is before you commit — an ended room says so and stops there. Then you get a camera and microphone check, which you are free to skip.",
+              "mediaHint": "The code field mid-entry, the lookup result, and the device check with its camera preview.",
+              "facts": {
+                "route": {
+                  "label": "Route",
+                  "value": "/dashboard/liveroom/join"
+                },
+                "code": {
+                  "label": "Code",
+                  "value": "6 characters, A–Z and 0–9"
+                },
+                "lookup": {
+                  "label": "Before joining",
+                  "value": "Room name and headcount shown"
+                },
+                "devices": {
+                  "label": "Devices",
+                  "value": "Optional — join without them and turn them on inside"
+                }
+              }
+            }
+          },
+          "door": {
+            "title": "Ask, and be let in",
+            "body": "Asking to join puts a request in front of the host, who sees it arrive and answers Let in or Decline. Approved, and the guest is pulled into the room automatically after a short countdown they can skip. The room filling up while a request waits declines it on capacity rather than pretending there is space.",
+            "note": "Three declines from the host and that person can no longer ask — the lobby says so instead of letting them keep knocking. Someone already approved once walks straight back in next time, unless they were removed in between.",
+            "mediaHint": "Split view: the host's waiting-to-join queue, and the guest's lobby with its countdown.",
+            "facts": {
+              "approve": {
+                "label": "Let in",
+                "value": "The guest auto-enters after a countdown"
+              },
+              "decline": {
+                "label": "Decline",
+                "value": "Three times locks that person out"
+              },
+              "returning": {
+                "label": "Coming back",
+                "value": "Approved once means straight in"
+              }
+            }
+          },
+          "inside": {
+            "title": "Look around the room",
+            "body": "The header carries the room name, the code with a copy button, the headcount and a connection badge that tells you whether you are connected, reconnecting or offline. The video grid rearranges itself by how many people are in — full screen at one, two columns at two, a grid from three up. The bar at the bottom holds camera, microphone, the panel toggles and the way out.",
+            "note": "A room can only be open in one tab. A second tab on the same room gets a screen offering to jump to the first one or take over, rather than two sessions fighting over one seat.",
+            "mediaHint": "The room screen with four people: header, video grid, control bar, and the side panel open.",
+            "facts": {
+              "header": {
+                "label": "Header",
+                "value": "Code, headcount, connection state"
+              },
+              "grid": {
+                "label": "Video grid",
+                "value": "Peer-to-peer, laid out by headcount"
+              },
+              "panel": {
+                "label": "Side panel",
+                "value": "People and Chat"
+              }
+            }
+          },
+          "listen": {
+            "title": "Listen to a track together",
+            "body": "Pick a song and everyone hears it at the same position: the server keeps one playback state per room and stores where the track stood when it started, so each client works out the live position from that plus elapsed time. Play, pause, seek and volume all travel to everybody. Under the waveform, anyone can pin a comment to an exact second — it pops up when playback passes it.",
+            "note": "The songs offered are the ones in your own library, and only those ready to play — so whoever picks is playing from their own uploads, not the host's. While the host is away the music stays paused for everybody else; only they can start it again.",
+            "mediaHint": "Short clip: picking a song, the waveform filling, and a comment popping up as playback reaches its second.",
+            "facts": {
+              "source": {
+                "label": "Song source",
+                "value": "The picker's own library, ready tracks only"
+              },
+              "sync": {
+                "label": "In step",
+                "value": "One playback state per room"
+              },
+              "comments": {
+                "label": "Track comments",
+                "value": "Up to 200 characters, pinned to a second"
+              }
+            }
+          },
+          "moderate": {
+            "title": "Keep the room in order",
+            "body": "The People tab is where the host acts. Remove takes somebody out and keeps them out for a cooldown; Mute closes their microphone from across the room and holds it shut for a cooldown, so it cannot be flipped straight back on. Every row shows what state that person's microphone is in and whether their camera is off.",
+            "note": "Being removed is not a dead end shown as an error: that person lands on a screen naming what happened, with the wait counting down until they can ask again.",
+            "mediaHint": "The People tab with the host's Remove and Mute controls, and the confirmation dialog.",
+            "facts": {
+              "remove": {
+                "label": "Remove",
+                "value": "Confirmed, then a cooldown before they can return"
+              },
+              "mute": {
+                "label": "Mute",
+                "value": "Remote, with a cooldown before they can reopen it"
+              },
+              "micStates": {
+                "label": "Mic states",
+                "value": "On · muted by themselves · muted by the host"
+              }
+            }
+          },
+          "end": {
+            "title": "Leave it, or close it",
+            "body": "Leaving and ending are different doors. A guest leaving frees their seat and can walk back in with the same code. The host leaving does not close the room: it holds their seat, tells everybody the host stepped away, and runs down the grace period they set — come back in time and nothing was lost. Ending closes it for everyone with an overlay that says why.",
+            "note": "An ended room is not gone. Reopen keeps the same code and starts a fresh session: the people, the chat and the playback of the previous session do not carry over.",
+            "mediaHint": "The host-stepped-away banner with its countdown, and the Ended tab with a room's Reopen button.",
+            "facts": {
+              "leave": {
+                "label": "Guest leaves",
+                "value": "Seat freed, same code gets them back"
+              },
+              "grace": {
+                "label": "Host leaves",
+                "value": "Seat held, room closes when grace runs out"
+              },
+              "reopen": {
+                "label": "Reopen",
+                "value": "Same code, new session, nothing carried over"
+              }
+            }
+          }
+        }
       }
     },
     "bridge": {

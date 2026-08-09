@@ -118,6 +118,14 @@ class OtpCodeRepositoryImplIT extends AbstractRepositoryIT {
     void should_lock_otp_when_markLockedIfNotAlready_called() {
         OtpCode saved = repository.save(pendingOtp(UUID.randomUUID(), OtpPurpose.REGISTER));
 
+        // The ceiling is the lockout: a freshly issued code sits at zero attempts and must survive
+        // the call untouched. Asserting that first is what keeps the query from being "downgraded"
+        // to attempts < maxAttempts, which would lock every pending code on its first failure.
+        assertThat(repository.markLockedIfNotAlready(saved.getId(), MAX_ATTEMPTS)).isFalse();
+        for (int i = 0; i < MAX_ATTEMPTS; i++) {
+            repository.incrementAttempts(saved.getId());
+        }
+
         boolean locked = repository.markLockedIfNotAlready(saved.getId(), MAX_ATTEMPTS);
 
         assertThat(locked).isTrue();
