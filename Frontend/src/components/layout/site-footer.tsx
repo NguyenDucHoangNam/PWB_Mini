@@ -8,7 +8,7 @@ export function SiteFooter() {
   const t = useTranslations("footer");
 
   return (
-    <footer className="w-full bg-[#e0e5ec] dark:bg-[#1e222b] border-t border-slate-300/60 dark:border-slate-800/80 py-8 text-slate-600 dark:text-slate-300 transition-colors">
+    <footer className="w-full bg-[#e0e5ec] dark:bg-[#1e222b] neu-footer py-14 text-slate-600 dark:text-slate-300 transition-colors">
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 md:px-8">
         <div className="flex flex-col items-center gap-5">
           <span className="font-mono text-xs sm:text-sm font-bold uppercase tracking-[0.25em] text-slate-800 dark:text-slate-200 select-none">
