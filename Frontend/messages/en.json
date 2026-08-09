@@ -812,20 +812,19 @@
   },
   "contact": {
     "eyebrow": "Contact",
-    "title": "A question, a bug, or an idea — one address for all three.",
-    "lead": "Everything sent here is read by one person, so write it the way you would to a colleague. If something is broken, the steps you took and what happened instead are the most useful thing you can send.",
+    "title": "A product made alongside <partner>HNAM OFFICIAL</partner>.",
     "emailCta": "Send an email",
     "copyCta": "Copy the address",
     "copiedShort": "Copied",
     "copied": "Email address copied.",
     "copyFailed": "Could not reach the clipboard — copy the address manually.",
-    "infoTitle": "Details",
-    "responseLabel": "First reply",
-    "responseValue": "Usually within one working day, two at the outside.",
-    "hoursLabel": "Where we are",
-    "hoursValue": "Vietnam, GMT+7. Anything sent overnight is answered the next morning.",
-    "languagesLabel": "Languages",
-    "languagesValue": "English and Vietnamese."
+    "partnerNote": "Producer Workbench is built and shipped with HNAM OFFICIAL beside it — the same hands behind the decks are behind the product. Everything below reaches one person.",
+    "photoAlt": "Nam behind a Pioneer DJ setup, under the HNAM In The Mix backdrop.",
+    "emailLabel": "Email",
+    "phoneLabel": "Phone",
+    "facebookLabel": "Facebook",
+    "instagramLabel": "Instagram",
+    "portfolioLabel": "Portfolio"
   },
   "auth": {
     "layout": {
