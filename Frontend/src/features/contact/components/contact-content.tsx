@@ -22,7 +22,6 @@ export function ContactContent() {
       await navigator.clipboard.writeText(CONTACT_EMAIL);
       setCopied(true);
       toast.success(t("copied"));
-      // Revert after a beat so the button reads as a confirmation, not a new state.
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error(t("copyFailed"));
@@ -30,34 +29,23 @@ export function ContactContent() {
   };
 
   return (
-    <section className="relative flex w-full flex-1 items-center overflow-hidden bg-background px-5 py-16 font-sans sm:px-8">
-      {/* Dotted drafting field, faded out at the edges so it never competes with the card. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-[0.5] dark:opacity-30"
-        style={{
-          backgroundImage: "radial-gradient(var(--border) 1px, transparent 1px)",
-          backgroundSize: "26px 26px",
-          maskImage: "radial-gradient(ellipse 70% 60% at 50% 40%, black, transparent 80%)",
-        }}
-      />
-
+    <section className="relative flex min-h-[calc(100dvh-5rem)] w-full flex-1 items-center overflow-hidden bg-[#e0e5ec] px-5 py-16 font-sans dark:bg-[#1e222b] sm:px-8 transition-colors border-none">
       <div className="relative mx-auto grid w-full max-w-5xl items-center gap-10 lg:grid-cols-[1fr_minmax(0,22rem)] lg:gap-14">
         <div className="min-w-0">
           <Eyebrow>{t("eyebrow")}</Eyebrow>
 
-          <h1 className="mt-5 text-balance font-heading text-3xl font-semibold tracking-tight text-foreground sm:text-4xl md:text-5xl">
+          <h1 className="mt-5 text-balance font-heading text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl md:text-5xl">
             {t("title")}
           </h1>
 
-          <p className="mt-5 max-w-xl text-pretty text-base leading-relaxed text-muted-foreground">
+          <p className="mt-5 max-w-xl text-pretty text-base leading-relaxed text-slate-600 dark:text-slate-300">
             {t("lead")}
           </p>
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
             <a
               href={`mailto:${CONTACT_EMAIL}`}
-              className="inline-flex h-11 items-center justify-center gap-2.5 rounded-full bg-foreground px-6 text-sm font-medium text-background beat-16th transition-opacity hover:opacity-85"
+              className="neu-button-primary inline-flex h-12 items-center justify-center gap-2.5 rounded-2xl bg-indigo-600 px-7 text-sm font-bold text-white shadow-neu-raised-sm hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2 transition-all"
             >
               <Mail aria-hidden="true" className="size-4" />
               {t("emailCta")}
@@ -65,42 +53,42 @@ export function ContactContent() {
             <button
               type="button"
               onClick={handleCopy}
-              className="inline-flex h-11 items-center justify-center gap-2.5 rounded-full border border-border bg-background px-6 text-sm font-medium text-foreground beat-16th transition-colors hover:border-foreground/40"
+              className="neu-button inline-flex h-12 items-center justify-center gap-2.5 rounded-2xl bg-[#e0e5ec] px-7 text-sm font-bold text-slate-800 dark:bg-[#1e222b] dark:text-slate-200 focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2 transition-all"
             >
               {copied ? (
-                <Check aria-hidden="true" className="size-4" />
+                <Check aria-hidden="true" className="size-4 text-emerald-600 dark:text-emerald-400" />
               ) : (
-                <Copy aria-hidden="true" className="size-4" />
+                <Copy aria-hidden="true" className="size-4 text-slate-600 dark:text-slate-300" />
               )}
               {copied ? t("copiedShort") : t("copyCta")}
             </button>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-6 sm:p-7">
-          <span className="font-mono text-[0.7rem] uppercase tracking-[0.2em] text-muted-foreground">
+        <div className="neu-raised rounded-3xl border-none bg-[#e0e5ec] p-7 sm:p-8 dark:bg-[#1e222b]">
+          <span className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">
             {t("infoTitle")}
           </span>
 
           <a
             href={`mailto:${CONTACT_EMAIL}`}
-            className="mt-4 flex items-center gap-3 rounded-xl border border-border bg-muted/40 px-3.5 py-3 beat-16th transition-colors hover:border-foreground/30"
+            className="neu-pressed-sm mt-5 flex items-center gap-3 rounded-2xl bg-[#e0e5ec] px-4 py-3.5 dark:bg-[#1e222b] transition-all hover:scale-[1.01]"
           >
-            <Mail aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 truncate font-mono text-xs text-foreground">
+            <Mail aria-hidden="true" className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+            <span className="min-w-0 truncate font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
               {CONTACT_EMAIL}
             </span>
           </a>
 
-          <dl className="mt-2">
+          <dl className="mt-4">
             {INFO_KEYS.map(({ key, icon: Icon }) => (
-              <div key={key} className="flex gap-3 border-b border-border py-4 last:border-b-0">
-                <Icon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+              <div key={key} className="flex gap-3.5 border-b border-slate-300/40 dark:border-slate-700/40 py-4.5 last:border-b-0">
+                <Icon aria-hidden="true" className="mt-0.5 size-4.5 shrink-0 text-indigo-600 dark:text-indigo-400" />
                 <div className="min-w-0">
-                  <dt className="font-mono text-[0.7rem] uppercase tracking-[0.18em] text-muted-foreground">
+                  <dt className="font-mono text-[0.7rem] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                     {t(`${key}Label`)}
                   </dt>
-                  <dd className="mt-1 text-sm leading-relaxed text-foreground">
+                  <dd className="mt-1 text-sm font-semibold leading-relaxed text-slate-800 dark:text-slate-200">
                     {t(`${key}Value`)}
                   </dd>
                 </div>

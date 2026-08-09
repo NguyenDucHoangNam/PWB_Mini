@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { NEU_TEXT, NEU_TEXT_MUTED, NeuButton } from "@/components/ui/neu";
 import { useDeleteSong } from "@/features/voice/api/songs";
 import { asApiError } from "@/lib/api-client";
 import { resolveVoiceErrorMessage } from "@/features/voice/lib/resolve-voice-error-message";
@@ -50,26 +50,31 @@ export function SongDeleteDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {open && song ? (
-        <DialogContent>
+        <DialogContent
+          showCloseButton={false}
+          className="neu-raised gap-6 rounded-3xl border-none bg-[#e0e5ec] p-6 ring-0 dark:bg-[#1e222b]"
+        >
           <DialogHeader>
-            <DialogTitle>{t("confirmTitle")}</DialogTitle>
-            <DialogDescription>
-              <span className="font-medium text-black dark:text-white">{song.title}</span>
+            <DialogTitle className={`text-lg font-bold ${NEU_TEXT}`}>
+              {t("confirmTitle")}
+            </DialogTitle>
+            <DialogDescription className={NEU_TEXT_MUTED}>
+              <span className={`font-bold ${NEU_TEXT}`}>{song.title}</span>
               <br />
               {t("confirmMessage")}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
+          <DialogFooter className="mx-0 mb-0 gap-3 border-t-0 bg-transparent p-0">
+            <NeuButton onClick={() => onOpenChange(false)} disabled={isPending}>
               {tCommon("cancel")}
-            </Button>
-            <Button
-              variant="destructive"
+            </NeuButton>
+            <NeuButton
+              variant="danger"
               disabled={isPending}
               onClick={() => deleteSong({ songId: song.id })}
             >
               {t("confirmButton")}
-            </Button>
+            </NeuButton>
           </DialogFooter>
         </DialogContent>
       ) : null}

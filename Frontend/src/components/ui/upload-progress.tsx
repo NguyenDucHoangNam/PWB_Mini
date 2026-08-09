@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
+import { NEU_TEXT_MUTED } from "@/components/ui/neu";
 
 /**
  * Where an upload has got to. The distinction between `uploading` and `finalizing` matters: once the
@@ -53,22 +54,24 @@ export function UploadProgress({
         aria-valuemax={100}
         // Indeterminate while the server works: there is no honest number to report for that stretch.
         aria-valuenow={phase === "uploading" ? percent : undefined}
-        className="relative h-2.5 w-full overflow-hidden rounded-full bg-muted"
+        // Sunken groove, accent fill: the filled portion has to read as colour, since a
+        // shadow carries no contrast of its own.
+        className="neu-pressed-sm relative h-3 w-full overflow-hidden rounded-full border-none"
       >
         <div
-          className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-300 ease-out"
+          className="absolute inset-y-0 left-0 rounded-full bg-indigo-600 transition-all duration-300 ease-out motion-reduce:transition-none dark:bg-indigo-500"
           style={{ width: `${width}%` }}
         />
         {phase !== "preparing" && (
-          <div className="absolute inset-0 overflow-hidden rounded-full">
+          <div className="absolute inset-0 overflow-hidden rounded-full motion-reduce:hidden">
             <div className="h-full w-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
           </div>
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+      <div className={`flex items-center justify-between gap-2 text-xs font-medium ${NEU_TEXT_MUTED}`}>
         <span className="flex items-center gap-1.5">
-          <Loader2 className="size-3 animate-spin" aria-hidden="true" />
+          <Loader2 className="size-3 animate-spin motion-reduce:animate-none" aria-hidden="true" />
           {phase === "preparing" && t("preparing")}
           {phase === "uploading" && t("sending", { percent })}
           {phase === "finalizing" && t("finalizing")}

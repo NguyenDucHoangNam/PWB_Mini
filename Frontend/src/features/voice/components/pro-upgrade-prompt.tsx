@@ -2,21 +2,28 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
+import { Crown } from "lucide-react";
+import { NEU_TEXT, NEU_TEXT_MUTED, NeuPanel, neuButton } from "@/components/ui/neu";
 
 export function ProUpgradePrompt() {
   const t = useTranslations("voice.errors");
   const tActions = useTranslations("voice.actions");
 
   return (
-    <div className="flex min-h-[60vh] flex-1 flex-col items-center justify-center gap-4 rounded-xl border border-neutral-200 bg-white p-12 text-center dark:border-neutral-800 dark:bg-black">
-      <h2 className="text-xl font-bold text-black dark:text-white">{t("proOnly")}</h2>
-      <p className="max-w-md text-sm text-neutral-500 dark:text-neutral-400">
+    <NeuPanel
+      tone="pressed"
+      className="flex min-h-[60vh] flex-1 flex-col items-center justify-center gap-5 p-12 text-center"
+    >
+      <span className="neu-raised grid size-16 place-items-center rounded-full border-none">
+        <Crown className="size-7 text-indigo-600 dark:text-indigo-400" aria-hidden="true" />
+      </span>
+      <h2 className={`text-xl font-bold tracking-tight ${NEU_TEXT}`}>{t("proOnly")}</h2>
+      <p className={`max-w-md text-sm font-medium leading-relaxed ${NEU_TEXT_MUTED}`}>
         {tActions("configure")}
       </p>
-      <Link href="/dashboard/songs">
-        <Button variant="outline">{tActions("back")}</Button>
+      <Link href="/dashboard/songs" className={neuButton()}>
+        {tActions("back")}
       </Link>
-    </div>
+    </NeuPanel>
   );
 }

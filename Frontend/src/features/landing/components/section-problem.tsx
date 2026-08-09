@@ -56,29 +56,28 @@ interface ProblemPanelProps {
 function ProblemPanel({ label, title, body, answer, visual }: ProblemPanelProps) {
   return (
     <RevealItem className="h-full">
-      <article className="flex h-full flex-col rounded-2xl border border-border bg-card p-7 sm:p-9">
-        <span className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
+      <article className="neu-raised flex h-full flex-col rounded-3xl border-none bg-[#e0e5ec] p-7 sm:p-9 dark:bg-[#1e222b]">
+        <span className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">
           {label}
         </span>
-        <h3 className="mt-4 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+        <h3 className="mt-4 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-3xl">
           {title}
         </h3>
-        <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">{body}</p>
+        <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300 sm:text-base">{body}</p>
 
         <div className="mt-9 mb-9" aria-hidden="true">
           {visual}
         </div>
 
-        <div className="mt-auto flex items-start gap-3 border-t border-border pt-5">
-          <CornerDownRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <p className="text-sm font-medium leading-relaxed text-foreground">{answer}</p>
+        <div className="mt-auto flex items-start gap-3 border-t border-slate-300/40 dark:border-slate-700/40 pt-5">
+          <CornerDownRight className="mt-0.5 size-4 shrink-0 text-indigo-600 dark:text-indigo-400" aria-hidden="true" />
+          <p className="text-sm font-semibold leading-relaxed text-slate-800 dark:text-slate-200">{answer}</p>
         </div>
       </article>
     </RevealItem>
   );
 }
 
-/* One file becomes three: the original stays put while ghost copies peel off and drift away. */
 function CopiesVisual() {
   const prefersReducedMotion = useReducedMotion();
   const ghosts = [1, 2, 3];
@@ -88,7 +87,7 @@ function CopiesVisual() {
       {ghosts.map((depth) => (
         <motion.div
           key={depth}
-          className="absolute left-0 top-4 h-24 w-40 rounded-xl border border-dashed border-border bg-background"
+          className="neu-pressed-sm absolute left-0 top-4 h-24 w-40 rounded-2xl border-none bg-[#e0e5ec] dark:bg-[#1e222b]"
           initial={{ x: 0, y: 0, opacity: 0.9 }}
           animate={
             prefersReducedMotion
@@ -104,9 +103,9 @@ function CopiesVisual() {
         />
       ))}
 
-      <div className="absolute left-0 top-4 flex h-24 w-40 flex-col justify-between rounded-xl border border-foreground/20 bg-background p-3">
+      <div className="neu-raised-sm absolute left-0 top-4 flex h-24 w-40 flex-col justify-between rounded-2xl border-none bg-[#e0e5ec] p-3.5 dark:bg-[#1e222b]">
         <MiniWave />
-        <span className="font-mono text-xs text-muted-foreground">demo.wav</span>
+        <span className="font-mono text-xs font-semibold text-indigo-600 dark:text-indigo-400">demo.wav</span>
       </div>
     </div>
   );
@@ -120,7 +119,7 @@ function MiniWave() {
       {heights.map((height, index) => (
         <span
           key={index}
-          className="w-1 rounded-full bg-muted-foreground/40"
+          className="w-1 rounded-full bg-indigo-600 dark:bg-indigo-400"
           style={{ height: `${height}%` }}
         />
       ))}
@@ -128,7 +127,6 @@ function MiniWave() {
   );
 }
 
-/* Three listeners' playheads pull apart, then snap back onto one position. */
 function DriftVisual() {
   const prefersReducedMotion = useReducedMotion();
   const drifts = [0, 22, -16];
@@ -136,9 +134,9 @@ function DriftVisual() {
   return (
     <div className="flex h-32 w-full flex-col justify-center gap-6">
       {drifts.map((drift, index) => (
-        <div key={index} className="relative h-px w-full bg-border">
+        <div key={index} className="neu-pressed-sm relative h-2 w-full rounded-full bg-[#e0e5ec] dark:bg-[#1e222b]">
           <motion.span
-            className="absolute -top-1.5 size-3 rounded-full border border-foreground/30 bg-foreground"
+            className="absolute -top-1 size-4 rounded-full bg-indigo-600 dark:bg-indigo-400 shadow-sm"
             style={{ left: "45%" }}
             animate={
               prefersReducedMotion ? { x: drift } : { x: [0, drift, drift, 0, 0] }

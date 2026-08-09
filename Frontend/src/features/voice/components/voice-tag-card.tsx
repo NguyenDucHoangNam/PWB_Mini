@@ -4,8 +4,17 @@ import { useState, useRef, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Play, Pause, Volume2, VolumeX, Pencil, Trash2, Check, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  NEU_DANGER_TEXT,
+  NEU_FOCUS,
+  NEU_INPUT,
+  NEU_TEXT,
+  NEU_TEXT_MUTED,
+  NeuBadge,
+  NeuButton,
+  NeuPanel,
+} from "@/components/ui/neu";
 import { asApiError } from "@/lib/api-client";
 import type { VoiceTag } from "../types";
 import { useVoiceTagAudioUrl, useUpdateVoiceTag } from "../api/voice-tags";
@@ -84,7 +93,7 @@ export function VoiceTagCard({ voiceTag }: VoiceTagCardProps) {
   };
 
   return (
-    <article className="group flex h-full flex-col gap-4 rounded-xl border border-border bg-card p-4 beat-16th transition-colors ease-hammer hover:border-foreground/20">
+    <NeuPanel as="article" tone="tile" className="group flex h-full flex-col gap-5 p-5">
       <div className="flex items-start justify-between gap-2">
         {isEditing ? (
           <div className="flex min-w-0 flex-1 items-center gap-1.5">
@@ -98,12 +107,12 @@ export function VoiceTagCard({ voiceTag }: VoiceTagCardProps) {
               maxLength={100}
               disabled={isPending}
               aria-label={tActions("edit")}
-              className="h-9 min-w-0 flex-1 rounded-lg border border-input bg-background px-2.5 text-sm font-semibold text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className={`${NEU_INPUT} h-11 min-w-0 flex-1 rounded-xl font-semibold`}
             />
-            <Button
-              variant="secondary"
-              size="icon"
-              className="size-9 shrink-0"
+            <NeuButton
+              variant="primary"
+              size="icon-sm"
+              className="size-11 sm:size-10"
               disabled={isPending || !editValue.trim()}
               onMouseDown={(e) => {
                 e.preventDefault();
@@ -112,11 +121,11 @@ export function VoiceTagCard({ voiceTag }: VoiceTagCardProps) {
               aria-label={tCommon("save")}
             >
               <Check className="size-4" aria-hidden="true" />
-            </Button>
-            <Button
+            </NeuButton>
+            <NeuButton
               variant="ghost"
-              size="icon"
-              className="size-9 shrink-0"
+              size="icon-sm"
+              className="size-11 sm:size-10"
               onMouseDown={(e) => {
                 e.preventDefault();
                 cancelEdit();
@@ -124,47 +133,49 @@ export function VoiceTagCard({ voiceTag }: VoiceTagCardProps) {
               aria-label={tCommon("cancel")}
             >
               <X className="size-4" aria-hidden="true" />
-            </Button>
+            </NeuButton>
           </div>
         ) : (
           <>
-            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-              <h3 className="truncate text-base font-semibold tracking-tight text-foreground">
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <h3 className={`truncate text-base font-bold tracking-tight ${NEU_TEXT}`}>
                 {voiceTag.name}
               </h3>
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <div
+                className={`flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs font-medium ${NEU_TEXT_MUTED}`}
+              >
                 {voiceTag.languageCode && (
-                  <span className="inline-flex items-center gap-1.5 rounded-md border border-border px-1.5 py-0.5">
+                  <NeuBadge tone="muted" className="px-2 py-0.5">
                     <LanguageFlagIcon
                       langCode={voiceTag.languageCode}
                       className="h-3 w-4.5 shrink-0 rounded-xs"
                     />
                     {voiceTag.languageCode}
-                  </span>
+                  </NeuBadge>
                 )}
                 <span className="tabular-nums">{formatDuration(voiceTag.durationSeconds)}</span>
               </div>
             </div>
 
-            <div className="hover-reveal flex shrink-0 items-center gap-0.5">
-              <Button
+            <div className="hover-reveal flex shrink-0 items-center gap-1">
+              <NeuButton
                 variant="ghost"
-                size="icon"
-                className="size-11 text-muted-foreground hover:text-foreground sm:size-8"
+                size="icon-sm"
+                className="size-11 sm:size-9"
                 onClick={startEdit}
                 aria-label={tActions("edit")}
               >
-                <Pencil className="size-4 sm:size-3.5" aria-hidden="true" />
-              </Button>
-              <Button
+                <Pencil className="size-4" aria-hidden="true" />
+              </NeuButton>
+              <NeuButton
                 variant="ghost"
-                size="icon"
-                className="size-11 text-muted-foreground hover:text-destructive sm:size-8"
+                size="icon-sm"
+                className="size-11 hover:text-rose-700 sm:size-9 dark:hover:text-rose-400"
                 onClick={() => setDeleteOpen(true)}
                 aria-label={tActions("delete")}
               >
-                <Trash2 className="size-4 sm:size-3.5" aria-hidden="true" />
-              </Button>
+                <Trash2 className="size-4" aria-hidden="true" />
+              </NeuButton>
             </div>
           </>
         )}
@@ -180,7 +191,7 @@ export function VoiceTagCard({ voiceTag }: VoiceTagCardProps) {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
       />
-    </article>
+    </NeuPanel>
   );
 }
 
@@ -196,17 +207,15 @@ function VoiceTagPreviewInline({ voiceTagId }: { voiceTagId: string }) {
 
   if (!requested) {
     return (
-      <Button
-        variant="outline"
-        size="lg"
+      <NeuButton
         onClick={() => setRequested(true)}
-        className="h-11 w-full justify-start gap-3 px-3"
+        className="h-12 w-full justify-start gap-3 px-3"
       >
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-          <Play className="ml-0.5 size-3 fill-current" aria-hidden="true" />
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white dark:bg-indigo-500">
+          <Play className="ml-0.5 size-3.5 fill-current" aria-hidden="true" />
         </span>
-        <span className="text-sm font-medium">{t("preview")}</span>
-      </Button>
+        <span className="text-sm font-semibold">{t("preview")}</span>
+      </NeuButton>
     );
   }
 
@@ -214,7 +223,7 @@ function VoiceTagPreviewInline({ voiceTagId }: { voiceTagId: string }) {
     return (
       <div
         role="status"
-        className="flex h-11 items-center gap-2 rounded-lg border border-border bg-secondary px-3 text-sm text-muted-foreground"
+        className={`neu-pressed flex h-12 items-center gap-2.5 rounded-2xl border-none px-4 text-sm font-medium ${NEU_TEXT_MUTED}`}
       >
         <Spinner size="sm" />
         {t("preview")}
@@ -226,7 +235,7 @@ function VoiceTagPreviewInline({ voiceTagId }: { voiceTagId: string }) {
     return (
       <p
         role="alert"
-        className="flex h-11 items-center rounded-lg border border-dashed border-border px-3 text-sm text-muted-foreground"
+        className={`neu-pressed flex h-12 items-center rounded-2xl border-none px-4 text-sm font-medium ${NEU_DANGER_TEXT}`}
       >
         {tPlayer("loadError")}
       </p>
@@ -285,7 +294,7 @@ function VoiceTagCustomPlayer({ url, autoPlay = false }: { url: string; autoPlay
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="flex h-11 items-center gap-2.5 rounded-lg border border-border bg-secondary px-2.5">
+    <div className="neu-pressed flex h-12 items-center gap-2.5 rounded-2xl border-none px-3">
       <audio
         ref={audioRef}
         src={url}
@@ -300,20 +309,21 @@ function VoiceTagCustomPlayer({ url, autoPlay = false }: { url: string; autoPlay
         }}
       />
 
-      <Button
-        size="icon"
-        className="size-7 shrink-0 rounded-full"
+      <NeuButton
+        variant="primary"
+        size="icon-sm"
+        className="size-8 rounded-full"
         onClick={togglePlay}
         aria-label={isPlaying ? tPlayer("pause") : tActions("play")}
       >
         {isPlaying ? (
-          <Pause className="size-3 fill-current" aria-hidden="true" />
+          <Pause className="size-3.5 fill-current" aria-hidden="true" />
         ) : (
-          <Play className="ml-0.5 size-3 fill-current" aria-hidden="true" />
+          <Play className="ml-0.5 size-3.5 fill-current" aria-hidden="true" />
         )}
-      </Button>
+      </NeuButton>
 
-      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+      <span className={`shrink-0 text-xs font-semibold tabular-nums ${NEU_TEXT_MUTED}`}>
         {formatDuration(currentTime)}
       </span>
 
@@ -326,24 +336,26 @@ function VoiceTagCustomPlayer({ url, autoPlay = false }: { url: string; autoPlay
         aria-valuenow={Math.round(currentTime)}
         onClick={handleSeekClick}
         onKeyDown={handleSeekKeyDown}
-        className="relative flex h-6 flex-1 cursor-pointer items-center rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        className={`relative flex h-6 flex-1 cursor-pointer items-center rounded-full ${NEU_FOCUS}`}
       >
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+        {/* Sunken groove, accent fill: the played portion has to read as colour,
+            not as a shadow, to be visible at all. */}
+        <div className="neu-pressed-sm h-2 w-full overflow-hidden rounded-full border-none">
           <div
-            className="h-full rounded-full bg-primary"
+            className="h-full rounded-full bg-indigo-600 dark:bg-indigo-400"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
       </div>
 
-      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+      <span className={`shrink-0 text-xs font-semibold tabular-nums ${NEU_TEXT_MUTED}`}>
         {formatDuration(duration)}
       </span>
 
-      <Button
+      <NeuButton
         variant="ghost"
-        size="icon"
-        className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
+        size="icon-sm"
+        className="size-8 rounded-full"
         onClick={toggleMute}
         aria-label={isMuted ? tPlayer("unmute") : tPlayer("mute")}
       >
@@ -352,7 +364,7 @@ function VoiceTagCustomPlayer({ url, autoPlay = false }: { url: string; autoPlay
         ) : (
           <Volume2 className="size-3.5" aria-hidden="true" />
         )}
-      </Button>
+      </NeuButton>
     </div>
   );
 }

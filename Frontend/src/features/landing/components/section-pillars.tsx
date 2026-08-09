@@ -59,32 +59,31 @@ interface PillarCardProps {
 function PillarCard({ icon: Icon, index, title, description, facts }: PillarCardProps) {
   return (
     <RevealItem className="h-full">
-      <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card p-7 beat-16th transition-colors hover:border-foreground/25">
-        {/* Hairline that sweeps in along the top edge on hover. */}
+      <article className="neu-raised group relative flex h-full flex-col overflow-hidden rounded-3xl border-none bg-[#e0e5ec] p-7 sm:p-9 dark:bg-[#1e222b] transition-all hover:scale-[1.02]">
         <span
           aria-hidden="true"
-          className="absolute inset-x-0 top-0 h-px origin-left scale-x-0 bg-foreground/30 beat transition-transform group-hover:scale-x-100"
+          className="absolute inset-x-0 top-0 h-0.5 origin-left scale-x-0 bg-indigo-600 dark:bg-indigo-400 transition-transform group-hover:scale-x-100"
         />
 
         <div className="flex items-start justify-between">
-          <span className="flex size-11 items-center justify-center rounded-xl border border-border bg-background">
-            <Icon className="size-5 text-foreground" aria-hidden="true" />
+          <span className="neu-pressed-sm flex size-12 items-center justify-center rounded-2xl bg-[#e0e5ec] text-indigo-600 dark:bg-[#1e222b] dark:text-indigo-400">
+            <Icon className="size-5" aria-hidden="true" />
           </span>
-          <span className="font-mono text-3xl font-semibold leading-none text-muted-foreground/25">
+          <span className="font-mono text-3xl font-bold leading-none text-slate-400/40 dark:text-slate-600/40">
             {index}
           </span>
         </div>
 
-        <h3 className="mt-7 text-xl font-semibold tracking-tight text-foreground">{title}</h3>
-        <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">{description}</p>
+        <h3 className="mt-7 text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{title}</h3>
+        <p className="mt-2.5 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{description}</p>
 
-        <ul className="mt-7 border-t border-border">
+        <ul className="mt-7 border-t border-slate-300/40 dark:border-slate-700/40">
           {facts.map((fact) => (
             <li
               key={fact}
-              className="flex items-center gap-2.5 border-b border-border py-3 font-mono text-xs text-muted-foreground last:border-b-0"
+              className="flex items-center gap-2.5 border-b border-slate-300/40 dark:border-slate-700/40 py-3 font-mono text-xs text-slate-600 dark:text-slate-400 last:border-b-0"
             >
-              <span aria-hidden="true" className="size-1 shrink-0 rounded-full bg-muted-foreground/60" />
+              <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-indigo-600 dark:bg-indigo-400" />
               {fact}
             </li>
           ))}

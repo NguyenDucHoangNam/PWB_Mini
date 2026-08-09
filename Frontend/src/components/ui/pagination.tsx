@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NEU_TEXT_MUTED, neuButton } from "@/components/ui/neu";
 import { cn } from "@/lib/utils";
 
 const DOTS = "dots" as const;
@@ -50,6 +51,8 @@ interface PaginationProps {
   pageSize?: number;
   siblingCount?: number;
   className?: string;
+  /** `neu` swaps the bordered controls for soft-UI ones on a matte surface. */
+  variant?: "default" | "neu";
 }
 
 export function Pagination({
@@ -60,6 +63,7 @@ export function Pagination({
   pageSize,
   siblingCount = 1,
   className,
+  variant = "default",
 }: PaginationProps) {
   const t = useTranslations("common.pagination");
 
@@ -77,6 +81,71 @@ export function Pagination({
     totalElements !== undefined && pageSize !== undefined && totalElements > 0;
   const from = page * (pageSize ?? 0) + 1;
   const to = Math.min(from + (pageSize ?? 0) - 1, totalElements ?? 0);
+
+  if (variant === "neu") {
+    return (
+      <nav aria-label={t("label")} className={cn("flex flex-col items-center gap-3", className)}>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className={neuButton({ size: "icon-sm" })}
+            disabled={page === 0}
+            onClick={() => goTo(current - 1)}
+            aria-label={t("prev")}
+          >
+            <ChevronLeft className="size-4" aria-hidden="true" />
+          </button>
+
+          {range.map((item, index) =>
+            item === DOTS ? (
+              <span
+                key={`dots-${index}`}
+                className={cn("grid size-9 place-items-center", NEU_TEXT_MUTED)}
+                aria-label={t("morePages")}
+              >
+                <MoreHorizontal className="size-4" aria-hidden="true" />
+              </span>
+            ) : (
+              <button
+                key={item}
+                type="button"
+                // aria-current plus accent colour: the raised shadow alone would not
+                // meet the non-text contrast bar for "this is the page you are on".
+                aria-current={item === current ? "page" : undefined}
+                aria-label={t("goToPage", { page: item })}
+                onClick={() => goTo(item)}
+                className={neuButton(
+                  { variant: item === current ? "default" : "ghost", size: "icon-sm" },
+                  cn(
+                    "tabular-nums",
+                    item === current && "text-indigo-600 dark:text-indigo-400",
+                  ),
+                )}
+              >
+                {item}
+              </button>
+            ),
+          )}
+
+          <button
+            type="button"
+            className={neuButton({ size: "icon-sm" })}
+            disabled={page + 1 >= totalPages}
+            onClick={() => goTo(current + 1)}
+            aria-label={t("next")}
+          >
+            <ChevronRight className="size-4" aria-hidden="true" />
+          </button>
+        </div>
+
+        {showSummary ? (
+          <p className={cn("text-xs font-medium tabular-nums", NEU_TEXT_MUTED)}>
+            {t("showing", { from, to, total: totalElements })}
+          </p>
+        ) : null}
+      </nav>
+    );
+  }
 
   return (
     <nav aria-label={t("label")} className={cn("flex flex-col items-center gap-2.5", className)}>

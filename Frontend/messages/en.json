@@ -56,31 +56,31 @@
   "landing": {
     "hoverHint": "Hover to play notes",
     "ticker": {
-      "item1": "Voice tag watermark",
-      "item2": "Rendered server-side",
-      "item3": "Synced playback",
+      "item1": "Stamp your voice tag",
+      "item2": "Tags mixed in for you",
+      "item3": "Everyone hears the same moment",
       "item4": "Six-character room codes",
-      "item5": "Waiting room",
-      "item6": "Timestamped notes",
-      "item7": "Peer-to-peer voice",
-      "item8": "Expiring stream links",
-      "item9": "Accent-tolerant search"
+      "item5": "You approve who joins",
+      "item6": "Comments pinned to the track",
+      "item7": "Talk while you listen",
+      "item8": "Listening links expire",
+      "item9": "Search without accents"
     },
     "problem": {
       "eyebrow": "The problem",
       "title": "Sending a demo shouldn't cost you the track.",
-      "lead": "Two things break every remote review: the file leaves your hands, and nobody hears the same second.",
+      "lead": "Two things break every remote review: the file leaves your hands, and everyone ends up in a different part of the song.",
       "leak": {
         "label": "Problem 01",
         "title": "The file walks",
-        "body": "A WAV in an inbox is a WAV on somebody else's drive. Once it has been downloaded there is no version, no owner, and no way back.",
-        "answer": "Every master carries your voice, and every link expires."
+        "body": "A WAV in an inbox is a WAV on somebody else's drive. Once it has been downloaded you no longer know who holds which version, and you cannot pull it back.",
+        "answer": "The track you send already carries your voice, and the link to it expires."
       },
       "drift": {
         "label": "Problem 02",
         "title": "The room drifts",
-        "body": "One person pauses, another seeks, a third hears the drop four seconds late. Notes stop being about the music and start being about timecode.",
-        "answer": "One playhead, one position, broadcast to the whole room."
+        "body": "One person pauses, another seeks, a third hears the drop four seconds late. By the end everyone is just asking each other where they are in the track.",
+        "answer": "One person presses play, and the whole room hears the same spot."
       }
     },
     "pillars": {
@@ -90,51 +90,51 @@
       "library": {
         "index": "01",
         "title": "Library",
-        "description": "Upload MP3, WAV or FLAC straight to storage and keep every take in one place.",
-        "fact1": "Up to 200 MB per track",
-        "fact2": "Direct upload, live progress",
-        "fact3": "Typo- and accent-tolerant search"
+        "description": "Upload MP3, WAV or FLAC and keep every take in one place.",
+        "fact1": "Up to 100 MB per track",
+        "fact2": "See exactly how far the upload got",
+        "fact3": "Search without typing accents"
       },
       "voiceTag": {
         "index": "02",
         "title": "Voice Tag",
-        "description": "Write it or record it, then bake it into the master on a loop you control.",
-        "fact1": "Text-to-speech in three locales",
-        "fact2": "Or upload your own, up to 10s",
-        "fact3": "Preview before you commit"
+        "description": "Type the line or use your own recording, then drop it into the track as often as you like.",
+        "fact1": "AI voices in three languages",
+        "fact2": "Or your own recording, up to 10s",
+        "fact3": "Preview before you save"
       },
       "liveRoom": {
         "index": "03",
         "title": "Live Room",
-        "description": "Share a six-character code and listen together, in step, with voice on top.",
-        "fact1": "Play, pause and seek stay in sync",
-        "fact2": "Approve who gets in",
+        "description": "Send a six-character code, listen together, and talk it through in the room.",
+        "fact1": "Play, pause and seek for everyone",
+        "fact2": "You approve who gets in",
         "fact3": "Up to 7 people per room"
       }
     },
     "voiceTag": {
       "eyebrow": "Voice Tag",
       "title": "Your name, every thirty seconds.",
-      "lead": "The tag is mixed into the master on the server, not layered on in the player — so what leaves the platform is already signed.",
+      "lead": "The tag is mixed into the track itself, not layered on at playback. Which means the track you send out carries your mark wherever it is opened.",
       "point1Title": "Write it or record it",
-      "point1Body": "Wavenet and Neural2 voices in Vietnamese, US English and UK English, male or female. Or upload a take of your own, up to ten seconds.",
+      "point1Body": "Have an AI voice read the line you type — Vietnamese, US English or UK English, male or female. Or upload a take of your own, up to ten seconds.",
       "point2Title": "Hear it before you keep it",
       "point2Body": "Preview any wording and voice together. Nothing is stored until you decide to save it.",
-      "point3Title": "Rendered, not overlaid",
-      "point3Body": "FFmpeg loops the tag, ducks the music underneath it and exports a new MP3 master. The settings are fixed at upload, so the result is reproducible.",
-      "specTitle": "Mix parameters",
-      "spec1Label": "Interval",
-      "spec1Value": "5–600s",
+      "point3Title": "Mixed in, not laid over",
+      "point3Body": "The tag repeats on the interval you set, the music dips underneath it as it speaks, and a new MP3 comes out the other side. Your original stays untouched.",
+      "specTitle": "Four settings",
+      "spec1Label": "Repeat every",
+      "spec1Value": "5–600 sec",
       "spec1Note": "default 30",
-      "spec2Label": "Volume",
+      "spec2Label": "Tag volume",
       "spec2Value": "0–100%",
       "spec2Note": "default 80",
-      "spec3Label": "Ducking",
+      "spec3Label": "Music level",
       "spec3Value": "0–100%",
       "spec3Note": "default 50",
-      "spec4Label": "Start offset",
-      "spec4Value": "0s +",
-      "spec4Note": "first hit",
+      "spec4Label": "Start after",
+      "spec4Value": "0–120 sec",
+      "spec4Note": "default 0",
       "trackLabel": "master.mp3",
       "trackStatus": "Ready",
       "tagMarker": "TAG"
@@ -142,13 +142,13 @@
     "liveRoom": {
       "eyebrow": "Live Room",
       "title": "Everyone on the same bar.",
-      "lead": "The host holds the transport. Play, pause, seek and track changes go out over WebSocket, so the room hears one position — not five.",
+      "lead": "The host holds the controls. Play, pause, seek and track changes apply to everybody, so the room hears one position instead of five.",
       "point1Title": "A door before the room",
-      "point1Body": "Share a six-character code. Requests land in a waiting room, and nobody is inside until you let them in.",
-      "point2Title": "Notes pinned to the second",
-      "point2Body": "Comments attach to a position on the timeline and surface as playback reaches them. No more “around 1:42, I think”.",
+      "point1Body": "Share a six-character code. Anyone who wants in waits outside, and nobody is in the room until you say so.",
+      "point2Title": "Notes pinned to the spot",
+      "point2Body": "Comments attach to a moment in the track and surface as playback reaches them. No more “around 1:42, I think”.",
       "point3Title": "Talk over it",
-      "point3Body": "Peer-to-peer voice and video for up to seven people, negotiated through the server and carried directly between browsers.",
+      "point3Body": "Turn on your mic or camera and talk it through while it plays, up to seven people in a room.",
       "roomCodeLabel": "Room",
       "liveLabel": "Live",
       "syncedLabel": "In sync",
@@ -158,32 +158,32 @@
     },
     "workflow": {
       "eyebrow": "How it works",
-      "title": "From upload to listening party in four moves.",
+      "title": "From uploading a track to listening together: four steps.",
       "step1Title": "Upload",
-      "step1Body": "The file goes straight from your browser to storage over a signed, one-hour link. You watch a progress bar, not a spinner.",
+      "step1Body": "Drop the file in and watch the progress bar move, instead of staring at a spinner with no idea how long is left.",
       "step1Meta": "MP3 · WAV · FLAC",
-      "step2Title": "Configure",
-      "step2Body": "Pick a voice tag, then set the interval, volume, ducking and start offset. Locked in at upload so the master stays reproducible.",
-      "step2Meta": "Four parameters",
-      "step3Title": "Render",
-      "step3Body": "The job is queued and picked up by a worker that mixes the tag in with FFmpeg. Follow it from processing to ready — and retry if it fails.",
-      "step3Meta": "Queued · Processing · Ready",
+      "step2Title": "Set the tag",
+      "step2Body": "Pick a voice tag, then set how often it repeats, how loud it sits and how far into the track it starts. These choices are locked in as you upload.",
+      "step2Meta": "Four settings",
+      "step3Title": "Wait for the mix",
+      "step3Body": "The tag gets mixed into the track for you. You can follow the status from processing to ready, and retry it if anything fails.",
+      "step3Meta": "Processing · Ready",
       "step4Title": "Play it together",
       "step4Body": "Open a room, send the code, approve who joins and press play. Everyone hears the same second.",
       "step4Meta": "Up to 7 listeners"
     },
     "trust": {
-      "eyebrow": "Under the hood",
-      "title": "Boring where it matters.",
-      "lead": "The parts nobody puts in a demo, built anyway.",
-      "item1Title": "Nothing shared by accident",
-      "item1Body": "Every storage key is checked against the account that owns it before a file is read or written.",
+      "eyebrow": "Peace of mind",
+      "title": "The things you shouldn't have to think about.",
+      "lead": "Nobody shows off the privacy and safety work, but it has to be right every time.",
+      "item1Title": "Your files stay yours",
+      "item1Body": "Every time a file is opened or downloaded, we check it actually belongs to your account first.",
       "item2Title": "Links that expire",
-      "item2Body": "Playback runs on signed URLs valid from one minute to twenty-four hours, and they cannot be reused after that.",
-      "item3Title": "Sessions you control",
-      "item3Body": "Refresh tokens rotate on every use, revoked ones are blacklisted, and you can end any active session yourself.",
+      "item2Body": "A listening link only works for a short window. Once it lapses it cannot be opened again, even by someone who copied it.",
+      "item3Title": "You can see every signed-in device",
+      "item3Body": "Look through the devices signed in to your account, and sign any of them out with a single click.",
       "item4Title": "Deletion that means it",
-      "item4Body": "Closed accounts are anonymised by a scheduled job, and deleting a track clears its files from storage too.",
+      "item4Body": "Delete a track and its files are cleared from storage too. Close your account and your personal details are removed from the system.",
       "stackLabel": "Built with"
     },
     "cta": {
@@ -305,7 +305,7 @@
                 },
                 "size": {
                   "label": "File size",
-                  "value": "100 MB max"
+                  "value": "10 MB max"
                 },
                 "name": {
                   "label": "Tag name",

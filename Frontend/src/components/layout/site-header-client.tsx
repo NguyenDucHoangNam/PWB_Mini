@@ -117,17 +117,15 @@ export function SiteHeaderClient() {
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-neutral-200 bg-white/80 backdrop-blur-md dark:border-neutral-800 dark:bg-black/80">
-      <div className="mx-auto flex h-18 w-full max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 md:px-8 relative">
+    <header className="sticky top-0 z-40 w-full bg-[#e0e5ec] dark:bg-[#1e222b] neu-raised border-b border-slate-300/60 dark:border-slate-800/80 shadow-neu-raised transition-colors">
+      <div className="mx-auto flex h-20 w-full max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 md:px-8 relative">
         <div className="flex items-center gap-4 sm:gap-6 lg:gap-8 min-w-0">
-          <Link href="/" className="shrink-0 px-3 py-0.5 border-2 border-black dark:border-white">
-            <span className="text-2xl sm:text-3xl font-bold tracking-tight text-black dark:text-white">
+          <Link href="/" className="shrink-0 px-3 py-0.5 border-2 border-slate-900 dark:border-slate-100 focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2">
+            <span className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
               PWB
             </span>
           </Link>
-          {/* Public links surface from md up — a tablet has room for them and should not be
-              forced through the drawer just to reach Features or Contact. */}
-          <nav className="hidden items-center gap-6 md:flex">
+          <nav className="hidden items-center gap-4 md:flex">
             {isMounted && <DesktopNav items={publicItems} pathname={pathname} />}
           </nav>
         </div>
@@ -135,10 +133,9 @@ export function SiteHeaderClient() {
         <HeaderSignature />
 
         <div className="flex shrink-0 items-center gap-3 sm:gap-6">
-          {/* The account cluster needs more room than the public links, so it waits for lg. */}
           <div className="hidden items-center gap-4 sm:gap-6 lg:flex">
             {isMounted && isLoggedIn && (
-              <nav className="flex items-center gap-6 mr-4">
+              <nav className="flex items-center gap-4 mr-2">
                 <DesktopNav
                   items={[
                     ...(isPro
@@ -172,7 +169,7 @@ export function SiteHeaderClient() {
               ))}
           </div>
 
-          <div className="flex items-center gap-1 lg:hidden">
+          <div className="flex items-center gap-2 lg:hidden">
             <ThemeToggle />
             <LocaleSwitcher />
           </div>
@@ -181,7 +178,7 @@ export function SiteHeaderClient() {
             onClick={() => setIsOpen(true)}
             type="button"
             aria-label="Open menu"
-            className="key-press flex size-11 items-center justify-center rounded-lg border border-transparent text-neutral-500 hover:bg-neutral-100 hover:text-black lg:hidden dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
+            className="neu-button flex size-11 items-center justify-center rounded-2xl text-slate-700 focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2 lg:hidden dark:text-slate-200"
           >
             <svg
               className="size-6"
@@ -201,11 +198,10 @@ export function SiteHeaderClient() {
           <Link
             href="/"
             onClick={() => setIsOpen(false)}
-            className="px-3 py-1 border-2 border-black dark:border-white inline-block w-fit"
+            className="px-3 py-1 border-2 border-slate-900 dark:border-slate-100 inline-block w-fit focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2"
           >
-            <span className="text-lg font-bold tracking-tight text-black dark:text-white">PWB</span>
+            <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">PWB</span>
           </Link>
-          <hr className="border-neutral-200 dark:border-neutral-800" />
           {isMounted &&
             (isLoggedIn ? (
               <MobileAuthenticated
@@ -257,13 +253,16 @@ function DesktopNav({ items, pathname }: { items: NavItem[]; pathname: string })
           <Link
             key={item.href}
             href={item.href}
-            className={`text-sm font-medium transition-colors hover:text-black dark:hover:text-white ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2 ${
               isActive
-                ? "text-black dark:text-white border-b-2 border-black dark:border-white pb-0.5"
-                : "text-neutral-500 dark:text-neutral-400"
+                ? "neu-raised-sm text-indigo-600 dark:text-indigo-400 bg-[#e0e5ec] dark:bg-[#1e222b] font-bold"
+                : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100"
             }`}
           >
-            {item.label}
+            <span>{item.label}</span>
+            {isActive && (
+              <span className="size-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400" aria-hidden="true" />
+            )}
           </Link>
         );
       })}
@@ -271,17 +270,14 @@ function DesktopNav({ items, pathname }: { items: NavItem[]; pathname: string })
   );
 }
 
-// A flex sibling rather than an absolutely-centred overlay: the bar is capped at max-w-7xl and the
-// account cluster is ~110px wider than the logo side, so centring on the bar left this decorative
-// strip 5px from colliding at 1280. Taking the leftover space instead makes overlap impossible.
 function HeaderSignature() {
   return (
-    <div className="hidden min-w-0 flex-1 items-center justify-center gap-4 overflow-hidden pointer-events-none select-none xl:flex">
-      <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-neutral-400/40 dark:to-neutral-400/30" />
-      <span className="font-mono text-[11px] uppercase tracking-[0.35em] text-neutral-400 opacity-45 dark:text-neutral-400 dark:opacity-30 transition-colors">
+    <div className="hidden min-w-0 flex-1 items-center justify-center gap-2 sm:gap-4 overflow-hidden pointer-events-none select-none xl:flex">
+      <div className="h-[1px] flex-1 max-w-12 bg-gradient-to-r from-transparent to-slate-400/40 dark:to-slate-400/30" />
+      <span className="shrink-0 whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.35em] text-slate-500 opacity-60 dark:text-slate-400 dark:opacity-50 transition-colors">
         NAM IN THE MIX
       </span>
-      <div className="h-[1px] w-12 bg-gradient-to-r from-neutral-400/40 dark:from-neutral-400/30 to-transparent" />
+      <div className="h-[1px] flex-1 max-w-12 bg-gradient-to-r from-slate-400/40 dark:from-slate-400/30 to-transparent" />
     </div>
   );
 }
@@ -294,18 +290,24 @@ function GuestActions({
   registerLabel: string;
 }) {
   return (
-    <>
+    <div className="flex items-center gap-3">
       <Link href="/login">
-        <Button variant="ghost" className="h-9 text-sm px-4">
+        <button
+          type="button"
+          className="neu-button inline-flex h-10 items-center justify-center rounded-2xl px-5 text-sm font-semibold text-slate-700 focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2 dark:text-slate-200"
+        >
           {loginLabel}
-        </Button>
+        </button>
       </Link>
       <Link href="/register">
-        <Button variant="default" className="h-9 text-sm px-4">
+        <button
+          type="button"
+          className="neu-button-primary inline-flex h-10 items-center justify-center rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 text-sm shadow-neu-raised-sm focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2 transition-all"
+        >
           {registerLabel}
-        </Button>
+        </button>
       </Link>
-    </>
+    </div>
   );
 }
 
@@ -333,22 +335,19 @@ function MobileAuthenticated({
   onNavigate: () => void;
 }) {
   const linkClass =
-    "rounded-lg px-3 py-2.5 text-base text-neutral-700 hover:bg-neutral-100 hover:text-black dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-white";
+    "neu-raised-sm block rounded-2xl bg-[#e0e5ec] px-4 py-3 text-base font-semibold text-slate-800 dark:bg-[#1e222b] dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all";
   return (
-    <>
-      <div className="px-2 py-1">
-        <p className="text-sm font-bold text-black dark:text-white truncate">
+    <div className="flex flex-col gap-3">
+      <div className="neu-pressed rounded-2xl bg-[#e0e5ec] px-4 py-3 dark:bg-[#1e222b]">
+        <p className="text-sm font-bold text-slate-900 dark:text-slate-50 truncate">
           {user?.email || labels.account}
         </p>
       </div>
-      <hr className="border-neutral-200 dark:border-neutral-800" />
-      {/* Signing in used to hide the public pages from the drawer entirely. */}
       {publicItems.map((item) => (
         <Link key={item.href} href={item.href} onClick={onNavigate} className={linkClass}>
           {item.label}
         </Link>
       ))}
-      <hr className="border-neutral-200 dark:border-neutral-800" />
       {isPro && (
         <Link href="/dashboard/songs" onClick={onNavigate} className={linkClass}>
           {labels.dashboard}
@@ -364,11 +363,14 @@ function MobileAuthenticated({
       <Link href="/dashboard/profile" onClick={onNavigate} className={linkClass}>
         {labels.profile}
       </Link>
-      <hr className="border-neutral-200 dark:border-neutral-800" />
-      <Button onClick={onLogout} variant="default" size="sm" className="w-full justify-center">
+      <button
+        type="button"
+        onClick={onLogout}
+        className="neu-button-primary mt-2 flex h-12 w-full items-center justify-center rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-base shadow-neu-raised-sm"
+      >
         {labels.logout}
-      </Button>
-    </>
+      </button>
+    </div>
   );
 }
 
@@ -382,25 +384,26 @@ function MobileGuest({
   onNavigate: () => void;
 }) {
   const linkClass =
-    "rounded-lg px-3 py-2.5 text-base text-neutral-700 hover:bg-neutral-100 hover:text-black dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-white";
+    "neu-raised-sm block rounded-2xl bg-[#e0e5ec] px-4 py-3 text-base font-semibold text-slate-800 dark:bg-[#1e222b] dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all";
   return (
-    <>
+    <div className="flex flex-col gap-3">
       {items.map((item) => (
         <Link key={item.href} href={item.href} onClick={onNavigate} className={linkClass}>
           {item.label}
         </Link>
       ))}
-      <hr className="border-neutral-200 dark:border-neutral-800" />
-      <Link href="/login" onClick={onNavigate}>
-        <Button variant="outline" size="sm" className="w-full justify-center">
-          {labels.login}
-        </Button>
-      </Link>
-      <Link href="/register" onClick={onNavigate}>
-        <Button variant="default" size="sm" className="w-full justify-center">
-          {labels.register}
-        </Button>
-      </Link>
-    </>
+      <div className="mt-2 flex flex-col gap-3">
+        <Link href="/login" onClick={onNavigate}>
+          <button type="button" className="neu-button h-12 w-full rounded-2xl font-semibold text-slate-700 dark:text-slate-200">
+            {labels.login}
+          </button>
+        </Link>
+        <Link href="/register" onClick={onNavigate}>
+          <button type="button" className="neu-button-primary h-12 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-neu-raised-sm">
+            {labels.register}
+          </button>
+        </Link>
+      </div>
+    </div>
   );
 }

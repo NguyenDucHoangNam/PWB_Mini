@@ -48,14 +48,14 @@ export function MobileDrawer({ isOpen, onClose, children }: MobileDrawerProps) {
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        className="relative z-10 flex h-full w-[88%] max-w-[400px] flex-col border-l border-neutral-200 bg-white p-6 shadow-2xl transition-transform duration-300 animate-in slide-in-from-right sm:w-[80%] sm:max-w-[360px] dark:border-neutral-800 dark:bg-neutral-950"
+        className="neu-raised relative z-10 flex h-full w-[88%] max-w-[400px] flex-col bg-[#e0e5ec] p-6 border-none shadow-neu-raised transition-transform duration-300 animate-in slide-in-from-right sm:w-[80%] sm:max-w-[360px] dark:bg-[#1e222b]"
       >
         {/* Close Button */}
         <button
           onClick={onClose}
           type="button"
           aria-label="Close menu"
-          className="absolute top-4 right-4 flex size-11 items-center justify-center rounded-lg border border-transparent text-neutral-500 hover:bg-neutral-100 hover:text-black dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
+          className="neu-button absolute top-4 right-4 flex size-10 items-center justify-center rounded-full text-slate-700 focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2 dark:text-slate-200"
         >
           <svg
             className="size-5"

@@ -5,9 +5,16 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { FileAudio, Loader2, UploadCloud, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  NEU_ERROR_TEXT,
+  NEU_INPUT,
+  NEU_LABEL,
+  NEU_TEXT,
+  NEU_TEXT_MUTED,
+  NeuButton,
+  NeuDropzone,
+  NeuPanel,
+} from "@/components/ui/neu";
 import { UploadProgress, type UploadPhase } from "@/components/ui/upload-progress";
 import { asApiError } from "@/lib/api-client";
 import { useCreateUploadedVoiceTag } from "../api/voice-tags";
@@ -43,7 +50,6 @@ export function UploadVoiceTagForm({ onCancel, onSuccess }: UploadVoiceTagFormPr
   const [isReadingDuration, setIsReadingDuration] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [clientError, setClientError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
   const [phase, setPhase] = useState<UploadPhase | null>(null);
   const [percent, setPercent] = useState(0);
 
@@ -169,57 +175,55 @@ export function UploadVoiceTagForm({ onCancel, onSuccess }: UploadVoiceTagFormPr
 
       <div className="grid gap-5 lg:grid-cols-2 lg:gap-6">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="upload-tag-name">{t("nameLabel")}</Label>
-          <Input
+          <label htmlFor="upload-tag-name" className={NEU_LABEL}>
+            {t("nameLabel")}
+          </label>
+          <input
             id="upload-tag-name"
             value={name}
             maxLength={100}
             disabled={isPending}
             onChange={(e) => setName(e.target.value)}
-            className="h-10"
+            className={`${NEU_INPUT} h-12`}
           />
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="upload-tag-file">{t("fileLabel")}</Label>
+          <label htmlFor="upload-tag-file" className={NEU_LABEL}>
+            {t("fileLabel")}
+          </label>
 
           {!file ? (
-            <button
-              type="button"
-              disabled={isPending}
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDragging(true);
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                setIsDragging(false);
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                setIsDragging(false);
-                handleFileChange(e.dataTransfer.files?.[0] ?? null);
-              }}
-              className={`key-press flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-6 text-center beat-16th transition-colors ease-hammer ${
-                isDragging
-                  ? "border-foreground bg-muted"
-                  : "border-border hover:border-foreground/40 hover:bg-muted/50"
-              }`}
-            >
-              <UploadCloud className="size-6 text-muted-foreground" aria-hidden="true" />
-              <span className="text-sm font-medium text-foreground">{t("dropzoneTitle")}</span>
-              <span className="text-xs text-muted-foreground">
-                {t("dropzoneHint", { max: VOICE_TAG_MAX_DURATION_SECONDS })}
-              </span>
-            </button>
+            <NeuDropzone inputRef={fileInputRef} disabled={isPending} onFiles={handleFileChange}>
+              {({ isDragging }) => (
+                <>
+                  <span
+                    className={`grid size-12 place-items-center rounded-2xl border-none ${
+                      isDragging
+                        ? "bg-indigo-600 text-white dark:bg-indigo-500"
+                        : "neu-raised-sm text-indigo-600 dark:text-indigo-400"
+                    }`}
+                  >
+                    <UploadCloud className="size-5" aria-hidden="true" />
+                  </span>
+                  <span className={`text-sm font-bold ${NEU_TEXT}`}>{t("dropzoneTitle")}</span>
+                  <span className={`text-xs ${NEU_TEXT_MUTED}`}>
+                    {t("dropzoneHint", { max: VOICE_TAG_MAX_DURATION_SECONDS })}
+                  </span>
+                </>
+              )}
+            </NeuDropzone>
           ) : (
-            <div className="flex flex-1 flex-col gap-3 rounded-xl border border-border bg-muted/40 p-4">
+            <NeuPanel tone="pressed" className="flex flex-1 flex-col gap-4 rounded-2xl p-4">
               <div className="flex items-center gap-3">
-                <FileAudio className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <div className="flex min-w-0 flex-col">
-                  <span className="truncate text-sm font-medium text-foreground">{file.name}</span>
-                  <span className={`text-xs ${tooLong ? "text-destructive" : "text-muted-foreground"}`}>
+                <span className="neu-raised-sm grid size-11 shrink-0 place-items-center rounded-2xl border-none text-indigo-600 dark:text-indigo-400">
+                  <FileAudio className="size-5" aria-hidden="true" />
+                </span>
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <span className={`truncate text-sm font-bold ${NEU_TEXT}`}>{file.name}</span>
+                  <span
+                    className={`text-xs font-medium ${tooLong ? "text-rose-700 dark:text-rose-400" : NEU_TEXT_MUTED}`}
+                  >
                     {isReadingDuration
                       ? t("readingDuration")
                       : duration > 0
@@ -230,17 +234,17 @@ export function UploadVoiceTagForm({ onCancel, onSuccess }: UploadVoiceTagFormPr
                         : t("durationUnknown")}
                   </span>
                 </div>
-                <Button
+                <NeuButton
                   type="button"
                   variant="ghost"
-                  size="icon"
-                  className="ml-auto size-9 shrink-0 sm:size-8"
+                  size="icon-sm"
+                  className="ml-auto shrink-0"
                   disabled={isPending}
                   onClick={clearFile}
                   aria-label={tActions("cancel")}
                 >
                   <X className="size-4" aria-hidden="true" />
-                </Button>
+                </NeuButton>
               </div>
 
               {previewUrl && (
@@ -252,11 +256,11 @@ export function UploadVoiceTagForm({ onCancel, onSuccess }: UploadVoiceTagFormPr
                   aria-label={file.name}
                 />
               )}
-            </div>
+            </NeuPanel>
           )}
 
           {clientError && (
-            <p role="alert" className="text-xs text-destructive">
+            <p role="alert" className={NEU_ERROR_TEXT}>
               {clientError}
             </p>
           )}
@@ -265,21 +269,21 @@ export function UploadVoiceTagForm({ onCancel, onSuccess }: UploadVoiceTagFormPr
 
       {phase && <UploadProgress phase={phase} percent={percent} />}
 
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end gap-3">
         {onCancel && (
-          <Button type="button" variant="ghost" size="lg" onClick={onCancel} disabled={isPending}>
+          <NeuButton type="button" onClick={onCancel} disabled={isPending}>
             {tActions("back")}
-          </Button>
+          </NeuButton>
         )}
-        <Button
+        <NeuButton
           type="submit"
-          size="lg"
+          variant="primary"
           disabled={!canSubmit || isPending}
-          className="h-11 min-w-36 sm:h-9"
+          className="min-w-36"
         >
-          {isPending && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />}
+          {isPending && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
           {t("submitButton")}
-        </Button>
+        </NeuButton>
       </div>
     </form>
   );

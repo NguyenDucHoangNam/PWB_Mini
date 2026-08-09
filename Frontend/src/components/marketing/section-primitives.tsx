@@ -60,7 +60,6 @@ export function Section({
   children,
   className,
   id,
-  tone = "base",
 }: {
   children: ReactNode;
   className?: string;
@@ -71,8 +70,7 @@ export function Section({
     <section
       id={id}
       className={cn(
-        "relative w-full overflow-hidden px-5 py-24 sm:px-8 sm:py-28 md:py-32",
-        tone === "raised" ? "bg-muted/40" : "bg-background",
+        "relative w-full overflow-hidden bg-[#e0e5ec] dark:bg-[#1e222b] px-5 py-24 sm:px-8 sm:py-28 md:py-32 transition-colors border-none",
         className,
       )}
     >
@@ -85,11 +83,11 @@ export function Eyebrow({ children, className }: { children: ReactNode; classNam
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-3 font-mono text-xs uppercase tracking-[0.22em] text-muted-foreground",
+        "inline-flex items-center gap-3 font-mono text-xs font-bold uppercase tracking-[0.22em] text-indigo-600 dark:text-indigo-400",
         className,
       )}
     >
-      <span aria-hidden="true" className="h-px w-7 bg-border" />
+      <span aria-hidden="true" className="h-0.5 w-7 bg-indigo-600 dark:bg-indigo-400" />
       {children}
     </span>
   );
@@ -99,7 +97,7 @@ export function SectionTitle({ children, className }: { children: ReactNode; cla
   return (
     <h2
       className={cn(
-        "mt-5 max-w-3xl text-balance font-heading text-3xl font-semibold tracking-tight text-foreground sm:text-4xl md:text-5xl",
+        "mt-5 max-w-3xl text-balance font-heading text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl md:text-5xl",
         className,
       )}
     >
@@ -112,7 +110,7 @@ export function SectionLead({ children, className }: { children: ReactNode; clas
   return (
     <p
       className={cn(
-        "mt-5 max-w-2xl text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg",
+        "mt-5 max-w-2xl text-pretty text-base leading-relaxed text-slate-600 dark:text-slate-300 sm:text-lg",
         className,
       )}
     >
@@ -121,7 +119,6 @@ export function SectionLead({ children, className }: { children: ReactNode; clas
   );
 }
 
-/** Deterministic 0..1 sequence — keeps generated waveforms identical on every render. */
 export function pseudoRandom(seed: number): number {
   const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
   return x - Math.floor(x);

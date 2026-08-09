@@ -71,19 +71,19 @@ export function SectionVoiceTag() {
           ))}
 
           <RevealItem>
-            <p className="mt-10 font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
+            <p className="mt-10 font-mono text-xs font-bold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">
               {t("specTitle")}
             </p>
-            <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border bg-border">
+            <dl className="mt-4 grid grid-cols-2 gap-4">
               {SPEC_KEYS.map((key) => (
-                <div key={key} className="bg-card p-5">
-                  <dt className="font-mono text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                <div key={key} className="neu-raised-sm rounded-2xl bg-[#e0e5ec] p-5 dark:bg-[#1e222b]">
+                  <dt className="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
                     {t(`${key}Label`)}
                   </dt>
-                  <dd className="mt-2.5 text-xl font-semibold tracking-tight text-foreground">
+                  <dd className="mt-2.5 text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                     {t(`${key}Value`)}
                   </dd>
-                  <dd className="mt-1 font-mono text-xs text-muted-foreground">
+                  <dd className="mt-1 font-mono text-xs text-slate-600 dark:text-slate-400">
                     {t(`${key}Note`)}
                   </dd>
                 </div>
@@ -114,28 +114,27 @@ function TagTimeline({ trackLabel, trackStatus, tagMarker }: TagTimelineProps) {
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <figure className="rounded-2xl border border-border bg-card p-5 sm:p-7">
+    <figure className="neu-raised rounded-3xl border-none bg-[#e0e5ec] p-6 sm:p-8 dark:bg-[#1e222b]">
       <figcaption className="flex items-center justify-between gap-4">
-        <span className="font-mono text-sm text-foreground">{trackLabel}</span>
-        <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1 font-mono text-xs uppercase tracking-[0.16em] text-muted-foreground">
+        <span className="font-mono text-sm font-bold text-slate-900 dark:text-slate-100">{trackLabel}</span>
+        <span className="neu-pressed-sm inline-flex items-center gap-2 rounded-full bg-[#e0e5ec] px-4 py-1.5 font-mono text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 dark:bg-[#1e222b] dark:text-slate-300">
           <span className="waveform" aria-hidden="true" data-state={prefersReducedMotion ? "paused" : undefined}>
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
+            <span className="bg-indigo-600 dark:bg-indigo-400" />
+            <span className="bg-indigo-600 dark:bg-indigo-400" />
+            <span className="bg-indigo-600 dark:bg-indigo-400" />
+            <span className="bg-indigo-600 dark:bg-indigo-400" />
+            <span className="bg-indigo-600 dark:bg-indigo-400" />
           </span>
           {trackStatus}
         </span>
       </figcaption>
 
       <div className="mt-7" aria-hidden="true">
-        {/* Tag markers sit in their own lane above the waveform. */}
         <div className="relative h-7 w-full">
           {TAG_WINDOWS.map((start) => (
             <motion.span
               key={start}
-              className="absolute top-0 -translate-x-1/2 rounded-md border border-foreground/25 bg-background px-2 py-1 font-mono text-xs tracking-[0.14em] text-foreground"
+              className="neu-raised-sm absolute top-0 -translate-x-1/2 rounded-xl bg-indigo-600 px-3 py-1 font-mono text-xs font-bold tracking-[0.14em] text-white"
               style={{ left: `${((start + TAG_WIDTH_BARS / 2) / BAR_COUNT) * 100}%` }}
               initial={{ opacity: 0.4 }}
               animate={prefersReducedMotion ? { opacity: 0.7 } : { opacity: [0.4, 1, 0.4] }}
@@ -155,14 +154,13 @@ function TagTimeline({ trackLabel, trackStatus, tagMarker }: TagTimelineProps) {
           {TAG_WINDOWS.map((start) => (
             <span
               key={start}
-              className="absolute inset-y-0 w-px border-l border-dashed border-border"
+              className="absolute inset-y-0 w-px border-l border-dashed border-slate-400/40 dark:border-slate-600/40"
               style={{ left: `${((start + TAG_WIDTH_BARS / 2) / BAR_COUNT) * 100}%` }}
             />
           ))}
 
-          <BarRow className="bg-muted-foreground/30" />
+          <BarRow className="bg-slate-400/30 dark:bg-slate-600/30" />
 
-          {/* The played portion is a second, solid copy revealed by an expanding clip. */}
           <motion.div
             className="absolute inset-y-0 left-0 overflow-hidden"
             initial={{ width: "0%" }}
@@ -174,12 +172,12 @@ function TagTimeline({ trackLabel, trackStatus, tagMarker }: TagTimelineProps) {
             }}
           >
             <div className="absolute inset-y-0 left-0 w-[100cqw]">
-              <BarRow className="bg-foreground" />
+              <BarRow className="bg-indigo-600 dark:bg-indigo-400" />
             </div>
           </motion.div>
 
           <motion.span
-            className="absolute inset-y-0 w-px bg-foreground"
+            className="absolute inset-y-0 w-0.5 bg-indigo-600 dark:bg-indigo-400"
             initial={{ left: "0%" }}
             animate={prefersReducedMotion ? { left: "38%" } : { left: ["0%", "100%"] }}
             transition={{
@@ -190,7 +188,7 @@ function TagTimeline({ trackLabel, trackStatus, tagMarker }: TagTimelineProps) {
           />
         </div>
 
-        <div className="mt-4 flex items-center justify-between border-t border-border pt-3 font-mono text-xs text-muted-foreground">
+        <div className="mt-4 flex items-center justify-between border-t border-slate-300/40 dark:border-slate-700/40 pt-3 font-mono text-xs font-semibold text-slate-500 dark:text-slate-400">
           <span>0:00</span>
           <span>0:30</span>
           <span>1:00</span>

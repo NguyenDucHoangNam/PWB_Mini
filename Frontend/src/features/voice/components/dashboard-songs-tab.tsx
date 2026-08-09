@@ -6,9 +6,16 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Music, Upload, SearchX, Pencil, Trash2, Check, X, Play } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { Select } from "@/components/ui/select";
+import {
+  NEU_INPUT,
+  NEU_TEXT,
+  NEU_TEXT_MUTED,
+  NEU_TEXT_SOFT,
+  NeuButton,
+  neuButton,
+} from "@/components/ui/neu";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 import { asApiError } from "@/lib/api-client";
@@ -113,29 +120,31 @@ function SongRow({ song, index, onDelete }: SongRowProps) {
   const formatLabel = (song.format ?? "").toUpperCase();
 
   return (
-    <li className="group relative isolate beat-16th transition-colors ease-hammer hover:bg-muted/40">
+    <li className="group neu-tile relative isolate rounded-2xl border-none">
       {!isEditing && (
         <Link
           href={`/dashboard/songs/${song.id}`}
-          className="absolute inset-0 z-10 rounded-lg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+          className="absolute inset-0 z-10 rounded-2xl focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-indigo-600 dark:focus-visible:outline-indigo-400"
         >
           <span className="sr-only">{song.title}</span>
         </Link>
       )}
 
-      <div className="flex items-center gap-3 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3">
-        <span className="hidden w-5 shrink-0 text-right text-xs tabular-nums text-muted-foreground sm:block">
+      <div className="flex items-center gap-3 px-3 py-3 sm:gap-4 sm:px-4">
+        <span
+          className={`hidden w-5 shrink-0 text-right text-xs font-semibold tabular-nums sm:block ${NEU_TEXT_MUTED}`}
+        >
           {index + 1}
         </span>
 
-        {/* Artwork tile: a music glyph that flips to a play glyph on row hover. */}
-        <div className="relative grid size-11 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-gradient-to-br from-muted/70 to-muted/30 sm:size-12">
+        {/* Artwork well: sunken, with a music glyph that flips to a play glyph on row hover. */}
+        <div className="neu-pressed-sm relative grid size-11 shrink-0 place-items-center rounded-2xl border-none sm:size-12">
           <Music
-            className="size-5 text-muted-foreground beat-16th transition-opacity ease-hammer group-hover:opacity-0"
+            className="size-5 text-slate-500 beat-16th transition-opacity ease-hammer group-hover:opacity-0 dark:text-slate-400"
             aria-hidden="true"
           />
           <Play
-            className="absolute size-5 fill-current text-foreground opacity-0 beat-16th transition-opacity ease-hammer group-hover:opacity-100"
+            className="absolute size-5 fill-current text-indigo-600 opacity-0 beat-16th transition-opacity ease-hammer group-hover:opacity-100 dark:text-indigo-400"
             aria-hidden="true"
           />
         </div>
@@ -153,12 +162,12 @@ function SongRow({ song, index, onDelete }: SongRowProps) {
                 maxLength={200}
                 disabled={isPending}
                 aria-label={tActions("edit")}
-                className="h-9 min-w-0 flex-1 rounded-lg border border-input bg-background px-2.5 text-sm font-medium text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 sm:h-8"
+                className={`${NEU_INPUT} h-11 min-w-0 flex-1 rounded-xl`}
               />
-              <Button
-                variant="secondary"
-                size="icon"
-                className="size-9 shrink-0 sm:size-8"
+              <NeuButton
+                variant="primary"
+                size="icon-sm"
+                className="size-11 sm:size-10"
                 disabled={isPending || !editValue.trim()}
                 onMouseDown={(e) => {
                   e.preventDefault();
@@ -167,11 +176,11 @@ function SongRow({ song, index, onDelete }: SongRowProps) {
                 aria-label={tCommon("save")}
               >
                 <Check className="size-4" aria-hidden="true" />
-              </Button>
-              <Button
+              </NeuButton>
+              <NeuButton
                 variant="ghost"
-                size="icon"
-                className="size-9 shrink-0 sm:size-8"
+                size="icon-sm"
+                className="size-11 sm:size-10"
                 onMouseDown={(e) => {
                   e.preventDefault();
                   cancelEdit();
@@ -179,19 +188,23 @@ function SongRow({ song, index, onDelete }: SongRowProps) {
                 aria-label={tCommon("cancel")}
               >
                 <X className="size-4" aria-hidden="true" />
-              </Button>
+              </NeuButton>
             </div>
           ) : (
             <>
               <div className="flex min-w-0 items-center gap-2">
-                <span className="truncate text-sm font-semibold text-foreground decoration-muted-foreground/40 underline-offset-4 group-hover:underline sm:text-[0.95rem]">
+                <span
+                  className={`truncate text-sm font-bold decoration-slate-400 underline-offset-4 group-hover:underline sm:text-[0.95rem] ${NEU_TEXT}`}
+                >
                   {song.title}
                 </span>
                 <SongStatusBadge status={song.status} />
               </div>
               {/* The badge is shrink-0, so without wrapping + nowrap the leftover space breaks
                   "2.9 MB" across two lines. */}
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <div
+                className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium ${NEU_TEXT_MUTED}`}
+              >
                 <SongVoiceTagBadge hasVoiceTag={song.hasVoiceTag} />
                 {formatLabel && <span className="hidden sm:inline">{formatLabel}</span>}
                 <span aria-hidden="true" className="hidden sm:inline">·</span>
@@ -205,29 +218,31 @@ function SongRow({ song, index, onDelete }: SongRowProps) {
 
         {!isEditing && (
           <>
-            <span className="hidden shrink-0 text-sm tabular-nums text-foreground sm:block">
+            <span
+              className={`hidden shrink-0 text-sm font-semibold tabular-nums sm:block ${NEU_TEXT_SOFT}`}
+            >
               {durationLabel}
             </span>
 
-            <div className="hover-reveal relative z-20 flex shrink-0 items-center gap-0.5 sm:w-18 sm:justify-end">
-              <Button
+            <div className="hover-reveal relative z-20 flex shrink-0 items-center gap-1 sm:w-20 sm:justify-end">
+              <NeuButton
                 variant="ghost"
-                size="icon"
-                className="size-11 text-muted-foreground hover:text-foreground sm:size-8"
+                size="icon-sm"
+                className="size-11 sm:size-9"
                 onClick={startEdit}
                 aria-label={tActions("edit")}
               >
-                <Pencil className="size-4 sm:size-3.5" aria-hidden="true" />
-              </Button>
-              <Button
+                <Pencil className="size-4" aria-hidden="true" />
+              </NeuButton>
+              <NeuButton
                 variant="ghost"
-                size="icon"
-                className="size-11 text-muted-foreground hover:text-destructive sm:size-8"
+                size="icon-sm"
+                className="size-11 hover:text-rose-700 sm:size-9 dark:hover:text-rose-400"
                 onClick={() => onDelete(song)}
                 aria-label={tActions("delete")}
               >
-                <Trash2 className="size-4 sm:size-3.5" aria-hidden="true" />
-              </Button>
+                <Trash2 className="size-4" aria-hidden="true" />
+              </NeuButton>
             </div>
           </>
         )}
@@ -343,34 +358,32 @@ export function DashboardSongsTab() {
   };
 
   return (
-    <div className="flex flex-1 flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+    <div className="flex flex-1 flex-col gap-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <div className="sm:max-w-sm sm:flex-1">
           <SearchInput
+            variant="neu"
             value={keyword}
             onValueChange={setKeyword}
             loading={searching && isFetching}
             placeholder={tList("searchSongsPlaceholder")}
             clearLabel={tList("clearSearch")}
             aria-label={tList("searchSongsPlaceholder")}
-            className="h-11 sm:h-9"
           />
         </div>
 
-        <div className="flex items-center gap-2 sm:ml-auto">
+        <div className="flex items-center gap-3 sm:ml-auto">
           <Select
             options={filters}
             value={view}
             onValueChange={(v) => setView(v as SongView)}
             aria-label={tList("filterByStatus")}
-            className="h-11 w-full sm:h-9 sm:w-40"
+            className="w-full sm:w-44"
           />
 
-          <Link href="/dashboard/songs/new" className="shrink-0">
-            <Button size="lg" className="h-11 gap-2 font-semibold sm:h-9">
-              <Upload className="size-4" aria-hidden="true" />
-              {t("upload")}
-            </Button>
+          <Link href="/dashboard/songs/new" className={neuButton({ variant: "primary" })}>
+            <Upload className="size-4" aria-hidden="true" />
+            {t("upload")}
           </Link>
         </div>
       </div>
@@ -394,11 +407,7 @@ export function DashboardSongsTab() {
             icon={SearchX}
             title={tList("noResults")}
             hint={tList("noResultsHint", { query: debouncedKeyword })}
-            action={
-              <Button variant="outline" size="lg" onClick={() => setKeyword("")}>
-                {tList("clearSearch")}
-              </Button>
-            }
+            action={<NeuButton onClick={() => setKeyword("")}>{tList("clearSearch")}</NeuButton>}
           />
         </LibraryPanel>
       ) : items.length === 0 ? (
@@ -408,11 +417,9 @@ export function DashboardSongsTab() {
             title={t("noSongs")}
             hint={t("emptyHint")}
             action={
-              <Link href="/dashboard/songs/new">
-                <Button size="lg" className="gap-2">
-                  <Upload className="size-4" aria-hidden="true" />
-                  {t("upload")}
-                </Button>
+              <Link href="/dashboard/songs/new" className={neuButton({ variant: "primary" })}>
+                <Upload className="size-4" aria-hidden="true" />
+                {t("upload")}
               </Link>
             }
           />
@@ -423,15 +430,19 @@ export function DashboardSongsTab() {
             aria-busy={isFetching}
             className={`beat-8th transition-opacity ${isFetching ? "opacity-70" : ""}`}
           >
-            <div className="hidden items-center gap-4 border-b border-border bg-muted/40 px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:flex">
+            {/* Column labels sit on the well itself — a rule here would be a border,
+                and the style has none. */}
+            <div
+              className={`hidden items-center gap-4 px-4 pb-3 text-[11px] font-bold uppercase tracking-[0.14em] sm:flex ${NEU_TEXT_MUTED}`}
+            >
               <span className="w-5 shrink-0 text-right">#</span>
               <span className="w-12 shrink-0" />
               <span className="flex-1">{tList("colTitle")}</span>
               <span className="shrink-0">{tList("colDuration")}</span>
-              <span className="w-18 shrink-0" />
+              <span className="w-20 shrink-0" />
             </div>
 
-            <ul className="divide-y divide-border">
+            <ul className="flex flex-col gap-3">
               {items.map((song, i) => (
                 <SongRow
                   key={song.id}

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { SuggestCombobox } from "@/components/ui/suggest-combobox";
+import { NEU_TEXT_MUTED, NeuBadge } from "@/components/ui/neu";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { LanguageFlagIcon } from "@/features/voice/components/language-flag";
 import { useListVoiceTags, useSuggestVoiceTags } from "@/features/voice/api/voice-tags";
@@ -69,16 +70,14 @@ export function VoiceTagPicker({ id = "voice-tag-picker", onSelect, disabled }: 
       }}
       renderItem={(item) => (
         <span className="flex min-w-0 items-center gap-2">
-          <span className="min-w-0 flex-1 truncate font-medium">{item.name}</span>
+          <span className="min-w-0 flex-1 truncate font-semibold">{item.name}</span>
           {item.languageCode ? <LanguageFlagIcon langCode={item.languageCode} /> : null}
           {item.voiceName ? (
-            <span className="truncate text-xs text-neutral-500 dark:text-neutral-400">
-              {item.voiceName}
-            </span>
+            <span className={`truncate text-xs ${NEU_TEXT_MUTED}`}>{item.voiceName}</span>
           ) : null}
-          <span className="shrink-0 rounded-full border border-neutral-200 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
+          <NeuBadge tone="muted" className="px-2 py-0.5 text-[10px]">
             {item.tagType}
-          </span>
+          </NeuBadge>
         </span>
       )}
     />

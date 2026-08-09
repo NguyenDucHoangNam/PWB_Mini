@@ -42,7 +42,6 @@ export function SectionTrust() {
 
   return (
     <Section tone="raised">
-      {/* A bar of staff lines bleeding out of the top edge — decorative only. */}
       <span
         aria-hidden="true"
         className="staff-lines absolute inset-x-0 top-0 h-20"
@@ -55,7 +54,7 @@ export function SectionTrust() {
         <SectionLead>{t("lead")}</SectionLead>
       </Reveal>
 
-      <RevealGroup className="relative mt-14 grid gap-px overflow-hidden rounded-2xl border border-border bg-border sm:grid-cols-2 lg:mt-16">
+      <RevealGroup className="relative mt-14 grid gap-6 sm:grid-cols-2 lg:mt-16">
         {ITEMS.map(({ key, icon }) => (
           <TrustItem
             key={key}
@@ -66,16 +65,16 @@ export function SectionTrust() {
         ))}
       </RevealGroup>
 
-      <Reveal className="relative mt-10 flex flex-wrap items-center gap-x-3 gap-y-3">
-        <span className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
+      <Reveal className="relative mt-12 flex flex-wrap items-center gap-x-3 gap-y-3">
+        <span className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">
           {t("stackLabel")}
         </span>
-        <span aria-hidden="true" className="h-px w-6 bg-border" />
-        <ul className="flex flex-wrap gap-2">
+        <span aria-hidden="true" className="h-0.5 w-6 bg-indigo-600 dark:bg-indigo-400" />
+        <ul className="flex flex-wrap gap-2.5">
           {STACK.map((tool) => (
             <li
               key={tool}
-              className="rounded-full border border-border bg-card px-3 py-1 font-mono text-xs text-muted-foreground"
+              className="neu-pressed-sm rounded-full bg-[#e0e5ec] px-4 py-1.5 font-mono text-xs font-semibold text-slate-700 dark:bg-[#1e222b] dark:text-slate-300"
             >
               {tool}
             </li>
@@ -88,10 +87,14 @@ export function SectionTrust() {
 
 function TrustItem({ icon: Icon, title, body }: { icon: LucideIcon; title: string; body: string }) {
   return (
-    <RevealItem className="bg-card p-7 sm:p-8">
-      <Icon className="size-5 text-foreground" aria-hidden="true" />
-      <h3 className="mt-5 text-lg font-semibold tracking-tight text-foreground">{title}</h3>
-      <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">{body}</p>
+    <RevealItem className="h-full">
+      <article className="neu-raised flex h-full flex-col rounded-3xl border-none bg-[#e0e5ec] p-7 sm:p-8 dark:bg-[#1e222b]">
+        <span className="neu-pressed-sm flex size-11 items-center justify-center rounded-2xl bg-[#e0e5ec] text-indigo-600 dark:bg-[#1e222b] dark:text-indigo-400">
+          <Icon className="size-5" aria-hidden="true" />
+        </span>
+        <h3 className="mt-5 text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">{title}</h3>
+        <p className="mt-2.5 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{body}</p>
+      </article>
     </RevealItem>
   );
 }

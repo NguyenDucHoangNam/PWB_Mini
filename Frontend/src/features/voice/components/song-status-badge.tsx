@@ -2,10 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import { Mic } from "lucide-react";
+import { NEU_TEXT_MUTED, NeuBadge } from "@/components/ui/neu";
 import type { SongStatus } from "../types";
-
-const BADGE_BASE =
-  "inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium";
 
 export function SongStatusBadge({
   status,
@@ -18,26 +16,22 @@ export function SongStatusBadge({
 
   if (status === "PROCESSING") {
     return (
-      <span
-        className={`${BADGE_BASE} border-border bg-secondary text-secondary-foreground ${className}`}
-      >
+      <NeuBadge tone="accent" className={className}>
         <span className="waveform" aria-hidden="true">
           <span />
           <span />
           <span />
         </span>
         {t("processing")}
-      </span>
+      </NeuBadge>
     );
   }
 
   if (status === "FAILED") {
     return (
-      <span
-        className={`${BADGE_BASE} border-destructive/30 bg-destructive/10 text-destructive ${className}`}
-      >
+      <NeuBadge tone="danger" className={className}>
         {t("failed")}
-      </span>
+      </NeuBadge>
     );
   }
 
@@ -53,10 +47,12 @@ export function SongVoiceTagBadge({
 }) {
   const t = useTranslations("voice.status");
 
+  // "No voice tag" is the absence of a thing, so it gets no chrome at all —
+  // only the tagged state is worth lifting off the surface.
   if (!hasVoiceTag) {
     return (
       <span
-        className={`${BADGE_BASE} border-transparent text-muted-foreground ${className}`}
+        className={`inline-flex shrink-0 items-center text-xs font-medium ${NEU_TEXT_MUTED} ${className}`}
         title={t("plainMusicHint")}
       >
         {t("plainMusic")}
@@ -65,12 +61,9 @@ export function SongVoiceTagBadge({
   }
 
   return (
-    <span
-      className={`${BADGE_BASE} border-border bg-secondary text-secondary-foreground ${className}`}
-      title={t("hasVoiceTagHint")}
-    >
+    <NeuBadge tone="muted" className={className} title={t("hasVoiceTagHint")}>
       <Mic className="size-3" aria-hidden="true" />
       {t("hasVoiceTag")}
-    </span>
+    </NeuBadge>
   );
 }

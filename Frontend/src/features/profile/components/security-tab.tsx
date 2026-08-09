@@ -1,7 +1,6 @@
 "use client";
 
 import { Loader2, Lock, ShieldCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/features/auth/components/password-input";
 import { PasswordStrengthBar } from "@/features/auth/components/password-strength-bar";
 import { PasswordRules } from "@/features/auth/components/password-rules";
@@ -55,30 +54,30 @@ export function SecurityTab({
   labels,
 }: SecurityTabProps) {
   return (
-    <div role="tabpanel" className="p-6 sm:p-8">
+    <div role="tabpanel" className="neu-raised space-y-6 rounded-3xl bg-[#e0e5ec] p-6 sm:p-8 dark:bg-[#1e222b]">
       <div className="mb-6 flex items-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-lg bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+        <div className="neu-pressed flex size-11 items-center justify-center rounded-2xl text-indigo-600 dark:text-indigo-400 bg-[#e0e5ec] dark:bg-[#1e222b]">
           <Lock className="size-5" aria-hidden="true" />
         </div>
         <div>
-          <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-50">
+          <h2 className="text-base font-bold text-slate-900 dark:text-slate-50">
             {labels.oldPassword.replace("*", "").trim()}
           </h2>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">{labels.newPassword}</p>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{labels.newPassword}</p>
         </div>
       </div>
 
       {isOauthOnly ? (
-        <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed border-neutral-200 bg-neutral-50 py-10 text-center dark:border-neutral-800 dark:bg-neutral-900/40">
-          <ShieldCheck className="size-8 text-neutral-400" aria-hidden="true" />
-          <p className="max-w-md text-sm text-neutral-500 dark:text-neutral-400">
+        <div className="neu-pressed flex flex-col items-center gap-4 rounded-3xl bg-[#e0e5ec] p-8 text-center dark:bg-[#1e222b]">
+          <ShieldCheck className="size-9 text-indigo-600 dark:text-indigo-400" aria-hidden="true" />
+          <p className="max-w-md text-sm font-medium text-slate-600 dark:text-slate-300">
             {oauthOnlyMessage}
           </p>
         </div>
       ) : (
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-5">
           {passwordError && (
-            <div className="rounded-lg border border-red-200/60 bg-red-50 px-3 py-2 text-xs font-medium text-red-600 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+            <div className="neu-pressed rounded-2xl bg-[#e0e5ec] p-4 text-xs font-semibold text-rose-600 dark:bg-[#1e222b] dark:text-rose-400">
               {passwordError}
             </div>
           )}
@@ -89,6 +88,7 @@ export function SecurityTab({
               value={currentPassword}
               onChange={(e) => onChangeCurrentPassword(e.target.value)}
               placeholder={labels.oldPlaceholder}
+              className="neu-input rounded-2xl bg-[#e0e5ec] px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2 dark:bg-[#1e222b] dark:text-slate-100 border-none h-12"
             />
           </FieldGroup>
 
@@ -98,6 +98,7 @@ export function SecurityTab({
               value={newPassword}
               onChange={(e) => onChangeNewPassword(e.target.value)}
               placeholder={labels.newPlaceholder}
+              className="neu-input rounded-2xl bg-[#e0e5ec] px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2 dark:bg-[#1e222b] dark:text-slate-100 border-none h-12"
             />
             <PasswordStrengthBar strength={strength} />
             <PasswordRules password={newPassword} />
@@ -110,26 +111,27 @@ export function SecurityTab({
               onChange={(e) => onChangeConfirmPassword(e.target.value)}
               onBlur={onBlurConfirmPassword}
               placeholder={labels.confirmPlaceholder}
+              className="neu-input rounded-2xl bg-[#e0e5ec] px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2 dark:bg-[#1e222b] dark:text-slate-100 border-none h-12"
             />
           </FieldGroup>
 
-          <div className="flex justify-end pt-2">
-            <Button
+          <div className="flex justify-end pt-3">
+            <button
               type="submit"
               disabled={isSubmitting || isRateLimited}
-              className="min-w-[140px]"
+              className="neu-button-primary flex min-w-[160px] items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-neu-raised-sm focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2 disabled:opacity-50"
             >
               {isSubmitting ? (
-                <span className="flex items-center gap-2">
+                <>
                   <Loader2 className="size-4 animate-spin" />
-                  {labels.submitting}
-                </span>
+                  <span>{labels.submitting}</span>
+                </>
               ) : isRateLimited ? (
                 labels.retryText
               ) : (
                 labels.submit
               )}
-            </Button>
+            </button>
           </div>
         </form>
       )}

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
+import { NEU_FOCUS } from "@/components/ui/neu";
 import { cn } from "@/lib/utils";
 
 interface SelectOption {
@@ -132,10 +133,13 @@ export function Select({
         onClick={toggle}
         onKeyDown={handleKeyDown}
         className={cn(
-          "flex h-9 w-full cursor-pointer items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground outline-none transition-all",
-          "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-          "hover:bg-muted/40",
-          open && "border-ring ring-3 ring-ring/50",
+          "flex h-11 w-full cursor-pointer items-center justify-between gap-2 rounded-2xl border-none px-4 text-sm font-semibold outline-none",
+          NEU_FOCUS,
+          // Open reads as pressed-in. The chevron flip and the accent text carry the
+          // state for anyone who cannot see the shadow flip with it.
+          open
+            ? "neu-pressed text-indigo-600 dark:text-indigo-400"
+            : "neu-button text-slate-700 dark:text-slate-200",
           className,
         )}
       >
@@ -143,8 +147,8 @@ export function Select({
         <ChevronDown
           aria-hidden="true"
           className={cn(
-            "size-4 shrink-0 text-muted-foreground transition-transform duration-200",
-            open && "rotate-180",
+            "size-4 shrink-0 transition-transform duration-200 motion-reduce:transition-none",
+            open ? "rotate-180" : "text-slate-400 dark:text-slate-500",
           )}
         />
       </button>
@@ -154,7 +158,7 @@ export function Select({
           ref={listRef}
           role="listbox"
           aria-label={ariaLabel}
-          className="absolute left-0 top-[calc(100%+4px)] z-50 w-full min-w-[8rem] overflow-hidden rounded-lg border border-border bg-background p-1 shadow-lg animate-in fade-in-0 zoom-in-95 slide-in-from-top-2"
+          className="neu-raised absolute left-0 top-[calc(100%+10px)] z-50 w-full min-w-[8rem] rounded-2xl border-none p-2 animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 motion-reduce:animate-none"
         >
           {options.map((option, index) => {
             const isSelected = option.value === value;
@@ -170,10 +174,11 @@ export function Select({
                   select(option);
                 }}
                 className={cn(
-                  "flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-sm outline-none transition-colors",
-                  isHighlighted && "bg-muted",
-                  isSelected && "font-medium text-foreground",
-                  !isSelected && "text-muted-foreground",
+                  "flex cursor-pointer items-center gap-2 rounded-xl border-none px-3 py-2 text-sm outline-none transition-all",
+                  isHighlighted && "neu-pressed-sm",
+                  isSelected
+                    ? "font-bold text-indigo-600 dark:text-indigo-400"
+                    : "font-medium text-slate-600 dark:text-slate-300",
                 )}
               >
                 <Check

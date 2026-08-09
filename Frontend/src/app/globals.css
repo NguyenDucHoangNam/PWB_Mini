@@ -116,9 +116,21 @@
     oklch(0 0 0 / 0.03) 2px
   );
 
-  /* M2 staff */
   --staff-gap: 0.6rem;
   --staff-line: oklch(0.145 0 0 / 0.12);
+
+  --neu-bg: #e0e5ec;
+  --neu-surface: #e0e5ec;
+  --neu-text: #1e293b;
+  --neu-text-muted: #64748b;
+  --neu-light-shadow: rgba(255, 255, 255, 0.85);
+  --neu-dark-shadow: rgba(163, 177, 198, 0.6);
+  --neu-accent: #4f46e5;
+  --neu-accent-hover: #4338ca;
+  --neu-accent-foreground: #ffffff;
+  --neu-danger: #e11d48;
+  --neu-danger-hover: #be123c;
+  --neu-danger-foreground: #ffffff;
 }
 
 .dark {
@@ -165,6 +177,23 @@
   --key-face: linear-gradient(to bottom, oklch(0.93 0 0), oklch(0.9 0 0) 55%, oklch(0.86 0 0));
 
   --staff-line: oklch(1 0 0 / 0.12);
+
+  --neu-bg: #1e222b;
+  --neu-surface: #1e222b;
+  --neu-text: #f8fafc;
+  --neu-text-muted: #94a3b8;
+  --neu-light-shadow: rgba(255, 255, 255, 0.04);
+  --neu-dark-shadow: rgba(0, 0, 0, 0.65);
+  /* Picked to clear both bars at once on the dark surface: a white label reads at
+     5.2:1 (AA text) and the fill itself at 3.0:1 against #1e222b (AA non-text, so
+     the control has a boundary even though nothing here draws a border).
+     indigo-500 would fail the label at 4.47:1. */
+  --neu-accent: #5b56ee;
+  --neu-accent-hover: #4f46e5;
+  --neu-accent-foreground: #ffffff;
+  --neu-danger: #e11d48;
+  --neu-danger-hover: #be123c;
+  --neu-danger-foreground: #ffffff;
 }
 
 /* Tempo utilities — use these instead of duration-200 */
@@ -260,6 +289,202 @@
     &:focus-within {
       opacity: 1;
     }
+  }
+}
+
+@utility neu-raised {
+  background-color: var(--neu-surface);
+  border: none !important;
+  box-shadow: -6px -6px 14px var(--neu-light-shadow), 6px 6px 14px var(--neu-dark-shadow);
+}
+
+@utility neu-raised-sm {
+  background-color: var(--neu-surface);
+  border: none !important;
+  box-shadow: -3px -3px 8px var(--neu-light-shadow), 3px 3px 8px var(--neu-dark-shadow);
+}
+
+@utility neu-pressed {
+  background-color: var(--neu-surface);
+  border: none !important;
+  box-shadow: inset -4px -4px 8px var(--neu-light-shadow), inset 4px 4px 8px var(--neu-dark-shadow);
+}
+
+@utility neu-pressed-sm {
+  background-color: var(--neu-surface);
+  border: none !important;
+  box-shadow: inset -2px -2px 5px var(--neu-light-shadow), inset 2px 2px 5px var(--neu-dark-shadow);
+}
+
+@utility neu-button {
+  background-color: var(--neu-surface);
+  color: var(--neu-text);
+  border: none !important;
+  box-shadow: -4px -4px 10px var(--neu-light-shadow), 4px 4px 10px var(--neu-dark-shadow);
+  transition: all 0.2s ease-in-out;
+
+  &:hover:not(:disabled) {
+    box-shadow: -6px -6px 14px var(--neu-light-shadow), 6px 6px 14px var(--neu-dark-shadow);
+  }
+
+  &:active:not(:disabled) {
+    box-shadow: inset -3px -3px 6px var(--neu-light-shadow), inset 3px 3px 6px var(--neu-dark-shadow);
+  }
+}
+
+@utility neu-button-primary {
+  background-color: var(--neu-accent);
+  color: var(--neu-accent-foreground);
+  border: none !important;
+  box-shadow: -4px -4px 10px var(--neu-light-shadow), 4px 4px 10px var(--neu-dark-shadow);
+  transition: all 0.2s ease-in-out;
+
+  &:hover:not(:disabled) {
+    background-color: var(--neu-accent-hover);
+    box-shadow: -6px -6px 14px var(--neu-light-shadow), 6px 6px 14px var(--neu-dark-shadow);
+  }
+
+  &:active:not(:disabled) {
+    box-shadow: inset -3px -3px 6px rgba(0, 0, 0, 0.3), inset 3px 3px 6px rgba(0, 0, 0, 0.4);
+  }
+}
+
+@utility neu-input {
+  background-color: var(--neu-surface);
+  color: var(--neu-text);
+  border: none !important;
+  box-shadow: inset -3px -3px 7px var(--neu-light-shadow), inset 3px 3px 7px var(--neu-dark-shadow);
+  transition: box-shadow 0.2s ease-in-out;
+
+  &:focus, &:focus-within {
+    outline: 2px solid var(--neu-accent);
+    outline-offset: 2px;
+  }
+}
+
+@utility neu-button-danger {
+  background-color: var(--neu-danger);
+  color: var(--neu-danger-foreground);
+  border: none !important;
+  box-shadow: -4px -4px 10px var(--neu-light-shadow), 4px 4px 10px var(--neu-dark-shadow);
+  transition: all 0.2s ease-in-out;
+
+  &:hover:not(:disabled) {
+    background-color: var(--neu-danger-hover);
+    box-shadow: -6px -6px 14px var(--neu-light-shadow), 6px 6px 14px var(--neu-dark-shadow);
+  }
+
+  &:active:not(:disabled) {
+    box-shadow: inset -3px -3px 6px rgba(0, 0, 0, 0.3), inset 3px 3px 6px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* Flat at rest so a row is not a field of competing shadows; lifts on hover/focus
+   and sinks on press, which is the only affordance neumorphism has. */
+@utility neu-ghost {
+  background-color: transparent;
+  border: none !important;
+  box-shadow: none;
+  transition: all 0.2s ease-in-out;
+
+  &:hover:not(:disabled),
+  &:focus-visible:not(:disabled) {
+    background-color: var(--neu-surface);
+    box-shadow: -3px -3px 8px var(--neu-light-shadow), 3px 3px 8px var(--neu-dark-shadow);
+  }
+
+  &:active:not(:disabled) {
+    box-shadow: inset -2px -2px 5px var(--neu-light-shadow), inset 2px 2px 5px var(--neu-dark-shadow);
+  }
+}
+
+/* A raised tile that deepens on hover — list rows and cards. */
+@utility neu-tile {
+  background-color: var(--neu-surface);
+  border: none !important;
+  box-shadow: -4px -4px 10px var(--neu-light-shadow), 4px 4px 10px var(--neu-dark-shadow);
+  transition: box-shadow 0.2s ease-in-out;
+
+  &:hover {
+    box-shadow: -6px -6px 14px var(--neu-light-shadow), 6px 6px 14px var(--neu-dark-shadow);
+  }
+}
+
+/* Range input: sunken groove, raised thumb in the accent so the handle is findable
+   without relying on a shadow (shadows carry no measurable contrast). */
+@utility neu-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 1.25rem;
+  background: transparent;
+  border: none !important;
+  cursor: pointer;
+  outline: none;
+
+  &::-webkit-slider-runnable-track {
+    height: 0.5rem;
+    border-radius: 999px;
+    background-color: var(--neu-surface);
+    box-shadow: inset -2px -2px 5px var(--neu-light-shadow), inset 2px 2px 5px var(--neu-dark-shadow);
+  }
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 1.125rem;
+    width: 1.125rem;
+    margin-top: -0.3125rem;
+    border: none;
+    border-radius: 999px;
+    background-color: var(--neu-accent);
+    box-shadow: -2px -2px 5px var(--neu-light-shadow), 2px 2px 5px var(--neu-dark-shadow);
+  }
+
+  &::-moz-range-track {
+    height: 0.5rem;
+    border-radius: 999px;
+    background-color: var(--neu-surface);
+    box-shadow: inset -2px -2px 5px var(--neu-light-shadow), inset 2px 2px 5px var(--neu-dark-shadow);
+  }
+
+  &::-moz-range-thumb {
+    height: 1.125rem;
+    width: 1.125rem;
+    border: none;
+    border-radius: 999px;
+    background-color: var(--neu-accent);
+    box-shadow: -2px -2px 5px var(--neu-light-shadow), 2px 2px 5px var(--neu-dark-shadow);
+  }
+
+  /* On the element, not the thumb pseudo-element: outline on ::-webkit-slider-thumb
+     is unreliable across engines. */
+  &:focus-visible {
+    outline: 2px solid var(--neu-accent);
+    outline-offset: 4px;
+    border-radius: 999px;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neu-raised,
+  .neu-raised-sm,
+  .neu-pressed,
+  .neu-pressed-sm,
+  .neu-button,
+  .neu-button-primary,
+  .neu-button-danger,
+  .neu-ghost,
+  .neu-tile,
+  .neu-range,
+  .neu-input {
+    transition: none !important;
+    transform: none !important;
   }
 }
 

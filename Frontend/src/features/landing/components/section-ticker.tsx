@@ -17,7 +17,6 @@ const ITEM_KEYS = [
 
 const SCROLL_DURATION_SECONDS = 45;
 
-/* Fades the strip into the page edges instead of cutting the words off mid-stroke. */
 const EDGE_MASK =
   "linear-gradient(to right, transparent, black 5rem, black calc(100% - 5rem), transparent)";
 
@@ -28,7 +27,7 @@ export function SectionTicker() {
 
   return (
     <div
-      className="relative w-full overflow-hidden border-y border-border bg-card py-4"
+      className="neu-pressed-sm relative w-full overflow-hidden border-none bg-[#e0e5ec] py-5 dark:bg-[#1e222b]"
       style={{ maskImage: EDGE_MASK, WebkitMaskImage: EDGE_MASK }}
     >
       <motion.div
@@ -40,15 +39,14 @@ export function SectionTicker() {
           repeat: Infinity,
         }}
       >
-        {/* Two identical runs: shifting by exactly half the track loops seamlessly. */}
         {[0, 1].map((copy) => (
           <div key={copy} className="flex shrink-0" aria-hidden={copy === 1}>
             {items.map((label) => (
               <span key={label} className="flex shrink-0 items-center">
-                <span className="whitespace-nowrap px-6 font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                <span className="whitespace-nowrap px-6 font-mono text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">
                   {label}
                 </span>
-                <span aria-hidden="true" className="size-1 shrink-0 rotate-45 bg-muted-foreground/40" />
+                <span aria-hidden="true" className="size-1.5 shrink-0 rotate-45 bg-indigo-600 dark:bg-indigo-400" />
               </span>
             ))}
           </div>
