@@ -14,7 +14,11 @@ export type StepMedia =
   | { kind: "video"; src: string; poster?: string };
 
 interface StepMediaFrameProps {
-  /** Stable id printed on the frame, so a recorded file can be matched back to its step. */
+  /**
+   * Stable id for the capture this step is waiting on. Printed only on the placeholder, where it is
+   * what matches a recorded file back to its step; a finished illustration is for the reader, so it
+   * carries its caption and nothing else.
+   */
   slot: string;
   /** What the capture is meant to show. Doubles as the alt text once the file exists. */
   hint: string;
@@ -34,17 +38,17 @@ export function StepMediaFrame({ slot, hint, media, className }: StepMediaFrameP
         className,
       )}
     >
-      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
-        <span className="inline-flex items-center gap-2 font-mono text-[0.68rem] uppercase tracking-[0.18em] text-muted-foreground">
-          <Icon className="size-3.5" aria-hidden="true" />
-          {slot}
-        </span>
-        {!media && (
+      {!media && (
+        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
+          <span className="inline-flex items-center gap-2 font-mono text-[0.68rem] uppercase tracking-[0.18em] text-muted-foreground">
+            <Icon className="size-3.5" aria-hidden="true" />
+            {slot}
+          </span>
           <span className="font-mono text-[0.68rem] uppercase tracking-[0.18em] text-muted-foreground/70">
             {t("mediaPending")}
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
       {media ? (
         <div className="bg-muted/30">

@@ -197,16 +197,15 @@
   },
   "features": {
     "walkthrough": {
-      "mediaPending": "Chưa có minh họa",
+      "mediaPending": "Chưa có minh hoạ",
       "hero": {
-        "eyebrow": "Hướng dẫn",
+        "eyebrow": "Hướng dẫn sử dụng",
         "title": "Ba module, đi từng bước một.",
-        "lead": "Mỗi module bên dưới là luồng chạy thật, đúng thứ tự các màn hình xuất hiện: bạn bấm gì, app hỏi gì, và nhận lại được gì. Hình và video minh họa đều chụp từ app đang chạy.",
-        "indexTitle": "Trong trang này",
-        "tally": "{modules} module · {steps} bước · ~{minutes} phút",
-        "moduleMeta": "{steps} bước · ~{minutes} phút",
+        "lead": "Bên dưới là hướng dẫn cho từng module, theo đúng thứ tự các màn hình bạn sẽ gặp: bấm vào đâu, điền những gì và nhận lại kết quả gì. Ảnh và video minh hoạ đều chụp từ ứng dụng thật.",
+        "indexTitle": "Nội dung trang",
+        "moduleMeta": "{steps} bước",
         "statusSoon": "Sắp có",
-        "techLink": "Hoặc đọc phần bên dưới lớp giao diện"
+        "techLink": "Tìm hiểu phần kỹ thuật bên dưới"
       },
       "modules": {
         "voiceTag": {
@@ -221,69 +220,63 @@
       },
       "voiceTag": {
         "eyebrow": "Module 01 — Voice Tag",
-        "title": "Tạo một Voice Tag, từ đầu đến cuối.",
-        "lead": "Voice tag là chữ ký âm thanh được đóng lên bản demo của bạn. Đây là toàn bộ đường đi: từ lúc mở tab đến khi có một tag nằm sẵn trong ô chọn.",
+        "title": "Tạo voice tag của riêng bạn.",
+        "lead": "Voice tag là đoạn âm thanh ngắn dùng làm chữ ký cho bản nhạc của bạn. Hướng dẫn này đi hết một lượt: từ lúc mở tab Voice Tags đến khi có một tag sẵn sàng để gắn vào bài hát.",
         "specs": {
           "plan": {
             "label": "Gói",
             "value": "Pro"
           },
-          "time": {
-            "label": "Thời gian",
-            "value": "~3 phút"
-          },
           "ways": {
             "label": "Cách tạo",
-            "value": "TTS hoặc tải lên"
+            "value": "Giọng AI hoặc file bạn tự thu"
           },
           "length": {
-            "label": "Độ dài tối đa",
-            "value": "10 giây (clip tải lên)"
+            "label": "Độ dài file tải lên",
+            "value": "Tối đa 10 giây"
+          },
+          "formats": {
+            "label": "Định dạng",
+            "value": "MP3, WAV hoặc FLAC"
           }
         },
         "steps": {
           "open": {
             "title": "Mở tab Voice Tags",
-            "body": "Đăng nhập, rồi vào Dashboard → Voice Tags. Mọi tag của bạn nằm ở đây và bật lên nghe được ngay trong danh sách. Lần đầu, danh sách trống và chỉ có một nút: Create.",
-            "note": "Voice Tags là module của gói Pro. Tài khoản thường sẽ thấy lời mời nâng cấp thay cho danh sách.",
-            "mediaHint": "Tab Voice Tags ở trạng thái trống, kèm nút Create.",
+            "body": "Đăng nhập, vào Dashboard rồi mở tab Voice Tags. Đây là nơi chứa toàn bộ voice tag của bạn, và bạn nghe thử được ngay trong danh sách. Lần đầu vào, danh sách còn trống và chỉ có một nút Create.",
+            "note": "Voice Tags là tính năng của gói Pro. Nếu đang dùng gói thường, bạn sẽ thấy lời mời nâng cấp thay cho danh sách.",
+            "mediaHint": "Tab Voice Tags khi chưa có tag nào, kèm nút Create.",
             "facts": {
-              "route": {
-                "label": "Đường dẫn",
-                "value": "/dashboard/voice-tags"
+              "place": {
+                "label": "Vị trí",
+                "value": "Dashboard → Voice Tags"
               },
               "plan": {
                 "label": "Yêu cầu",
-                "value": "Đã đăng nhập, tài khoản Pro"
+                "value": "Tài khoản Pro đã đăng nhập"
               }
             }
           },
           "create": {
             "title": "Bấm Create và chọn cách tạo",
-            "body": "Hai thẻ, chọn một: để giọng tổng hợp đọc câu bạn gõ, hoặc tải lên clip bạn tự thu. Không có gì bị chốt cứng — quay lại đây tạo thêm tag theo cách còn lại lúc nào cũng được.",
-            "mediaHint": "Hai thẻ chọn cách tạo: Generate with AI (TTS) và Upload your own audio.",
-            "facts": {
-              "route": {
-                "label": "Đường dẫn",
-                "value": "/dashboard/voice-tags/new"
-              }
-            }
+            "body": "Bạn chọn một trong hai cách: để giọng AI đọc câu bạn gõ, hoặc tải lên đoạn thu sẵn của chính bạn. Chọn cách nào cũng được, và lúc nào bạn cũng quay lại tạo thêm tag bằng cách còn lại.",
+            "mediaHint": "Hai thẻ chọn cách tạo: Generate with AI và Upload your own audio."
           },
           "fork": {
-            "title": "Điền theo nhánh bạn đã chọn",
-            "body": "Hai cách hỏi những thứ khác nhau, và chỉ cần làm xong đúng cái bạn đã chọn.",
+            "title": "Điền thông tin theo cách bạn vừa chọn",
+            "body": "Hai cách hỏi những thông tin khác nhau. Bạn chỉ cần làm theo đúng phần tương ứng bên dưới.",
             "tts": {
-              "badge": "A · TTS",
-              "title": "Tạo bằng giọng tổng hợp",
-              "body": "Đặt tên cho tag, gõ câu cần đọc, rồi chọn ngôn ngữ và giọng. Đổi ngôn ngữ thì phần giọng bị xóa, vì mỗi ngôn ngữ có bộ giọng riêng.",
-              "mediaHint": "Form TTS với hai ô chọn ngôn ngữ và giọng đang mở.",
+              "badge": "A · Giọng AI",
+              "title": "Tạo bằng giọng AI",
+              "body": "Đặt tên cho tag, gõ câu bạn muốn đọc, rồi chọn ngôn ngữ và giọng đọc. Khi bạn đổi ngôn ngữ, phần giọng sẽ cần chọn lại vì mỗi ngôn ngữ có bộ giọng riêng.",
+              "mediaHint": "Biểu mẫu tạo tag bằng giọng AI, với ô chọn ngôn ngữ và giọng đọc.",
               "facts": {
                 "name": {
-                  "label": "Tên",
+                  "label": "Tên tag",
                   "value": "Tối đa 100 ký tự"
                 },
                 "text": {
-                  "label": "Nội dung",
+                  "label": "Nội dung đọc",
                   "value": "Tối đa 2000 ký tự"
                 },
                 "language": {
@@ -291,137 +284,127 @@
                   "value": "Tiếng Việt, Anh (Mỹ), Anh (Anh)"
                 },
                 "voice": {
-                  "label": "Giọng",
-                  "value": "Nam hoặc nữ, hoặc để giọng mặc định"
+                  "label": "Giọng đọc",
+                  "value": "Nam, nữ hoặc để mặc định"
                 }
               }
             },
             "upload": {
-              "badge": "B · Tải lên",
-              "title": "Tải clip bạn tự thu",
-              "body": "Kéo file vào ô hoặc bấm để chọn. Tên tag lấy từ tên file, và thành của bạn ngay khi bạn sửa nó. Trình duyệt đọc thời lượng trước khi gửi bất cứ thứ gì, nên clip quá dài bị chặn tại chỗ, không tốn băng thông.",
-              "mediaHint": "Kéo một file vào ô: thời lượng được đọc ra và trình phát hiện lên ngay dưới.",
+              "badge": "B · File tự thu",
+              "title": "Tải lên đoạn thu của bạn",
+              "body": "Kéo file thả vào ô hoặc bấm để chọn từ máy. Tên tag được điền sẵn theo tên file và bạn sửa lại được. Nếu file dài quá 10 giây, ứng dụng báo ngay tại chỗ để bạn chọn file khác.",
+              "mediaHint": "Một file vừa được kéo vào: tên, dung lượng, thời lượng và nút nghe thử.",
               "facts": {
                 "formats": {
                   "label": "Định dạng",
                   "value": "MP3, WAV hoặc FLAC"
                 },
                 "length": {
-                  "label": "Độ dài tối đa",
-                  "value": "10 giây"
+                  "label": "Độ dài",
+                  "value": "Tối đa 10 giây"
                 },
                 "size": {
-                  "label": "Dung lượng tối đa",
-                  "value": "100 MB"
+                  "label": "Dung lượng",
+                  "value": "Tối đa 100 MB"
                 },
                 "name": {
-                  "label": "Tên",
-                  "value": "Lấy từ tên file, sửa được"
+                  "label": "Tên tag",
+                  "value": "Lấy theo tên file, sửa được"
                 }
               }
             }
           },
           "preview": {
             "title": "Nghe thử trước khi lưu",
-            "body": "Nút Preview tổng hợp một bản mẫu từ đúng những gì đang có trong form. Chưa có gì được lưu — rời trang ở đây thì không có tag nào tồn tại. Đổi chữ, đổi ngôn ngữ hay đổi giọng thì bản mẫu cũ bị bỏ, để bạn không đánh giá dựa trên một bản đã lỗi thời.",
-            "note": "Preview có giới hạn số lần. Vượt ngưỡng, app nói rõ còn bao nhiêu giây nữa mới nghe thử tiếp được.",
-            "mediaHint": "Video ngắn: bấm Preview, vòng chờ, rồi bản mẫu phát ra.",
-            "facts": {
-              "scope": {
-                "label": "Nhánh TTS",
-                "value": "Tổng hợp trên server, không lưu lại"
-              },
-              "upload": {
-                "label": "Nhánh tải lên",
-                "value": "Phát ngay tại máy, file chưa rời trình duyệt"
-              }
-            }
+            "body": "Bấm Preview để nghe đúng những gì bạn vừa điền. Ở bước này chưa có gì được lưu — nếu rời trang, tag sẽ không được tạo. Mỗi lần bạn sửa nội dung, đổi ngôn ngữ hay đổi giọng, bản nghe thử cũ sẽ được bỏ đi để bạn không nghe nhầm bản cũ.",
+            "note": "Số lần nghe thử có giới hạn. Nếu bấm quá nhiều lần liên tục, ứng dụng sẽ cho biết bạn cần chờ bao lâu.",
+            "mediaHint": "Video ngắn: bấm Preview, chờ một chút, rồi bản nghe thử phát lên."
           },
           "save": {
             "title": "Lưu tag",
-            "body": "Bấm Create voice tag, tag được lưu và bạn quay lại danh sách kèm thông báo. Thẻ mới hiện tên, cờ ngôn ngữ và thời lượng đo từ chính đoạn audio.",
-            "mediaHint": "Danh sách ngay sau khi lưu, có thẻ mới và thông báo xác nhận.",
+            "body": "Bấm Create voice tag. Tag được lưu, bạn quay lại danh sách kèm thông báo xác nhận, và thẻ tag mới hiển thị tên, ngôn ngữ cùng thời lượng.",
+            "mediaHint": "Danh sách ngay sau khi lưu, có thẻ tag mới và thông báo xác nhận.",
             "facts": {
               "result": {
                 "label": "Kết quả",
-                "value": "Một tag trong thư viện, dùng được ngay"
+                "value": "Một voice tag trong thư viện, dùng được ngay"
               }
             }
           },
           "manage": {
-            "title": "Nghe, đổi tên, hoặc mang sang bài hát",
-            "body": "Trên mỗi thẻ, Preview chỉ xin link ký sẵn khi bạn bấm, nên mở tab không kéo về đống audio bạn chẳng định nghe. Hình bút chì đổi tên ngay tại chỗ — Enter để lưu, Esc để bỏ. Hình thùng rác hỏi lại một lần. Khi upload một bài hát, tag này xuất hiện trong ô chọn: tìm không cần dấu, gõ sai một chút vẫn ra.",
-            "note": "Chỉ sửa được tên. Phần audio của tag đã lưu là cố định — muốn bản thu khác thì tạo tag mới.",
-            "mediaHint": "Một thẻ tag: bật preview, đổi tên tại chỗ, và hộp thoại xóa.",
+            "title": "Nghe lại, đổi tên hoặc xoá tag",
+            "body": "Mỗi thẻ tag có nút nghe thử, biểu tượng bút chì để đổi tên ngay tại chỗ và biểu tượng thùng rác để xoá. Khi bạn tải một bài hát lên, những tag này sẽ hiện ra trong danh sách để chọn.",
+            "note": "Bạn chỉ đổi được tên. Phần âm thanh của tag đã lưu thì không sửa được — muốn bản thu khác, hãy tạo một tag mới.",
+            "mediaHint": "Một thẻ voice tag: nút nghe thử, ô đổi tên và hộp thoại xác nhận xoá.",
             "facts": {
               "rename": {
                 "label": "Đổi tên",
-                "value": "Ngay trên thẻ — Enter lưu, Esc bỏ"
+                "value": "Ngay trên thẻ — Enter để lưu, Esc để huỷ"
               },
               "remove": {
-                "label": "Xóa",
-                "value": "Xác nhận một lần là mất"
+                "label": "Xoá",
+                "value": "Có hỏi lại, xoá rồi không khôi phục được"
               }
             }
           }
         },
         "next": {
           "eyebrow": "Module tiếp theo",
-          "title": "Song — tải bài hát lên và ghép tag vào",
-          "body": "Chỗ đặt chu kỳ lặp, độ lớn của tag và mức hạ nền nhạc bên dưới, rồi render ra bản đã gắn tag bên cạnh bản gốc còn nguyên."
+          "title": "Song — tải bài hát lên và gắn tag vào",
+          "body": "Chọn bài, đặt tag lặp lại bao lâu một lần, chỉnh âm lượng tag và nhạc nền, rồi nhận về bản đã gắn tag bên cạnh bản gốc vẫn còn nguyên."
         }
       },
       "song": {
         "eyebrow": "Module 02 — Song",
-        "title": "Tải bài hát lên và ghép tag vào.",
-        "lead": "Đây là chỗ voice tag thôi là một đoạn clip rời và trở thành một phần của bản master. Bảy bước: chọn file, quyết định có gắn tag không, tinh chỉnh tag nằm thế nào dưới nền nhạc, rồi nghe cái vừa ra.",
+        "title": "Tải bài hát lên và gắn voice tag.",
+        "lead": "Đây là nơi voice tag không còn là một đoạn clip rời mà trở thành một phần của bản nhạc. Bảy bước: chọn file, quyết định có gắn tag hay không, chỉnh cách tag xuất hiện trong bài, rồi nghe lại kết quả.",
         "specs": {
           "plan": {
             "label": "Gói",
             "value": "Pro"
           },
-          "time": {
-            "label": "Thời gian",
-            "value": "~5 phút"
-          },
           "formats": {
             "label": "Nhận file",
-            "value": "MP3, WAV, FLAC · 100 MB"
+            "value": "MP3, WAV, FLAC — tối đa 100 MB"
           },
           "tag": {
             "label": "Voice tag",
-            "value": "Tuỳ chọn, chốt lúc upload"
+            "value": "Tuỳ chọn, quyết định lúc tải lên"
+          },
+          "result": {
+            "label": "Kết quả",
+            "value": "Giữ bản gốc, thêm bản đã gắn tag"
           }
         },
         "steps": {
           "open": {
             "title": "Mở tab Songs",
-            "body": "Dashboard → Songs. Danh sách giữ mọi bài bạn đã tải lên, kèm ô tìm kiếm, bộ lọc trạng thái và nút Upload. Tài khoản mới thì danh sách trống và chỉ tay vào đúng cái nút đó.",
-            "note": "Trong lúc còn bài đang ghép, danh sách tự làm mới sau vài giây — không cần tải lại trang để thấy trạng thái đổi.",
-            "mediaHint": "Tab Songs: ô tìm kiếm, bộ lọc trạng thái, nút Upload, và trạng thái trống.",
+            "body": "Vào Dashboard rồi mở tab Songs. Danh sách này giữ mọi bài bạn đã tải lên, kèm ô tìm kiếm, bộ lọc trạng thái và nút Upload. Tài khoản mới thì danh sách còn trống.",
+            "note": "Khi còn bài đang xử lý, danh sách tự cập nhật sau vài giây — bạn không cần tải lại trang để thấy trạng thái mới.",
+            "mediaHint": "Tab Songs: ô tìm kiếm, bộ lọc trạng thái và nút Upload.",
             "facts": {
-              "route": {
-                "label": "Đường dẫn",
-                "value": "/dashboard/songs"
+              "place": {
+                "label": "Vị trí",
+                "value": "Dashboard → Songs"
               },
               "filter": {
-                "label": "Lọc trạng thái",
+                "label": "Bộ lọc",
                 "value": "Tất cả · Sẵn sàng · Đang xử lý · Lỗi"
               }
             }
           },
           "file": {
             "title": "Chọn file nhạc",
-            "body": "Kéo file vào ô hoặc bấm để chọn. Trình duyệt đọc thời lượng trước khi gửi bất cứ thứ gì, và điền tên bài từ tên file — bạn gõ tên riêng thì hệ thống giữ tên của bạn. Nút Change file đổi file khác mà không phải làm lại form.",
-            "mediaHint": "File vừa được kéo vào: tên, dung lượng, định dạng, thời lượng, và dải sóng nhạc.",
+            "body": "Kéo file thả vào ô hoặc bấm để chọn từ máy. Tên bài được điền sẵn theo tên file và bạn sửa lại được. Nếu chọn nhầm, bấm Change file để đổi file khác mà không phải nhập lại từ đầu.",
+            "mediaHint": "File vừa được chọn: tên, dung lượng, định dạng và thời lượng.",
             "facts": {
               "formats": {
                 "label": "Định dạng",
                 "value": "MP3, WAV hoặc FLAC"
               },
               "size": {
-                "label": "Dung lượng tối đa",
-                "value": "100 MB, kiểm tại trình duyệt"
+                "label": "Dung lượng",
+                "value": "Tối đa 100 MB"
               },
               "title": {
                 "label": "Tên bài",
@@ -431,186 +414,186 @@
           },
           "fork": {
             "title": "Quyết định có gắn voice tag hay không",
-            "body": "Một ô tick duy nhất — Attach Voice Tag during upload — chia đôi phần còn lại của form. Cân nhắc kỹ: câu trả lời được ghi thẳng vào bản phát hành và sau đó không sửa được.",
+            "body": "Một ô tích duy nhất — Attach Voice Tag during upload — quyết định phần còn lại của biểu mẫu. Hãy cân nhắc trước khi tải lên, vì lựa chọn này không đổi được cho bài đã tải xong.",
             "plain": {
-              "badge": "A · Không tag",
-              "title": "Để nhạc thuần",
-              "body": "Bỏ qua ô tick thì bài được lưu đúng như lúc bạn tải lên. Dùng cho bản tham chiếu, hoặc bản master bạn gắn tag ở chỗ khác. Sau đó trang bài và dòng trong danh sách đều ghi rõ là nhạc thuần.",
-              "mediaHint": "Form với ô tick đang tắt, kèm ba dòng giải thích.",
+              "badge": "A · Không gắn tag",
+              "title": "Giữ nguyên bản gốc",
+              "body": "Bỏ trống ô tích thì bài được lưu đúng như file bạn tải lên. Phù hợp khi bạn chỉ cần một bản để tham chiếu, hoặc bản nhạc đã được gắn tag ở nơi khác.",
+              "mediaHint": "Biểu mẫu với ô tích đang tắt.",
               "facts": {
                 "result": {
                   "label": "Kết quả",
-                  "value": "Một file, nguyên vẹn"
+                  "value": "Một file, giữ nguyên như bản bạn tải lên"
                 },
                 "status": {
                   "label": "Trạng thái",
-                  "value": "Sẵn sàng ngay khi upload xong"
+                  "value": "Sẵn sàng ngay sau khi tải lên"
                 },
                 "later": {
-                  "label": "Sau muốn có tag",
-                  "value": "Tải lên lại kèm tag"
+                  "label": "Sau này muốn có tag",
+                  "value": "Tải bài lên lại kèm tag"
                 }
               }
             },
             "tagged": {
-              "badge": "B · Có tag",
-              "title": "Gắn một trong các voice tag của bạn",
-              "body": "Tick ô đó thì ô chọn tag hiện ra. Từ hai ký tự nó hỏi server, server tìm không cần dấu và gõ sai một chút vẫn ra; dưới ngưỡng đó nó lọc trong số tag form đã tải sẵn. Mỗi dòng hiện ngôn ngữ và giọng, nên hai tag cùng tên intro vẫn phân biệt được.",
-              "mediaHint": "Ô chọn tag đang mở, có kết quả khớp, cờ ngôn ngữ và tên giọng.",
+              "badge": "B · Có gắn tag",
+              "title": "Chọn một voice tag của bạn",
+              "body": "Tích vào ô đó, danh sách voice tag của bạn hiện ra. Gõ tên để tìm cho nhanh. Mỗi dòng hiển thị ngôn ngữ và giọng đọc, nên hai tag trùng tên vẫn phân biệt được.",
+              "mediaHint": "Danh sách chọn tag đang mở, kèm ngôn ngữ và tên giọng đọc.",
               "facts": {
                 "source": {
-                  "label": "Nguồn",
-                  "value": "Các tag bạn tạo ở module 01"
+                  "label": "Danh sách tag",
+                  "value": "Các tag bạn đã tạo ở module 01"
                 },
                 "search": {
-                  "label": "Tìm kiếm",
-                  "value": "Gọi server từ 2 ký tự"
+                  "label": "Tìm tag",
+                  "value": "Gõ tên, không cần dấu"
                 },
                 "missing": {
                   "label": "Chưa có tag nào",
-                  "value": "Form nói rõ và chỉ đường quay lại"
+                  "value": "Ứng dụng chỉ đường sang trang tạo tag"
                 }
               }
             }
           },
           "tune": {
-            "title": "Tinh chỉnh tag nằm thế nào trong bài",
-            "body": "Bốn con số quyết định kết quả, mỗi con số có một thanh trượt và một ô gõ tay. Phía trên là timeline mô phỏng một bài ba phút, đánh dấu từng lần chèn ngay khi bạn kéo và đếm tổng số lần, nên chu kỳ lặp thành một hình ảnh chứ không phải phỏng đoán.",
-            "note": "Ducking là con số nên đọc kỹ hai lần: đó là mức nhạc được giữ lại trong lúc tag nói, không phải mức bị hạ xuống. 50% nghĩa là nhạc nằm ở một nửa âm lượng bên dưới tag.",
-            "mediaHint": "Video ngắn: kéo thanh chu kỳ lặp và các vạch trên timeline dàn lại theo.",
+            "title": "Chỉnh cách tag xuất hiện trong bài",
+            "body": "Có bốn thông số, mỗi thông số đi kèm một thanh trượt và một ô nhập số. Phía trên là thanh mô phỏng một bài dài ba phút: nó đánh dấu từng vị trí tag sẽ vang lên và đếm tổng số lần ngay khi bạn kéo, để bạn hình dung được kết quả trước.",
+            "note": "Chú ý mục Ducking: đây là mức âm lượng nhạc nền được giữ lại trong lúc tag đang vang, không phải mức bị giảm đi. Để 50% nghĩa là nhạc nền còn một nửa âm lượng khi tag xuất hiện.",
+            "mediaHint": "Video ngắn: kéo thanh Lặp lại và các vạch trên thanh thời gian dàn lại theo.",
             "facts": {
               "interval": {
-                "label": "Chu kỳ lặp",
-                "value": "5–600s, mặc định 30"
+                "label": "Lặp lại mỗi",
+                "value": "5–600 giây, mặc định 30"
               },
               "volume": {
                 "label": "Âm lượng tag",
                 "value": "0–100%, mặc định 80"
               },
               "ducking": {
-                "label": "Hạ nền",
+                "label": "Nhạc nền khi có tag",
                 "value": "0–100%, mặc định 50"
               },
               "offset": {
-                "label": "Trễ đầu bài",
-                "value": "0–120s, mặc định 0"
+                "label": "Bắt đầu sau",
+                "value": "0–120 giây, mặc định 0"
               }
             }
           },
           "send": {
-            "title": "Tải lên, rồi chờ ghép",
-            "body": "Cái nút đi qua bốn trạng thái. Nó xin một link tải lên đã ký, đẩy dữ liệu thẳng vào kho sau một thanh tiến độ chạy theo đúng lượng byte đã rời khỏi máy bạn, ghi bài vào hệ thống, rồi chờ ghép. Chỉ giai đoạn đang gửi là huỷ được — sau đó công việc thuộc về server.",
-            "note": "Không muốn ngồi chờ? Nút Run in background đưa bạn sang trang riêng của bài, và trang đó tiếp tục canh đúng việc ấy. Kiểu nào thì phần ghép cũng chạy tiếp; chỉ đóng tab giữa lúc đang gửi mới mất, và trình duyệt sẽ cảnh báo trước.",
-            "mediaHint": "Video ngắn: bốn giai đoạn lần lượt — chuẩn bị, đang gửi kèm phần trăm, hoàn tất, đang ghép.",
+            "title": "Tải lên và chờ xử lý",
+            "body": "Bấm Upload, thanh tiến độ cho biết file đã gửi được bao nhiêu. Gửi xong, nếu bạn có gắn tag thì bài chuyển sang trạng thái đang xử lý cho tới khi bản có tag sẵn sàng. Bạn huỷ được trong lúc đang gửi; sau đó thì cứ để hệ thống chạy tiếp.",
+            "note": "Không muốn ngồi chờ, bấm Run in background để sang trang riêng của bài và làm việc khác. Bài vẫn được xử lý tiếp. Chỉ khi bạn đóng tab giữa lúc đang gửi thì mới phải tải lại từ đầu, và trình duyệt sẽ hỏi bạn trước.",
+            "mediaHint": "Video ngắn: lần lượt các trạng thái chuẩn bị, đang gửi kèm phần trăm, gửi xong và đang xử lý.",
             "facts": {
               "phases": {
-                "label": "Giai đoạn",
-                "value": "Chuẩn bị → Gửi → Hoàn tất → Ghép"
+                "label": "Các bước",
+                "value": "Chuẩn bị → Đang gửi → Xong → Đang xử lý"
               },
               "cancel": {
-                "label": "Huỷ",
+                "label": "Huỷ được",
                 "value": "Chỉ trong lúc đang gửi"
               },
               "merge": {
-                "label": "Ghép",
-                "value": "Chỉ khi có tag; hỏi mỗi 2s, tối đa 5 phút"
+                "label": "Ghép tag",
+                "value": "Chỉ chạy khi bạn chọn gắn tag"
               }
             }
           },
           "listen": {
-            "title": "Nghe cái vừa ra",
-            "body": "Bạn được đưa thẳng vào trang riêng của bài. Trình phát giải mã file ngay tại trình duyệt để vẽ dải sóng thật, không phải hình trang trí — bấm vào bất cứ đâu trên đó để nhảy tới, lặp lại hoặc đổi tốc độ từ 0.5x đến 2x. Bên dưới là bảng cấu hình voice tag mà bài này được dựng theo.",
-            "note": "Vào lúc bài còn đang ghép? Banner nói rõ, và trang tự cập nhật ngay khi ghép xong. Nếu lỗi, lý do được in ra và nút Retry processing xếp lại vào hàng chờ.",
-            "mediaHint": "Trang bài hát: trình phát dải sóng, badge trạng thái, và bảng cấu hình chỉ đọc.",
+            "title": "Nghe lại kết quả",
+            "body": "Xong xuôi, bạn được đưa thẳng vào trang riêng của bài. Trình phát hiển thị dạng sóng của chính bản nhạc: bấm vào bất kỳ đâu trên đó để nhảy tới, bật lặp lại, hoặc đổi tốc độ phát từ 0.5x đến 2x. Bên dưới là các thông số voice tag đã dùng cho bài này.",
+            "note": "Nếu bài còn đang xử lý, trang sẽ báo cho bạn và tự cập nhật khi xong. Nếu có lỗi, bạn thấy lý do kèm nút Retry processing để thử lại.",
+            "mediaHint": "Trang bài hát: trình phát dạng sóng, trạng thái bài và bảng thông số voice tag.",
             "facts": {
               "waveform": {
-                "label": "Dải sóng",
-                "value": "Giải mã từ chính đoạn audio"
+                "label": "Dạng sóng",
+                "value": "Vẽ từ chính bản nhạc của bạn"
               },
               "player": {
                 "label": "Trình phát",
-                "value": "Nhảy tới, lặp, 0.5x–2x"
+                "value": "Nhảy tới, lặp lại, tốc độ 0.5x–2x"
               },
               "config": {
-                "label": "Cấu hình",
-                "value": "Chỉ đọc — chốt từ lúc upload"
+                "label": "Thông số tag",
+                "value": "Chỉ để xem — đã chốt từ lúc tải lên"
               }
             }
           },
           "manage": {
-            "title": "Tìm lại nó về sau",
-            "body": "Trở lại danh sách, hình bút chì đổi tên bài ngay tại chỗ, hình thùng rác xoá nó đi. Tìm kiếm bỏ qua dấu và tha cho lỗi gõ, nên nhớ tên lờ mờ vẫn ra; bộ lọc thu về Sẵn sàng, Đang xử lý hoặc Lỗi khi bạn chỉ quan tâm một loại.",
-            "note": "Xoá là mất cả bản gốc và mọi bản đã xử lý. Hộp xác nhận nói đúng điều đó, và không lấy lại được.",
-            "mediaHint": "Danh sách nhiều bài: đổi tên tại chỗ, bộ lọc trạng thái đang mở, và một kết quả tìm kiếm.",
+            "title": "Tìm lại bài về sau",
+            "body": "Trở lại danh sách Songs, biểu tượng bút chì đổi tên bài ngay tại chỗ và biểu tượng thùng rác xoá bài đi. Ô tìm kiếm không cần gõ dấu, còn bộ lọc giúp bạn xem riêng các bài Sẵn sàng, Đang xử lý hoặc Lỗi.",
+            "note": "Xoá một bài là xoá cả bản gốc lẫn bản đã gắn tag, và không khôi phục lại được.",
+            "mediaHint": "Danh sách nhiều bài: đổi tên tại chỗ, bộ lọc trạng thái và một kết quả tìm kiếm.",
             "facts": {
               "rename": {
                 "label": "Đổi tên",
-                "value": "Tại chỗ — Enter lưu, Esc bỏ"
+                "value": "Ngay tại chỗ — Enter để lưu, Esc để huỷ"
               },
               "search": {
                 "label": "Tìm kiếm",
-                "value": "Không cần dấu, tha lỗi gõ"
+                "value": "Gõ tên, không cần dấu"
               },
               "remove": {
                 "label": "Xoá",
-                "value": "Mất luôn các bản đã xử lý"
+                "value": "Mất cả bản gốc và bản đã gắn tag"
               }
             }
           }
         },
         "next": {
           "eyebrow": "Module tiếp theo",
-          "title": "Live Room — mở cho người khác nghe cùng",
-          "body": "Một mã sáu ký tự, một bản nhạc chạy khớp nhau cho mọi người trong phòng, và tiếng nói chồng lên trên đó."
+          "title": "Live Room — mở phòng cho người khác nghe cùng",
+          "body": "Một mã sáu ký tự để mời, cả phòng nghe cùng một vị trí trong bài, và mọi người trao đổi ngay trong lúc nghe."
         }
       },
       "liveRoom": {
         "eyebrow": "Module 03 — Live Room",
-        "title": "Mở cho người khác nghe, cùng một giây.",
-        "lead": "Một phòng là một mã sáu ký tự, tối đa bảy người, và một bản nhạc mà ai cũng nghe ở đúng cùng vị trí. Bảy bước, chia theo vai bạn đang đứng: chủ phòng mở cửa, hoặc khách gõ cửa.",
+        "title": "Mở phòng cho người khác nghe cùng lúc.",
+        "lead": "Mỗi phòng có một mã sáu ký tự, chứa tối đa bảy người, và mọi người nghe ở đúng cùng một vị trí trong bài. Hướng dẫn chia theo hai vai: bạn mở phòng, hoặc bạn được mời vào phòng.",
         "specs": {
           "plan": {
             "label": "Gói",
-            "value": "Pro để mở phòng, vào thì miễn phí"
-          },
-          "time": {
-            "label": "Thời gian",
-            "value": "~6 phút"
+            "value": "Pro để mở phòng, vào phòng thì không cần"
           },
           "capacity": {
             "label": "Số người",
-            "value": "1–7, tính cả chủ phòng"
+            "value": "Tối đa 7, tính cả chủ phòng"
           },
           "code": {
             "label": "Lời mời",
             "value": "Một mã sáu ký tự"
+          },
+          "devices": {
+            "label": "Thiết bị",
+            "value": "Camera và micro là tuỳ chọn"
           }
         },
         "steps": {
           "open": {
             "title": "Mở tab Live rooms",
-            "body": "Dashboard → Live rooms. Danh sách giữ những phòng bạn sở hữu, tách thành Đang mở và Đã kết thúc, kèm tìm kiếm theo tên phòng. Phía trên có hai nút: Tạo phòng, và Vào bằng mã.",
-            "note": "Mở phòng cần gói Pro. Vào phòng của người khác thì không — tài khoản nào đăng nhập rồi cũng bước vào được bằng mã, và chính điều đó làm phòng dùng được cho một buổi nghe duyệt với khách.",
-            "mediaHint": "Danh sách Live rooms: tab Đang mở / Đã kết thúc, một thẻ phòng có mã và số người, và cả hai nút.",
+            "body": "Vào Dashboard rồi mở tab Live rooms. Danh sách chia thành phòng Đang mở và Đã kết thúc, kèm ô tìm theo tên phòng. Phía trên có hai nút: Tạo phòng và Vào bằng mã.",
+            "note": "Mở phòng cần gói Pro, nhưng vào phòng của người khác thì không. Ai đã đăng nhập cũng vào được bằng mã, nên bạn mời khách nghe duyệt bài rất tiện.",
+            "mediaHint": "Danh sách Live rooms: tab Đang mở và Đã kết thúc, kèm hai nút Tạo phòng và Vào bằng mã.",
             "facts": {
-              "route": {
-                "label": "Đường dẫn",
-                "value": "/dashboard/liveroom"
+              "place": {
+                "label": "Vị trí",
+                "value": "Dashboard → Live rooms"
               },
               "plan": {
                 "label": "Yêu cầu",
-                "value": "Pro để tạo phòng"
+                "value": "Gói Pro để tạo phòng"
               }
             }
           },
           "fork": {
-            "title": "Mở một phòng, hoặc gõ cửa một phòng",
-            "body": "Hai vai đi vào cùng một phòng từ hai phía đối diện. Đọc đúng cái vai bạn đang đứng.",
+            "title": "Mở một phòng, hoặc vào phòng bằng mã",
+            "body": "Hai vai khác nhau, hai cách bắt đầu khác nhau. Bạn đọc phần đúng với vai của mình.",
             "host": {
               "badge": "A · Chủ phòng",
               "title": "Tạo phòng",
-              "body": "Đặt tên, đặt số người phòng chứa được, và đặt phòng sống thêm bao lâu sau khi bạn rời đi. Hệ thống trả về một mã sáu ký tự — mã đó là toàn bộ lời mời, và nó không đổi suốt đời phòng.",
-              "mediaHint": "Form tạo phòng đã điền, và thẻ phòng trả về kèm mã của nó.",
+              "body": "Đặt tên phòng, chọn số người tối đa, và chọn phòng chờ bạn bao lâu nếu bạn thoát ra giữa chừng. Tạo xong, bạn nhận một mã sáu ký tự — gửi mã đó cho người bạn muốn mời. Mã không đổi trong suốt thời gian phòng còn tồn tại.",
+              "mediaHint": "Biểu mẫu tạo phòng đã điền, và thẻ phòng vừa tạo kèm mã của nó.",
               "facts": {
                 "name": {
                   "label": "Tên phòng",
@@ -621,137 +604,133 @@
                   "value": "1–7, mặc định 7"
                 },
                 "grace": {
-                  "label": "Thời gian chờ chủ phòng",
-                  "value": "30–1800s, mặc định 60"
+                  "label": "Chờ chủ phòng",
+                  "value": "30 giây – 30 phút, mặc định 1 phút"
                 },
                 "code": {
                   "label": "Mã phòng",
-                  "value": "6 ký tự, hệ thống tự sinh"
+                  "value": "6 ký tự, hệ thống tự tạo"
                 }
               }
             },
             "guest": {
               "badge": "B · Khách",
-              "title": "Nhập mã",
-              "body": "Vào bằng mã nhận sáu ký tự và tự chia khuôn ngay khi bạn gõ. Bước tra cứu trả lời tên phòng và phòng đang bao nhiêu người trước khi bạn quyết — phòng đã kết thúc thì nói thẳng và dừng ở đó. Rồi tới bước kiểm camera với micro, bước này bỏ qua được.",
-              "mediaHint": "Ô nhập mã đang gõ, kết quả tra cứu, và bước kiểm thiết bị với ô xem trước camera.",
+              "title": "Vào bằng mã",
+              "body": "Nhập sáu ký tự của mã. Trước khi vào, bạn thấy tên phòng và số người đang có; nếu phòng đã kết thúc, ứng dụng báo ngay. Sau đó là bước kiểm tra camera và micro — bạn bỏ qua cũng được.",
+              "mediaHint": "Ô nhập mã, kết quả tra cứu phòng, và bước kiểm tra thiết bị kèm ô xem trước camera.",
               "facts": {
-                "route": {
-                  "label": "Đường dẫn",
-                  "value": "/dashboard/liveroom/join"
-                },
                 "code": {
                   "label": "Mã phòng",
-                  "value": "6 ký tự, A–Z và 0–9"
+                  "value": "6 ký tự, gồm chữ và số"
                 },
                 "lookup": {
                   "label": "Trước khi vào",
-                  "value": "Hiện tên phòng và số người"
+                  "value": "Xem tên phòng và số người đang có"
                 },
                 "devices": {
-                  "label": "Thiết bị",
-                  "value": "Tuỳ chọn — vào tay không rồi bật sau cũng được"
+                  "label": "Camera, micro",
+                  "value": "Tuỳ chọn — vào trước rồi bật sau cũng được"
                 }
               }
             }
           },
           "door": {
-            "title": "Xin vào, và được cho vào",
-            "body": "Xin vào phòng là đặt một yêu cầu trước mặt chủ phòng, chủ phòng thấy nó tới và trả lời Cho vào hoặc Từ chối. Được duyệt thì khách bị kéo vào phòng sau một nhịp đếm ngược ngắn, và bấm vào luôn cũng được. Phòng đầy lên trong lúc yêu cầu còn chờ thì yêu cầu bị từ chối vì hết chỗ, chứ không giả vờ là còn chỗ.",
-            "note": "Bị chủ phòng từ chối ba lần thì người đó không xin được nữa — phòng chờ nói rõ điều đó thay vì để họ gõ mãi. Ai đã được duyệt một lần thì lần sau vào thẳng, trừ khi giữa hai lần đó bị mời ra.",
-            "mediaHint": "Hai nửa: hàng đợi chờ vào bên phía chủ phòng, và phòng chờ kèm đếm ngược bên phía khách.",
+            "title": "Chờ chủ phòng cho vào",
+            "body": "Nhập mã xong, yêu cầu của bạn hiện ra trước mặt chủ phòng và chủ phòng bấm Cho vào hoặc Từ chối. Được duyệt, bạn vào phòng sau một nhịp đếm ngược ngắn, hoặc bấm để vào ngay. Nếu phòng vừa đầy trong lúc bạn chờ, yêu cầu sẽ bị từ chối vì hết chỗ.",
+            "note": "Bị từ chối ba lần thì bạn không gửi yêu cầu vào phòng đó được nữa. Người đã từng được cho vào thì lần sau vào thẳng, trừ khi trong lúc đó họ bị mời ra khỏi phòng.",
+            "mediaHint": "Hai phía: danh sách chờ duyệt của chủ phòng, và màn hình chờ kèm đếm ngược của khách.",
             "facts": {
               "approve": {
                 "label": "Cho vào",
-                "value": "Khách tự vào sau một nhịp đếm ngược"
+                "value": "Khách vào phòng sau một nhịp đếm ngược"
               },
               "decline": {
                 "label": "Từ chối",
-                "value": "Ba lần là khoá người đó lại"
+                "value": "Ba lần thì khoá yêu cầu của người đó"
               },
               "returning": {
-                "label": "Quay lại",
-                "value": "Đã duyệt một lần là vào thẳng"
+                "label": "Vào lại",
+                "value": "Đã được duyệt một lần thì vào thẳng"
               }
             }
           },
           "inside": {
-            "title": "Nhìn quanh phòng một vòng",
-            "body": "Thanh trên cùng mang tên phòng, mã phòng kèm nút copy, số người, và một badge kết nối cho biết bạn đang kết nối, đang kết nối lại, hay đã mất kết nối. Lưới video tự dàn lại theo số người — một người thì full màn, hai người hai cột, từ ba người trở lên thành lưới. Thanh dưới cùng giữ camera, micro, hai nút mở panel, và đường ra.",
-            "note": "Một phòng chỉ mở được trên một tab. Tab thứ hai vào cùng phòng sẽ gặp một màn hình mời bạn nhảy về tab đầu hoặc chiếm quyền, thay vì để hai phiên giành nhau một chỗ.",
-            "mediaHint": "Màn hình phòng với bốn người: thanh trên, lưới video, thanh điều khiển, và panel bên phải đang mở.",
+            "title": "Làm quen với màn hình phòng",
+            "body": "Thanh trên cùng hiển thị tên phòng, mã phòng kèm nút sao chép, số người và tình trạng kết nối của bạn. Khung video tự sắp xếp theo số người đang có. Thanh dưới cùng là nơi bật tắt camera, micro, mở danh sách người tham gia hoặc khung chat, và rời phòng.",
+            "note": "Mỗi phòng chỉ mở được trên một tab. Nếu bạn mở cùng phòng ở tab thứ hai, ứng dụng sẽ hỏi bạn muốn quay lại tab cũ hay chuyển hẳn sang tab mới.",
+            "mediaHint": "Màn hình phòng với bốn người: thanh trên, khung video, thanh điều khiển và khung chat bên phải.",
             "facts": {
               "header": {
                 "label": "Thanh trên",
-                "value": "Mã phòng, số người, trạng thái kết nối"
+                "value": "Tên phòng, mã phòng, số người, tình trạng kết nối"
               },
               "grid": {
-                "label": "Lưới video",
-                "value": "Nối trực tiếp giữa các máy, dàn theo số người"
+                "label": "Khung video",
+                "value": "Tự sắp xếp theo số người trong phòng"
               },
               "panel": {
-                "label": "Panel bên",
-                "value": "Người trong phòng và Chat"
+                "label": "Khung bên phải",
+                "value": "Người tham gia và Chat"
               }
             }
           },
           "listen": {
-            "title": "Nghe một bản nhạc cùng nhau",
-            "body": "Chọn một bài và mọi người nghe ở đúng cùng vị trí: server giữ một trạng thái phát duy nhất cho mỗi phòng, lưu bài đang ở đâu vào lúc bắt đầu phát, rồi mỗi máy tự tính vị trí hiện tại bằng con số đó cộng thời gian đã trôi. Play, pause, tua và âm lượng đều truyền tới tất cả. Dưới dải sóng, ai cũng ghim được một bình luận vào đúng một giây — nó nảy lên khi nhạc chạy qua chỗ đó.",
-            "note": "Danh sách bài để chọn là thư viện của chính bạn, và chỉ những bài đã sẵn sàng phát — nên ai bấm chọn là đang phát từ thư viện của người đó, không phải của chủ phòng. Trong lúc chủ phòng vắng, nhạc đứng im với những người còn lại; chỉ chủ phòng bật lại được.",
-            "mediaHint": "Video ngắn: chọn bài, dải sóng chạy đầy dần, và một bình luận nảy lên khi nhạc tới đúng giây của nó.",
+            "title": "Nghe nhạc cùng nhau",
+            "body": "Chọn một bài trong thư viện của bạn, cả phòng sẽ nghe ở đúng cùng một vị trí. Phát, tạm dừng, tua và âm lượng đều áp dụng cho mọi người. Ngay dưới dạng sóng, ai cũng ghim được bình luận vào một mốc thời gian, và bình luận đó hiện lên khi nhạc chạy tới nơi.",
+            "note": "Bạn chỉ chọn được bài trong thư viện của chính mình và bài đã xử lý xong. Khi chủ phòng thoát ra, nhạc tạm dừng cho tới lúc chủ phòng quay lại.",
+            "mediaHint": "Video ngắn: chọn một bài, nhạc chạy, và một bình luận hiện lên đúng mốc của nó.",
             "facts": {
               "source": {
-                "label": "Nguồn bài hát",
-                "value": "Thư viện của người bấm chọn, chỉ bài đã sẵn sàng"
+                "label": "Nguồn nhạc",
+                "value": "Thư viện của người chọn bài"
               },
               "sync": {
-                "label": "Khớp nhau",
-                "value": "Một trạng thái phát cho mỗi phòng"
+                "label": "Đồng bộ",
+                "value": "Cả phòng nghe cùng một vị trí"
               },
               "comments": {
-                "label": "Bình luận theo giây",
-                "value": "Tối đa 200 ký tự, ghim vào một giây"
+                "label": "Bình luận theo mốc",
+                "value": "Tối đa 200 ký tự"
               }
             }
           },
           "moderate": {
-            "title": "Giữ trật tự trong phòng",
-            "body": "Tab Người trong phòng là chỗ chủ phòng ra tay. Mời ra đưa một người ra ngoài và chặn họ trong một khoảng thời gian; Tắt mic đóng micro của họ từ xa và giữ nó đóng trong một khoảng thời gian, để không bật lại được ngay. Mỗi dòng hiện micro người đó đang ở trạng thái nào và camera có đang tắt không.",
-            "note": "Bị mời ra không phải là một đường cụt hiện lên dưới dạng lỗi: người đó tới một màn hình nói rõ chuyện gì đã xảy ra, kèm đồng hồ đếm ngược tới lúc xin vào lại được.",
-            "mediaHint": "Tab Người trong phòng với hai nút Mời ra và Tắt mic bên phía chủ phòng, kèm hộp xác nhận.",
+            "title": "Quản lý người trong phòng",
+            "body": "Trong tab Người tham gia, chủ phòng có hai thao tác: Mời ra để đưa một người ra khỏi phòng và tạm chặn họ quay lại, và Tắt mic để tắt micro của họ trong một khoảng thời gian. Mỗi dòng cho biết micro và camera của người đó đang bật hay tắt.",
+            "note": "Người bị mời ra sẽ thấy một màn hình nói rõ chuyện gì đã xảy ra, kèm đồng hồ đếm ngược tới lúc xin vào lại được — không phải một thông báo lỗi khó hiểu.",
+            "mediaHint": "Tab Người tham gia với hai nút Mời ra, Tắt mic và hộp thoại xác nhận.",
             "facts": {
               "remove": {
                 "label": "Mời ra",
-                "value": "Xác nhận, rồi chờ hết hạn mới quay lại được"
+                "value": "Có xác nhận, người đó phải chờ mới vào lại được"
               },
               "mute": {
                 "label": "Tắt mic",
-                "value": "Từ xa, kèm thời gian chờ mới bật lại được"
+                "value": "Micro tắt trong một khoảng thời gian"
               },
               "micStates": {
-                "label": "Trạng thái mic",
+                "label": "Trạng thái micro",
                 "value": "Đang bật · tự tắt · bị chủ phòng tắt"
               }
             }
           },
           "end": {
-            "title": "Rời phòng, hoặc đóng phòng",
-            "body": "Rời và kết thúc là hai cửa khác nhau. Khách rời thì nhả chỗ, và vào lại bằng đúng mã cũ. Chủ phòng rời thì phòng không đóng: nó giữ chỗ cho chủ phòng, báo cho mọi người là chủ phòng vừa bước ra, và chạy đồng hồ đúng bằng khoảng chờ đã đặt — về kịp thì không mất gì. Kết thúc mới đóng phòng cho tất cả, kèm một overlay nói rõ lý do.",
-            "note": "Phòng đã kết thúc không mất đi. Mở lại giữ nguyên mã cũ và bắt đầu một phiên mới: người tham gia, chat và trạng thái nhạc của phiên trước không mang sang.",
-            "mediaHint": "Banner chủ phòng vừa bước ra kèm đếm ngược, và tab Đã kết thúc với nút Mở lại của một phòng.",
+            "title": "Rời phòng, hoặc kết thúc phòng",
+            "body": "Khách rời phòng thì nhường lại chỗ, và vào lại bằng mã cũ bất cứ lúc nào. Chủ phòng rời phòng thì phòng vẫn mở: mọi người được báo là chủ phòng vừa ra ngoài, và phòng chờ đúng khoảng thời gian đã đặt. Chỉ khi chủ phòng bấm Kết thúc, phòng mới đóng lại với tất cả.",
+            "note": "Phòng đã kết thúc vẫn nằm trong danh sách và mở lại được bằng mã cũ. Mở lại là bắt đầu một buổi mới: người tham gia, tin nhắn và bài đang phát của buổi trước không được giữ lại.",
+            "mediaHint": "Thông báo chủ phòng vừa ra ngoài kèm đếm ngược, và nút Mở lại ở tab Đã kết thúc.",
             "facts": {
               "leave": {
-                "label": "Khách rời",
-                "value": "Nhả chỗ, mã cũ đưa họ vào lại"
+                "label": "Khách rời phòng",
+                "value": "Nhường chỗ, vào lại bằng mã cũ"
               },
               "grace": {
-                "label": "Chủ phòng rời",
-                "value": "Giữ chỗ, hết giờ chờ thì phòng đóng"
+                "label": "Chủ phòng rời phòng",
+                "value": "Phòng chờ đúng khoảng thời gian đã đặt"
               },
               "reopen": {
                 "label": "Mở lại",
-                "value": "Mã cũ, phiên mới, không mang gì sang"
+                "value": "Giữ mã cũ, bắt đầu một buổi mới"
               }
             }
           }

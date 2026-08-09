@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Eyebrow } from "@/components/marketing/section-primitives";
-import { WALKTHROUGH_MODULES, WALKTHROUGH_TALLY } from "@/features/showcase/lib/walkthrough-modules";
+import { WALKTHROUGH_MODULES } from "@/features/showcase/lib/walkthrough-modules";
 
 export function WalkthroughHero() {
   const t = useTranslations("features.walkthrough");
@@ -33,13 +33,9 @@ export function WalkthroughHero() {
             {t("hero.lead")}
           </p>
 
-          <p className="mt-8 font-mono text-[0.7rem] uppercase tracking-[0.18em] text-muted-foreground">
-            {t("hero.tally", WALKTHROUGH_TALLY)}
-          </p>
-
           <Link
             href="/features/technical"
-            className="group mt-8 inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground beat-16th transition-colors hover:border-foreground/30 hover:text-foreground"
+            className="group mt-9 inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground beat-16th transition-colors hover:border-foreground/30 hover:text-foreground"
           >
             {t("hero.techLink")}
             <ArrowUpRight
@@ -57,7 +53,7 @@ export function WalkthroughHero() {
           </p>
 
           <ul className="mt-4 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
-            {WALKTHROUGH_MODULES.map(({ key, anchor, status, icon: Icon, steps, minutes }, position) => {
+            {WALKTHROUGH_MODULES.map(({ key, anchor, status, icon: Icon, steps }, position) => {
               const label = (
                 <>
                   <span
@@ -72,7 +68,7 @@ export function WalkthroughHero() {
                       {t(`modules.${key}.title`)}
                     </span>
                     <span className="mt-1.5 block font-mono text-[0.66rem] uppercase tracking-[0.16em] text-muted-foreground">
-                      {t("hero.moduleMeta", { steps, minutes })}
+                      {t("hero.moduleMeta", { steps })}
                     </span>
                   </span>
                 </>

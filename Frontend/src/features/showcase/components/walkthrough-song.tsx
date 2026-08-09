@@ -9,10 +9,10 @@ const SPEC: ModuleSpec = {
   icon: Music,
   // Raised, so the eye can see where module 01 ended and module 02 began.
   tone: "raised",
-  specKeys: ["plan", "time", "formats", "tag"],
+  specKeys: ["plan", "formats", "tag", "result"],
   next: { anchor: "live-room" },
   steps: [
-    { key: "open", slot: "SG-01", factKeys: ["route", "filter"], note: true },
+    { key: "open", slot: "SG-01", factKeys: ["place", "filter"], note: true },
     { key: "file", slot: "SG-02", factKeys: ["formats", "size", "title"] },
     {
       key: "fork",

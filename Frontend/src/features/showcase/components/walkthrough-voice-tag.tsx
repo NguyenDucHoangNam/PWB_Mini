@@ -7,11 +7,11 @@ const SPEC: ModuleSpec = {
   anchor: "voice-tag",
   namespace: "features.walkthrough.voiceTag",
   icon: Mic,
-  specKeys: ["plan", "time", "ways", "length"],
+  specKeys: ["plan", "ways", "length", "formats"],
   next: { anchor: "song" },
   steps: [
-    { key: "open", slot: "VT-01", factKeys: ["route", "plan"], note: true },
-    { key: "create", slot: "VT-02", factKeys: ["route"] },
+    { key: "open", slot: "VT-01", factKeys: ["place", "plan"], note: true },
+    { key: "create", slot: "VT-02" },
     {
       key: "fork",
       branches: [
@@ -19,7 +19,7 @@ const SPEC: ModuleSpec = {
         { key: "upload", slot: "VT-04", factKeys: ["formats", "length", "size", "name"] },
       ],
     },
-    { key: "preview", slot: "VT-05", factKeys: ["scope", "upload"], note: true },
+    { key: "preview", slot: "VT-05", note: true },
     { key: "save", slot: "VT-06", factKeys: ["result"] },
     { key: "manage", slot: "VT-07", factKeys: ["rename", "remove"], note: true },
   ],
