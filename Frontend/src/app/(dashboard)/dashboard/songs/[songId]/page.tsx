@@ -1,13 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Trash2, Pencil, Check, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowLeft, Loader2, Trash2, Pencil, Check, X, Music } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
+import { PageHeader } from "@/components/layout/page-header";
+import {
+  NEU_INPUT,
+  NEU_LABEL,
+  NEU_TEXT,
+  NEU_TEXT_MUTED,
+  NeuBadge,
+  NeuButton,
+  NeuPanel,
+  NeuScreen,
+  neuButton,
+} from "@/components/ui/neu";
 import { useProGuard } from "@/features/auth/hooks/use-pro-guard";
 import { ProUpgradePrompt } from "@/features/voice/components/pro-upgrade-prompt";
 import { SongDeleteDialog } from "@/features/voice/components/song-delete-dialog";
@@ -30,22 +42,20 @@ interface ConfigMetricProps {
 
 function ConfigMetric({ label, value, fillPercent }: ConfigMetricProps) {
   return (
-    <div className="flex flex-col justify-center gap-1.5 bg-card px-4 py-3 sm:px-6">
+    <NeuPanel tone="raised-sm" className="flex flex-col justify-center gap-2.5 rounded-2xl p-4">
       <div className="flex items-baseline justify-between gap-3">
-        <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {label}
-        </dt>
-        <dd className="shrink-0 text-base font-semibold tabular-nums text-foreground">{value}</dd>
+        <dt className={NEU_LABEL}>{label}</dt>
+        <dd className={`shrink-0 text-base font-bold tabular-nums ${NEU_TEXT}`}>{value}</dd>
       </div>
       {fillPercent !== undefined && (
-        <div className="h-1 w-full overflow-hidden rounded-full bg-muted-foreground/20">
+        <div className="neu-pressed-sm h-2 w-full overflow-hidden rounded-full border-none">
           <div
-            className="h-full rounded-full bg-primary"
+            className="h-full rounded-full bg-indigo-600 dark:bg-indigo-400"
             style={{ width: `${Math.min(Math.max(fillPercent, 0), 100)}%` }}
           />
         </div>
       )}
-    </div>
+    </NeuPanel>
   );
 }
 
@@ -134,21 +144,31 @@ export default function SongDetailPage() {
 
   if (isLoading) {
     return (
-      <div role="status" className="flex items-center justify-center gap-3 py-16">
-        <Spinner size="md" />
-        <span className="sr-only">{tList("loading")}</span>
-      </div>
+      <NeuScreen>
+        <NeuPanel
+          tone="pressed"
+          role="status"
+          className="flex flex-1 items-center justify-center gap-3 py-16"
+        >
+          <Spinner size="md" />
+          <span className="sr-only">{tList("loading")}</span>
+        </NeuPanel>
+      </NeuScreen>
     );
   }
 
   if (!songRes?.data) {
     return (
-      <div role="alert" className="flex flex-col items-center gap-4 py-16 text-center">
-        <p className="text-sm text-foreground">{tErrors("songNotFound")}</p>
-        <Button variant="outline" size="lg" onClick={() => router.push("/dashboard/songs")}>
-          {tActions("back")}
-        </Button>
-      </div>
+      <NeuScreen>
+        <NeuPanel
+          tone="pressed"
+          role="alert"
+          className="flex flex-1 flex-col items-center justify-center gap-5 py-16 text-center"
+        >
+          <p className={`text-sm font-semibold ${NEU_TEXT}`}>{tErrors("songNotFound")}</p>
+          <NeuButton onClick={() => router.push("/dashboard/songs")}>{tActions("back")}</NeuButton>
+        </NeuPanel>
+      </NeuScreen>
     );
   }
 
@@ -192,51 +212,46 @@ export default function SongDetailPage() {
   ].filter((entry): entry is string => entry !== null);
 
   return (
-    <div className="flex w-full flex-1 flex-col gap-4">
-      <header className="flex items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="hidden h-12 w-1 shrink-0 rounded-full bg-foreground/80 sm:block" aria-hidden="true" />
-          <div className="flex flex-col gap-0.5">
-            <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-              {t("pageTitle")}
-            </h1>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => router.push("/dashboard/songs")}
-          className="key-press flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground beat-16th transition-colors ease-hammer hover:bg-muted hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" aria-hidden="true" />
-          {tActions("back")}
-        </button>
-      </header>
+    <NeuScreen>
+      <PageHeader
+        title={t("pageTitle")}
+        icon={Music}
+        actions={
+          <Link href="/dashboard/songs" className={neuButton()}>
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            {tActions("back")}
+          </Link>
+        }
+      />
 
       {song.status === "PROCESSING" && (
-        <div
+        <NeuPanel
+          tone="pressed"
           role="status"
-          className="flex items-center gap-3 rounded-xl border border-border bg-secondary px-4 py-3 text-sm text-secondary-foreground"
+          className={`flex items-center gap-3 rounded-2xl px-5 py-4 text-sm font-semibold ${NEU_TEXT}`}
         >
           <Spinner size="sm" />
           <span>{t("processingBanner")}</span>
-        </div>
+        </NeuPanel>
       )}
 
       {song.status === "FAILED" && (
-        <div
+        <NeuPanel
+          tone="pressed"
           role="alert"
-          className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
+          className="rounded-2xl p-5 text-sm text-rose-700 dark:text-rose-400"
         >
-          <strong className="block font-semibold">{t("failedTitle")}</strong>
-          <p className="mt-1 break-words">{song.lastError || t("failedUnknownReason")}</p>
-        </div>
+          <strong className="block font-bold">{t("failedTitle")}</strong>
+          <p className="mt-1 break-words font-medium">
+            {song.lastError || t("failedUnknownReason")}
+          </p>
+        </NeuPanel>
       )}
 
-      {/* The two cards split the leftover height 2:1, so the page fills the viewport instead
+      {/* The two slabs split the leftover height 2:1, so the page fills the viewport instead
           of leaving dead space under a short card. */}
-      <section className="flex min-h-[15rem] flex-[3] flex-col overflow-hidden rounded-xl border border-border bg-card">
-        <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:px-6">
+      <NeuPanel as="section" className="flex min-h-[15rem] flex-[3] flex-col gap-5 p-5 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             {isEditingTitle ? (
               <div className="flex items-center gap-2">
@@ -250,12 +265,12 @@ export default function SongDetailPage() {
                   maxLength={200}
                   disabled={isSaving}
                   aria-label={tActions("edit")}
-                  className="h-11 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 text-xl font-semibold tracking-tight text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 sm:text-2xl"
+                  className={`${NEU_INPUT} h-12 min-w-0 flex-1 text-xl font-bold tracking-tight sm:text-2xl`}
                 />
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="size-11 shrink-0 sm:size-9"
+                <NeuButton
+                  variant="primary"
+                  size="icon-sm"
+                  className="size-11 shrink-0 sm:size-10"
                   disabled={isSaving || !editTitle.trim()}
                   onMouseDown={(e) => {
                     e.preventDefault();
@@ -264,11 +279,11 @@ export default function SongDetailPage() {
                   aria-label={tCommon("save")}
                 >
                   <Check className="size-4" aria-hidden="true" />
-                </Button>
-                <Button
+                </NeuButton>
+                <NeuButton
                   variant="ghost"
-                  size="icon"
-                  className="size-11 shrink-0 sm:size-9"
+                  size="icon-sm"
+                  className="size-11 shrink-0 sm:size-10"
                   onMouseDown={(e) => {
                     e.preventDefault();
                     cancelEditTitle();
@@ -276,27 +291,29 @@ export default function SongDetailPage() {
                   aria-label={tCommon("cancel")}
                 >
                   <X className="size-4" aria-hidden="true" />
-                </Button>
+                </NeuButton>
               </div>
             ) : (
               <div className="flex min-w-0 items-center gap-2">
-                <h1 className="truncate text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+                <h1 className={`truncate text-xl font-bold tracking-tight sm:text-2xl ${NEU_TEXT}`}>
                   {song.title}
                 </h1>
-                <Button
+                <NeuButton
                   variant="ghost"
-                  size="icon"
-                  className="size-9 shrink-0 text-muted-foreground hover:text-foreground sm:size-8"
+                  size="icon-sm"
+                  className="shrink-0"
                   onClick={startEditTitle}
                   aria-label={tActions("edit")}
                 >
-                  <Pencil className="size-4 sm:size-3.5" aria-hidden="true" />
-                </Button>
+                  <Pencil className="size-4" aria-hidden="true" />
+                </NeuButton>
                 <SongStatusBadge status={song.status} />
               </div>
             )}
 
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+            <div
+              className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium ${NEU_TEXT_MUTED}`}
+            >
               <SongVoiceTagBadge hasVoiceTag={song.hasVoiceTag} />
               {metadata.map((entry, index) => (
                 <span key={`${index}-${entry}`} className="flex items-center gap-2">
@@ -307,55 +324,52 @@ export default function SongDetailPage() {
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-3">
             {song.status === "FAILED" && (
-              <Button
-                size="lg"
-                className="h-10 flex-1 sm:h-9 sm:flex-none"
+              <NeuButton
+                variant="primary"
                 disabled={isRetrying}
                 onClick={() => retryProcessing({ songId: song.id })}
               >
-                {isRetrying && (
-                  <Loader2 className="mr-2 size-3.5 animate-spin" aria-hidden="true" />
-                )}
+                {isRetrying && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
                 {t("retryProcessing")}
-              </Button>
+              </NeuButton>
             )}
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-10 shrink-0 text-muted-foreground hover:text-destructive sm:size-9"
+            <NeuButton
+              size="icon-sm"
+              className="size-11 shrink-0 hover:text-rose-700 sm:size-10 dark:hover:text-rose-400"
               onClick={() => setDeleteOpen(true)}
               aria-label={tActions("delete")}
             >
               <Trash2 className="size-4" aria-hidden="true" />
-            </Button>
+            </NeuButton>
           </div>
         </div>
 
-        <div className="flex flex-1 flex-col justify-center px-4 py-5 sm:px-6 sm:py-6">
+        <NeuPanel tone="pressed" className="flex flex-1 flex-col justify-center p-4 sm:p-6">
           <AudioPlayer songId={song.id} />
-        </div>
-      </section>
+        </NeuPanel>
+      </NeuPanel>
 
-      <section className="flex flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
-        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-6">
-          <h2 className="text-sm font-semibold text-foreground">{tConfig("title")}</h2>
+      <NeuPanel as="section" className="flex flex-1 flex-col gap-4 p-5 sm:p-6">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className={`text-sm font-bold ${NEU_TEXT}`}>{tConfig("title")}</h2>
           {voiceTagConfig && (
-            <span className="truncate rounded-md bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground">
+            <NeuBadge tone="accent" className="max-w-[60%] truncate">
               {voiceTagConfig.voiceTagName ?? "—"}
-            </span>
+            </NeuBadge>
           )}
         </div>
 
         {voiceTagConfig === null ? (
-          <p className="px-4 py-6 text-center text-sm text-muted-foreground sm:px-6">
+          <p className={`py-6 text-center text-sm font-medium ${NEU_TEXT_MUTED}`}>
             {t("noVoiceTagHint")}
           </p>
         ) : (
           <>
-            {/* gap-px over a border-coloured backdrop draws the hairline dividers. */}
-            <dl className="grid flex-1 grid-cols-2 gap-px bg-border lg:grid-cols-4">
+            {/* Separate raised tiles instead of hairline dividers — the style has no borders
+                to draw them with, so the gap between slabs does the separating. */}
+            <dl className="grid flex-1 grid-cols-2 gap-4 lg:grid-cols-4">
               <ConfigMetric
                 label={tConfig("volumePercentage")}
                 value={`${voiceTagConfig.volumePercentage}%`}
@@ -376,12 +390,10 @@ export default function SongDetailPage() {
               />
             </dl>
 
-            <p className="border-t border-border px-4 py-3 text-xs leading-relaxed text-muted-foreground sm:px-6">
-              {t("configLockedHint")}
-            </p>
+            <p className={`text-xs leading-relaxed ${NEU_TEXT_MUTED}`}>{t("configLockedHint")}</p>
           </>
         )}
-      </section>
+      </NeuPanel>
 
       <SongDeleteDialog
         song={song}
@@ -389,6 +401,6 @@ export default function SongDetailPage() {
         onOpenChange={setDeleteOpen}
         onSuccess={() => router.push("/dashboard/songs")}
       />
-    </div>
+    </NeuScreen>
   );
 }

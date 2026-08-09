@@ -6,9 +6,14 @@ import { standardSchemaResolver as zodResolver } from "@hookform/resolvers/stand
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  NEU_ERROR_TEXT,
+  NEU_FOCUS,
+  NEU_INPUT,
+  NEU_LABEL,
+  NEU_TEXT_MUTED,
+  NeuButton,
+} from "@/components/ui/neu";
 import { asApiError } from "@/lib/api-client";
 import { useCreateRoom } from "../../api/rooms";
 import { resolveLiveroomErrorMessage } from "../../lib/resolve-liveroom-error-message";
@@ -33,7 +38,11 @@ const CAPACITY_OPTIONS = Array.from(
 
 const GRACE_PRESETS = [30, 60, 300, 900];
 
-export function CreateRoomForm() {
+interface CreateRoomFormProps {
+  onCancel?: () => void;
+}
+
+export function CreateRoomForm({ onCancel }: CreateRoomFormProps) {
   const t = useTranslations("liveroom.create");
   const tCommon = useTranslations("common");
   const tErrors = useTranslations("liveroom.errors");
@@ -83,113 +92,113 @@ export function CreateRoomForm() {
   return (
     <form
       onSubmit={handleSubmit((values) => create({ data: values }))}
-      className="flex w-full flex-col gap-6"
+      className="flex w-full flex-col gap-4"
       noValidate
     >
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="liveroom-name" className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="liveroom-name" className={NEU_LABEL}>
           {t("roomName")}
-        </Label>
-        <Input
+        </label>
+        <input
           id="liveroom-name"
           {...register("roomName")}
           maxLength={ROOM_NAME_MAX_LENGTH}
           placeholder={t("roomNamePlaceholder")}
           aria-invalid={Boolean(errors.roomName)}
-          className="h-10 text-sm"
+          className={`${NEU_INPUT} h-11`}
         />
-        <p className="text-xs text-muted-foreground">{t("roomNameHint")}</p>
         {errors.roomName ? (
-          <p role="alert" className="text-xs font-medium text-destructive">{renderNameError()}</p>
-        ) : null}
+          <p role="alert" className={NEU_ERROR_TEXT}>
+            {renderNameError()}
+          </p>
+        ) : (
+          <p className={`text-xs ${NEU_TEXT_MUTED}`}>{t("roomNameHint")}</p>
+        )}
       </div>
 
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {t("maxParticipants")}
-        </legend>
-        <div className="flex flex-wrap gap-2">
-          {CAPACITY_OPTIONS.map((option) => (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={capacity === option}
-              onClick={() =>
-                setValue("maxParticipants", option, { shouldValidate: true })
-              }
-              className={`key-press size-9 rounded-lg border text-sm font-bold tabular-nums beat-16th transition-colors ease-hammer ${
-                capacity === option
-                  ? "border-transparent bg-primary text-primary-foreground shadow-xs"
-                  : "border-border bg-background text-foreground hover:border-foreground/30"
-              }`}
-            >
-              {option}
-            </button>
-          ))}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          {t("maxParticipantsHint")}
-        </p>
-        {errors.maxParticipants ? (
-          <p role="alert" className="text-xs font-medium text-destructive">{t("capacityInvalid")}</p>
-        ) : null}
-      </fieldset>
+      <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
+        <fieldset className="flex flex-col gap-1.5">
+          <legend className={`mb-1.5 ${NEU_LABEL}`}>{t("maxParticipants")}</legend>
+          <div className="flex flex-wrap gap-1.5">
+            {CAPACITY_OPTIONS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={capacity === option}
+                onClick={() => setValue("maxParticipants", option, { shouldValidate: true })}
+                className={`size-9 rounded-xl border-none text-sm font-bold tabular-nums transition-all ${NEU_FOCUS} ${
+                  capacity === option
+                    ? "neu-pressed text-indigo-600 dark:text-indigo-400"
+                    : "neu-button"
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+          {errors.maxParticipants ? (
+            <p role="alert" className={NEU_ERROR_TEXT}>
+              {t("capacityInvalid")}
+            </p>
+          ) : (
+            <p className={`text-xs ${NEU_TEXT_MUTED}`}>{t("maxParticipantsHint")}</p>
+          )}
+        </fieldset>
 
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="liveroom-grace" className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">{t("graceSeconds")}</Label>
-        <div className="flex flex-wrap gap-2">
-          {GRACE_PRESETS.map((preset) => (
-            <button
-              key={preset}
-              type="button"
-              aria-pressed={grace === preset}
-              onClick={() =>
-                setValue("ownerGraceSeconds", preset, { shouldValidate: true })
-              }
-              className={`key-press h-9 rounded-lg border px-3 text-xs font-bold tabular-nums beat-16th transition-colors ease-hammer ${
-                grace === preset
-                  ? "border-transparent bg-primary text-primary-foreground shadow-xs"
-                  : "border-border bg-background text-foreground hover:border-foreground/30"
-              }`}
-            >
-              {preset}s
-            </button>
-          ))}
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="liveroom-grace" className={`mb-1.5 ${NEU_LABEL}`}>
+            {t("graceSeconds")}
+          </label>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {GRACE_PRESETS.map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                aria-pressed={grace === preset}
+                onClick={() => setValue("ownerGraceSeconds", preset, { shouldValidate: true })}
+                className={`h-9 rounded-xl border-none px-2.5 text-xs font-bold tabular-nums transition-all ${NEU_FOCUS} ${
+                  grace === preset
+                    ? "neu-pressed text-indigo-600 dark:text-indigo-400"
+                    : "neu-button"
+                }`}
+              >
+                {preset}s
+              </button>
+            ))}
+            <input
+              id="liveroom-grace"
+              type="number"
+              inputMode="numeric"
+              min={ROOM_MIN_GRACE_SECONDS}
+              max={ROOM_MAX_GRACE_SECONDS}
+              {...register("ownerGraceSeconds", { valueAsNumber: true })}
+              aria-invalid={Boolean(errors.ownerGraceSeconds)}
+              className={`${NEU_INPUT} h-9 w-16 rounded-xl px-2 tabular-nums`}
+            />
+          </div>
+          {errors.ownerGraceSeconds ? (
+            <p role="alert" className={NEU_ERROR_TEXT}>
+              {t("graceInvalid")}
+            </p>
+          ) : (
+            <p className={`text-xs ${NEU_TEXT_MUTED}`}>{t("graceHint")}</p>
+          )}
         </div>
-        <Input
-          id="liveroom-grace"
-          type="number"
-          inputMode="numeric"
-          min={ROOM_MIN_GRACE_SECONDS}
-          max={ROOM_MAX_GRACE_SECONDS}
-          {...register("ownerGraceSeconds", { valueAsNumber: true })}
-          aria-invalid={Boolean(errors.ownerGraceSeconds)}
-          className="h-10 text-sm tabular-nums"
-        />
-        <p className="text-xs text-muted-foreground">{t("graceHint")}</p>
-        {errors.ownerGraceSeconds ? (
-          <p role="alert" className="text-xs font-medium text-destructive">{t("graceInvalid")}</p>
-        ) : null}
       </div>
 
-      <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-end">
-        <Button
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+        <NeuButton
           type="button"
-          variant="ghost"
-          className="h-10 min-h-[44px] sm:min-h-0"
+          size="sm"
           disabled={isPending}
-          onClick={() => router.push("/dashboard/liveroom")}
+          onClick={() => (onCancel ? onCancel() : router.push("/dashboard/liveroom"))}
         >
           {t("cancel")}
-        </Button>
-        <Button
-          type="submit"
-          className="h-10 min-h-[44px] font-semibold sm:min-h-0"
-          disabled={isPending}
-        >
-          {isPending ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
+        </NeuButton>
+        <NeuButton type="submit" size="sm" variant="primary" disabled={isPending}>
+          {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
           {isPending ? t("submitting") : t("submit")}
-        </Button>
+        </NeuButton>
       </div>
     </form>
   );

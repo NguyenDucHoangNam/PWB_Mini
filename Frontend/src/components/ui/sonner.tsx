@@ -110,7 +110,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           warning: <></>,
           loading: (
             <svg
-              className="animate-spin size-5 text-neutral-500 shrink-0"
+              className="animate-spin size-5 text-[var(--neu-text-muted)] shrink-0"
               fill="none"
               viewBox="0 0 24 24"
             >
@@ -132,10 +132,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
         }}
         style={
           {
-            "--normal-bg": "var(--popover)",
-            "--normal-text": "var(--popover-foreground)",
-            "--normal-border": "var(--border)",
-            "--border-radius": "var(--radius)",
+            "--normal-bg": "var(--neu-surface)",
+            "--normal-text": "var(--neu-text)",
+            "--normal-border": "transparent",
+            "--border-radius": "1.5rem",
           } as React.CSSProperties
         }
         toastOptions={{

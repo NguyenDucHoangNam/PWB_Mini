@@ -8,9 +8,20 @@ import { standardSchemaResolver as zodResolver } from "@hookform/resolvers/stand
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Info, UploadCloud, FileAudio, Loader2, RefreshCcw, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  NEU_ERROR_TEXT,
+  NEU_INPUT,
+  NEU_LABEL,
+  NEU_TEXT,
+  NEU_TEXT_MUTED,
+  NEU_TEXT_SOFT,
+  NeuBadge,
+  NeuButton,
+  NeuCheckbox,
+  NeuDropzone,
+  NeuPanel,
+  NeuSlider,
+} from "@/components/ui/neu";
 import { UploadProgress } from "@/components/ui/upload-progress";
 import { asApiError } from "@/lib/api-client";
 import { resolveVoiceErrorMessage } from "../lib/resolve-voice-error-message";
@@ -50,7 +61,11 @@ function FileWaveform({ className = "" }: { className?: string }) {
   return (
     <div className={`flex items-end gap-0.5 ${className}`} aria-hidden="true">
       {FILE_WAVE_HEIGHTS.map((h, i) => (
-        <span key={i} className="w-0.5 shrink-0 rounded-full bg-foreground/25" style={{ height: `${h}%` }} />
+        <span
+          key={i}
+          className="w-0.5 shrink-0 rounded-full bg-indigo-600/45 dark:bg-indigo-400/45"
+          style={{ height: `${h}%` }}
+        />
       ))}
     </div>
   );
@@ -68,22 +83,18 @@ function SelectedFileSummary({
   const extension = fileName.split(".").pop()?.toUpperCase() ?? "";
   return (
     <div className="flex min-w-0 items-center gap-3.5">
-      <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+      <span className="neu-raised-sm flex size-12 shrink-0 items-center justify-center rounded-2xl border-none text-indigo-600 dark:text-indigo-400">
         <FileAudio className="size-5" aria-hidden="true" />
       </span>
-      <div className="flex min-w-0 flex-col gap-1">
-        <p className="truncate text-sm font-semibold text-foreground">{fileName}</p>
-        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <p className={`truncate text-sm font-bold ${NEU_TEXT}`}>{fileName}</p>
+        <div className={`flex flex-wrap items-center gap-2 text-xs font-medium ${NEU_TEXT_MUTED}`}>
           <span>{sizeLabel}</span>
-          <span aria-hidden="true">·</span>
-          <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold tracking-wide text-foreground/70">
+          <NeuBadge tone="muted" className="px-2 py-0.5 text-[10px] tracking-wide">
             {extension}
-          </span>
+          </NeuBadge>
           {durationSeconds > 0 && (
-            <>
-              <span aria-hidden="true">·</span>
-              <span className="tabular-nums">{formatDuration(durationSeconds)}</span>
-            </>
+            <span className="tabular-nums">{formatDuration(durationSeconds)}</span>
           )}
         </div>
       </div>
@@ -117,36 +128,34 @@ function SliderField({
   onSlide,
 }: SliderFieldProps) {
   return (
-    <div className="flex flex-col gap-2.5 rounded-xl border border-border p-4">
+    <NeuPanel tone="pressed" className="flex flex-col gap-3 rounded-2xl p-4">
       <div className="flex items-center justify-between gap-2">
-        <Label htmlFor={id} className="text-xs font-medium text-muted-foreground">
+        <label htmlFor={id} className={NEU_LABEL}>
           {label}
-        </Label>
-        <div className="flex items-center gap-1">
-          <Input
+        </label>
+        <div className="flex items-center gap-1.5">
+          <input
             id={id}
             type="number"
             min={min}
             max={max}
             disabled={disabled}
-            className="h-7 w-16 px-1.5 text-right text-xs tabular-nums"
+            className={`${NEU_INPUT} h-9 w-16 rounded-xl px-2 text-right text-xs tabular-nums`}
             {...registration}
           />
-          <span className="text-xs text-muted-foreground">{unit}</span>
+          <span className={`text-xs font-semibold ${NEU_TEXT_MUTED}`}>{unit}</span>
         </div>
       </div>
-      <input
-        type="range"
+      <NeuSlider
         aria-label={label}
         min={min}
         max={max}
         value={value}
         disabled={disabled}
         onChange={(e) => onSlide(Number(e.target.value))}
-        className="h-1.5 w-full cursor-pointer rounded-lg bg-border accent-primary"
       />
-      <p className="text-xs leading-tight text-muted-foreground">{hint}</p>
-    </div>
+      <p className={`text-xs leading-tight ${NEU_TEXT_MUTED}`}>{hint}</p>
+    </NeuPanel>
   );
 }
 
@@ -161,7 +170,6 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
   const xhrRef = useRef<XMLHttpRequest | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [fileDuration, setFileDuration] = useState<number>(0);
-  const [isDragging, setIsDragging] = useState(false);
   const [clientError, setClientError] = useState<string | null>(null);
   const [uploadStep, setUploadStep] = useState<UploadStep>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -249,28 +257,6 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
       setValue("title", fileNameWithoutExt, { shouldValidate: true });
     }
   }, [validateAudioFile, getValues, setValue, tErrors]);
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    const droppedFile = e.dataTransfer.files?.[0];
-    if (droppedFile) {
-      handleFileChange(droppedFile);
-    }
-  };
 
   // A reload midway through discards the transfer with nothing to resume from, so make the browser ask.
   useEffect(() => {
@@ -495,30 +481,33 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
 
       <div className="grid flex-1 gap-5 lg:grid-cols-2 lg:gap-6">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="song-file" className="text-sm font-medium">
-            {t("fileLabel")} <span className="text-destructive">*</span>
-          </Label>
+          <label htmlFor="song-file" className={NEU_LABEL}>
+            {t("fileLabel")}
+            <span className="ml-1 text-rose-700 dark:text-rose-400" aria-hidden="true">
+              *
+            </span>
+          </label>
 
           {!file ? (
-            <div
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={`group flex flex-1 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed p-6 text-center beat-16th transition-colors ease-hammer sm:p-8 ${
-                isDragging
-                  ? "border-foreground bg-muted"
-                  : "border-border hover:border-foreground/40 hover:bg-muted/50"
-              }`}
-            >
-              <span className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                <UploadCloud className="size-5" aria-hidden="true" />
-              </span>
-              <p className="mt-3 text-sm font-medium text-foreground">{t("dropzoneTitle")}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{t("dropzoneHint")}</p>
-            </div>
+            <NeuDropzone inputRef={fileInputRef} disabled={isBusy} onFiles={handleFileChange}>
+              {({ isDragging }) => (
+                <>
+                  <span
+                    className={`grid size-12 place-items-center rounded-2xl border-none ${
+                      isDragging
+                        ? "bg-indigo-600 text-white dark:bg-indigo-500"
+                        : "neu-raised-sm text-indigo-600 dark:text-indigo-400"
+                    }`}
+                  >
+                    <UploadCloud className="size-5" aria-hidden="true" />
+                  </span>
+                  <p className={`text-sm font-bold ${NEU_TEXT}`}>{t("dropzoneTitle")}</p>
+                  <p className={`text-xs ${NEU_TEXT_MUTED}`}>{t("dropzoneHint")}</p>
+                </>
+              )}
+            </NeuDropzone>
           ) : isBusy ? (
-            <div className="flex flex-1 flex-col gap-4 rounded-2xl border border-border bg-muted/40 p-4 sm:p-5">
+            <NeuPanel tone="pressed" className="flex flex-1 flex-col gap-4 p-4 sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <SelectedFileSummary
                   fileName={file.name}
@@ -526,28 +515,26 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                   durationSeconds={fileDuration}
                 />
                 {uploadStep === "uploading" && (
-                  <Button
+                  <NeuButton
                     type="button"
-                    variant="outline"
                     size="sm"
                     onClick={cancelUpload}
                     className="shrink-0"
                     aria-label={t("cancelUpload")}
                   >
-                    <X className="mr-1 size-3.5" aria-hidden="true" />
+                    <X className="size-3.5" aria-hidden="true" />
                     {t("cancelUpload")}
-                  </Button>
+                  </NeuButton>
                 )}
                 {uploadStep === "merging" && (
-                  <Button
+                  <NeuButton
                     type="button"
-                    variant="outline"
                     size="sm"
                     onClick={leaveMergeRunning}
                     className="shrink-0"
                   >
                     {t("mergeRunInBackground")}
-                  </Button>
+                  </NeuButton>
                 )}
               </div>
 
@@ -559,20 +546,22 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
               />
 
               {uploadStep === "merging" && (
-                <p className="text-xs leading-relaxed text-muted-foreground">{t("mergeWaitHint")}</p>
+                <p className={`text-xs leading-relaxed ${NEU_TEXT_MUTED}`}>{t("mergeWaitHint")}</p>
               )}
-            </div>
+            </NeuPanel>
           ) : (
-            <div className="group flex flex-1 flex-col justify-center gap-4 rounded-2xl border border-border bg-muted/40 p-4 beat-16th transition-colors ease-hammer hover:bg-muted/60 sm:p-5">
+            <NeuPanel
+              tone="pressed"
+              className="group flex flex-1 flex-col justify-center gap-4 p-4 sm:p-5"
+            >
               <div className="flex items-start justify-between gap-3">
                 <SelectedFileSummary
                   fileName={file.name}
                   sizeLabel={`${fileSizeMB} MB`}
                   durationSeconds={fileDuration}
                 />
-                <Button
+                <NeuButton
                   type="button"
-                  variant="outline"
                   size="sm"
                   className="shrink-0"
                   onClick={() => {
@@ -581,80 +570,81 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                     if (fileInputRef.current) fileInputRef.current.value = "";
                   }}
                 >
-                  <RefreshCcw className="mr-1 size-3.5" aria-hidden="true" />
+                  <RefreshCcw className="size-3.5" aria-hidden="true" />
                   {t("changeFile")}
-                </Button>
+                </NeuButton>
               </div>
-              <FileWaveform className="h-6 w-full opacity-60 beat-16th transition-opacity ease-hammer group-hover:opacity-100" />
-            </div>
+              <FileWaveform className="h-6 w-full opacity-70 beat-16th transition-opacity ease-hammer group-hover:opacity-100 motion-reduce:transition-none" />
+            </NeuPanel>
           )}
         </div>
 
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="song-title" className="text-sm font-medium">
-              {t("titleLabel")} <span className="text-destructive">*</span>
-            </Label>
-            <Input
+            <label htmlFor="song-title" className={NEU_LABEL}>
+              {t("titleLabel")}
+              <span className="ml-1 text-rose-700 dark:text-rose-400" aria-hidden="true">
+                *
+              </span>
+            </label>
+            <input
               id="song-title"
               placeholder={t("titleLabel")}
               {...register("title")}
               maxLength={200}
               disabled={isBusy}
               aria-describedby={errors.title ? "song-title-error" : undefined}
-              className="h-10"
+              className={`${NEU_INPUT} h-12`}
             />
             {errors.title && (
-              <p id="song-title-error" role="alert" className="text-xs text-destructive">
+              <p id="song-title-error" role="alert" className={NEU_ERROR_TEXT}>
                 {tValidation(errors.title.message as never)}
               </p>
             )}
           </div>
 
-          <div className="flex flex-1 flex-col gap-4 rounded-xl border border-border bg-muted/40 p-4">
-            <label className="flex cursor-pointer select-none items-center gap-3 text-sm font-medium text-foreground">
-              <input
-                type="checkbox"
-                className="size-4 rounded border-border accent-primary"
-                disabled={isBusy}
-                {...register("attachVoiceTag")}
-              />
-              <span>{t("attachVoiceTag")}</span>
-            </label>
+          <NeuPanel tone="pressed" className="flex flex-1 flex-col gap-4 p-4">
+            <NeuCheckbox
+              label={t("attachVoiceTag")}
+              disabled={isBusy}
+              {...register("attachVoiceTag")}
+            />
 
             {!attachVoiceTag && (
-              <div className="flex flex-1 flex-col justify-center gap-4 border-t border-dashed border-border/60 pt-4">
-                <p className="text-xs leading-relaxed text-muted-foreground">
+              <div className="flex flex-1 flex-col justify-center gap-4">
+                <p className={`text-xs leading-relaxed ${NEU_TEXT_MUTED}`}>
                   {t("attachVoiceTagDesc")}
                 </p>
-                <ol className="flex flex-col gap-2 text-xs leading-relaxed text-muted-foreground">
-                  <li className="flex gap-2">
-                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[10px] font-bold text-foreground">1</span>
-                    {t("attachVoiceTagStep1")}
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[10px] font-bold text-foreground">2</span>
-                    {t("attachVoiceTagStep2")}
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[10px] font-bold text-foreground">3</span>
-                    {t("attachVoiceTagStep3")}
-                  </li>
+                <ol className={`flex flex-col gap-2.5 text-xs leading-relaxed ${NEU_TEXT_MUTED}`}>
+                  {[
+                    t("attachVoiceTagStep1"),
+                    t("attachVoiceTagStep2"),
+                    t("attachVoiceTagStep3"),
+                  ].map((step, index) => (
+                    <li key={index} className="flex items-start gap-2.5">
+                      <span className="neu-raised-sm flex size-5 shrink-0 items-center justify-center rounded-full border-none text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
+                        {index + 1}
+                      </span>
+                      {step}
+                    </li>
+                  ))}
                 </ol>
               </div>
             )}
 
             {attachVoiceTag &&
               (voiceTags.length === 0 ? (
-                <p className="rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
+                <p
+                  className={`neu-raised-sm rounded-2xl border-none p-3.5 text-xs leading-relaxed ${NEU_TEXT_MUTED}`}
+                >
                   {t("noVoiceTags")}
                 </p>
               ) : (
-                <div className="flex flex-col gap-3 border-t border-border pt-4">
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="voice-tag-select" className="text-xs font-medium text-muted-foreground">
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="voice-tag-select" className={NEU_LABEL}>
                       {t("selectVoiceTag")}
-                    </Label>
+                    </label>
                     <VoiceTagPicker
                       id="voice-tag-select"
                       disabled={isBusy}
@@ -662,32 +652,37 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                     />
                   </div>
 
-                  <div className="flex items-start gap-2.5 rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
-                    <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                  <div
+                    className={`neu-raised-sm flex items-start gap-2.5 rounded-2xl border-none p-3.5 text-xs ${NEU_TEXT_MUTED}`}
+                  >
+                    <Info
+                      className="mt-0.5 size-4 shrink-0 text-indigo-600 dark:text-indigo-400"
+                      aria-hidden="true"
+                    />
                     <p className="leading-relaxed">{t("duckingTooltip")}</p>
                   </div>
                 </div>
               ))}
-          </div>
+          </NeuPanel>
         </div>
       </div>
 
       {attachVoiceTag && voiceTags.length > 0 && (
         <>
-          <div className="flex flex-col gap-3 rounded-xl border border-border p-4">
+          <NeuPanel className="flex flex-col gap-4 p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-sm font-medium text-foreground">{t("timelineTitle")}</span>
-              <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">
-                {t("timelineInsertions", { count: markers.length })}
-              </span>
+              <span className={`text-sm font-bold ${NEU_TEXT}`}>{t("timelineTitle")}</span>
+              <NeuBadge tone="accent">{t("timelineInsertions", { count: markers.length })}</NeuBadge>
             </div>
 
-            <div className="relative flex h-12 w-full items-center overflow-hidden rounded-lg border border-border bg-muted/50 p-2">
-              <div className="absolute inset-x-2 top-2 bottom-2 flex items-center justify-between gap-0.5 opacity-25">
+            {/* The track is a sunken groove; every insertion mark is drawn in the accent so
+                the positions are readable as colour rather than as depth. */}
+            <div className="neu-pressed relative flex h-14 w-full items-center rounded-2xl border-none p-2.5">
+              <div className="absolute inset-x-2.5 top-2.5 bottom-2.5 flex items-center justify-between gap-0.5 opacity-30">
                 {Array.from({ length: TIMELINE_TICKS }).map((_, i) => (
                   <span
                     key={i}
-                    className="w-1 rounded-full bg-foreground"
+                    className="w-1 rounded-full bg-slate-500 dark:bg-slate-400"
                     style={{ height: `${i % 5 === 0 ? 80 : i % 2 === 0 ? 50 : 30}%` }}
                   />
                 ))}
@@ -700,8 +695,8 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
                     className="absolute top-0 bottom-0 flex -translate-x-1/2 flex-col items-center"
                     style={{ left: `${(timeSec / trackLength) * 100}%` }}
                   >
-                    <span className="h-full w-0.5 bg-primary" />
-                    <span className="absolute -top-1 rounded bg-primary px-1 text-xs text-primary-foreground">
+                    <span className="h-full w-0.5 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+                    <span className="absolute -top-1 rounded-md bg-indigo-600 px-1.5 text-[10px] font-bold text-white dark:bg-indigo-500">
                       {timeSec}s
                     </span>
                   </div>
@@ -709,10 +704,12 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <div
+              className={`flex flex-wrap items-center justify-between gap-2 text-xs font-medium ${NEU_TEXT_MUTED}`}
+            >
               <p>
                 {t("timelinePositions")}{" "}
-                <span className="text-foreground">
+                <span className={`font-bold ${NEU_TEXT_SOFT}`}>
                   {markers.length > 0
                     ? markers.slice(0, 8).map((m) => `${m}s`).join(", ") +
                       (markers.length > 8 ? "..." : "")
@@ -721,7 +718,7 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
               </p>
               <p>{t("duckingStatus", { percent: String(duckingPercentage) })}</p>
             </div>
-          </div>
+          </NeuPanel>
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <SliderField
@@ -779,7 +776,7 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
       {clientError && (
         <p
           role="alert"
-          className="rounded-xl border border-destructive/30 bg-destructive/10 p-3.5 text-sm text-destructive"
+          className={`neu-pressed rounded-2xl border-none p-4 text-sm font-semibold ${NEU_ERROR_TEXT}`}
         >
           {clientError}
         </p>
@@ -787,19 +784,19 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
 
       <div className="flex items-center justify-end gap-3">
         {onCancel && (
-          <Button type="button" variant="ghost" size="lg" onClick={onCancel} disabled={isBusy}>
+          <NeuButton type="button" onClick={onCancel} disabled={isBusy}>
             {tActions("cancel")}
-          </Button>
+          </NeuButton>
         )}
-        <Button
+        <NeuButton
           type="submit"
-          size="lg"
+          variant="primary"
           disabled={isBusy || !file}
-          className="h-11 min-w-36 font-semibold sm:h-9"
+          className="min-w-36"
         >
           {isBusy ? (
             <>
-              <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
               <span>
                 {uploadStep === "preparing" && tUpload("preparing")}
                 {uploadStep === "uploading" && tUpload("sending", { percent: uploadProgress })}
@@ -810,7 +807,7 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
           ) : (
             t("submitButton")
           )}
-        </Button>
+        </NeuButton>
       </div>
     </form>
   );

@@ -1,13 +1,15 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
 import { PasswordStrengthResult } from "../hooks/use-password-strength";
 
 interface PasswordStrengthBarProps {
   strength: PasswordStrengthResult;
+  className?: string;
 }
 
-export function PasswordStrengthBar({ strength }: PasswordStrengthBarProps) {
+export function PasswordStrengthBar({ strength, className }: PasswordStrengthBarProps) {
   const t = useTranslations("auth.reset");
   const { level, percentage, colorClass } = strength;
 
@@ -29,14 +31,14 @@ export function PasswordStrengthBar({ strength }: PasswordStrengthBarProps) {
   };
 
   return (
-    <div className="mt-2 min-h-[42px] flex flex-col gap-1.5 font-sans">
+    <div className={cn("flex flex-col justify-center gap-1 font-sans", className)}>
       <div className="flex items-center justify-between text-xs">
-        <span className="text-neutral-500 dark:text-neutral-400">{t("strengthTitle")}</span>
-        <span className="font-semibold text-black dark:text-white">{getLabel()}</span>
+        <span className="font-medium text-slate-600 dark:text-slate-400">{t("strengthTitle")}</span>
+        <span className="font-bold text-slate-900 dark:text-slate-100">{getLabel()}</span>
       </div>
-      <div className="h-1.5 w-full rounded-full bg-neutral-100 dark:bg-neutral-900 overflow-hidden">
+      <div className="neu-pressed-sm h-2 w-full overflow-hidden rounded-full border-none">
         <div
-          className={`h-full transition-all duration-300 ease-out ${colorClass}`}
+          className={`h-full rounded-full transition-all duration-300 ease-out motion-reduce:transition-none ${colorClass}`}
           style={{ width: `${percentage}%` }}
         />
       </div>

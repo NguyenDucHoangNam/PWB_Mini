@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { NEU_LABEL, NEU_TEXT, NEU_TEXT_MUTED, NeuButton } from "@/components/ui/neu";
 import { asApiError } from "@/lib/api-client";
 import { UserAvatar } from "../ui/user-avatar";
 import { useApproveJoinRequest, useRejectJoinRequest } from "../../api/join-requests";
@@ -50,18 +50,18 @@ export function JoinRequestQueue({ roomId }: { roomId: string }) {
   const pending = Object.values(requests);
 
   return (
-    <section className="flex flex-col gap-2 border-b border-neutral-200 px-3 py-3 dark:border-neutral-800">
-      <h3 className="flex items-center gap-2 text-xs font-semibold tracking-wide text-neutral-500 uppercase dark:text-neutral-400">
+    <section className="neu-pressed-sm m-2.5 mb-0 flex flex-col gap-2.5 rounded-2xl border-none p-3">
+      <h3 className={`flex items-center gap-2 ${NEU_LABEL}`}>
         {t("title")}
         {pending.length > 0 ? (
-          <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] leading-none font-bold text-white tabular-nums">
+          <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] leading-none font-bold text-white tabular-nums dark:bg-rose-500">
             {pending.length}
           </span>
         ) : null}
       </h3>
 
       {pending.length === 0 ? (
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">{t("empty")}</p>
+        <p className={`text-xs font-medium ${NEU_TEXT_MUTED}`}>{t("empty")}</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {pending.map((request) => (
@@ -72,26 +72,24 @@ export function JoinRequestQueue({ roomId }: { roomId: string }) {
                 seed={request.userId}
                 className="size-8 text-xs"
               />
-              <span className="min-w-0 flex-1 truncate text-sm text-black dark:text-white">
+              <span className={`min-w-0 flex-1 truncate text-sm font-semibold ${NEU_TEXT}`}>
                 {displayName(request)}
               </span>
-              <Button
+              <NeuButton
+                variant="primary"
                 size="sm"
-                className="h-11 md:h-8"
                 disabled={approving}
                 onClick={() => approve({ roomId, requestId: request.id })}
               >
                 {approving ? t("approving") : t("approve")}
-              </Button>
-              <Button
+              </NeuButton>
+              <NeuButton
                 size="sm"
-                variant="ghost"
-                className="h-11 md:h-8"
                 disabled={rejecting}
                 onClick={() => reject({ roomId, requestId: request.id })}
               >
                 {rejecting ? t("rejecting") : t("reject")}
-              </Button>
+              </NeuButton>
             </li>
           ))}
         </ul>

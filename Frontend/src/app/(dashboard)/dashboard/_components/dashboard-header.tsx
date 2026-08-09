@@ -1,10 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { Mic, Music } from "lucide-react";
+import { PageHeader, type PageHeaderTab } from "@/components/layout/page-header";
 
 type TabKey = "songs" | "voiceTags";
+
+const TAB_ICONS: Record<TabKey, PageHeaderTab["icon"]> = {
+  songs: Music,
+  voiceTags: Mic,
+};
 
 const TABS: { key: TabKey; href: string }[] = [
   { key: "songs", href: "/dashboard/songs" },
@@ -26,45 +32,18 @@ export function DashboardHeader() {
   const heading = activeTab === "songs" ? tSongs("title") : tVoiceTags("title");
   const subtitle = activeTab === "songs" ? tSongs("subtitle") : tVoiceTags("subtitle");
 
-
   return (
-    <header className="flex flex-col gap-4 border-b border-border pb-4 sm:gap-5 sm:pb-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <div className="hidden h-12 w-1 shrink-0 rounded-full bg-foreground/80 sm:block" aria-hidden="true" />
-          <div className="flex flex-col gap-0.5">
-            <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-              {heading}
-            </h1>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground/70 sm:text-[11px]">
-              {subtitle}
-            </p>
-          </div>
-        </div>
-
-        <nav
-          aria-label={heading}
-          className="grid h-11 grid-cols-2 items-center gap-1 rounded-lg border border-border bg-secondary p-1 sm:inline-flex sm:h-9 sm:w-auto"
-        >
-          {TABS.map((tab) => {
-            const isActive = activeTab === tab.key;
-            return (
-              <Link
-                key={tab.key}
-                href={tab.href}
-                aria-current={isActive ? "page" : undefined}
-                className={`key-press flex h-9 items-center justify-center rounded-md px-5 text-xs font-semibold tracking-wide beat-16th transition-colors ease-hammer sm:h-7 ${
-                  isActive
-                    ? "border border-border bg-card text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t(`tabs.${tab.key}`)}
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-    </header>
+    <PageHeader
+      title={heading}
+      subtitle={subtitle}
+      icon={activeTab === "songs" ? Music : Mic}
+      activeTabKey={activeTab}
+      tabs={TABS.map((tab) => ({
+        key: tab.key,
+        href: tab.href,
+        label: t(`tabs.${tab.key}`),
+        icon: TAB_ICONS[tab.key],
+      }))}
+    />
   );
 }

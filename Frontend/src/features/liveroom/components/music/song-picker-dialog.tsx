@@ -9,6 +9,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  NEU_DIALOG_CONTENT,
+  NEU_TEXT,
+  NEU_TEXT_MUTED,
+} from "@/components/ui/neu";
 import { SearchInput } from "@/components/ui/search-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -62,7 +67,7 @@ export function SongPickerDialog({ open, onOpenChange, onPick }: SongPickerDialo
   return (
     <Dialog open={open} onOpenChange={close}>
       {open ? (
-        <DialogContent>
+        <DialogContent showCloseButton={false} className={NEU_DIALOG_CONTENT}>
           <DialogHeader>
             <DialogTitle>{t("mySongs")}</DialogTitle>
           </DialogHeader>
@@ -78,14 +83,14 @@ export function SongPickerDialog({ open, onOpenChange, onPick }: SongPickerDialo
           />
 
           {isPending ? (
-            <div className="flex items-center justify-center gap-2 py-10 text-sm text-neutral-500 dark:text-neutral-400">
+            <div className={`flex items-center justify-center gap-2 py-10 text-sm font-medium ${NEU_TEXT_MUTED}`}>
               <Spinner size="sm" />
             </div>
           ) : songs.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-10 text-center text-sm text-neutral-500 dark:text-neutral-400">
+            <div className={`flex flex-col items-center gap-3 py-10 text-center text-sm font-medium ${NEU_TEXT_MUTED}`}>
               {searching ? (
                 <>
-                  <SearchX className="size-6 text-neutral-400" aria-hidden />
+                  <SearchX className="size-6 text-indigo-600 dark:text-indigo-400" aria-hidden />
                   <p>{tList("noResults")}</p>
                 </>
               ) : (
@@ -93,7 +98,7 @@ export function SongPickerDialog({ open, onOpenChange, onPick }: SongPickerDialo
               )}
             </div>
           ) : (
-            <ul className="max-h-[50vh] overflow-y-auto">
+            <ul className="neu-scroll-thin max-h-[50vh] overflow-y-auto">
               {songs.map((song) => (
                 <li key={song.id}>
                   <button
@@ -102,15 +107,15 @@ export function SongPickerDialog({ open, onOpenChange, onPick }: SongPickerDialo
                       onPick(song.id);
                       close(false);
                     }}
-                    className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left hover:bg-neutral-100 dark:hover:bg-neutral-900"
+                    className="neu-ghost flex w-full items-center gap-3 rounded-2xl border-none px-3 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:focus-visible:outline-indigo-400"
                   >
-                    <Music2 className="size-4 shrink-0 text-neutral-400" aria-hidden />
+                    <Music2 className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400" aria-hidden />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-black dark:text-white">
+                      <span className={`block truncate text-sm font-bold ${NEU_TEXT}`}>
                         {song.title}
                       </span>
                       {song.artist ? (
-                        <span className="block truncate text-xs text-neutral-500 dark:text-neutral-400">
+                        <span className={`block truncate text-xs font-medium ${NEU_TEXT_MUTED}`}>
                           {t("by", { artist: song.artist })}
                         </span>
                       ) : null}

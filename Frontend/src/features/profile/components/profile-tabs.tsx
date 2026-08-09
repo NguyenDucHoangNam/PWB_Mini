@@ -29,7 +29,7 @@ export function ProfileTabs({ activeTab, onChange, labels }: ProfileTabsProps) {
     <div
       role="tablist"
       aria-orientation="horizontal"
-      className="flex gap-1 border-b border-neutral-200 bg-neutral-50/60 px-2 dark:border-neutral-800 dark:bg-neutral-900/40 sm:px-3"
+      className="neu-pressed flex w-full gap-2 rounded-2xl bg-[#e0e5ec] p-2 dark:bg-[#1e222b]"
     >
       {PROFILE_TABS.map((tab) => {
         const Icon = tab.icon;
@@ -60,16 +60,19 @@ export function ProfileTabs({ activeTab, onChange, labels }: ProfileTabsProps) {
               }
             }}
             className={cn(
-              "relative flex items-center gap-2 px-3 py-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 dark:focus-visible:ring-white dark:focus-visible:ring-offset-neutral-950 sm:px-4",
+              "flex flex-1 items-center justify-center gap-2.5 rounded-xl px-4 py-3 text-sm font-semibold transition-all focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2",
               isActive
-                ? "text-neutral-900 dark:text-neutral-50"
-                : "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200",
+                ? "neu-raised text-indigo-600 dark:text-indigo-400 bg-[#e0e5ec] dark:bg-[#1e222b]"
+                : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200",
             )}
           >
             <Icon className="size-4" aria-hidden="true" />
             <span>{labels[tab.labelKey]}</span>
             {isActive && (
-              <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-neutral-900 dark:bg-neutral-50 sm:inset-x-4" />
+              <span
+                className="size-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400"
+                aria-hidden="true"
+              />
             )}
           </button>
         );

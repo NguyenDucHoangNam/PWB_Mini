@@ -24,7 +24,6 @@ import {
 import { PasswordInput } from "./password-input";
 import { PasswordStrengthBar } from "./password-strength-bar";
 import { PasswordRules } from "./password-rules";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
@@ -33,6 +32,16 @@ import { pendingRegistration } from "../lib/pending-registration";
 import { registerSchema, type RegisterFormValues } from "../schemas/register-schema";
 import { applyFieldErrors } from "@/lib/form-errors";
 import { EMAIL_ALREADY_TAKEN_CODES, IamErrorCode } from "../lib/iam-error-codes";
+import {
+  NEU_ACCENT_TEXT,
+  NEU_DANGER_TEXT,
+  NEU_ERROR_TEXT,
+  NEU_INPUT,
+  NEU_LABEL,
+  NEU_TEXT,
+  NEU_TEXT_MUTED,
+  NeuButton,
+} from "@/components/ui/neu";
 
 const RATE_LIMIT_CODE = IamErrorCode.AUTH_RATE_LIMIT_EXCEEDED;
 const EMAIL_EXISTS_CODES = EMAIL_ALREADY_TAKEN_CODES;
@@ -195,132 +204,145 @@ export function RegisterForm() {
   });
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-5 font-sans" noValidate>
-      <div className="flex flex-col gap-2 text-center">
-        <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
+    <form data-auth-wide onSubmit={onSubmit} className="flex flex-col gap-4 font-sans" noValidate>
+      <div className="flex flex-col gap-1 text-center">
+        <h1 className={`text-2xl font-bold tracking-tight ${NEU_TEXT}`}>
           {t("registerTitle")}
         </h1>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("registerDesc")}</p>
+        <p className={`text-sm font-medium ${NEU_TEXT_MUTED}`}>{t("registerDesc")}</p>
       </div>
 
       {errors.root?.message && (
         <div
           role="alert"
           aria-live="assertive"
-          className="rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-600 dark:bg-red-950/20 dark:text-red-400 border border-red-100/50 dark:border-red-950/30"
+          className={`neu-pressed rounded-2xl border-none p-3 text-xs font-semibold ${NEU_DANGER_TEXT}`}
         >
           <p>{errors.root.message}</p>
         </div>
       )}
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="fullName">{t("fullNameLabel")}</Label>
-        <Input
-          id="fullName"
-          type="text"
-          disabled={isPending}
-          aria-invalid={!!errors.fullName}
-          {...register("fullName")}
-          placeholder={t("fullNamePlaceholder")}
-        />
-        {errors.fullName?.message && (
-          <span className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
-            {t(errors.fullName.message as never)}
-          </span>
-        )}
+      <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="fullName" className={NEU_LABEL}>{t("fullNameLabel")}</Label>
+          <Input
+            id="fullName"
+            type="text"
+            disabled={isPending}
+            aria-invalid={!!errors.fullName}
+            {...register("fullName")}
+            placeholder={t("fullNamePlaceholder")}
+            className={`${NEU_INPUT} h-11`}
+          />
+          {errors.fullName?.message && (
+            <span className={NEU_ERROR_TEXT}>
+              {t(errors.fullName.message as never)}
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="email" className={NEU_LABEL}>{t("emailLabel")}</Label>
+          <Input
+            id="email"
+            type="email"
+            inputMode="email"
+            disabled={isPending}
+            aria-invalid={showEmailError}
+            {...register("email")}
+            placeholder={t("emailPlaceholder")}
+            className={`${NEU_INPUT} h-11`}
+          />
+          {errors.email?.message ? (
+            <span className={NEU_ERROR_TEXT}>
+              {t(errors.email.message as never)}
+            </span>
+          ) : showEmailError ? (
+            <span className={NEU_ERROR_TEXT}>
+              {t("invalidEmail")}
+            </span>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="password" className={NEU_LABEL}>{t("passwordRequirementsLabel")}</Label>
+          <PasswordInput
+            id="password"
+            disabled={isPending}
+            aria-invalid={showPasswordError}
+            {...register("password")}
+            placeholder={t("passwordPlaceholder")}
+            className="h-11"
+          />
+          {errors.password?.message && (
+            <span className={NEU_ERROR_TEXT}>
+              {t(errors.password.message as never)}
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="confirmPassword" className={NEU_LABEL}>{t("confirmPasswordLabel")}</Label>
+          <PasswordInput
+            id="confirmPassword"
+            disabled={isPending}
+            aria-invalid={!!errors.confirmPassword}
+            {...register("confirmPassword")}
+            placeholder={t("confirmPasswordPlaceholder")}
+            className="h-11"
+          />
+          {errors.confirmPassword?.message && (
+            <span className={NEU_ERROR_TEXT}>
+              {t(errors.confirmPassword.message as never)}
+            </span>
+          )}
+        </div>
       </div>
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="email">{t("emailLabel")}</Label>
-        <Input
-          id="email"
-          type="email"
-          inputMode="email"
-          disabled={isPending}
-          aria-invalid={showEmailError}
-          {...register("email")}
-          placeholder={t("emailPlaceholder")}
-        />
-        {errors.email?.message ? (
-          <span className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
-            {t(errors.email.message as never)}
-          </span>
-        ) : showEmailError ? (
-          <span className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
-            {t("invalidEmail")}
-          </span>
-        ) : null}
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="password">{t("passwordRequirementsLabel")}</Label>
-        <PasswordInput
-          id="password"
-          disabled={isPending}
-          aria-invalid={showPasswordError}
-          {...register("password")}
-          placeholder={t("passwordPlaceholder")}
-        />
-        {errors.password?.message && (
-          <span className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
-            {t(errors.password.message as never)}
-          </span>
-        )}
-        <PasswordStrengthBar strength={passwordStrength} />
-        <PasswordRules password={password} />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="confirmPassword">{t("confirmPasswordLabel")}</Label>
-        <PasswordInput
-          id="confirmPassword"
-          disabled={isPending}
-          aria-invalid={!!errors.confirmPassword}
-          {...register("confirmPassword")}
-          placeholder={t("confirmPasswordPlaceholder")}
-        />
-        {errors.confirmPassword?.message && (
-          <span className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
-            {t(errors.confirmPassword.message as never)}
-          </span>
-        )}
-      </div>
-
-      <Button
-        type="submit"
-        variant="default"
-        size="lg"
-        disabled={isPending || retryCountdown.isActive || !isValid || (email.trim().length > 0 && !emailFormatValid)}
-        className="w-full justify-center h-10 font-bold mt-2"
-      >
-        {isPending ? (
-          <span className="flex items-center gap-2">
-            <Spinner size="sm" className="text-white dark:text-black" />
-            {t("submitting")}
-          </span>
-        ) : retryCountdown.isActive ? (
-          t("retryCountdownText", { seconds: retryCountdown.remaining })
-        ) : (
-          t("submit")
-        )}
-      </Button>
-
-      <div className="relative flex py-2 items-center">
-        <div className="flex-grow border-t border-neutral-200 dark:border-neutral-800" />
-        <span className="flex-shrink mx-4 text-xs text-neutral-400 font-medium">{t("or")}</span>
-        <div className="flex-grow border-t border-neutral-200 dark:border-neutral-800" />
-      </div>
-
-      {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
-        <div
-          ref={googleContainerRef}
-          className="flex justify-center w-full [&_iframe]:!visible"
-        />
+      {password.length > 0 && (
+        <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
+          <PasswordStrengthBar strength={passwordStrength} />
+          <PasswordRules password={password} />
+        </div>
       )}
 
-      <div className="text-center text-sm text-neutral-500 dark:text-neutral-400 mt-2">
+      <div className="grid gap-3 sm:grid-cols-2 sm:items-center sm:gap-x-6">
+        <NeuButton
+          type="submit"
+          variant="primary"
+          size="lg"
+          disabled={isPending || retryCountdown.isActive || !isValid || (email.trim().length > 0 && !emailFormatValid)}
+          className="w-full"
+        >
+          {isPending ? (
+            <span className="flex items-center gap-2">
+              <Spinner size="sm" className="text-white" />
+              {t("submitting")}
+            </span>
+          ) : retryCountdown.isActive ? (
+            t("retryCountdownText", { seconds: retryCountdown.remaining })
+          ) : (
+            t("submit")
+          )}
+        </NeuButton>
+
+        <div className="relative flex items-center sm:hidden">
+          <div className="neu-pressed-sm h-1 flex-grow rounded-full border-none" />
+          <span className={`mx-4 flex-shrink text-xs font-bold ${NEU_TEXT_MUTED}`}>{t("or")}</span>
+          <div className="neu-pressed-sm h-1 flex-grow rounded-full border-none" />
+        </div>
+
+        {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
+          <div
+            ref={googleContainerRef}
+            className="flex w-full justify-center [&_iframe]:!visible"
+          />
+        )}
+      </div>
+
+      <div className={`text-center text-sm font-medium ${NEU_TEXT_MUTED}`}>
         {t("hasAccountText")}{" "}
-        <Link href="/login" className="font-semibold text-black dark:text-white hover:underline">
+        <Link href="/login" className={`font-bold hover:underline ${NEU_ACCENT_TEXT}`}>
           {t("loginLink")}
         </Link>
       </div>

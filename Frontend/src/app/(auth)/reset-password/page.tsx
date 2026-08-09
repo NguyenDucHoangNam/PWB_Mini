@@ -11,7 +11,7 @@ export default function ResetPasswordPage() {
     <Suspense
       fallback={
         <div className="flex justify-center py-12">
-          <svg className="animate-spin size-6 text-neutral-500" fill="none" viewBox="0 0 24 24">
+          <svg className="size-6 animate-spin text-slate-600 motion-reduce:animate-none dark:text-slate-400" fill="none" viewBox="0 0 24 24">
             <circle
               className="opacity-25"
               cx="12"

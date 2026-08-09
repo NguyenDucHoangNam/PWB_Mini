@@ -4,7 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { NeuButton } from "@/components/ui/neu";
 import { ChatPanel } from "../chat/chat-panel";
 import { JoinRequestQueue } from "../participants/join-request-queue";
 import { ParticipantList } from "../participants/participant-list";
@@ -51,7 +51,7 @@ function PanelHeader({
   const waiting = isOwner ? pendingCount : 0;
 
   return (
-    <div className="flex shrink-0 items-center border-b border-neutral-200 dark:border-neutral-800">
+    <div className="neu-pressed-sm m-2 flex shrink-0 items-center rounded-2xl border-none p-1.5">
       <div role="tablist" className="flex min-w-0 flex-1">
         {(["participants", "chat"] as const).map((value) => (
           <button
@@ -60,20 +60,20 @@ function PanelHeader({
             type="button"
             aria-selected={tab === value}
             onClick={() => onSelect(value)}
-            className={`flex h-12 flex-1 items-center justify-center gap-1.5 border-b-2 text-sm font-semibold transition-colors md:h-11 ${
+            className={`flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border-none text-sm font-bold transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 md:h-10 dark:focus-visible:outline-indigo-400 ${
               tab === value
-                ? "border-black text-black dark:border-white dark:text-white"
-                : "border-transparent text-neutral-500 hover:text-black dark:text-neutral-400 dark:hover:text-white"
+                ? "neu-raised-sm text-indigo-600 dark:text-indigo-400"
+                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
             }`}
           >
             {t(value)}
             {value === "participants" ? (
               <>
-                <span className="rounded-full bg-neutral-200 px-1.5 py-0.5 text-[10px] leading-none tabular-nums dark:bg-neutral-800">
+                <span className="neu-pressed-sm rounded-full border-none px-2 py-0.5 text-[10px] leading-none font-bold tabular-nums">
                   {participantCount}
                 </span>
                 {waiting > 0 ? (
-                  <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1 py-0.5 text-[10px] leading-none font-bold text-white tabular-nums">
+                  <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 py-0.5 text-[10px] leading-none font-bold text-white tabular-nums dark:bg-rose-500">
                     {waiting > 99 ? "99+" : waiting}
                   </span>
                 ) : null}
@@ -82,15 +82,15 @@ function PanelHeader({
           </button>
         ))}
       </div>
-      <Button
+      <NeuButton
         variant="ghost"
-        size="icon"
-        className="mr-1 size-9 shrink-0"
+        size="icon-sm"
+        className="shrink-0"
         aria-label={t("hidePanel")}
         onClick={onClose}
       >
         <X className="size-4" />
-      </Button>
+      </NeuButton>
     </div>
   );
 }
@@ -122,7 +122,7 @@ export function RoomSidePanel({
   if (!open) return null;
 
   const inline = (
-    <aside className="hidden w-[320px] shrink-0 flex-col border-l border-neutral-200 lg:flex xl:w-[360px] dark:border-neutral-800">
+    <aside className="neu-raised m-3 ml-0 hidden w-[320px] shrink-0 flex-col rounded-2xl border-none lg:flex xl:w-[360px]">
       <PanelHeader tab={tab} onSelect={onTabChange} onClose={onClose} />
       <PanelBody roomId={roomId} tab={tab} />
     </aside>
@@ -131,11 +131,11 @@ export function RoomSidePanel({
   const drawer = mounted
     ? createPortal(
         <div className="fixed inset-0 z-40 flex justify-end lg:hidden">
-          <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden />
+          <div className="absolute inset-0 bg-slate-900/50" onClick={onClose} aria-hidden />
           <div
             role="dialog"
             aria-modal="true"
-            className="relative flex h-dvh w-[92%] max-w-[420px] flex-col border-l border-neutral-200 bg-white dark:border-neutral-800 dark:bg-black"
+            className="relative flex h-dvh w-[92%] max-w-[420px] flex-col border-none bg-[#e0e5ec] dark:bg-[#1e222b]"
           >
             <PanelHeader tab={tab} onSelect={onTabChange} onClose={onClose} />
             <PanelBody roomId={roomId} tab={tab} />

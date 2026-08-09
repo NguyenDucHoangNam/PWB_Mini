@@ -51,22 +51,25 @@ export function LocaleSwitcher() {
   );
 
   return (
-    <div className="flex items-center gap-2 font-mono text-sm font-semibold text-neutral-400 dark:text-neutral-500 select-none">
+    <div className="neu-pressed flex items-center gap-1 rounded-full p-1 bg-[#e0e5ec] dark:bg-[#1e222b] font-mono text-xs font-bold select-none border-none">
       <button
         onClick={() => switchLocale("vi")}
         type="button"
-        className={`key-press hover:text-black dark:hover:text-white transition-colors cursor-pointer h-9 px-1.5 flex items-center ${
-          currentLocale === "vi" ? "text-black dark:text-white font-bold" : ""
+        className={`flex h-7 items-center justify-center rounded-full px-3 transition-all focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2 ${
+          currentLocale === "vi"
+            ? "neu-raised-sm text-indigo-600 dark:text-indigo-400 bg-[#e0e5ec] dark:bg-[#1e222b]"
+            : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
         }`}
       >
         VI
       </button>
-      <span className="text-neutral-200 dark:text-neutral-800">|</span>
       <button
         onClick={() => switchLocale("en")}
         type="button"
-        className={`key-press hover:text-black dark:hover:text-white transition-colors cursor-pointer h-9 px-1.5 flex items-center ${
-          currentLocale === "en" ? "text-black dark:text-white font-bold" : ""
+        className={`flex h-7 items-center justify-center rounded-full px-3 transition-all focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2 ${
+          currentLocale === "en"
+            ? "neu-raised-sm text-indigo-600 dark:text-indigo-400 bg-[#e0e5ec] dark:bg-[#1e222b]"
+            : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
         }`}
       >
         EN

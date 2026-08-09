@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Check, Copy, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { NEU_TEXT, NeuBadge, NeuButton } from "@/components/ui/neu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConnectionBadge } from "./connection-badge";
 import { useLiveroomStore } from "../../stores/use-liveroom-store";
@@ -32,22 +32,24 @@ export function RoomHeader() {
   };
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-neutral-200 px-3 md:gap-4 md:px-4 dark:border-neutral-800">
-      <h1 className="min-w-0 flex-1 truncate text-sm font-semibold text-black md:text-base dark:text-white">
+    <header className="neu-raised m-3 mb-0 flex h-14 shrink-0 items-center gap-2 rounded-2xl border-none px-3 md:gap-4 md:px-4">
+      <h1 className={`min-w-0 flex-1 truncate text-sm font-bold md:text-base ${NEU_TEXT}`}>
         {room.roomName}
       </h1>
 
-      <div className="hidden items-center gap-1 sm:flex">
-        <span className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-1 font-mono text-xs tracking-[0.2em] text-black dark:border-neutral-800 dark:bg-neutral-900 dark:text-white">
+      <div className="hidden items-center gap-2 sm:flex">
+        <span
+          className={`neu-pressed-sm rounded-xl border-none px-2.5 py-1.5 font-mono text-xs font-bold tracking-[0.2em] ${NEU_TEXT}`}
+        >
           {formatRoomCode(room.roomCode)}
         </span>
         <Tooltip>
           <TooltipTrigger
             render={
-              <Button
+              <NeuButton
                 variant="ghost"
-                size="icon"
-                className="size-11 md:size-8"
+                size="icon-sm"
+                className={copied ? "text-indigo-600 dark:text-indigo-400" : ""}
                 aria-label={tList("copyCode")}
                 onClick={copyCode}
               />
@@ -59,16 +61,13 @@ export function RoomHeader() {
         </Tooltip>
       </div>
 
-      <span
-        title={tControls("participants")}
-        className="flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-1 text-xs font-semibold text-neutral-700 tabular-nums dark:bg-neutral-900 dark:text-neutral-200"
-      >
+      <NeuBadge tone="muted" title={tControls("participants")} className="tabular-nums">
         <Users className="size-3.5" aria-hidden />
         {t("participantCount", {
           count: participantCount,
           max: room.effectiveMaxParticipants || room.maxParticipants,
         })}
-      </span>
+      </NeuBadge>
 
       <ConnectionBadge />
     </header>

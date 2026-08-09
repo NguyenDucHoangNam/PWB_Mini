@@ -3,17 +3,30 @@
 import type { ComponentType, ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { TriangleAlert } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
+import {
+  NEU_TEXT,
+  NEU_TEXT_MUTED,
+  NeuButton,
+  NeuPanel,
+  NeuSkeleton,
+} from "@/components/ui/neu";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants";
 
 interface LibraryPanelProps {
   children: ReactNode;
 }
 
+/**
+ * The well that library content sits in — sunken, so the rows and cards inside it
+ * are the things that read as raised. No overflow-hidden: it would clip the soft
+ * shadows of the tiles at the edges.
+ */
 export function LibraryPanel({ children }: LibraryPanelProps) {
   return (
-    <div className="flex flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">{children}</div>
+    <NeuPanel tone="pressed" className="flex flex-1 flex-col p-3 sm:p-4">
+      {children}
+    </NeuPanel>
   );
 }
 
@@ -27,13 +40,13 @@ export function LibraryErrorState({ message, retryLabel, onRetry }: LibraryError
   return (
     <div
       role="alert"
-      className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-12 text-center sm:py-16"
+      className="flex flex-1 flex-col items-center justify-center gap-5 px-6 py-12 text-center sm:py-16"
     >
-      <TriangleAlert className="size-6 text-destructive" aria-hidden="true" />
-      <p className="max-w-sm text-sm text-foreground">{message}</p>
-      <Button variant="outline" size="lg" onClick={onRetry}>
-        {retryLabel}
-      </Button>
+      <span className="neu-raised grid size-14 place-items-center rounded-full border-none">
+        <TriangleAlert className="size-6 text-rose-600 dark:text-rose-400" aria-hidden="true" />
+      </span>
+      <p className={`max-w-sm text-sm font-medium ${NEU_TEXT}`}>{message}</p>
+      <NeuButton onClick={onRetry}>{retryLabel}</NeuButton>
     </div>
   );
 }
@@ -47,11 +60,13 @@ interface LibraryEmptyStateProps {
 
 export function LibraryEmptyState({ icon: Icon, title, hint, action }: LibraryEmptyStateProps) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-12 text-center sm:py-16">
-      <Icon className="size-6 text-muted-foreground" aria-hidden />
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-12 text-center sm:py-16">
+      <span className="neu-raised grid size-16 place-items-center rounded-full border-none">
+        <Icon className="size-6 text-indigo-600 dark:text-indigo-400" aria-hidden />
+      </span>
       <div className="flex max-w-sm flex-col gap-1.5">
-        <h3 className="text-base font-semibold tracking-tight text-foreground">{title}</h3>
-        <p className="text-sm leading-relaxed text-muted-foreground">{hint}</p>
+        <h3 className={`text-base font-bold tracking-tight ${NEU_TEXT}`}>{title}</h3>
+        <p className={`text-sm leading-relaxed ${NEU_TEXT_MUTED}`}>{hint}</p>
       </div>
       {action ? <div className="mt-1">{action}</div> : null}
     </div>
@@ -66,20 +81,22 @@ export function LibraryRowsSkeleton({ rows = 6 }: LibrarySkeletonProps) {
   const t = useTranslations("voice.list");
 
   return (
-    <div role="status" aria-live="polite" className="divide-y divide-border">
+    <div role="status" aria-live="polite" className="flex flex-col gap-3">
       <span className="sr-only">{t("loading")}</span>
       {Array.from({ length: rows }).map((_, index) => (
-        <div key={index} className="flex items-center gap-3 px-3 py-3 sm:gap-4 sm:px-4">
-          <div className="hidden h-3 w-5 shrink-0 animate-pulse rounded bg-muted sm:block" />
-          <div className="size-11 shrink-0 animate-pulse rounded-lg bg-muted sm:size-12" />
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <div
-              className="h-3.5 animate-pulse rounded bg-muted"
+        <div
+          key={index}
+          className="neu-raised-sm flex items-center gap-4 rounded-2xl border-none px-4 py-3.5"
+        >
+          <NeuSkeleton className="size-12 shrink-0 rounded-2xl" />
+          <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+            <NeuSkeleton
+              className="h-3.5 rounded-full"
               style={{ width: `${45 + ((index * 13) % 35)}%` }}
             />
-            <div className="h-3 w-24 animate-pulse rounded bg-muted/60" />
+            <NeuSkeleton className="h-3 w-24 rounded-full" />
           </div>
-          <div className="h-3 w-10 shrink-0 animate-pulse rounded bg-muted/60" />
+          <NeuSkeleton className="h-3 w-10 shrink-0 rounded-full" />
         </div>
       ))}
     </div>
@@ -93,20 +110,20 @@ export function LibraryCardsSkeleton({ rows = 6 }: LibrarySkeletonProps) {
     <div
       role="status"
       aria-live="polite"
-      className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3"
+      className="grid gap-5 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3"
     >
       <span className="sr-only">{t("loading")}</span>
       {Array.from({ length: rows }).map((_, index) => (
-        <div key={index} className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4">
-          <div className="flex items-center gap-2">
-            <div
-              className="h-4 animate-pulse rounded bg-muted"
+        <NeuPanel key={index} className="flex flex-col gap-5 p-5">
+          <div className="flex items-center gap-3">
+            <NeuSkeleton
+              className="h-4 rounded-full"
               style={{ width: `${40 + ((index * 17) % 30)}%` }}
             />
-            <div className="h-4 w-12 animate-pulse rounded bg-muted/60" />
+            <NeuSkeleton className="h-4 w-12 rounded-full" />
           </div>
-          <div className="h-10 animate-pulse rounded-lg bg-muted/60" />
-        </div>
+          <NeuSkeleton className="h-12 rounded-2xl" />
+        </NeuPanel>
       ))}
     </div>
   );
@@ -127,6 +144,7 @@ export function LibraryPagination({
 }: LibraryPaginationProps) {
   return (
     <Pagination
+      variant="neu"
       page={page}
       totalPages={totalPages}
       totalElements={totalElements}

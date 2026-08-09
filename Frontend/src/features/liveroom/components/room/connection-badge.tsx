@@ -2,17 +2,17 @@
 
 import { useTranslations } from "next-intl";
 import { Loader2, Wifi, WifiOff } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { NeuButton } from "@/components/ui/neu";
 import { liveroomSocket, type ConnectionStatus } from "../../lib/liveroom-socket";
 import { useLiveroomStore } from "../../stores/use-liveroom-store";
 
 const TONE: Record<ConnectionStatus, string> = {
-  idle: "text-neutral-500 dark:text-neutral-400",
-  connecting: "text-neutral-500 dark:text-neutral-400",
-  connected: "text-green-700 dark:text-green-400",
-  reconnecting: "text-amber-700 dark:text-amber-400",
-  offline: "text-red-600 dark:text-red-400",
-  unauthorized: "text-red-600 dark:text-red-400",
+  idle: "text-slate-600 dark:text-slate-400",
+  connecting: "text-slate-600 dark:text-slate-400",
+  connected: "text-emerald-800 dark:text-emerald-400",
+  reconnecting: "text-amber-800 dark:text-amber-400",
+  offline: "text-rose-700 dark:text-rose-400",
+  unauthorized: "text-rose-700 dark:text-rose-400",
 };
 
 const LABEL_KEY: Record<ConnectionStatus, string> = {
@@ -32,9 +32,9 @@ export function ConnectionBadge() {
   const broken = status === "offline" || status === "unauthorized";
 
   return (
-    <div className={`flex items-center gap-1.5 text-xs font-medium ${TONE[status]}`}>
+    <div className={`flex items-center gap-1.5 text-xs font-semibold ${TONE[status]}`}>
       {busy ? (
-        <Loader2 className="size-3.5 animate-spin" aria-hidden />
+        <Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden />
       ) : broken ? (
         <WifiOff className="size-3.5" aria-hidden />
       ) : (
@@ -42,14 +42,14 @@ export function ConnectionBadge() {
       )}
       <span aria-live="polite">{t(LABEL_KEY[status])}</span>
       {broken ? (
-        <Button
+        <NeuButton
           variant="ghost"
-          size="xs"
-          className="h-7 px-2"
+          size="sm"
+          className="h-8 px-3 text-current"
           onClick={() => liveroomSocket.retry()}
         >
           {t("retry")}
-        </Button>
+        </NeuButton>
       ) : null}
     </div>
   );

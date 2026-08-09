@@ -4,6 +4,7 @@ import * as React from "react";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { NEU_FOCUS, NEU_INPUT } from "@/components/ui/neu";
 import { cn } from "@/lib/utils";
 
 interface SearchInputProps extends Omit<React.ComponentProps<"input">, "onChange" | "value"> {
@@ -12,6 +13,8 @@ interface SearchInputProps extends Omit<React.ComponentProps<"input">, "onChange
   /** Shows a spinner in place of the clear button while a request is in flight. */
   loading?: boolean;
   clearLabel?: string;
+  /** `neu` renders the field as a soft-UI well on a matte surface. */
+  variant?: "default" | "neu";
 }
 
 /**
@@ -27,13 +30,19 @@ export function SearchInput({
   loading = false,
   clearLabel = "Clear",
   className,
+  variant = "default",
   ...props
 }: SearchInputProps) {
+  const isNeu = variant === "neu";
+
   return (
     <div className="relative w-full">
       <Search
         aria-hidden
-        className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-neutral-400"
+        className={cn(
+          "pointer-events-none absolute top-1/2 size-4 -translate-y-1/2 text-neutral-400",
+          isNeu ? "left-4 text-slate-400 dark:text-slate-500" : "left-2.5",
+        )}
       />
       <Input
         {...props}
@@ -42,10 +51,16 @@ export function SearchInput({
         onChange={(event) => onValueChange(event.target.value)}
         className={cn(
           "h-9 pl-8 pr-9 [&::-webkit-search-cancel-button]:appearance-none",
+          isNeu && cn(NEU_INPUT, "h-12 pl-11 pr-12 focus-visible:ring-0"),
           className,
         )}
       />
-      <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center">
+      <div
+        className={cn(
+          "absolute top-1/2 flex -translate-y-1/2 items-center",
+          isNeu ? "right-3.5" : "right-2",
+        )}
+      >
         {loading ? (
           <Spinner size="sm" />
         ) : value ? (
@@ -53,7 +68,14 @@ export function SearchInput({
             type="button"
             aria-label={clearLabel}
             onClick={() => onValueChange("")}
-            className="rounded-full p-0.5 text-neutral-400 transition-colors hover:text-neutral-700 dark:hover:text-neutral-200"
+            className={cn(
+              "rounded-full p-0.5 text-neutral-400 transition-colors hover:text-neutral-700 dark:hover:text-neutral-200",
+              isNeu &&
+                cn(
+                  "text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-200",
+                  NEU_FOCUS,
+                ),
+            )}
           >
             <X className="size-4" />
           </button>

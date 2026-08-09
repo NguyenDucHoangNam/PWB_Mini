@@ -4,13 +4,12 @@ import { motion, useReducedMotion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { Mic, MicOff, Play } from "lucide-react";
 import {
-  Eyebrow,
+  Groove,
+  NumberedPoint,
   Reveal,
   RevealGroup,
-  RevealItem,
   Section,
-  SectionLead,
-  SectionTitle,
+  SectionHeader,
 } from "@/components/marketing/section-primitives";
 
 const POINT_KEYS = ["point1", "point2", "point3"] as const;
@@ -33,46 +32,38 @@ export function SectionLiveRoom() {
   const t = useTranslations("landing.liveRoom");
 
   return (
-    <Section tone="raised">
-      <Reveal>
-        <Eyebrow>{t("eyebrow")}</Eyebrow>
-        <SectionTitle>{t("title")}</SectionTitle>
-        <SectionLead>{t("lead")}</SectionLead>
+    <Section tone="trough">
+      <SectionHeader
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        lead={t("lead")}
+        align="center"
+      />
+
+      {/* The console leads at the section's full width instead of sharing a column with
+          the copy — the previous mirrored two-column layout read as a repeat of the
+          section above, and a narrower card would break the page's left/right edges. */}
+      <Reveal className="mt-14 w-full lg:mt-16">
+        <RoomConsole
+          roomCodeLabel={t("roomCodeLabel")}
+          liveLabel={t("liveLabel")}
+          syncedLabel={t("syncedLabel")}
+          listenersLabel={t("listenersLabel")}
+          commentSample={t("commentSample")}
+          hostLabel={t("hostLabel")}
+        />
       </Reveal>
 
-      <div className="mt-14 grid items-start gap-12 lg:mt-16 lg:grid-cols-2 lg:gap-16">
-        <Reveal className="lg:order-last">
-          <RoomConsole
-            roomCodeLabel={t("roomCodeLabel")}
-            liveLabel={t("liveLabel")}
-            syncedLabel={t("syncedLabel")}
-            listenersLabel={t("listenersLabel")}
-            commentSample={t("commentSample")}
-            hostLabel={t("hostLabel")}
+      <RevealGroup className="mt-16 grid gap-x-10 gap-y-8 md:grid-cols-3">
+        {POINT_KEYS.map((key, index) => (
+          <NumberedPoint
+            key={key}
+            index={index + 1}
+            title={t(`${key}Title`)}
+            body={t(`${key}Body`)}
           />
-        </Reveal>
-
-        <RevealGroup>
-          {POINT_KEYS.map((key, index) => (
-            <RevealItem
-              key={key}
-              className="flex gap-5 border-b border-border py-6 first:pt-0 last:border-b-0"
-            >
-              <span className="mt-0.5 font-mono text-xs tabular-nums text-muted-foreground">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-              <div>
-                <h3 className="text-lg font-semibold tracking-tight text-foreground">
-                  {t(`${key}Title`)}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  {t(`${key}Body`)}
-                </p>
-              </div>
-            </RevealItem>
-          ))}
-        </RevealGroup>
-      </div>
+        ))}
+      </RevealGroup>
     </Section>
   );
 }
@@ -97,17 +88,19 @@ function RoomConsole({
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <figure className="overflow-hidden rounded-2xl border border-border bg-card">
-      <figcaption className="flex items-center justify-between gap-4 border-b border-border px-5 py-4">
+    <figure className="neu-raised-lg rounded-3xl border-none p-6 sm:p-8">
+      <figcaption className="flex items-center justify-between gap-4">
         <span className="flex items-baseline gap-2.5">
-          <span className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
+          <span className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
             {roomCodeLabel}
           </span>
-          <span className="font-mono text-sm tracking-[0.1em] text-foreground">{ROOM_CODE}</span>
+          <span className="font-mono text-sm font-bold tracking-[0.1em] text-slate-900 dark:text-slate-100">
+            {ROOM_CODE}
+          </span>
         </span>
-        <span className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.16em] text-foreground">
+        <span className="neu-pressed-sm inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 font-mono text-xs font-bold uppercase tracking-[0.16em] text-red-500 dark:text-red-400">
           <motion.span
-            className="size-2 rounded-full bg-foreground"
+            className="size-2 rounded-full bg-red-500 dark:bg-red-400"
             animate={prefersReducedMotion ? undefined : { opacity: [1, 0.25, 1] }}
             transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
             aria-hidden="true"
@@ -116,40 +109,45 @@ function RoomConsole({
         </span>
       </figcaption>
 
-      <div className="flex items-center gap-2 border-b border-border px-5 py-4" aria-hidden="true">
+      <Groove className="my-6" />
+
+      <div className="flex items-center gap-3.5" aria-hidden="true">
         {PARTICIPANTS.map(({ initials, muted }, index) => (
           <span
             key={initials}
-            className="relative flex size-10 items-center justify-center rounded-full border border-border bg-background font-mono text-xs text-foreground"
+            className="neu-raised-sm relative flex size-11 items-center justify-center rounded-full font-mono text-xs font-bold text-slate-800 dark:text-slate-200"
           >
             {initials}
-            <span className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full border border-border bg-card">
+            <span className="neu-pressed-sm absolute -bottom-1 -right-1 flex size-4.5 items-center justify-center rounded-full">
               {muted ? (
-                <MicOff className="size-2.5 text-muted-foreground" />
+                <MicOff className="size-2.5 text-slate-400" />
               ) : (
-                <Mic className="size-2.5 text-foreground" />
+                <Mic className="size-2.5 text-indigo-600 dark:text-indigo-400" />
               )}
             </span>
             {index === 0 && (
-              <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-border bg-card px-1.5 font-mono text-xs uppercase tracking-[0.08em] text-muted-foreground">
+              <span className="neu-pressed-sm absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-2 py-0.5 font-mono text-[0.625rem] font-bold uppercase tracking-[0.08em] text-indigo-600 dark:text-indigo-400">
                 {hostLabel}
               </span>
             )}
           </span>
         ))}
-        <span className="ml-auto font-mono text-xs text-muted-foreground">{listenersLabel}</span>
+        <span className="ml-auto font-mono text-xs font-semibold text-slate-500 dark:text-slate-400">
+          {listenersLabel}
+        </span>
       </div>
 
-      <div className="px-5 py-7" aria-hidden="true">
+      {/* Transport sits in a well: the console is the device, this is the slot cut
+          into it. */}
+      <div className="neu-pressed mt-7 rounded-2xl px-5 py-6" aria-hidden="true">
         <div className="flex items-center gap-4">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-            <Play className="size-4 fill-current" />
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white shadow-neu-raised-sm dark:bg-indigo-500">
+            <Play className="ml-0.5 size-4 fill-current" />
           </span>
 
           <div className="relative h-10 flex-1">
-            {/* Comment pinned to a position on the timeline. */}
             <motion.span
-              className="absolute -top-1 z-10 max-w-[90%] -translate-x-1/2 truncate rounded-lg border border-border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-md"
+              className="neu-raised-sm absolute -top-1 z-10 max-w-[90%] -translate-x-1/2 truncate rounded-xl px-3 py-1.5 font-mono text-xs font-semibold text-slate-800 dark:text-slate-200"
               style={{ left: `${COMMENT_POSITION * 100}%` }}
               initial={{ opacity: 0, y: 6 }}
               animate={
@@ -165,9 +163,9 @@ function RoomConsole({
               {commentSample}
             </motion.span>
 
-            <span className="absolute bottom-3 left-0 h-1 w-full rounded-full bg-muted" />
+            <span className="neu-pressed-sm absolute bottom-3 left-0 h-2 w-full rounded-full" />
             <motion.span
-              className="absolute bottom-3 left-0 h-1 rounded-full bg-foreground"
+              className="absolute bottom-3 left-0 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400"
               initial={{ width: "0%" }}
               animate={
                 prefersReducedMotion
@@ -181,26 +179,30 @@ function RoomConsole({
               }}
             />
             <span
-              className="absolute bottom-1.5 size-1.5 -translate-x-1/2 rounded-full border border-border bg-foreground"
+              className="absolute bottom-2 size-4 -translate-x-1/2 rounded-full bg-indigo-600 shadow-neu-raised-sm dark:bg-indigo-400"
               style={{ left: `${COMMENT_POSITION * 100}%` }}
             />
           </div>
 
-          <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+          <span className="shrink-0 font-mono text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-400">
             03:58
           </span>
         </div>
       </div>
 
-      <div className="flex items-center gap-2.5 border-t border-border bg-background px-5 py-3.5">
-        <span className="waveform text-foreground" aria-hidden="true" data-state={prefersReducedMotion ? "paused" : undefined}>
-          <span />
-          <span />
-          <span />
-          <span />
-          <span />
+      <div className="mt-6 flex items-center gap-2.5">
+        <span
+          className="waveform text-indigo-600 dark:text-indigo-400"
+          aria-hidden="true"
+          data-state={prefersReducedMotion ? "paused" : undefined}
+        >
+          <span className="bg-indigo-600 dark:bg-indigo-400" />
+          <span className="bg-indigo-600 dark:bg-indigo-400" />
+          <span className="bg-indigo-600 dark:bg-indigo-400" />
+          <span className="bg-indigo-600 dark:bg-indigo-400" />
+          <span className="bg-indigo-600 dark:bg-indigo-400" />
         </span>
-        <span className="font-mono text-xs uppercase tracking-[0.16em] text-muted-foreground">
+        <span className="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 dark:text-slate-300">
           {syncedLabel}
         </span>
       </div>

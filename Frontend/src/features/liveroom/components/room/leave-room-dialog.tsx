@@ -9,7 +9,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import {
+  NEU_DIALOG_CONTENT,
+  NEU_DIALOG_FOOTER,
+  NEU_TEXT,
+  NEU_TEXT_MUTED,
+  NeuButton,
+} from "@/components/ui/neu";
 
 interface LeaveRoomDialogProps {
   open: boolean;
@@ -30,18 +36,18 @@ export function LeaveRoomDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {open ? (
-        <DialogContent>
+        <DialogContent showCloseButton={false} className={NEU_DIALOG_CONTENT}>
           <DialogHeader>
-            <DialogTitle>{t("leaveConfirmTitle")}</DialogTitle>
-            <DialogDescription>{t("leaveConfirmBody")}</DialogDescription>
+            <DialogTitle className={`text-lg font-bold ${NEU_TEXT}`}>{t("leaveConfirmTitle")}</DialogTitle>
+            <DialogDescription className={NEU_TEXT_MUTED}>{t("leaveConfirmBody")}</DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={pending}>
+          <DialogFooter className={NEU_DIALOG_FOOTER}>
+            <NeuButton onClick={() => onOpenChange(false)} disabled={pending}>
               {tCommon("cancel")}
-            </Button>
-            <Button variant="destructive" disabled={pending} onClick={onConfirm}>
+            </NeuButton>
+            <NeuButton variant="danger" disabled={pending} onClick={onConfirm}>
               {t("leave")}
-            </Button>
+            </NeuButton>
           </DialogFooter>
         </DialogContent>
       ) : null}

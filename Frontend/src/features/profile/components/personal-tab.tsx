@@ -1,8 +1,6 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 export interface PersonalTabProps {
   email: string | null;
@@ -35,37 +33,52 @@ export function PersonalTab({
   labels,
 }: PersonalTabProps) {
   return (
-    <div role="tabpanel" className="space-y-5 p-6 sm:p-8">
+    <div role="tabpanel" className="neu-raised space-y-6 rounded-3xl bg-[#e0e5ec] p-6 sm:p-8 dark:bg-[#1e222b]">
       <FieldGroup label={labels.email}>
-        <Input value={email ?? "-"} disabled className="bg-neutral-50 dark:bg-neutral-900" />
+        <input
+          value={email ?? "-"}
+          disabled
+          readOnly
+          className="neu-pressed w-full rounded-2xl bg-[#e0e5ec] px-4 py-3 text-sm font-medium text-slate-500 dark:bg-[#1e222b] dark:text-slate-400 cursor-not-allowed select-none border-none outline-none"
+        />
       </FieldGroup>
 
       <FieldGroup label={labels.fullName}>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-          <Input
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <input
             value={fullName}
             onChange={(e) => onChangeFullName(e.target.value)}
             onFocus={onFocusFullName}
             placeholder={labels.placeholder}
             maxLength={128}
-            className="flex-1"
+            className="neu-input w-full flex-1 rounded-2xl bg-[#e0e5ec] px-4 py-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2 dark:bg-[#1e222b] dark:text-slate-100 border-none"
             aria-label={labels.fullName}
           />
           {isEditing && (
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={onCancel} disabled={isSaving} type="button">
+            <div className="flex items-center gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={isSaving}
+                className="neu-button rounded-2xl px-5 py-3 text-sm font-semibold text-slate-700 focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2 disabled:opacity-50 dark:text-slate-200"
+              >
                 {labels.cancel}
-              </Button>
-              <Button onClick={onSave} disabled={isSaving} type="button">
+              </button>
+              <button
+                type="button"
+                onClick={onSave}
+                disabled={isSaving}
+                className="neu-button-primary flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-neu-raised-sm focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2 disabled:opacity-50"
+              >
                 {isSaving ? (
-                  <span className="flex items-center gap-2">
+                  <>
                     <Loader2 className="size-4 animate-spin" />
-                    {labels.saving}
-                  </span>
+                    <span>{labels.saving}</span>
+                  </>
                 ) : (
                   labels.save
                 )}
-              </Button>
+              </button>
             </div>
           )}
         </div>
@@ -81,8 +94,8 @@ export interface FieldGroupProps {
 
 export function FieldGroup({ label, children }: FieldGroupProps) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+    <div className="flex flex-col gap-2">
+      <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
         {label}
       </label>
       {children}

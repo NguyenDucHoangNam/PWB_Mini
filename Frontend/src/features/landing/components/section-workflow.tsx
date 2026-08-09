@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { motion, useScroll, useSpring } from "framer-motion";
 import { useTranslations } from "next-intl";
-import { Eyebrow, Reveal, Section, SectionTitle } from "@/components/marketing/section-primitives";
+import { RevealGroup, RevealItem, Section, SectionHeader } from "@/components/marketing/section-primitives";
 
 const STEP_KEYS = ["step1", "step2", "step3", "step4"] as const;
 
@@ -23,52 +23,94 @@ export function SectionWorkflow() {
 
   return (
     <Section>
-      <Reveal>
-        <Eyebrow>{t("eyebrow")}</Eyebrow>
-        <SectionTitle>{t("title")}</SectionTitle>
-      </Reveal>
+      <SectionHeader eyebrow={t("eyebrow")} title={t("title")} />
 
-      <div ref={railRef} className="relative mt-14 lg:mt-16">
-        {/* The rail threads behind the keycaps and fills as the section scrolls past. */}
-        <span
-          aria-hidden="true"
-          className="absolute left-6 top-0 bottom-0 w-px bg-border sm:left-7"
-        />
-        <motion.span
-          aria-hidden="true"
-          className="absolute left-6 top-0 bottom-0 w-px origin-top bg-foreground sm:left-7"
-          style={{ scaleY: railProgress }}
-        />
+      {/* Four steps read as a sequence when they run left to right, so the rail turns
+          horizontal once there is room for it and falls back to the vertical spine on
+          narrow screens. Both are fed by the same scroll progress. */}
+      <div ref={railRef} className="relative mt-14 lg:mt-20">
+        <div className="relative hidden lg:block">
+          <div className="neu-groove absolute inset-x-0 top-7 -translate-y-1/2" aria-hidden="true" />
+          <motion.div
+            aria-hidden="true"
+            className="absolute inset-x-0 top-7 h-0.5 origin-left -translate-y-1/2 rounded-full bg-indigo-600 dark:bg-indigo-400"
+            style={{ scaleX: railProgress }}
+          />
 
-        {STEP_KEYS.map((key, index) => (
-          <Reveal key={key}>
-            <div className="grid grid-cols-[3rem_1fr] gap-6 pb-12 last:pb-0 sm:grid-cols-[3.5rem_1fr] sm:gap-9">
-              <div className="flex justify-center">
-                <span
-                  className="key-white flex h-16 w-9 items-end justify-center pb-2.5 font-mono text-xs font-semibold sm:h-20 sm:w-11"
-                  aria-hidden="true"
-                >
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-              </div>
-
-              <div className="pt-1.5">
-                <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                  <h3 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-                    {t(`${key}Title`)}
-                  </h3>
-                  <span className="font-mono text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                    {t(`${key}Meta`)}
+          <RevealGroup className="relative grid grid-cols-4 gap-8">
+            {STEP_KEYS.map((key, index) => (
+              <RevealItem key={key} className="h-full">
+                <div className="flex h-full flex-col">
+                  <span
+                    className="neu-raised flex size-14 items-center justify-center rounded-2xl font-mono text-sm font-bold text-indigo-600 dark:text-indigo-400"
+                    aria-hidden="true"
+                  >
+                    {String(index + 1).padStart(2, "0")}
                   </span>
+                  <StepBody
+                    title={t(`${key}Title`)}
+                    meta={t(`${key}Meta`)}
+                    body={t(`${key}Body`)}
+                    className="mt-7"
+                  />
                 </div>
-                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                  {t(`${key}Body`)}
-                </p>
-              </div>
-            </div>
-          </Reveal>
-        ))}
+              </RevealItem>
+            ))}
+          </RevealGroup>
+        </div>
+
+        <div className="relative lg:hidden">
+          <span aria-hidden="true" className="neu-groove-v absolute bottom-0 left-7 top-0 h-auto" />
+          <motion.span
+            aria-hidden="true"
+            className="absolute bottom-0 left-7 top-0 w-0.5 origin-top rounded-full bg-indigo-600 dark:bg-indigo-400"
+            style={{ scaleY: railProgress }}
+          />
+
+          <RevealGroup className="relative">
+            {STEP_KEYS.map((key, index) => (
+              <RevealItem key={key}>
+                <div className="grid grid-cols-[3.5rem_1fr] gap-6 pb-12 last:pb-0">
+                  <span
+                    className="neu-raised flex size-14 items-center justify-center rounded-2xl font-mono text-sm font-bold text-indigo-600 dark:text-indigo-400"
+                    aria-hidden="true"
+                  >
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <StepBody
+                    title={t(`${key}Title`)}
+                    meta={t(`${key}Meta`)}
+                    body={t(`${key}Body`)}
+                    className="pt-1"
+                  />
+                </div>
+              </RevealItem>
+            ))}
+          </RevealGroup>
+        </div>
       </div>
     </Section>
+  );
+}
+
+function StepBody({
+  title,
+  meta,
+  body,
+  className,
+}: {
+  title: string;
+  meta: string;
+  body: string;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <h3 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{title}</h3>
+      <span className="mt-2 inline-block font-mono text-xs font-semibold uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-400">
+        {meta}
+      </span>
+      <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{body}</p>
+    </div>
   );
 }

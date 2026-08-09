@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { DoorClosed } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { NEU_TEXT, NEU_TEXT_MUTED, NeuButton } from "@/components/ui/neu";
 import { asApiError } from "@/lib/api-client";
 import { JoinLobby } from "./join-lobby";
 import { JoinStateCard } from "./join-state-card";
@@ -101,7 +101,7 @@ export function JoinFlow({ roomCode }: { roomCode: string }) {
 
   if (!lookup && lookingUp) {
     return (
-      <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
+      <div className={`flex h-full items-center justify-center gap-2 text-sm font-medium ${NEU_TEXT_MUTED}`}>
         <Spinner size="sm" />
         {t("looking")}
       </div>
@@ -111,22 +111,18 @@ export function JoinFlow({ roomCode }: { roomCode: string }) {
   if (!lookup) {
     return (
       <div className="flex h-full flex-col">
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-xl border border-border bg-card p-6 text-center shadow-xs md:p-8">
+        <div className="neu-pressed flex flex-1 flex-col items-center justify-center gap-5 rounded-3xl border-none p-6 text-center md:p-8">
           <div className="flex flex-col gap-1">
-            <p className="text-lg font-bold tracking-tight text-foreground">{t("notFound")}</p>
+            <p className={`text-lg font-bold tracking-tight ${NEU_TEXT}`}>{t("notFound")}</p>
             {lookupFailed ? (
-              <p className="text-sm text-muted-foreground">
+              <p className={`text-sm font-medium ${NEU_TEXT_MUTED}`}>
                 {resolveLiveroomErrorMessage(lookupError, tErrors, tCommon)}
               </p>
             ) : null}
           </div>
-          <Button
-            variant="outline"
-            className="h-11 md:h-9"
-            onClick={() => router.push("/dashboard/liveroom/join")}
-          >
+          <NeuButton onClick={() => router.push("/dashboard/liveroom/join")}>
             {t("continue")}
-          </Button>
+          </NeuButton>
         </div>
       </div>
     );
@@ -146,17 +142,13 @@ export function JoinFlow({ roomCode }: { roomCode: string }) {
             title={t("ended")}
             body={t("endedHint")}
             action={
-              <Button
-                variant="outline"
-                className="h-11 md:h-9"
-                onClick={() => router.push("/dashboard/liveroom/join")}
-              >
+              <NeuButton onClick={() => router.push("/dashboard/liveroom/join")}>
                 {t("tryAnotherCode")}
-              </Button>
+              </NeuButton>
             }
           />
         ) : recovering && !request ? (
-          <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
+          <div className={`flex h-full items-center justify-center gap-2 text-sm font-medium ${NEU_TEXT_MUTED}`}>
             <Spinner size="sm" />
             {t("looking")}
           </div>

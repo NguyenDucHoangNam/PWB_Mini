@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { SearchInput } from "@/components/ui/search-input";
+import { NEU_TEXT_MUTED } from "@/components/ui/neu";
 import { cn } from "@/lib/utils";
 
 interface SuggestComboboxProps<T> {
@@ -95,6 +96,7 @@ export function SuggestCombobox<T>({
     <div ref={containerRef} className={cn("relative", className)}>
       <SearchInput
         id={id}
+        variant="neu"
         role="combobox"
         aria-expanded={showList}
         aria-controls={listId}
@@ -119,10 +121,10 @@ export function SuggestCombobox<T>({
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-800 dark:bg-neutral-950"
+          className="neu-raised neu-scroll-thin absolute z-50 mt-2.5 max-h-64 w-full overflow-y-auto rounded-2xl border-none p-2"
         >
           {items.length === 0 ? (
-            <li className="px-3 py-2 text-xs text-neutral-500 dark:text-neutral-400">
+            <li className={cn("px-3 py-2 text-xs font-medium", NEU_TEXT_MUTED)}>
               {loading ? null : emptyLabel}
             </li>
           ) : (
@@ -140,10 +142,12 @@ export function SuggestCombobox<T>({
                   choose(item);
                 }}
                 className={cn(
-                  "cursor-pointer px-3 py-2 text-sm",
+                  "cursor-pointer rounded-xl border-none px-3 py-2.5 text-sm transition-all",
+                  // Highlight is the inset *plus* accent text — the inset alone would be
+                  // invisible to anyone who cannot make out the shadow.
                   index === highlighted
-                    ? "bg-neutral-100 dark:bg-neutral-900"
-                    : "bg-transparent",
+                    ? "neu-pressed-sm font-semibold text-indigo-600 dark:text-indigo-400"
+                    : "text-slate-700 dark:text-slate-200",
                 )}
               >
                 {renderItem(item)}

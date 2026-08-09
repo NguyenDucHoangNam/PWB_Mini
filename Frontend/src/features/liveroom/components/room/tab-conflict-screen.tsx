@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Copy } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { NEU_TEXT, NEU_TEXT_MUTED, NeuButton, NeuPanel } from "@/components/ui/neu";
 
 interface TabConflictScreenProps {
   onFocusOther: () => void;
@@ -13,20 +13,24 @@ export function TabConflictScreen({ onFocusOther, onTakeOver }: TabConflictScree
   const t = useTranslations("liveroom.room.tabConflict");
 
   return (
-    <div className="flex h-dvh flex-col items-center justify-center gap-4 bg-white p-6 text-center dark:bg-black">
-      <Copy className="size-10 text-neutral-400" aria-hidden />
-      <h1 className="text-xl font-semibold text-black md:text-2xl dark:text-white">
+    <div className="flex h-dvh flex-col items-center justify-center bg-[#e0e5ec] p-6 dark:bg-[#1e222b]">
+      <NeuPanel className="flex w-full max-w-md flex-col items-center gap-5 p-8 text-center">
+      <span className="neu-pressed grid size-16 place-items-center rounded-full border-none text-indigo-600 dark:text-indigo-400">
+          <Copy className="size-7" aria-hidden />
+        </span>
+      <h1 className={`text-xl font-bold md:text-2xl ${NEU_TEXT}`}>
         {t("title")}
       </h1>
-      <p className="max-w-sm text-sm text-neutral-500 dark:text-neutral-400">{t("hint")}</p>
-      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-        <Button className="h-11 md:h-9" onClick={onFocusOther}>
+      <p className={`max-w-sm text-sm font-medium ${NEU_TEXT_MUTED}`}>{t("hint")}</p>
+      <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+        <NeuButton variant="primary" onClick={onFocusOther}>
           {t("switchTab")}
-        </Button>
-        <Button variant="outline" className="h-11 md:h-9" onClick={onTakeOver}>
+        </NeuButton>
+        <NeuButton onClick={onTakeOver}>
           {t("closeTab")}
-        </Button>
+        </NeuButton>
       </div>
+      </NeuPanel>
     </div>
   );
 }

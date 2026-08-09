@@ -89,8 +89,8 @@ export function BlackKey({ side, animationDelay, totalKeys, centerPercent }: Bla
           className="absolute inset-0 overflow-hidden rounded-b-[2px]"
           style={{
             background: isHovered
-              ? "linear-gradient(to bottom, #404040, #1a1a1a, #0d0d0d)"
-              : "linear-gradient(to bottom, #2a2a2a, #0a0a0a, #000000)",
+              ? "linear-gradient(to bottom, #3b4557, #161d2b, #0a0f1a)"
+              : "linear-gradient(to bottom, #252b38, #080c14, #020617)",
             boxShadow: isPressed
               ? "inset 0 3px 5px rgba(0,0,0,0.9), inset 0 -1px 1px rgba(255,255,255,0.05)"
               : "inset 0 -3px 4px rgba(255,255,255,0.1), 0 4px 8px rgba(0,0,0,0.4)",
@@ -125,9 +125,9 @@ function WoodGrain() {
 }
 
 function RightEdgeShadow() {
-  return <div className="absolute top-0 right-0 bottom-0 w-[1px] bg-black/80" />;
+  return <div className="absolute top-0 right-0 bottom-0 w-[1px] bg-slate-950/80" />;
 }
 
 function LeftEdgeShadow() {
-  return <div className="absolute top-0 left-0 bottom-0 w-[1px] bg-black/60" />;
+  return <div className="absolute top-0 left-0 bottom-0 w-[1px] bg-slate-950/60" />;
 }

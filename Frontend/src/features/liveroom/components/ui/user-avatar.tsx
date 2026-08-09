@@ -27,7 +27,7 @@ export function UserAvatar({
       alt=""
       aria-hidden
       onError={() => setBrokenUrl(avatarUrl)}
-      className={`shrink-0 rounded-full bg-neutral-200 object-cover dark:bg-neutral-800 ${className}`}
+      className={`shrink-0 rounded-full bg-[#e0e5ec] object-cover dark:bg-[#1e222b] ${className}`}
     />
   );
 }

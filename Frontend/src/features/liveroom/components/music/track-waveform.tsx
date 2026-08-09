@@ -162,15 +162,15 @@ export function TrackWaveform({
           if (event.key === "ArrowRight") onSeek(Math.min(durationSeconds, position + 5));
           if (event.key === "ArrowLeft") onSeek(Math.max(0, position - 5));
         }}
-        className={`relative h-16 touch-none rounded-lg select-none outline-none focus-visible:ring-2 focus-visible:ring-ring/50 md:h-20 ${
+        className={`neu-pressed-sm relative h-16 touch-none rounded-2xl border-none px-2 select-none outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 md:h-20 dark:focus-visible:outline-indigo-400 ${
           seekable ? "cursor-pointer" : "cursor-default"
         }`}
       >
         <div className="absolute inset-0">
           <Bars
             peaks={peaks}
-            className={pulsing ? "animate-pulse" : ""}
-            barClassName="bg-neutral-300 dark:bg-neutral-700"
+            className={pulsing ? "animate-pulse motion-reduce:animate-none" : ""}
+            barClassName="bg-slate-500/30 dark:bg-slate-400/30"
           />
         </div>
 
@@ -181,24 +181,24 @@ export function TrackWaveform({
           <Bars
             peaks={peaks}
             className=""
-            barClassName="bg-gradient-to-t from-neutral-900 via-neutral-700 to-neutral-500 dark:from-white dark:via-neutral-200 dark:to-neutral-400"
+            barClassName="bg-indigo-600 dark:bg-indigo-400"
           />
         </div>
 
         {seekable ? (
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-y-1 w-0.5 -translate-x-1/2 rounded-full bg-black dark:bg-white"
+            className="pointer-events-none absolute inset-y-1 w-0.5 -translate-x-1/2 rounded-full bg-indigo-600 dark:bg-indigo-400"
             style={{ left: `${displayPercent}%` }}
           >
-            <span className="absolute -top-1 left-1/2 size-2 -translate-x-1/2 rounded-full bg-black ring-2 ring-white dark:bg-white dark:ring-neutral-950" />
+            <span className="absolute -top-1 left-1/2 size-2.5 -translate-x-1/2 rounded-full bg-indigo-600 dark:bg-indigo-400" />
           </span>
         ) : null}
 
         {pinnedPosition !== null && seekable ? (
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 w-0.5 bg-red-500"
+            className="pointer-events-none absolute inset-y-0 w-0.5 bg-rose-600 dark:bg-rose-400"
             style={{ left: `${(pinnedPosition / durationSeconds) * 100}%` }}
           />
         ) : null}
@@ -207,12 +207,12 @@ export function TrackWaveform({
           <>
             <span
               aria-hidden
-              className="pointer-events-none absolute inset-y-0 w-px bg-neutral-400/70"
+              className="pointer-events-none absolute inset-y-0 w-px bg-slate-500/50 dark:bg-slate-400/50"
               style={{ left: `${hoverRatio * 100}%` }}
             />
             <span
               aria-hidden
-              className="pointer-events-none absolute -top-1 -translate-x-1/2 rounded bg-black px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white dark:bg-white dark:text-black"
+              className="pointer-events-none absolute -top-1 -translate-x-1/2 rounded-md bg-indigo-600 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-white dark:bg-indigo-500"
               style={{ left: `${hoverRatio * 100}%` }}
             >
               {formatClock(hoverRatio * durationSeconds)}
@@ -239,10 +239,10 @@ export function TrackWaveform({
                     email={comment.userEmail}
                     avatarUrl={participants[comment.userId]?.avatarUrl ?? null}
                     seed={comment.userId}
-                    className="size-5 text-[8px] ring-2 ring-white dark:ring-neutral-950"
+                    className="size-5 text-[8px] outline-2 outline-[#e0e5ec] dark:outline-[#1e222b]"
                   />
                 </button>
-                <span className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden -translate-x-1/2 rounded-md bg-black px-2 py-1 text-xs whitespace-nowrap text-white group-hover:block dark:bg-white dark:text-black">
+                <span className="neu-raised pointer-events-none absolute bottom-full left-1/2 z-20 mb-1.5 hidden -translate-x-1/2 rounded-xl border-none px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-slate-900 group-hover:block dark:text-slate-100">
                   <span className="font-semibold">{displayName(comment)}</span>{" "}
                   {comment.content}
                 </span>

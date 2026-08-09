@@ -31,13 +31,15 @@ export default function LiveroomLayout({ children }: { children: React.ReactNode
 
   if (bootstrapping || !accessToken) {
     return (
-      <div className="flex h-dvh items-center justify-center bg-white dark:bg-black">
+      <div className="flex h-dvh items-center justify-center bg-[#e0e5ec] dark:bg-[#1e222b]">
         <Spinner size="sm" />
       </div>
     );
   }
 
   return (
-    <div className="h-dvh overflow-hidden bg-white font-sans dark:bg-black">{children}</div>
+    <div className="h-dvh overflow-hidden bg-[#e0e5ec] font-sans transition-colors dark:bg-[#1e222b]">
+      {children}
+    </div>
   );
 }

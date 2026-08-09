@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { NEU_TEXT, NEU_TEXT_MUTED, NEU_TEXT_SOFT } from "@/components/ui/neu";
 import { UserAvatar } from "../ui/user-avatar";
 import { useLiveroomStore } from "../../stores/use-liveroom-store";
 import { linkifyChat } from "../../utils/linkify-chat";
@@ -42,19 +43,19 @@ export function ChatMessageItem({
       />
       <div className="min-w-0 flex-1">
         <p className="flex items-baseline gap-2">
-          <span className="truncate text-xs font-semibold text-black dark:text-white">
+          <span className={`truncate text-xs font-bold ${NEU_TEXT}`}>
             {isMine ? tParticipants("you") : displayName(message)}
           </span>
-          <span className="shrink-0 text-[10px] text-neutral-400">{timeOf(message.sentAt)}</span>
+          <span className={`shrink-0 text-[10px] font-medium ${NEU_TEXT_MUTED}`}>{timeOf(message.sentAt)}</span>
         </p>
-        <p className="text-sm break-words whitespace-pre-wrap text-neutral-800 dark:text-neutral-200">
+        <p className={`text-sm break-words whitespace-pre-wrap ${NEU_TEXT_SOFT}`}>
           {linkifyChat(message.content)}
         </p>
         {failed ? (
           <button
             type="button"
             onClick={onRetry}
-            className="mt-0.5 text-xs text-red-600 underline underline-offset-2 dark:text-red-400"
+            className="mt-1 text-xs font-semibold text-rose-700 underline underline-offset-2 dark:text-rose-400"
           >
             {t("sendFailed")} · {t("retry")}
           </button>

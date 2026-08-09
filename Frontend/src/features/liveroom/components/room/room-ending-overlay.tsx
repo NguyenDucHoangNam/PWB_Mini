@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
+import { NEU_TEXT, NEU_TEXT_MUTED, NeuButton, NeuPanel } from "@/components/ui/neu";
 import { useLiveroomStore } from "../../stores/use-liveroom-store";
 import type { EndedReason } from "../../types";
 
@@ -40,23 +40,21 @@ export function RoomEndingOverlay({ onLeave }: { onLeave: () => void }) {
   const manual = endedReason === null || endedReason === "MANUAL";
 
   return (
-    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/70 p-4">
-      <div className="flex w-full max-w-sm flex-col items-center gap-4 rounded-xl border border-neutral-200 bg-white p-6 text-center dark:border-neutral-800 dark:bg-black">
-        <h2 className="text-lg font-semibold text-black dark:text-white">
+    <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-900/70 p-4">
+      <NeuPanel className="flex w-full max-w-sm flex-col items-center gap-4 p-6 text-center">
+        <h2 className={`text-lg font-bold ${NEU_TEXT}`}>
           {manual ? t("manualTitle") : t("autoTitle")}
         </h2>
         {endedReason ? (
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">
-            {t(REASON_KEY[endedReason])}
-          </p>
+          <p className={`text-sm font-medium ${NEU_TEXT_MUTED}`}>{t(REASON_KEY[endedReason])}</p>
         ) : null}
-        <p aria-live="polite" className="text-sm text-neutral-500 dark:text-neutral-400">
+        <p aria-live="polite" className={`text-sm font-medium ${NEU_TEXT_MUTED}`}>
           {t("countdown", { seconds: remaining })}
         </p>
-        <Button className="h-11 w-full md:h-9" onClick={onLeave}>
+        <NeuButton variant="primary" className="w-full" onClick={onLeave}>
           {t("leaveNow")}
-        </Button>
-      </div>
+        </NeuButton>
+      </NeuPanel>
     </div>
   );
 }

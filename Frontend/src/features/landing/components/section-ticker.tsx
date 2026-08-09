@@ -17,7 +17,6 @@ const ITEM_KEYS = [
 
 const SCROLL_DURATION_SECONDS = 45;
 
-/* Fades the strip into the page edges instead of cutting the words off mid-stroke. */
 const EDGE_MASK =
   "linear-gradient(to right, transparent, black 5rem, black calc(100% - 5rem), transparent)";
 
@@ -26,34 +25,40 @@ export function SectionTicker() {
   const prefersReducedMotion = useReducedMotion();
   const items = ITEM_KEYS.map((key) => t(key));
 
+  /* The trough stays on the outer element and the fade on an inner one, so the pressed
+     top and bottom edges run the full width instead of fading out with the text. */
   return (
-    <div
-      className="relative w-full overflow-hidden border-y border-border bg-card py-4"
-      style={{ maskImage: EDGE_MASK, WebkitMaskImage: EDGE_MASK }}
-    >
-      <motion.div
-        className="flex w-max"
-        animate={prefersReducedMotion ? undefined : { x: ["0%", "-50%"] }}
-        transition={{
-          duration: SCROLL_DURATION_SECONDS,
-          ease: "linear",
-          repeat: Infinity,
-        }}
+    <div className="neu-trough relative w-full border-none bg-[var(--neu-surface)] py-6">
+      <div
+        className="w-full overflow-hidden"
+        style={{ maskImage: EDGE_MASK, WebkitMaskImage: EDGE_MASK }}
       >
-        {/* Two identical runs: shifting by exactly half the track loops seamlessly. */}
-        {[0, 1].map((copy) => (
-          <div key={copy} className="flex shrink-0" aria-hidden={copy === 1}>
-            {items.map((label) => (
-              <span key={label} className="flex shrink-0 items-center">
-                <span className="whitespace-nowrap px-6 font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  {label}
+        <motion.div
+          className="flex w-max"
+          animate={prefersReducedMotion ? undefined : { x: ["0%", "-50%"] }}
+          transition={{
+            duration: SCROLL_DURATION_SECONDS,
+            ease: "linear",
+            repeat: Infinity,
+          }}
+        >
+          {[0, 1].map((copy) => (
+            <div key={copy} className="flex shrink-0" aria-hidden={copy === 1}>
+              {items.map((label) => (
+                <span key={label} className="flex shrink-0 items-center">
+                  <span className="whitespace-nowrap px-7 font-mono text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">
+                    {label}
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className="size-1.5 shrink-0 rounded-full bg-indigo-600 dark:bg-indigo-400"
+                  />
                 </span>
-                <span aria-hidden="true" className="size-1 shrink-0 rotate-45 bg-muted-foreground/40" />
-              </span>
-            ))}
-          </div>
-        ))}
-      </motion.div>
+              ))}
+            </div>
+          ))}
+        </motion.div>
+      </div>
     </div>
   );
 }

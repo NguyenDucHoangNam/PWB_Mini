@@ -11,11 +11,18 @@ import { usePasswordStrength } from "../hooks/use-password-strength";
 import { PasswordInput } from "./password-input";
 import { PasswordStrengthBar } from "./password-strength-bar";
 import { PasswordRules } from "./password-rules";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { asApiError } from "@/lib/api-client";
 import { resetPasswordSchema, type ResetPasswordFormValues } from "../schemas/reset-password-schema";
+import {
+  NEU_DANGER_TEXT,
+  NEU_ERROR_TEXT,
+  NEU_LABEL,
+  NEU_TEXT,
+  NEU_TEXT_MUTED,
+  NeuButton,
+} from "@/components/ui/neu";
 
 export function ResetPasswordForm() {
   const t = useTranslations("auth.reset");
@@ -74,7 +81,7 @@ export function ResetPasswordForm() {
   if (!token) {
     return (
       <div className="flex flex-col gap-6 text-center font-sans">
-        <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200">
+        <div className="neu-pressed mx-auto flex size-16 items-center justify-center rounded-full border-none text-indigo-600 dark:text-indigo-400">
           <svg className="size-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
             <path
               strokeLinecap="round"
@@ -85,23 +92,23 @@ export function ResetPasswordForm() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
+          <h1 className={`text-2xl font-bold tracking-tight ${NEU_TEXT}`}>
             {t("invalidLinkTitle")}
           </h1>
-          <p className="text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">
+          <p className={`text-sm font-medium leading-relaxed ${NEU_TEXT_MUTED}`}>
             {t("invalidLinkDesc")}
           </p>
         </div>
 
         <div className="flex flex-col gap-3 mt-2 w-full">
           <Link href="/forgot-password">
-            <Button variant="default" size="lg" className="w-full h-11 text-sm font-semibold">
+            <NeuButton variant="primary" size="lg" className="w-full">
               {t("resendLinkBtn")}
-            </Button>
+            </NeuButton>
           </Link>
           <Link
             href="/login"
-            className="text-center text-sm text-neutral-500 dark:text-neutral-400 font-semibold hover:underline"
+            className={`text-center text-sm font-semibold hover:underline ${NEU_TEXT_MUTED}`}
           >
             {t("backToLogin")}
           </Link>
@@ -113,17 +120,17 @@ export function ResetPasswordForm() {
   if (isSuccess) {
     return (
       <div className="flex flex-col gap-6 text-center font-sans">
-        <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200">
+        <div className="neu-pressed mx-auto flex size-16 items-center justify-center rounded-full border-none text-indigo-600 dark:text-indigo-400">
           <svg className="size-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
 
         <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
+          <h1 className={`text-2xl font-bold tracking-tight ${NEU_TEXT}`}>
             {t("successTitle")}
           </h1>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("successDesc")}</p>
+          <p className={`text-sm font-medium ${NEU_TEXT_MUTED}`}>{t("successDesc")}</p>
         </div>
       </div>
     );
@@ -132,24 +139,24 @@ export function ResetPasswordForm() {
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-6 font-sans">
       <div className="flex flex-col gap-2 text-center">
-        <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
+        <h1 className={`text-2xl font-bold tracking-tight ${NEU_TEXT}`}>
           {t("title")}
         </h1>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("desc")}</p>
+        <p className={`text-sm font-medium ${NEU_TEXT_MUTED}`}>{t("desc")}</p>
       </div>
 
       {formError && (
         <div
           role="alert"
           aria-live="assertive"
-          className="rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-600 dark:bg-red-950/20 dark:text-red-400 border border-red-100/50 dark:border-red-950/30"
+          className={`neu-pressed rounded-2xl border-none p-3.5 text-xs font-semibold ${NEU_DANGER_TEXT}`}
         >
           {formError}
         </div>
       )}
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="newPassword">{t("newPasswordLabel")}</Label>
+        <Label htmlFor="newPassword" className={NEU_LABEL}>{t("newPasswordLabel")}</Label>
         <PasswordInput
           id="newPassword"
           disabled={isPending}
@@ -158,7 +165,7 @@ export function ResetPasswordForm() {
           aria-invalid={!!errors.newPassword}
         />
         {errors.newPassword?.message && (
-          <span className="text-xs text-red-600 dark:text-red-400 font-semibold">
+          <span className={NEU_ERROR_TEXT}>
             {t(errors.newPassword.message as never)}
           </span>
         )}
@@ -167,7 +174,7 @@ export function ResetPasswordForm() {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="confirmPassword">{t("confirmPasswordLabel")}</Label>
+        <Label htmlFor="confirmPassword" className={NEU_LABEL}>{t("confirmPasswordLabel")}</Label>
         <PasswordInput
           id="confirmPassword"
           disabled={isPending}
@@ -176,22 +183,22 @@ export function ResetPasswordForm() {
           aria-invalid={!!errors.confirmPassword}
         />
         {errors.confirmPassword?.message && (
-          <span className="text-xs text-red-600 dark:text-red-400 font-semibold">
+          <span className={NEU_ERROR_TEXT}>
             {t(errors.confirmPassword.message as never)}
           </span>
         )}
       </div>
 
-      <Button
+      <NeuButton
         type="submit"
-        variant="default"
+        variant="primary"
         size="lg"
         disabled={isPending}
-        className="w-full justify-center h-10 font-bold"
+        className="w-full"
       >
         {isPending ? (
           <span className="flex items-center gap-2">
-            <svg className="animate-spin size-4 text-white dark:text-black" fill="none" viewBox="0 0 24 24">
+            <svg className="size-4 animate-spin text-white motion-reduce:animate-none" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path
                 className="opacity-75"
@@ -204,7 +211,7 @@ export function ResetPasswordForm() {
         ) : (
           t("submitBtn")
         )}
-      </Button>
+      </NeuButton>
     </form>
   );
 }

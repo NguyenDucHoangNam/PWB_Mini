@@ -4,75 +4,58 @@ import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Eyebrow } from "@/components/marketing/section-primitives";
-import { WALKTHROUGH_MODULES, WALKTHROUGH_TALLY } from "@/features/showcase/lib/walkthrough-modules";
+import { WALKTHROUGH_MODULES } from "@/features/showcase/lib/walkthrough-modules";
 
 export function WalkthroughHero() {
   const t = useTranslations("features.walkthrough");
 
   return (
-    <section className="relative w-full overflow-hidden border-b border-border bg-background px-5 pb-16 pt-28 sm:px-8 sm:pb-20 sm:pt-32">
-      {/* A keybed along the bottom edge, faded out before it reaches the copy. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-48 opacity-70 dark:opacity-50"
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(to right, var(--border) 0, var(--border) 1px, transparent 1px, transparent 3.25rem)",
-          maskImage: "linear-gradient(to top, black, transparent 85%)",
-        }}
-      />
-
-      <div className="relative mx-auto grid w-full max-w-6xl gap-x-16 gap-y-14 lg:grid-cols-12 lg:items-start">
+    <section className="neu-raised relative w-full min-h-[calc(100dvh-7rem)] sm:min-h-[calc(100dvh-8rem)] md:min-h-[calc(100dvh-9rem)] flex flex-col justify-center overflow-hidden rounded-3xl bg-[#e0e5ec] p-6 sm:p-10 dark:bg-[#1e222b] border-none">
+      <div className="relative mx-auto grid w-full max-w-6xl gap-x-16 gap-y-12 lg:grid-cols-12 lg:items-center">
         <div className="lg:col-span-7">
           <Eyebrow>{t("hero.eyebrow")}</Eyebrow>
 
-          <h1 className="mt-6 text-balance font-heading text-4xl font-semibold leading-[1.06] tracking-tight text-foreground sm:text-5xl md:text-6xl">
+          <h1 className="mt-5 text-balance font-heading text-4xl font-bold leading-[1.08] tracking-tight text-slate-900 sm:text-5xl md:text-6xl dark:text-slate-50">
             {t("hero.title")}
           </h1>
-          <p className="mt-6 max-w-xl text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg">
+          <p className="mt-5 max-w-xl text-pretty text-base font-medium leading-relaxed text-slate-600 sm:text-lg dark:text-slate-300">
             {t("hero.lead")}
-          </p>
-
-          <p className="mt-8 font-mono text-[0.7rem] uppercase tracking-[0.18em] text-muted-foreground">
-            {t("hero.tally", WALKTHROUGH_TALLY)}
           </p>
 
           <Link
             href="/features/technical"
-            className="group mt-8 inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground beat-16th transition-colors hover:border-foreground/30 hover:text-foreground"
+            className="neu-button group mt-8 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-slate-700 focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2 dark:text-slate-200"
           >
-            {t("hero.techLink")}
+            <span>{t("hero.techLink")}</span>
             <ArrowUpRight
               aria-hidden="true"
-              className="size-4 beat-16th transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
             />
           </Link>
         </div>
 
-        {/* The index is the page's table of contents; a module not written yet stays visible but inert,
-            so the shape of the walkthrough is clear before it is finished. */}
         <nav aria-label={t("hero.indexTitle")} className="lg:col-span-5">
-          <p className="font-mono text-[0.7rem] uppercase tracking-[0.2em] text-muted-foreground">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] font-bold text-slate-500 dark:text-slate-400">
             {t("hero.indexTitle")}
           </p>
 
-          <ul className="mt-4 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
-            {WALKTHROUGH_MODULES.map(({ key, anchor, status, icon: Icon, steps, minutes }, position) => {
+          <ul className="neu-pressed mt-4 flex flex-col gap-2.5 rounded-3xl bg-[#e0e5ec] p-3 dark:bg-[#1e222b] border-none">
+            {WALKTHROUGH_MODULES.map(({ key, anchor, status, icon: Icon, steps }, position) => {
               const label = (
                 <>
                   <span
                     aria-hidden="true"
-                    className="key-white flex h-12 w-8 shrink-0 items-end justify-center pb-1.5 font-mono text-[0.68rem] font-semibold"
+                    className="neu-raised flex h-10 w-9 shrink-0 items-center justify-center rounded-xl font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-[#e0e5ec] dark:bg-[#1e222b]"
                   >
                     {String(position + 1).padStart(2, "0")}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2 text-base font-semibold tracking-tight sm:text-lg">
-                      <Icon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="flex items-center gap-2 text-base font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-lg">
+                      <Icon aria-hidden="true" className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
                       {t(`modules.${key}.title`)}
                     </span>
-                    <span className="mt-1.5 block font-mono text-[0.66rem] uppercase tracking-[0.16em] text-muted-foreground">
-                      {t("hero.moduleMeta", { steps, minutes })}
+                    <span className="mt-1 block font-mono text-[0.66rem] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                      {t("hero.moduleMeta", { steps })}
                     </span>
                   </span>
                 </>
@@ -83,18 +66,18 @@ export function WalkthroughHero() {
                   {status === "ready" ? (
                     <a
                       href={`#${anchor}`}
-                      className="group flex items-center gap-4 px-4 py-4 text-foreground beat-16th transition-colors hover:bg-muted/50"
+                      className="neu-raised-sm group flex items-center gap-4 rounded-2xl p-3 text-slate-900 dark:text-slate-100 bg-[#e0e5ec] dark:bg-[#1e222b] focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2 transition-all"
                     >
                       {label}
                       <ArrowRight
                         aria-hidden="true"
-                        className="size-4 shrink-0 text-muted-foreground beat-16th transition-transform group-hover:translate-x-1 group-hover:text-foreground"
+                        className="size-4 shrink-0 text-slate-400 transition-transform group-hover:translate-x-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400"
                       />
                     </a>
                   ) : (
-                    <div className="flex items-center gap-4 px-4 py-4 text-muted-foreground/60">
+                    <div className="flex items-center gap-4 rounded-2xl p-3 text-slate-400 dark:text-slate-500">
                       {label}
-                      <span className="shrink-0 rounded-full border border-border px-2.5 py-0.5 font-mono text-[0.62rem] uppercase tracking-[0.16em]">
+                      <span className="neu-pressed-sm shrink-0 rounded-full px-2.5 py-0.5 font-mono text-[0.62rem] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
                         {t("hero.statusSoon")}
                       </span>
                     </div>

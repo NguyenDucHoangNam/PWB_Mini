@@ -11,14 +11,14 @@ const SPEC: ModuleSpec = {
   anchor: "live-room",
   namespace: "features.walkthrough.liveRoom",
   icon: Radio,
-  specKeys: ["plan", "time", "capacity", "code"],
+  specKeys: ["plan", "capacity", "code", "devices"],
   steps: [
-    { key: "open", slot: "LR-01", factKeys: ["route", "plan"], note: true },
+    { key: "open", slot: "LR-01", factKeys: ["place", "plan"], note: true },
     {
       key: "fork",
       branches: [
         { key: "host", slot: "LR-02", factKeys: ["name", "capacity", "grace", "code"] },
-        { key: "guest", slot: "LR-03", factKeys: ["route", "code", "lookup", "devices"] },
+        { key: "guest", slot: "LR-03", factKeys: ["code", "lookup", "devices"] },
       ],
     },
     { key: "door", slot: "LR-04", factKeys: ["approve", "decline", "returning"], note: true },

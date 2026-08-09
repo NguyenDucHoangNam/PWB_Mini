@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Camera, CameraOff, Mic, MicOff, ShieldOff, UserMinus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { NEU_TEXT, NEU_TEXT_MUTED, NeuButton } from "@/components/ui/neu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { UserAvatar } from "../ui/user-avatar";
 import { displayName } from "../../utils/participant-sort";
@@ -30,7 +30,7 @@ export function ParticipantRow({
   const mutedByOwner = participant.micState === "MUTED_BY_OWNER";
 
   return (
-    <li className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-900">
+    <li className="neu-raised-sm flex items-center gap-3 rounded-2xl border-none px-3 py-2.5">
       <UserAvatar
         email={participant.userEmail}
         avatarUrl={participant.avatarUrl}
@@ -39,22 +39,22 @@ export function ParticipantRow({
       />
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-black dark:text-white">
+        <p className={`truncate text-sm font-bold ${NEU_TEXT}`}>
           {displayName(participant)}
           {isMe ? (
-            <span className="ml-1.5 text-xs text-neutral-500 dark:text-neutral-400">
+            <span className={`ml-1.5 text-xs font-medium ${NEU_TEXT_MUTED}`}>
               ({t("you")})
             </span>
           ) : null}
         </p>
-        <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">
+        <p className={`truncate text-xs font-medium ${NEU_TEXT_MUTED}`}>
           {participant.roomRole === "OWNER" ? t("owner") : t("guest")}
           {mutedByOwner ? ` · ${t("mutedByOwner")}` : ""}
         </p>
       </div>
 
       <span
-        className={mutedByOwner ? "text-red-600 dark:text-red-400" : "text-neutral-400"}
+        className={mutedByOwner ? "text-rose-700 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}
         title={
           mutedByOwner ? t("mutedByOwner") : participant.micOn ? undefined : t("selfMuted")
         }
@@ -67,7 +67,7 @@ export function ParticipantRow({
           <MicOff className="size-4" aria-label={t("selfMuted")} />
         )}
       </span>
-      <span className="text-neutral-400" title={participant.cameraOn ? undefined : t("cameraOff")}>
+      <span className="text-slate-500 dark:text-slate-400" title={participant.cameraOn ? undefined : t("cameraOff")}>
         {participant.cameraOn ? (
           <Camera className="size-4" aria-hidden />
         ) : (
@@ -80,10 +80,9 @@ export function ParticipantRow({
           <Tooltip>
             <TooltipTrigger
               render={
-                <Button
+                <NeuButton
                   variant="ghost"
-                  size="icon"
-                  className="size-11 md:size-8"
+                  size="icon-sm"
                   aria-label={t("mute")}
                   disabled={muting || mutedByOwner}
                   onClick={() => onMute(participant)}
@@ -97,10 +96,10 @@ export function ParticipantRow({
           <Tooltip>
             <TooltipTrigger
               render={
-                <Button
+                <NeuButton
                   variant="ghost"
-                  size="icon"
-                  className="size-11 text-red-600 md:size-8 dark:text-red-400"
+                  size="icon-sm"
+                  className="text-rose-700 hover:text-rose-800 dark:text-rose-400 dark:hover:text-rose-300"
                   aria-label={t("kick")}
                   onClick={() => onKick(participant)}
                 />

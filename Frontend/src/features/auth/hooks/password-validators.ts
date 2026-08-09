@@ -23,7 +23,7 @@ export interface PasswordStrengthInput {
 
 export function calculatePasswordStrength(password: string): PasswordStrengthInput {
   if (!password) {
-    return { level: 0, label: "", percentage: 0, colorClass: "bg-neutral-200" };
+    return { level: 0, label: "", percentage: 0, colorClass: "bg-slate-400 dark:bg-slate-500" };
   }
 
   const hasLower = /[a-z]/.test(password);
@@ -32,7 +32,7 @@ export function calculatePasswordStrength(password: string): PasswordStrengthInp
   const hasSpecial = /[^A-Za-z0-9]/.test(password);
 
   if (password.length < PASSWORD_MIN_LENGTH) {
-    return { level: 1, label: "", percentage: 20, colorClass: "bg-neutral-300" };
+    return { level: 1, label: "", percentage: 20, colorClass: "bg-rose-600 dark:bg-rose-400" };
   }
 
   if (hasLower && hasUpper && hasDigit && hasSpecial) {
@@ -40,7 +40,7 @@ export function calculatePasswordStrength(password: string): PasswordStrengthInp
       level: 4,
       label: "",
       percentage: 100,
-      colorClass: "bg-neutral-800 dark:bg-neutral-200",
+      colorClass: "bg-emerald-700 dark:bg-emerald-400",
     };
   }
 
@@ -49,7 +49,7 @@ export function calculatePasswordStrength(password: string): PasswordStrengthInp
       level: 3,
       label: "",
       percentage: 80,
-      colorClass: "bg-neutral-600 dark:bg-neutral-400",
+      colorClass: "bg-indigo-600 dark:bg-indigo-400",
     };
   }
 
@@ -57,7 +57,7 @@ export function calculatePasswordStrength(password: string): PasswordStrengthInp
     level: 2,
     label: "",
     percentage: 50,
-    colorClass: "bg-neutral-400 dark:bg-neutral-500",
+    colorClass: "bg-amber-600 dark:bg-amber-400",
   };
 }
 

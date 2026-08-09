@@ -3,8 +3,8 @@
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { NeuScreen } from "@/components/ui/neu";
 import { useProfile, useUpdateProfile, useUploadAvatar } from "../api/profile";
 import { useChangePassword } from "@/features/auth/api/change-password";
 import { usePasswordStrength } from "@/features/auth/hooks/use-password-strength";
@@ -52,9 +52,6 @@ export function ProfilePage() {
     },
   });
 
-  // null means "untouched" — the field then shows whatever the server has. Storing a draft this
-  // way, instead of copying the profile into state through an effect, means a background refetch
-  // can no longer overwrite what the user is halfway through typing.
   const [draftFullName, setDraftFullName] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
@@ -65,8 +62,6 @@ export function ProfilePage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState<string | null>(null);
-  // The server is the authority once it has rejected a change-password attempt; before that the
-  // profile already says whether this account has a password at all.
   const [oauthOnlyFromServer, setOauthOnlyFromServer] = useState(false);
   const retryCountdown = useRetryCountdown();
   const strength = usePasswordStrength(newPassword);
@@ -74,17 +69,14 @@ export function ProfilePage() {
 
   const profile = data?.data;
 
-  // Derived, not stored: an OAuth-only account is told up front that it has no password rather
-  // than discovering it by filling in the form and having the submit rejected.
   const isOauthOnly =
     oauthOnlyFromServer || (!!profile?.oauthProvider && profile.oauthProvider !== "LOCAL");
 
   const fullName = draftFullName ?? profile?.fullName ?? "";
 
-
   if (isLoading) {
     return (
-      <div className="flex h-64 items-center justify-center">
+      <div className="neu-pressed flex h-64 w-full items-center justify-center rounded-3xl bg-[#e0e5ec] dark:bg-[#1e222b]">
         <Spinner size="lg" />
       </div>
     );
@@ -92,11 +84,15 @@ export function ProfilePage() {
 
   if (error || !profile) {
     return (
-      <div className="flex h-64 flex-col items-center justify-center gap-4">
-        <p className="text-sm text-neutral-500">{t("loadError")}</p>
-        <Button onClick={() => refetch()} variant="outline">
+      <div className="neu-pressed flex h-64 w-full flex-col items-center justify-center gap-4 rounded-3xl bg-[#e0e5ec] p-6 text-center dark:bg-[#1e222b]">
+        <p className="text-sm font-medium text-slate-600 dark:text-slate-400">{t("loadError")}</p>
+        <button
+          onClick={() => refetch()}
+          className="neu-button rounded-2xl px-5 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200"
+          type="button"
+        >
           {t("retry")}
-        </Button>
+        </button>
       </div>
     );
   }
@@ -111,7 +107,6 @@ export function ProfilePage() {
       {
         onSuccess: () => {
           setIsEditing(false);
-          // Drop the draft so the field tracks the refetched profile again.
           setDraftFullName(null);
         },
       },
@@ -134,8 +129,6 @@ export function ProfilePage() {
     }
 
     setAvatarPercent(0);
-    // No handlers here: the mutation hook already toasts on both outcomes, and passing them again
-    // fires both sets — which is why every upload announced itself twice.
     uploadAvatarMutation.mutate({ file, onProgress: setAvatarPercent });
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -222,7 +215,7 @@ export function ProfilePage() {
   };
 
   return (
-    <div className="flex flex-col gap-8 font-sans">
+    <NeuScreen className="font-sans">
       <ProfileHero
         email={profile.email ?? null}
         fullName={profile.fullName ?? null}
@@ -240,7 +233,7 @@ export function ProfilePage() {
         changePasswordLabel={t("changePassword.title")}
       />
 
-      <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm ring-1 ring-black/5 dark:border-neutral-800 dark:bg-neutral-950 dark:ring-white/5">
+      <div className="flex flex-col gap-6 w-full">
         <ProfileTabs
           activeTab={activeTab}
           onChange={setActiveTab}
@@ -317,6 +310,6 @@ export function ProfilePage() {
           />
         )}
       </div>
-    </div>
+    </NeuScreen>
   );
 }

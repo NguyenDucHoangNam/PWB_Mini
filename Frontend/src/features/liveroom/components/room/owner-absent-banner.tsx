@@ -16,12 +16,12 @@ export function OwnerAbsentBanner() {
     <div
       role="status"
       aria-live="polite"
-      className="flex shrink-0 items-center justify-center gap-2 bg-amber-50 px-3 py-2 text-xs text-amber-900 md:text-sm dark:bg-amber-950/40 dark:text-amber-200"
+      className="neu-pressed-sm mx-3 mt-2 flex shrink-0 items-center justify-center gap-2 rounded-2xl border-none px-3.5 py-2.5 text-xs font-semibold text-amber-700 md:text-sm dark:text-amber-400"
     >
       <AlertTriangle className="size-4 shrink-0" aria-hidden />
       <span>{t("banner")}</span>
       {graceExpiresAt ? (
-        <span className="font-medium">
+        <span className="font-bold">
           {t("graceRemaining", { time: "" })}
           <CountdownText deadline={graceExpiresAt} className="ml-1 tabular-nums" />
         </span>

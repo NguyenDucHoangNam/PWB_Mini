@@ -7,7 +7,9 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
-    <div className="flex min-h-dvh flex-col bg-white dark:bg-black font-sans">
+    // The matte surface belongs to the whole shell, not to a card floating on white:
+    // soft UI only reads when the plane behind a control is the same colour as the control.
+    <div className="flex min-h-dvh flex-col bg-[#e0e5ec] dark:bg-[#1e222b] font-sans transition-colors">
       <SiteHeader />
       {/* min-h keeps the content area a full viewport tall (minus the h-18 header) so a short
           page never lets the footer creep up into the fold. */}

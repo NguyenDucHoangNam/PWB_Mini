@@ -2,9 +2,8 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { motion } from "framer-motion";
-import { useTranslations } from "next-intl";
 import { Keyboard } from "./keyboard";
-import { FALL_DELAY, LEFT_WORD, RIGHT_WORD } from "../lib/piano-positions";
+import { LEFT_WORD, RIGHT_WORD } from "../lib/piano-positions";
 import { generateSandParticles } from "../lib/generate-sand-particles";
 import { SectionTicker } from "./section-ticker";
 import { SectionProblem } from "./section-problem";
@@ -17,7 +16,6 @@ import { SectionCta } from "./section-cta";
 
 const KEYBOARD_GAP = "h-3 w-full sm:h-0 sm:w-2 md:w-16 lg:w-24";
 const POINTER_EVENTS_DELAY = 2.5;
-const HINT_DELAY = FALL_DELAY + 1.2;
 const SAND_PARTICLE_COUNT = 20;
 
 const subscribeMounted = (callback: () => void) => {
@@ -32,10 +30,9 @@ const getServerMountedSnapshot = () => false;
 export function LandingContent() {
   return (
     <>
-      <section className="relative flex min-h-[calc(100dvh-4.5rem)] w-full flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-white via-neutral-50 to-neutral-100 px-3 py-24 sm:px-4 sm:py-0 dark:from-black dark:via-neutral-950 dark:to-neutral-900">
+      <section className="relative flex min-h-[calc(100dvh-5rem)] w-full flex-col items-center justify-center overflow-hidden bg-[#e0e5ec] dark:bg-[#1e222b] px-3 py-24 sm:px-4 sm:py-0 transition-colors border-none">
         <BackgroundGlow />
         <PianoTitle />
-        <HoverHint delay={HINT_DELAY} />
       </section>
       <SectionTicker />
       <SectionProblem />
@@ -176,19 +173,5 @@ function PianoTitle() {
         <Keyboard chars={RIGHT_WORD} side="right" />
       </div>
     </motion.div>
-  );
-}
-
-function HoverHint({ delay }: { delay: number }) {
-  const t = useTranslations("landing");
-  return (
-    <motion.p
-      className="absolute bottom-12 mt-12 text-sm text-neutral-400 dark:text-neutral-500"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.6 }}
-    >
-      {t("hoverHint")}
-    </motion.p>
   );
 }

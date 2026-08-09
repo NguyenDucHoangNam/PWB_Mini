@@ -3,8 +3,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Play, Pause, Volume2, VolumeX, Repeat, Gauge, SkipBack, SkipForward } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  NEU_DANGER_TEXT,
+  NEU_FOCUS,
+  NEU_TEXT,
+  NEU_TEXT_MUTED,
+  NeuButton,
+  NeuSlider,
+} from "@/components/ui/neu";
 import { usePresignedUrl } from "../hooks/use-presigned-url";
 import { getSongAudioUrl, songStreamKey } from "../api/song-stream";
 import { formatDuration } from "../lib/format-audio";
@@ -102,10 +109,14 @@ function useWaveformDimensions(): WaveformDimensions {
   return dims;
 }
 
+/**
+ * Played is the accent, un-played is a muted slate. Progress has to be legible as
+ * colour: the whole waveform sits on one flat matte plane with no depth of its own.
+ */
 function barTone(index: number, playedBars: number, hoveredBars: number): string {
-  if (index < playedBars) return "bg-foreground";
-  if (index < hoveredBars) return "bg-muted-foreground/55";
-  return "bg-muted-foreground/25";
+  if (index < playedBars) return "bg-indigo-600 dark:bg-indigo-400";
+  if (index < hoveredBars) return "bg-slate-500/60 dark:bg-slate-300/60";
+  return "bg-slate-500/30 dark:bg-slate-400/30";
 }
 
 function Waveform({
@@ -158,7 +169,7 @@ function Waveform({
   return (
     <div
       ref={containerRef}
-      className="group/wave relative w-full cursor-pointer select-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+      className={`group/wave relative w-full cursor-pointer select-none rounded-lg focus-visible:outline-offset-4 ${NEU_FOCUS}`}
       onClick={(e) => onSeek(percentFromClientX(e.clientX))}
       onMouseMove={(e) => setHoverPercent(percentFromClientX(e.clientX))}
       onMouseLeave={() => setHoverPercent(null)}
@@ -175,17 +186,20 @@ function Waveform({
 
       {/* Centre baseline where crest meets reflection. */}
       <div
-        className="pointer-events-none absolute inset-x-0 h-px bg-muted-foreground/30"
+        className="pointer-events-none absolute inset-x-0 h-px bg-slate-500/30 dark:bg-slate-400/30"
         style={{ top: `${dims.crestPx}px` }}
         aria-hidden="true"
       />
 
       {/* Start marker at the left edge. */}
-      <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-px bg-foreground/40" aria-hidden="true" />
+      <div
+        className="pointer-events-none absolute left-0 top-0 bottom-0 w-px bg-slate-600/50 dark:bg-slate-300/50"
+        aria-hidden="true"
+      />
 
       {hoverPercent !== null && (
         <div
-          className="pointer-events-none absolute inset-y-0 w-px bg-foreground/40"
+          className="pointer-events-none absolute inset-y-0 w-px bg-indigo-600/70 dark:bg-indigo-400/70"
           style={{ left: `${hoverPercent}%` }}
           aria-hidden="true"
         />
@@ -202,7 +216,7 @@ function WaveformSkeleton({ dims }: { dims: WaveformDimensions }) {
       {bars.map((_, i) => (
         <div
           key={i}
-          className="min-w-px flex-1 animate-pulse rounded-[1px] bg-muted"
+          className="min-w-px flex-1 animate-pulse rounded-[1px] bg-slate-500/25 motion-reduce:animate-none dark:bg-slate-400/25"
           style={{
             height: `${skeletonBarHeight(i, maxPx)}px`,
             animationDelay: `${i * 6}ms`,
@@ -349,8 +363,8 @@ function SongCustomPlayer({ url }: { url: string }) {
 
         {/* Stacked time readout, SoundCloud-style: elapsed on top, total below. */}
         <div className="flex w-10 shrink-0 flex-col justify-between py-0.5 text-right text-xs tabular-nums sm:w-12">
-          <span className="font-medium text-foreground">{formatDuration(currentTime)}</span>
-          <span className="text-muted-foreground">{formatDuration(duration)}</span>
+          <span className={`font-bold ${NEU_TEXT}`}>{formatDuration(currentTime)}</span>
+          <span className={`font-medium ${NEU_TEXT_MUTED}`}>{formatDuration(duration)}</span>
         </div>
       </div>
 
@@ -359,11 +373,11 @@ function SongCustomPlayer({ url }: { url: string }) {
             track and lands on the loop button. Size the side clusters to content until sm. */}
         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:grid-cols-3">
           {/* Left cluster: volume */}
-          <div className="flex items-center justify-start gap-1">
-            <Button
+          <div className="flex items-center justify-start gap-2">
+            <NeuButton
               variant="ghost"
-              size="icon"
-              className="size-9 shrink-0 text-muted-foreground hover:text-foreground sm:size-8"
+              size="icon-sm"
+              className="shrink-0"
               onClick={toggleMute}
               aria-label={isMuted ? tPlayer("unmute") : tPlayer("mute")}
             >
@@ -372,32 +386,31 @@ function SongCustomPlayer({ url }: { url: string }) {
               ) : (
                 <Volume2 className="size-4" aria-hidden="true" />
               )}
-            </Button>
-            <input
-              type="range"
+            </NeuButton>
+            <NeuSlider
               min={0}
               max={100}
               value={Math.round((isMuted ? 0 : volume) * 100)}
               onChange={(e) => handleVolumeChange(Number(e.target.value) / 100)}
               aria-label={tPlayer("volume")}
-              className="hidden h-1 w-20 cursor-pointer appearance-none rounded-full bg-muted-foreground/20 accent-foreground outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring sm:block [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-foreground [&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-foreground"
+              className="hidden w-20 sm:block"
             />
           </div>
 
           {/* Center cluster: transport */}
-          <div className="flex items-center justify-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-10 shrink-0 text-muted-foreground hover:text-foreground sm:size-9"
+          <div className="flex items-center justify-center gap-3">
+            <NeuButton
+              size="icon-sm"
+              className="size-11 shrink-0 sm:size-10"
               onClick={() => handleSeek(progressPercent - SEEK_STEP_PERCENT * 2)}
               aria-label={tPlayer("seek")}
             >
               <SkipBack className="size-4" aria-hidden="true" />
-            </Button>
-            <Button
-              size="icon"
-              className="size-14 rounded-full shadow-sm sm:size-12"
+            </NeuButton>
+            <NeuButton
+              variant="primary"
+              size="icon-lg"
+              className="size-14 rounded-full sm:size-13"
               onClick={togglePlay}
               aria-label={isPlaying ? tPlayer("pause") : tActions("play")}
             >
@@ -406,41 +419,42 @@ function SongCustomPlayer({ url }: { url: string }) {
               ) : (
                 <Play className="ml-0.5 size-5 fill-current" aria-hidden="true" />
               )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-10 shrink-0 text-muted-foreground hover:text-foreground sm:size-9"
+            </NeuButton>
+            <NeuButton
+              size="icon-sm"
+              className="size-11 shrink-0 sm:size-10"
               onClick={() => handleSeek(progressPercent + SEEK_STEP_PERCENT * 2)}
               aria-label={tPlayer("seek")}
             >
               <SkipForward className="size-4" aria-hidden="true" />
-            </Button>
+            </NeuButton>
           </div>
 
           {/* Right cluster: loop + speed */}
-          <div className="flex items-center justify-end gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`size-9 shrink-0 sm:size-8 ${isLooping ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          {/* Loop-on and a non-default speed are sunken *and* accent-coloured: the inset on
+              its own carries no contrast, so the colour is what actually reports the state. */}
+          <div className="flex items-center justify-end gap-2">
+            <NeuButton
+              variant={isLooping ? "default" : "ghost"}
+              size="icon-sm"
+              className={`shrink-0 ${isLooping ? "neu-pressed-sm text-indigo-600 dark:text-indigo-400" : ""}`}
               onClick={toggleLoop}
               aria-label={isLooping ? tPlayer("loopOff") : tPlayer("loop")}
               aria-pressed={isLooping}
             >
               <Repeat className="size-4" aria-hidden="true" />
-            </Button>
+            </NeuButton>
 
-            <Button
-              variant="ghost"
+            <NeuButton
+              variant={currentSpeed !== 1 ? "default" : "ghost"}
               size="sm"
-              className={`h-8 gap-1.5 px-2 text-xs tabular-nums ${currentSpeed !== 1 ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              className={`tabular-nums ${currentSpeed !== 1 ? "neu-pressed-sm text-indigo-600 dark:text-indigo-400" : ""}`}
               onClick={cycleSpeed}
               aria-label={tPlayer("speed")}
             >
               <Gauge className="size-3.5" aria-hidden="true" />
               {currentSpeed}x
-            </Button>
+            </NeuButton>
           </div>
         </div>
       </div>
@@ -459,7 +473,10 @@ export function AudioPlayer({ songId }: AudioPlayerProps) {
 
   if (query.isLoading) {
     return (
-      <div role="status" className="flex min-h-[7rem] items-center justify-center gap-2 text-sm text-muted-foreground">
+      <div
+        role="status"
+        className={`flex min-h-[7rem] items-center justify-center gap-2 text-sm font-medium ${NEU_TEXT_MUTED}`}
+      >
         <Spinner size="sm" />
         {t("songLabel")}
       </div>
@@ -468,7 +485,7 @@ export function AudioPlayer({ songId }: AudioPlayerProps) {
 
   if (query.isError || !query.data?.data?.url) {
     return (
-      <p role="alert" className="py-4 text-center text-sm text-destructive">
+      <p role="alert" className={`py-4 text-center text-sm font-semibold ${NEU_DANGER_TEXT}`}>
         {t("loadError")}
       </p>
     );

@@ -7,7 +7,6 @@ import { useVerifyOtp } from "../api/verify-otp";
 import { useResendOtp } from "../api/resend-otp";
 import { useAuthStore } from "../stores/use-auth-store";
 import { OtpInput, type OtpInputHandle } from "./otp-input";
-import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { asApiError, type ApiError } from "@/lib/api-client";
@@ -21,6 +20,14 @@ import { pendingRegistration } from "../lib/pending-registration";
 import { useExpiryCountdown, useCooldown } from "../hooks/use-otp-countdown";
 import { mapAuthResponseToUser } from "../lib/map-auth-response";
 import { IamErrorCode } from "../lib/iam-error-codes";
+import {
+  NEU_ACCENT_TEXT,
+  NEU_DANGER_TEXT,
+  NEU_FOCUS,
+  NEU_TEXT,
+  NEU_TEXT_MUTED,
+  NeuButton,
+} from "@/components/ui/neu";
 
 const OTP_LOCKED_CODE = IamErrorCode.AUTH_OTP_INVALID;
 const OTP_INVALID_CODE = "AUTH_OTP_INVALID";
@@ -206,13 +213,13 @@ export function OtpForm() {
   return (
     <form onSubmit={handleVerify} className="flex flex-col gap-6 font-sans">
       <div className="flex flex-col gap-2 text-center">
-        <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
+        <h1 className={`text-2xl font-bold tracking-tight ${NEU_TEXT}`}>
           {t("otpTitle")}
         </h1>
         <button
           type="button"
           onClick={() => router.push("/register")}
-          className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white hover:underline self-center"
+          className={`self-center text-xs font-semibold hover:underline ${NEU_ACCENT_TEXT}`}
         >
           {t("changeEmail")}
         </button>
@@ -222,7 +229,7 @@ export function OtpForm() {
         <div
           role="alert"
           aria-live="assertive"
-          className="rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-600 dark:bg-red-950/20 dark:text-red-400 border border-red-100/50 dark:border-red-950/30"
+          className={`neu-pressed rounded-2xl border-none p-3.5 text-xs font-semibold ${NEU_DANGER_TEXT}`}
         >
           <p>{error}</p>
         </div>
@@ -237,43 +244,43 @@ export function OtpForm() {
           onChange={setOtpCode}
         />
 
-        <div className="text-center text-xs font-semibold text-neutral-500">
+        <div className={`text-center text-xs font-semibold ${NEU_TEXT_MUTED}`}>
           {otpExpiry > 0 ? (
             <span className="flex items-center justify-center gap-1.5">
               {t("timeRemaining")}{" "}
-              <span className="text-black dark:text-white font-mono text-sm">
+              <span className={`font-mono text-sm font-bold ${NEU_TEXT}`}>
                 {formatTime(otpExpiry)}
               </span>
             </span>
           ) : (
-            <span className="text-black dark:text-white font-semibold">{t("expiredText")}</span>
+            <span className={`font-bold ${NEU_TEXT}`}>{t("expiredText")}</span>
           )}
         </div>
       </div>
 
-      <Button
+      <NeuButton
         type="submit"
-        variant="default"
+        variant="primary"
         size="lg"
         disabled={isVerifying || otpCode.length !== 6 || otpExpiry === 0}
-        className="w-full justify-center h-10 font-bold"
+        className="w-full"
       >
         {isVerifying ? (
           <span className="flex items-center gap-2">
-            <Spinner size="sm" className="text-white dark:text-black" />
+            <Spinner size="sm" className="text-white" />
             {t("verifying")}
           </span>
         ) : (
           t("verifyBtn")
         )}
-      </Button>
+      </NeuButton>
 
-      <div className="text-center text-sm text-neutral-500 dark:text-neutral-400">
+      <div className={`text-center text-sm font-medium ${NEU_TEXT_MUTED}`}>
         {t("notReceivedText")}{" "}
         {cooldown.remaining > 0 ? (
-          <span className="text-neutral-400 font-semibold cursor-not-allowed inline-flex items-center gap-1.5">
+          <span className={`inline-flex cursor-not-allowed items-center gap-1.5 font-semibold ${NEU_TEXT_MUTED}`}>
             {cooldown.remaining > 0 && (
-              <Spinner size="sm" className="text-neutral-400" />
+              <Spinner size="sm" />
             )}
             {t("resendCooldownText", { seconds: cooldown.remaining })}
           </span>
@@ -282,7 +289,7 @@ export function OtpForm() {
             type="button"
             disabled={isResending}
             onClick={handleResend}
-            className="font-semibold text-black dark:text-white hover:underline focus:outline-none inline-flex items-center gap-1.5"
+            className={`inline-flex items-center gap-1.5 font-bold hover:underline ${NEU_ACCENT_TEXT} ${NEU_FOCUS}`}
           >
             {isResending ? (
               <>

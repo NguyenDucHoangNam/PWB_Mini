@@ -6,8 +6,8 @@ import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Ban, Clock, Loader2, XCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { NEU_TEXT, NEU_TEXT_MUTED, NeuButton } from "@/components/ui/neu";
 import { asApiError } from "@/lib/api-client";
 import { AutoJoinCountdown } from "./auto-join-countdown";
 import { JoinStateCard } from "./join-state-card";
@@ -120,9 +120,9 @@ export function JoinLobby({ roomId, initialRequest, onRetry }: JoinLobbyProps) {
         title={t("locked")}
         body={t("lockedHint")}
         action={
-          <Button variant="outline" className="h-11 md:h-9" onClick={onRetry}>
+          <NeuButton onClick={onRetry}>
             {t("backToJoin")}
-          </Button>
+          </NeuButton>
         }
       />
     );
@@ -138,9 +138,9 @@ export function JoinLobby({ roomId, initialRequest, onRetry }: JoinLobbyProps) {
           count: request.attemptsRemaining,
         })}`}
         action={
-          <Button className="h-11 md:h-9" onClick={onRetry}>
+          <NeuButton variant="primary" onClick={onRetry}>
             {t("backToJoin")}
-          </Button>
+          </NeuButton>
         }
       />
     );
@@ -154,9 +154,9 @@ export function JoinLobby({ roomId, initialRequest, onRetry }: JoinLobbyProps) {
         title={t("capacityFull")}
         body={t("waitingHint")}
         action={
-          <Button className="h-11 md:h-9" onClick={onRetry}>
+          <NeuButton variant="primary" onClick={onRetry}>
             {t("backToJoin")}
-          </Button>
+          </NeuButton>
         }
       />
     );
@@ -170,9 +170,9 @@ export function JoinLobby({ roomId, initialRequest, onRetry }: JoinLobbyProps) {
         title={t("cancelled")}
         body={t("waitingHint")}
         action={
-          <Button className="h-11 md:h-9" onClick={onRetry}>
+          <NeuButton variant="primary" onClick={onRetry}>
             {t("backToJoin")}
-          </Button>
+          </NeuButton>
         }
       />
     );
@@ -181,23 +181,21 @@ export function JoinLobby({ roomId, initialRequest, onRetry }: JoinLobbyProps) {
   return (
     <div className="flex h-full flex-col gap-5">
       <JoinStepIndicator current={3} />
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 rounded-xl border border-border bg-card p-6 text-center shadow-xs md:p-8">
+      <div className="neu-pressed flex min-h-0 flex-1 flex-col items-center justify-center gap-5 rounded-3xl border-none p-6 text-center md:p-8">
         <Spinner size="sm" />
-        <div className="flex flex-col gap-1">
-          <p aria-live="polite" className="text-lg font-bold tracking-tight text-foreground">
+        <div className="flex flex-col gap-1.5">
+          <p aria-live="polite" className={`text-lg font-bold tracking-tight ${NEU_TEXT}`}>
             {t("waiting")}
           </p>
-          <p className="max-w-sm text-sm text-muted-foreground">{t("waitingHint")}</p>
+          <p className={`max-w-sm text-sm font-medium ${NEU_TEXT_MUTED}`}>{t("waitingHint")}</p>
         </div>
-        <Button
-          variant="outline"
-          className="h-11 md:h-9"
+        <NeuButton
           disabled={cancelling}
           onClick={() => cancel({ roomId, requestId: request.id })}
         >
           {cancelling ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
           {cancelling ? t("cancelling") : t("cancel")}
-        </Button>
+        </NeuButton>
         {isFetching ? <span className="sr-only">{t("waiting")}</span> : null}
       </div>
     </div>

@@ -42,7 +42,7 @@ export default function AuthRouteLayout({
 
   if (isChecking) {
     return (
-      <div className="flex h-dvh w-full items-center justify-center bg-white dark:bg-black">
+      <div className="flex h-dvh w-full items-center justify-center bg-[#e0e5ec] dark:bg-[#1e222b]">
         <Spinner size="lg" />
       </div>
     );

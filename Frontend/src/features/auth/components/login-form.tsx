@@ -20,10 +20,19 @@ import { sanitizeApiMessage } from "@/lib/form-errors";
 import type { AuthUser } from "../types";
 import { mapAuthResponseToUser } from "../lib/map-auth-response";
 import { PasswordInput } from "./password-input";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import {
+  NEU_ACCENT_TEXT,
+  NEU_DANGER_TEXT,
+  NEU_ERROR_TEXT,
+  NEU_INPUT,
+  NEU_LABEL,
+  NEU_TEXT,
+  NEU_TEXT_MUTED,
+  NeuButton,
+} from "@/components/ui/neu";
 
 export function LoginForm() {
   const t = useTranslations("auth.login");
@@ -166,26 +175,26 @@ export function LoginForm() {
   }, [handleGoogleCredential]);
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-6 font-sans">
-      <div className="flex flex-col gap-2 text-center">
-        <h1 className="text-2xl font-bold tracking-tight text-black dark:text-white">
+    <form onSubmit={onSubmit} className="flex flex-col gap-5 font-sans">
+      <div className="flex flex-col gap-1 text-center">
+        <h1 className={`text-2xl font-bold tracking-tight ${NEU_TEXT}`}>
           {t("title")}
         </h1>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("subtitle")}</p>
+        <p className={`text-sm font-medium ${NEU_TEXT_MUTED}`}>{t("subtitle")}</p>
       </div>
 
       {formError && (
         <div
           role="alert"
           aria-live="assertive"
-          className="rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-600 dark:bg-red-950/20 dark:text-red-400 border border-red-100/50 dark:border-red-950/30"
+          className={`neu-pressed rounded-2xl border-none p-3.5 text-xs font-semibold ${NEU_DANGER_TEXT}`}
         >
           <p>{formError}</p>
         </div>
       )}
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="email">{t("emailLabel")}</Label>
+        <Label htmlFor="email" className={NEU_LABEL}>{t("emailLabel")}</Label>
         <Input
           id="email"
           type="email"
@@ -196,9 +205,10 @@ export function LoginForm() {
           tabIndex={1}
           aria-invalid={!!errors.email || !!formError}
           autoComplete="email"
+          className={`${NEU_INPUT} h-12`}
         />
         {errors.email?.message && (
-          <span className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
+          <span className={`mt-1 ${NEU_ERROR_TEXT}`}>
             {t(errors.email.message as never)}
           </span>
         )}
@@ -206,10 +216,10 @@ export function LoginForm() {
 
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
-          <Label htmlFor="password">{t("passwordLabel")}</Label>
+          <Label htmlFor="password" className={NEU_LABEL}>{t("passwordLabel")}</Label>
           <Link
             href="/forgot-password"
-            className="text-xs font-medium text-neutral-500 hover:text-black dark:hover:text-white hover:underline"
+            className={`text-xs font-semibold hover:underline ${NEU_ACCENT_TEXT}`}
             tabIndex={4}
           >
             {t("forgotPassword")}
@@ -225,23 +235,23 @@ export function LoginForm() {
           autoComplete="current-password"
         />
         {errors.password?.message && (
-          <span className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
+          <span className={`mt-1 ${NEU_ERROR_TEXT}`}>
             {t(errors.password.message as never)}
           </span>
         )}
       </div>
 
-      <Button
+      <NeuButton
         type="submit"
-        variant="default"
+        variant="primary"
         size="lg"
         disabled={isPending || isSubmitting || retryCountdown.isActive}
-        className="w-full justify-center h-10 font-bold"
+        className="w-full"
         tabIndex={3}
       >
         {isPending ? (
           <span className="flex items-center gap-2">
-            <svg className="animate-spin size-4 text-white dark:text-black" fill="none" viewBox="0 0 24 24">
+            <svg className="size-4 animate-spin text-white motion-reduce:animate-none" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path
                 className="opacity-75"
@@ -256,12 +266,12 @@ export function LoginForm() {
         ) : (
           t("submit")
         )}
-      </Button>
+      </NeuButton>
 
-      <div className="relative flex py-2 items-center">
-        <div className="flex-grow border-t border-neutral-200 dark:border-neutral-800" />
-        <span className="flex-shrink mx-4 text-xs text-neutral-400 font-medium">{t("or")}</span>
-        <div className="flex-grow border-t border-neutral-200 dark:border-neutral-800" />
+      <div className="relative flex items-center">
+        <div className="neu-pressed-sm h-1 flex-grow rounded-full border-none" />
+        <span className={`mx-4 flex-shrink text-xs font-bold ${NEU_TEXT_MUTED}`}>{t("or")}</span>
+        <div className="neu-pressed-sm h-1 flex-grow rounded-full border-none" />
       </div>
 
       {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
@@ -272,9 +282,9 @@ export function LoginForm() {
         />
       )}
 
-      <div className="text-center text-sm text-neutral-500 dark:text-neutral-400">
+      <div className={`text-center text-sm font-medium ${NEU_TEXT_MUTED}`}>
         {t("noAccount")}{" "}
-        <Link href="/register" className="font-semibold text-black dark:text-white hover:underline">
+        <Link href="/register" className={`font-bold hover:underline ${NEU_ACCENT_TEXT}`}>
           {t("registerLink")}
         </Link>
       </div>

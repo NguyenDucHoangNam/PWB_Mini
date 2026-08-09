@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { NEU_INPUT } from "@/components/ui/neu";
 import { MessageCircle, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "../ui/user-avatar";
@@ -65,11 +66,11 @@ export function TrackCommentLane({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-neutral-200 pt-2 dark:border-neutral-800">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       <div className="flex min-w-0 flex-1 basis-64 items-center gap-2 overflow-hidden">
-        <MessageCircle className="size-4 shrink-0 text-neutral-400" aria-hidden />
+        <MessageCircle className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400" aria-hidden />
         {active.length === 0 ? (
-          <p className="truncate text-xs text-neutral-400 dark:text-neutral-500">
+          <p className="truncate text-xs font-medium text-slate-600 dark:text-slate-400">
             {songId ? t("empty") : t("noSong")}
           </p>
         ) : (
@@ -85,10 +86,10 @@ export function TrackCommentLane({
                   seed={comment.userId}
                   className="size-5 text-[8px]"
                 />
-                <span className="shrink-0 text-[10px] tabular-nums text-neutral-400">
+                <span className="shrink-0 text-[10px] font-bold tabular-nums text-slate-600 dark:text-slate-400">
                   {formatClock(comment.positionSeconds)}
                 </span>
-                <span className="truncate text-xs text-black dark:text-white">
+                <span className="truncate text-xs font-medium text-slate-900 dark:text-slate-100">
                   <span className="font-semibold">{displayName(comment)}</span>{" "}
                   {comment.content}
                 </span>
@@ -100,7 +101,7 @@ export function TrackCommentLane({
 
       <div className="flex shrink-0 items-center gap-2">
         {pinned !== null ? (
-          <span className="shrink-0 rounded-full bg-neutral-200 px-2 py-0.5 text-[10px] font-semibold tabular-nums dark:bg-neutral-800">
+          <span className="neu-pressed-sm shrink-0 rounded-full border-none px-2.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-600 dark:text-slate-400">
             {t("atTime", { time: formatClock(pinned) })}
           </span>
         ) : null}
@@ -119,7 +120,7 @@ export function TrackCommentLane({
           }}
           placeholder={t("placeholder")}
           aria-label={t("placeholder")}
-          className="h-9 w-48 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50 md:w-56 dark:bg-input/30"
+          className={`${NEU_INPUT} h-10 w-48 rounded-xl disabled:opacity-50 md:w-56`}
         />
         <Button
           size="icon"
@@ -133,7 +134,7 @@ export function TrackCommentLane({
       </div>
 
       {remaining < 0 ? (
-        <p className="basis-full text-right text-xs text-red-600 dark:text-red-400">
+        <p className="basis-full text-right text-xs font-semibold text-rose-700 dark:text-rose-400">
           {t("tooLong", { max: TRACK_COMMENT_MAX_LENGTH })}
         </p>
       ) : null}
