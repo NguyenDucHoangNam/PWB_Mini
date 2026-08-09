@@ -20,9 +20,14 @@ import { cn } from "@/lib/utils";
 /** The one matte colour shared by the page and everything sitting on it. */
 export const NEU_SURFACE = "bg-[#e0e5ec] dark:bg-[#1e222b]";
 
-/** Focus must be visible without relying on shadows. */
+/**
+ * Focus must be visible without relying on shadows. The colour is the cyan
+ * spark rather than the accent, so a focused control reads as focused even when
+ * it is already filled with the accent. `--neu-spark` carries its own dark
+ * value, which is why there is no `dark:` variant here.
+ */
 export const NEU_FOCUS =
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:focus-visible:outline-indigo-400";
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-spark";
 
 /**
  * Text ramps, measured against the two surfaces. Muted is slate-600 rather than
@@ -257,7 +262,7 @@ export function NeuCheckbox({ label, className, disabled, ...props }: NeuCheckbo
           className={cn(
             "neu-pressed-sm grid size-6 place-items-center rounded-lg border-none text-transparent transition-all",
             "peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:shadow-none dark:peer-checked:bg-indigo-500",
-            "peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-indigo-600 dark:peer-focus-visible:outline-indigo-400",
+            "peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-spark",
           )}
         >
           <svg viewBox="0 0 16 16" fill="none" className="size-3.5">
@@ -329,7 +334,7 @@ export function NeuDropzone({
         "neu-pressed flex w-full flex-1 cursor-pointer flex-col items-center justify-center gap-3 rounded-3xl border-none p-6 text-center transition-all sm:p-8",
         NEU_FOCUS,
         // Drag-over is also announced by the accent colour inside, not by depth alone.
-        isDragging && "outline-2 outline-offset-2 outline-indigo-600 dark:outline-indigo-400",
+        isDragging && "outline-2 outline-offset-2 outline-spark",
         disabled && "cursor-not-allowed opacity-50",
         className,
       )}

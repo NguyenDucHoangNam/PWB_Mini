@@ -41,6 +41,7 @@
   --color-card: var(--card);
   --color-brass: var(--brass);
   --color-brass-foreground: var(--brass-foreground);
+  --color-spark: var(--neu-spark);
   --ease-key: var(--key-ease);
   --ease-hammer: var(--hammer-ease);
   --radius-sm: calc(var(--radius) * 0.6);
@@ -50,6 +51,19 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* TRIAL — accent swap: indigo -> ink navy, to be reviewed.
+   Retints every existing indigo-* utility without touching components. The
+   components pair -600 with dark:-400, so -600 carries the light surface and
+   -400 the dark one; the values below are picked against that split.
+   If we keep the colour, replace this with a semantic accent-* token and
+   rewrite the ~350 indigo-* class usages; if we drop it, delete this block. */
+@theme {
+  --color-indigo-400: #60a5fa;
+  --color-indigo-500: #2563eb;
+  --color-indigo-600: #1e4d8c;
+  --color-indigo-700: #17457d;
 }
 
 :root {
@@ -125,9 +139,14 @@
   --neu-text-muted: #64748b;
   --neu-light-shadow: rgba(255, 255, 255, 0.85);
   --neu-dark-shadow: rgba(163, 177, 198, 0.6);
-  --neu-accent: #4f46e5;
-  --neu-accent-hover: #4338ca;
+  --neu-accent: #1e4d8c;
+  --neu-accent-hover: #17457d;
   --neu-accent-foreground: #ffffff;
+  /* The second tone: a cyan spark, reserved for focus and drag-active edges.
+     Bright cyan is invisible on this surface (#22d3ee lands at 1.43:1), so the
+     light value darkens until the indicator clears 1.4.11 at 3.36:1. Never use
+     it for playback or live state — that is --brass, and it stays that way. */
+  --neu-spark: #0a85a8;
   --neu-danger: #e11d48;
   --neu-danger-hover: #be123c;
   --neu-danger-foreground: #ffffff;
@@ -185,12 +204,15 @@
   --neu-light-shadow: rgba(255, 255, 255, 0.04);
   --neu-dark-shadow: rgba(0, 0, 0, 0.65);
   /* Picked to clear both bars at once on the dark surface: a white label reads at
-     5.2:1 (AA text) and the fill itself at 3.0:1 against #1e222b (AA non-text, so
+     5.2:1 (AA text) and the fill itself at 3.1:1 against #1e222b (AA non-text, so
      the control has a boundary even though nothing here draws a border).
-     indigo-500 would fail the label at 4.47:1. */
-  --neu-accent: #5b56ee;
-  --neu-accent-hover: #4f46e5;
+     The light-mode ink navy (#1e4d8c) would fail the fill outright at 1.9:1, so
+     the fill lightens here while the light surface keeps the deeper tone. */
+  --neu-accent: #2563eb;
+  --neu-accent-hover: #1d4ed8;
   --neu-accent-foreground: #ffffff;
+  /* Dark lets the spark run at full brightness: 8.8:1 against #1e222b. */
+  --neu-spark: #22d3ee;
   --neu-danger: #e11d48;
   --neu-danger-hover: #be123c;
   --neu-danger-foreground: #ffffff;
@@ -357,7 +379,7 @@
   transition: box-shadow 0.2s ease-in-out;
 
   &:focus, &:focus-within {
-    outline: 2px solid var(--neu-accent);
+    outline: 2px solid var(--neu-spark);
     outline-offset: 2px;
   }
 }
@@ -460,7 +482,7 @@
   /* On the element, not the thumb pseudo-element: outline on ::-webkit-slider-thumb
      is unreliable across engines. */
   &:focus-visible {
-    outline: 2px solid var(--neu-accent);
+    outline: 2px solid var(--neu-spark);
     outline-offset: 4px;
     border-radius: 999px;
   }
