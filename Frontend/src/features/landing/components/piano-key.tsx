@@ -185,8 +185,8 @@ function RealChar({
   onTouchEnd,
 }: RealCharProps) {
   const colorClass = isHovered
-    ? "text-white dark:text-neutral-900"
-    : "text-neutral-900 dark:text-white";
+    ? "text-white dark:text-slate-900"
+    : "text-slate-900 dark:text-white";
 
   return (
     <motion.span
