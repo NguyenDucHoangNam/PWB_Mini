@@ -1326,6 +1326,197 @@
             }
           }
         },
+        "storage": {
+          "title": "Lưu trữ tệp — kho ngoài và URL có hạn",
+          "lead": "Bài hát nặng tới hai trăm megabyte, và không tệp nào trong hệ thống được phép ai cũng mở được. Hai điều đó cùng lúc quyết định toàn bộ cách tệp được đưa lên, được đọc và được xoá.",
+          "what": {
+            "body": "Tệp không nằm trong cơ sở dữ liệu mà nằm ở một kho lưu trữ ngoài. Kho đó đóng kín hoàn toàn: không có đường nào mở một tệp bằng địa chỉ thẳng. Muốn đọc, phải xin một địa chỉ tạm có chữ ký và có hạn dùng.",
+            "points": {
+              "0": "Cơ sở dữ liệu chỉ giữ khoá của tệp, không giữ địa chỉ. Đổi kho hay đổi vùng đặt kho không phải sửa một dòng dữ liệu nào.",
+              "1": "Quyền được kiểm đúng ở chỗ cấp địa chỉ tạm — nơi duy nhất biết được ai đang hỏi và họ có được phép hay không."
+            }
+          },
+          "why": {
+            "body": "Vì cách làm hiển nhiên hơn — để kho mở và dùng địa chỉ cố định — đánh mất chỗ duy nhất có thể kiểm quyền.",
+            "points": {
+              "0": "Kho mở nghĩa là ai có địa chỉ cũng đọc được, và địa chỉ thì rò rỉ theo mọi cách: ảnh chụp màn hình, lịch sử trình duyệt, ai đó gửi cho bạn bè.",
+              "1": "Địa chỉ cố định lưu trong cơ sở dữ liệu nghĩa là đổi kho phải đi sửa lại toàn bộ dữ liệu cũ.",
+              "2": "Cái giá phải trả rất rõ và đã được chấp nhận: một địa chỉ tạm đã cấp thì ai cầm cũng dùng được, và không thu hồi lại được. Toàn bộ chính sách thời hạn tồn tại chỉ để thu hẹp hậu quả của điều đó."
+            }
+          },
+          "when": {
+            "body": "Bốn loại tệp, và không loại nào công khai.",
+            "points": {
+              "0": "Bài hát gốc người dùng tải lên, và bản đã được đóng dấu âm thanh.",
+              "1": "Các đoạn giọng đọc dùng làm dấu âm thanh.",
+              "2": "Ảnh đại diện. Riêng loại này có một điểm lắt léo: người đăng nhập bằng Google mang sẵn một địa chỉ ảnh của Google, nên cùng một chỗ lưu chứa hai loại giá trị khác hẳn nhau và mọi nơi đụng vào đều phải phân biệt được."
+            }
+          },
+          "how": {
+            "body": "Cách đưa tệp lên được chọn theo kích thước và theo việc có cần soi nội dung hay không. Nguyên tắc: tệp lớn thì để trình duyệt tự đẩy thẳng lên kho, tệp cần kiểm nội dung thì bắt buộc đi qua máy chủ.",
+            "points": {
+              "0": "Thời hạn của địa chỉ tạm không dùng chung một con số mà thay đổi theo ngữ cảnh, vì nhu cầu thật sự khác nhau.",
+              "1": "Xoá tệp luôn xảy ra sau khi ghi cơ sở dữ liệu xong. Ngược lại là bản ghi còn mà tệp mất — hỏng hẳn; còn thế này thì xấu nhất chỉ là tệp thừa nằm lại, vô hại.",
+              "2": "Đúng vì thế mà có rác, và hiện chưa có việc dọn rác nào. Ba nguồn rác đã biết đều chỉ tốn dung lượng chứ không làm sai dữ liệu — đó là lý do đánh đổi này chấp nhận được, nhưng dung lượng thì chỉ tăng."
+            }
+          },
+          "visualTitle": "Ba cách đưa tệp lên, chọn theo kích thước và theo nhu cầu kiểm tra",
+          "cards": {
+            "0": {
+              "tag": "Bài hát, tới 200 MB",
+              "title": "Trình duyệt đẩy thẳng lên kho",
+              "body": "Máy chủ chỉ cấp một địa chỉ tạm rồi đứng ngoài. Tệp không đi qua máy chủ nên không chiếm luồng xử lý và không tốn băng thông. Cái giá là máy chủ không nhìn thấy tệp, nên chỉ kiểm được gián tiếp."
+            },
+            "1": {
+              "tag": "Ảnh đại diện, tối đa 5 MB",
+              "title": "Chảy qua máy chủ theo dòng",
+              "body": "Cần kiểm định dạng nên phải đi qua. Nhưng đọc theo dòng thay vì nạp hết vào bộ nhớ, để mỗi lượt tải lên không chiếm trọn năm megabyte bộ nhớ máy chủ."
+            },
+            "2": {
+              "tag": "Đoạn giọng đọc, tối đa 10 MB",
+              "title": "Máy chủ cầm trọn tệp",
+              "body": "Nhỏ nhưng vẫn phải qua máy chủ, vì trước khi chấp nhận còn phải đo thời lượng thật của đoạn âm thanh — mà đo thì bắt buộc phải cầm được nội dung tệp trong tay."
+            }
+          },
+          "table": {
+            "title": "Thời hạn địa chỉ tạm — năm con số khác nhau, mỗi con số một lý do",
+            "head": {
+              "a": "Đường dùng",
+              "b": "Sống được bao lâu",
+              "c": "Vì sao đúng chừng đó"
+            },
+            "rows": {
+              "0": {
+                "a": "Tải bài hát lên",
+                "b": "Một giờ",
+                "c": "Hai trăm megabyte trên một đường mạng chậm cần đúng chừng đó thời gian."
+              },
+              "1": {
+                "a": "Ảnh đại diện, dùng thường",
+                "b": "Mười lăm phút",
+                "c": "Chỉ cần sống lâu hơn một lượt xem trang là đủ."
+              },
+              "2": {
+                "a": "Ảnh đại diện trong phòng nghe chung",
+                "b": "Mười hai giờ",
+                "c": "Phòng nhận địa chỉ một lần lúc vào, còn màn hình thì mở lâu hơn mười lăm phút rất nhiều."
+              },
+              "3": {
+                "a": "Nhạc trong phòng nghe chung",
+                "b": "Một giờ",
+                "c": "Một buổi nghe cùng nhau dài hơn một lượt xem trang thông thường."
+              },
+              "4": {
+                "a": "Xin địa chỉ nghe một bài",
+                "b": "Bên gọi chọn, từ một phút tới một ngày",
+                "c": "Nhu cầu khác nhau thật, nên có khoảng cho chọn — kèm trần chặn ở cả hai đầu."
+              }
+            }
+          }
+        },
+        "errors": {
+          "title": "Báo lỗi và đa ngôn ngữ",
+          "lead": "Một lỗi nghiệp vụ phải đi từ nơi sâu nhất của hệ thống — nơi không được phép biết HTTP là gì — ra tới một phản hồi có đúng mã trạng thái và đúng ngôn ngữ người dùng đang đọc. Cách duy nhất làm được là tách nó thành ba thứ rời nhau.",
+          "what": {
+            "body": "Mỗi lỗi mang một mã ngắn, và mã đó là thứ duy nhất tầng nghiệp vụ cần biết. Hai thứ còn lại được suy ra từ nó ở tầng ngoài cùng.",
+            "points": {
+              "0": "Mã lỗi do tầng nghiệp vụ đặt — nó chỉ nói “đây là lỗi không có quyền”, không nói gì về HTTP.",
+              "1": "Mã trạng thái được tra ra từ loại lỗi, ở tầng biết HTTP là gì.",
+              "2": "Câu chữ được tra ra từ mã, theo ngôn ngữ người dùng khai báo. Cùng một mã ra hai câu khác nhau cho hai người khác nhau."
+            }
+          },
+          "why": {
+            "body": "Vì nếu không tách, tầng nghiệp vụ phải tự biết mã trạng thái nào tương ứng với chuyện gì, và phải tự biết người đang gọi nói tiếng gì. Cả hai đều là chuyện của tầng ngoài cùng, và kéo chúng vào trong là buộc phần lõi phụ thuộc vào giao thức mà nó đang phục vụ — hôm nay là HTTP, mai có thể là một đường khác."
+          },
+          "when": {
+            "body": "Mọi lỗi trả về cho người dùng đều đi đường này. Nhưng có đúng hai đường ra, không phải một.",
+            "points": {
+              "0": "Đường gọi thông thường trả về một phản hồi có mã trạng thái.",
+              "1": "Đường realtime không có khái niệm mã trạng thái, nên lỗi được gửi ngược lại đúng người vừa gửi tin, trên một kênh riêng. Hai đường dùng chung bảng mã và chung bộ câu chữ, chỉ khác chỗ trả về."
+            }
+          },
+          "how": {
+            "body": "Mã được chia dải theo module, nên nhìn mã là biết lỗi đến từ đâu. Ngôn ngữ được đặt ở lớp chạy sớm nhất trong toàn bộ chuỗi xử lý, dù mãi tới lớp cuối cùng mới dùng tới — vì bất kỳ lớp nào ở giữa cũng có thể ném ra một lỗi cần dịch.",
+            "points": {
+              "0": "Mỗi mã có sẵn một câu tiếng Anh dự phòng. Nó cứu được trải nghiệm khi thiếu bản dịch, nhưng cũng chính là thứ khiến một bộ từ điển bị quên đăng ký hỏng hoàn toàn lặng lẽ: phản hồi vẫn thành công, nhật ký vẫn sạch, chỉ có câu chữ là rơi về tiếng Anh.",
+              "1": "Giao diện dịch lại lần nữa theo mã, và chỉ dùng câu chữ của máy chủ làm phương án dự phòng — vì giao diện còn phải chèn biến và đổi cách diễn đạt theo từng màn hình.",
+              "2": "Hệ quả: thêm một mã lỗi mới là phải sửa ba chỗ chứ không phải một. Quên chỗ thứ ba thì lỗi đó âm thầm hiện ra bằng tiếng Anh giữa một giao diện tiếng Việt."
+            }
+          },
+          "visualTitle": "Đường đi của một lỗi, từ tầng sâu nhất ra tới người dùng",
+          "flow": {
+            "0": {
+              "title": "Tầng nghiệp vụ ném ra một lỗi",
+              "body": "Kèm đúng một mã. Ở đây không có khái niệm HTTP, không có khái niệm ngôn ngữ — chỉ có “chuyện này sai, và đây là mã của nó”."
+            },
+            "1": {
+              "title": "Lớp ngoài cùng bắt lấy",
+              "body": "Một chỗ duy nhất bắt mọi lỗi thoát ra, thay vì mỗi nơi tự xử lý theo cách riêng. Nhờ vậy hình dạng phản hồi lỗi ở khắp hệ thống giống hệt nhau."
+            },
+            "2": {
+              "title": "Tra ra mã trạng thái",
+              "body": "Từ loại lỗi mà tầng nghiệp vụ đã khai báo. Đây là chỗ “không có quyền” được dịch thành con số mà giao thức hiểu."
+            },
+            "3": {
+              "title": "Tra ra câu chữ theo ngôn ngữ",
+              "body": "Dùng chính mã lỗi làm khoá tra cứu, với ngôn ngữ đã được ghi nhận từ lớp chạy sớm nhất. Không tìm thấy thì rơi về câu tiếng Anh dự phòng."
+            },
+            "4": {
+              "title": "Gộp lại thành một phản hồi",
+              "body": "Mã, câu chữ, và một mã truy vết để sau này lần lại được. Có thêm chi tiết thì đính kèm — chẳng hạn còn bao nhiêu giây nữa mới được thử lại, hay trường nào trong biểu mẫu không hợp lệ."
+            }
+          },
+          "table": {
+            "title": "Loại lỗi quyết định mã trạng thái — bảng tra này là toàn bộ chỗ nối giữa nghiệp vụ và giao thức",
+            "head": {
+              "a": "Loại lỗi tầng nghiệp vụ khai",
+              "b": "Mã trạng thái",
+              "c": "Nghĩa là gì"
+            },
+            "rows": {
+              "0": {
+                "a": "Dữ liệu gửi lên không hợp lệ",
+                "b": "400",
+                "c": "Sai ngay từ đầu vào, chưa cần xét tới nghiệp vụ."
+              },
+              "1": {
+                "a": "Chưa xác thực",
+                "b": "401",
+                "c": "Không biết bạn là ai, hoặc thẻ đã hết hiệu lực."
+              },
+              "2": {
+                "a": "Không đủ quyền",
+                "b": "403",
+                "c": "Biết bạn là ai, nhưng bạn không được phép làm việc này."
+              },
+              "3": {
+                "a": "Không tìm thấy",
+                "b": "404",
+                "c": "Thứ được hỏi tới không tồn tại."
+              },
+              "4": {
+                "a": "Xung đột",
+                "b": "409",
+                "c": "Trạng thái hiện tại không cho phép, ví dụ ai đó vừa sửa trước bạn."
+              },
+              "5": {
+                "a": "Quá nhiều lượt gọi",
+                "b": "429",
+                "c": "Đã vượt hạn mức; phản hồi kèm luôn số giây phải chờ."
+              },
+              "6": {
+                "a": "Nghiệp vụ từ chối",
+                "b": "422",
+                "c": "Dữ liệu đúng hình thức nhưng luật nghiệp vụ không cho."
+              },
+              "7": {
+                "a": "Lỗi nội bộ",
+                "b": "500",
+                "c": "Hệ thống hỏng chứ không phải người gọi sai."
+              }
+            }
+          }
+        },
         "security": {
           "title": "Bảo mật lời gọi và giới hạn tần suất",
           "lead": "Mọi lời gọi vào hệ thống đều đi qua một dãy lớp kiểm tra xếp nối nhau. Thứ tự các lớp không phải chuyện thẩm mỹ — đặt sai một chỗ là cả lớp bảo vệ mất tác dụng mà không có lỗi nào được ghi ra.",
@@ -1416,6 +1607,79 @@
                 "a": "Chống lụt trên kênh realtime",
                 "b": "Kết nối này có bắn quá nhiều tin không?",
                 "c": "Kênh realtime, tách theo từng loại tin"
+              }
+            }
+          }
+        },
+        "deploy": {
+          "title": "Đóng gói và đưa lên máy chủ",
+          "lead": "Toàn bộ hệ thống chạy trên đúng một máy chủ nhỏ: bốn nhân, bảy phẩy sáu gigabyte bộ nhớ mà sáu trong số đó đã có chủ, và ổ đĩa chưa tới mười chín gigabyte. Gần như mọi quyết định triển khai đều là hệ quả trực tiếp của con số đó.",
+          "what": {
+            "body": "Mỗi lần đưa lên, mã nguồn được đóng thành hai gói chạy được — một cho máy chủ, một cho giao diện — rồi đẩy lên một kho gói chung. Máy chủ thật không tự đóng gói bao giờ; nó chỉ kéo gói đã đóng sẵn về và khởi động lại."
+          },
+          "why": {
+            "body": "Vì đóng gói ngay trên máy chủ đó sẽ hỏng theo ba cách cùng lúc.",
+            "points": {
+              "0": "Quá trình đóng gói tranh bộ nhớ với cơ sở dữ liệu và hàng đợi đang phục vụ người dùng thật, trên phần bộ nhớ vốn đã gần hết.",
+              "1": "Nó để lại vài gigabyte tệp tạm trên một ổ đĩa không còn chỗ cho chúng.",
+              "2": "Máy đóng gói thuê ngoài mạnh gấp đôi về bộ nhớ, không tốn tiền, và bị xoá sạch ngay sau khi xong — trong khi máy chủ thật chỉ phải tải về khoảng bảy trăm megabyte."
+            }
+          },
+          "when": {
+            "body": "Chỉ khi mã được đưa vào nhánh chính. Mọi nhánh khác dừng ở bước kiểm thử.",
+            "points": {
+              "0": "Đưa lên nhánh phát triển hoặc mở một yêu cầu gộp mã: chỉ chạy kiểm thử, không đụng tới máy chủ.",
+              "1": "Bộ kiểm thử nặng cần dựng cả cơ sở dữ liệu thật để chạy được tách ra một đường riêng, vì nó quá chậm để bắt mỗi lần đưa lên phải chờ."
+            }
+          },
+          "how": {
+            "body": "Mỗi gói được đánh dấu theo đúng phiên bản mã đã tạo ra nó, và dấu đó được ghi lại trên máy chủ. Nhờ vậy lùi về bản trước chỉ là sửa một dòng, và người đăng nhập vào máy gõ lệnh bằng tay cũng ra đúng phiên bản đang chạy chứ không vô tình kéo bản mới nhất.",
+            "points": {
+              "0": "Cây mã trên máy chủ bị ép về đúng nhánh chính thay vì gộp mã vào. Nghe thô bạo, nhưng mọi thứ riêng của máy đó đều nằm ngoài phạm vi quản lý mã nên không bị đụng tới — còn gộp mã thì chỉ cần một thay đổi vặt cũng đủ làm kẹt mọi lần đưa lên sau đó cho tới khi có người vào gỡ tay.",
+              "1": "Bước cuối cùng là chờ máy chủ tự báo khoẻ, thử lại ba mươi lần cách nhau mười giây. Đây mới là cổng chất lượng thật: việc nâng cấp cấu trúc cơ sở dữ liệu chạy lúc khởi động, nên một bước nâng cấp hỏng chỉ lộ ra ở đây. Không có bước chờ này thì lần đưa lên báo xanh trong khi trang đã hỏng.",
+              "2": "Ảnh cũ được dọn sau mỗi lần, nhưng giữ lại một tuần — vừa đủ chỗ trên đĩa, vừa còn đường lùi nếu bản mới có vấn đề."
+            }
+          },
+          "visualTitle": "Ba hệ quả trực tiếp của việc chỉ có một máy chủ nhỏ",
+          "cards": {
+            "0": {
+              "tag": "Đóng gói ở nơi khác",
+              "title": "Máy chủ chỉ kéo về",
+              "body": "Việc nặng được đẩy sang một máy thuê dùng một lần rồi vứt. Máy chủ thật không bao giờ phải vừa đóng gói vừa phục vụ người dùng bằng cùng một phần bộ nhớ."
+            },
+            "1": {
+              "tag": "Chặn trần từng dịch vụ",
+              "title": "Không dịch vụ nào được phình",
+              "body": "Mỗi thành phần bị chặn trần bộ nhớ riêng. Không có trần thì một thành phần rò rỉ bộ nhớ sẽ kéo cả máy xuống, thay vì chỉ tự nó chết và được khởi động lại."
+            },
+            "2": {
+              "tag": "Dọn sau mỗi lần",
+              "title": "Đĩa không tự đầy lên",
+              "body": "Mỗi lần đưa lên sinh thêm một cặp gói mới. Không dọn thì ổ đĩa chưa tới mười chín gigabyte sẽ đầy sau vài chục lần, và lần đầy đó rơi đúng vào giữa một lần đưa lên."
+            }
+          },
+          "table": {
+            "title": "Ba đường chạy tự động, chia theo tốc độ",
+            "head": {
+              "a": "Đường",
+              "b": "Chạy khi nào",
+              "c": "Làm gì"
+            },
+            "rows": {
+              "0": {
+                "a": "Kiểm thử nhanh",
+                "b": "Mở yêu cầu gộp mã, hoặc đưa lên nhánh phát triển",
+                "c": "Kiểm thử đơn vị cho máy chủ, cùng kiểm lỗi và kiểm thử cho giao diện. Không dựng gì nên chạy nhanh."
+              },
+              "1": {
+                "a": "Kiểm thử nặng",
+                "b": "Chạy riêng, không chắn đường",
+                "c": "Dựng cả cơ sở dữ liệu và hàng đợi thật để kiểm. Quá chậm để đứng chắn trước mỗi lần đưa lên."
+              },
+              "2": {
+                "a": "Đưa lên máy chủ",
+                "b": "Khi mã vào nhánh chính",
+                "c": "Chạy lại kiểm thử nhanh, đóng gói, đẩy lên kho, rồi ra lệnh cho máy chủ kéo về và chờ nó báo khoẻ."
               }
             }
           }

@@ -1326,6 +1326,197 @@
             }
           }
         },
+        "storage": {
+          "title": "File storage — an external store and expiring links",
+          "lead": "A track runs to two hundred megabytes, and no file in the system may be openable by just anyone. Those two facts together decide how every file is uploaded, read and deleted.",
+          "what": {
+            "body": "Files do not live in the database, they live in an external store. That store is sealed shut: there is no address that opens a file directly. To read one you have to ask for a temporary, signed address with an expiry on it.",
+            "points": {
+              "0": "The database keeps only the file's key, never an address. Moving to a different store, or a different region, changes not one row of data.",
+              "1": "Permission gets checked at the moment the temporary address is issued — the only place that knows who is asking and whether they are allowed."
+            }
+          },
+          "why": {
+            "body": "Because the obvious alternative — an open store with permanent addresses — throws away the only place a permission check can happen.",
+            "points": {
+              "0": "An open store means anyone holding an address can read it, and addresses leak every way there is: screenshots, browser history, somebody forwarding one to a friend.",
+              "1": "Permanent addresses stored in the database mean moving to a different store requires rewriting all the old data.",
+              "2": "The price is clear and was accepted: an issued temporary address works for whoever holds it and cannot be revoked. Every expiry policy exists purely to narrow the consequences of that."
+            }
+          },
+          "when": {
+            "body": "Four kinds of file, none of them public.",
+            "points": {
+              "0": "The original track a user uploads, and the watermarked version of it.",
+              "1": "The spoken clips used as an audio watermark.",
+              "2": "Profile pictures. This one has a wrinkle: people who sign in with Google arrive with a Google-hosted picture address, so one field holds two completely different kinds of value and everywhere that touches it has to tell them apart."
+            }
+          },
+          "how": {
+            "body": "How a file gets uploaded is chosen by its size and by whether the contents need inspecting. The rule: large files go straight from the browser to the store, files whose contents must be checked have to pass through the server.",
+            "points": {
+              "0": "The expiry on a temporary address is not one shared number but varies by context, because the real needs genuinely differ.",
+              "1": "Deleting a file always happens after the database write has landed. The other order leaves the record intact and the file gone — properly broken; this way the worst case is a leftover file, which is harmless.",
+              "2": "That is exactly where the litter comes from, and there is no cleanup job today. All three known sources cost only storage rather than corrupting anything — which is why the trade is acceptable — but storage only ever goes up."
+            }
+          },
+          "visualTitle": "Three ways to upload, chosen by size and by what has to be checked",
+          "cards": {
+            "0": {
+              "tag": "Tracks, up to 200 MB",
+              "title": "The browser uploads straight to the store",
+              "body": "The server issues a temporary address and then stays out of it. The file never passes through, so it costs no request thread and no bandwidth. The price is that the server never sees the file and can only check it indirectly."
+            },
+            "1": {
+              "tag": "Profile pictures, up to 5 MB",
+              "title": "Streamed through the server",
+              "body": "The format has to be checked, so it has to pass through. But it is read as a stream rather than loaded whole, so each upload does not hold five megabytes of server memory at once."
+            },
+            "2": {
+              "tag": "Spoken clips, up to 10 MB",
+              "title": "The server holds the whole file",
+              "body": "Small, but still routed through the server, because before accepting it the real duration of the audio has to be measured — and measuring means having the actual contents in hand."
+            }
+          },
+          "table": {
+            "title": "How long a temporary address lives — five different numbers, each for a reason",
+            "head": {
+              "a": "Where it is used",
+              "b": "How long it lives",
+              "c": "Why exactly that long"
+            },
+            "rows": {
+              "0": {
+                "a": "Uploading a track",
+                "b": "One hour",
+                "c": "Two hundred megabytes over a slow connection needs about that long."
+              },
+              "1": {
+                "a": "A profile picture, ordinary use",
+                "b": "Fifteen minutes",
+                "c": "It only has to outlive a single page view."
+              },
+              "2": {
+                "a": "A profile picture inside a listening room",
+                "b": "Twelve hours",
+                "c": "The room is handed addresses once on entry, and the screen stays open far longer than fifteen minutes."
+              },
+              "3": {
+                "a": "Music inside a listening room",
+                "b": "One hour",
+                "c": "A session spent listening together runs longer than an ordinary page view."
+              },
+              "4": {
+                "a": "Asking for a link to play one track",
+                "b": "The caller chooses, one minute to one day",
+                "c": "The needs really do differ, so there is a range — with a cap enforced at both ends."
+              }
+            }
+          }
+        },
+        "errors": {
+          "title": "Reporting errors, in the reader's language",
+          "lead": "A business error has to travel from the deepest part of the system — where knowing what HTTP is would be a design failure — out to a response with the right status code and the right words in the language the reader is using. The only way that works is by splitting it into three separate things.",
+          "what": {
+            "body": "Every error carries a short code, and that code is the only thing the business layer needs to know. The other two are derived from it at the outermost layer.",
+            "points": {
+              "0": "The code is chosen by the business layer — it only says “this is a not-allowed error”, nothing about HTTP.",
+              "1": "The status code is looked up from the kind of error, at the layer that does know what HTTP is.",
+              "2": "The wording is looked up from the code, in whatever language the reader declared. One code produces two different sentences for two different people."
+            }
+          },
+          "why": {
+            "body": "Because without the split, the business layer would have to know which status code matches which situation, and what language the caller reads. Both belong to the outermost layer, and pulling them inward makes the core depend on the protocol it happens to be serving — HTTP today, possibly something else tomorrow."
+          },
+          "when": {
+            "body": "Every error shown to a user takes this path. But there are exactly two ways out, not one.",
+            "points": {
+              "0": "The ordinary request path returns a response carrying a status code.",
+              "1": "The realtime path has no notion of a status code, so the error is sent back to the person who sent the message, on a channel of their own. Both paths share one table of codes and one set of wordings; only the destination differs."
+            }
+          },
+          "how": {
+            "body": "Codes are banded by module, so the code alone tells you where an error came from. The language is captured by the very first layer in the chain even though nothing uses it until the very last — because any layer in between can throw an error that needs translating.",
+            "points": {
+              "0": "Every code carries a fallback English sentence. It rescues the experience when a translation is missing, but it is also what makes a forgotten dictionary fail completely silently: the response still succeeds, the logs stay clean, only the wording quietly reverts to English.",
+              "1": "The interface translates a second time from the code, using the server's wording only as a fallback — because the interface still has to fill in values and phrase things differently per screen.",
+              "2": "The consequence: adding a new error code means changing three places, not one. Forget the third and that error quietly appears in English inside an otherwise translated interface."
+            }
+          },
+          "visualTitle": "The path of one error, from the deepest layer out to the reader",
+          "flow": {
+            "0": {
+              "title": "The business layer raises an error",
+              "body": "With exactly one code attached. There is no notion of HTTP here and no notion of language — only “this is wrong, and here is its code”."
+            },
+            "1": {
+              "title": "The outermost layer catches it",
+              "body": "One single place catches everything that escapes, rather than each spot handling it its own way. That is what makes error responses identical in shape across the whole system."
+            },
+            "2": {
+              "title": "Look up the status code",
+              "body": "From the kind of error the business layer declared. This is where “not allowed” becomes a number the protocol understands."
+            },
+            "3": {
+              "title": "Look up the wording for the language",
+              "body": "Using the error code itself as the lookup key, with the language recorded by that very first layer. Nothing found, and it falls back to the English sentence."
+            },
+            "4": {
+              "title": "Assemble one response",
+              "body": "Code, wording, and a trace id so it can be found again later. Extra detail is attached when there is any — how many seconds until a retry is allowed, or which form field was invalid."
+            }
+          },
+          "table": {
+            "title": "The kind of error decides the status code — this lookup is the entire seam between business logic and protocol",
+            "head": {
+              "a": "Kind the business layer declares",
+              "b": "Status",
+              "c": "What it means"
+            },
+            "rows": {
+              "0": {
+                "a": "The data sent is invalid",
+                "b": "400",
+                "c": "Wrong at the input, before business rules even come into it."
+              },
+              "1": {
+                "a": "Not authenticated",
+                "b": "401",
+                "c": "We do not know who you are, or the credential has expired."
+              },
+              "2": {
+                "a": "Not permitted",
+                "b": "403",
+                "c": "We know who you are, and you are not allowed to do this."
+              },
+              "3": {
+                "a": "Not found",
+                "b": "404",
+                "c": "The thing being asked about does not exist."
+              },
+              "4": {
+                "a": "Conflict",
+                "b": "409",
+                "c": "The current state does not allow it — somebody changed it just before you, for instance."
+              },
+              "5": {
+                "a": "Too many calls",
+                "b": "429",
+                "c": "Over the limit; the response also carries how many seconds to wait."
+              },
+              "6": {
+                "a": "Refused by a business rule",
+                "b": "422",
+                "c": "Correctly formed, but a business rule says no."
+              },
+              "7": {
+                "a": "Internal failure",
+                "b": "500",
+                "c": "The system broke, not the caller."
+              }
+            }
+          }
+        },
         "security": {
           "title": "Securing calls, and limiting how fast they come",
           "lead": "Every call into the system passes through a chain of checks stacked one after another. The order is not a matter of taste — put one in the wrong place and a whole layer of protection stops working, with no error logged anywhere.",
@@ -1416,6 +1607,79 @@
                 "a": "Flood control on the realtime channel",
                 "b": "Is this connection sending too much?",
                 "c": "The realtime channel, split by kind of message"
+              }
+            }
+          }
+        },
+        "deploy": {
+          "title": "Packaging and shipping to the server",
+          "lead": "The whole system runs on exactly one small server: four cores, seven and a half gigabytes of memory of which six are already spoken for, and a disk under nineteen gigabytes. Almost every deployment decision follows directly from those numbers.",
+          "what": {
+            "body": "On each release the source is packaged into two runnable bundles — one for the server, one for the interface — and pushed to a shared registry. The real server never packages anything; it only pulls a ready-made bundle and restarts."
+          },
+          "why": {
+            "body": "Because packaging on that server would fail in three ways at once.",
+            "points": {
+              "0": "The packaging competes for memory with the database and the queue that are serving real users, out of a budget that is already nearly gone.",
+              "1": "It leaves several gigabytes of intermediate files on a disk that has no room for them.",
+              "2": "A rented build machine has twice the memory, costs nothing, and is destroyed the moment it finishes — while the real server only has to download around seven hundred megabytes."
+            }
+          },
+          "when": {
+            "body": "Only when code reaches the main branch. Every other branch stops at the testing stage.",
+            "points": {
+              "0": "Pushing to the development branch or opening a merge request runs the tests only, and never touches the server.",
+              "1": "The heavy tests, the ones that need real databases stood up to run at all, are split onto their own track — they are far too slow to make every release wait on them."
+            }
+          },
+          "how": {
+            "body": "Each bundle is stamped with the exact revision that produced it, and that stamp is recorded on the server. Rolling back is therefore a one-line change, and somebody logging in and running a command by hand gets the version actually running rather than accidentally pulling the newest one.",
+            "points": {
+              "0": "The source tree on the server is forced back to match the main branch rather than merged into. It looks brutal, but everything specific to that machine sits outside version control and is left untouched — whereas merging jams every later release on the first trivial difference until somebody logs in and clears it by hand.",
+              "1": "The last step waits for the server to report itself healthy, retrying thirty times ten seconds apart. This is the real quality gate: database structure upgrades run during startup, so a broken upgrade only surfaces here. Without the wait, a release reports green while the site is already broken.",
+              "2": "Old bundles are pruned after each release but kept for a week — enough to free the disk, and enough to still have somewhere to roll back to."
+            }
+          },
+          "visualTitle": "Three direct consequences of having only one small server",
+          "cards": {
+            "0": {
+              "tag": "Package elsewhere",
+              "title": "The server only pulls",
+              "body": "The heavy work is pushed onto a machine rented for one run and thrown away. The real server never has to package and serve users out of the same memory budget."
+            },
+            "1": {
+              "tag": "Cap every service",
+              "title": "Nothing is allowed to balloon",
+              "body": "Each component gets its own memory ceiling. Without one, a component that leaks memory takes the whole machine down with it instead of dying alone and being restarted."
+            },
+            "2": {
+              "tag": "Prune every time",
+              "title": "The disk does not silently fill",
+              "body": "Every release adds another pair of bundles. Unpruned, a disk under nineteen gigabytes fills after a few dozen releases — and it fills in the middle of one."
+            }
+          },
+          "table": {
+            "title": "Three automated tracks, split by how slow they are",
+            "head": {
+              "a": "Track",
+              "b": "Runs when",
+              "c": "What it does"
+            },
+            "rows": {
+              "0": {
+                "a": "Fast tests",
+                "b": "On a merge request, or a push to the development branch",
+                "c": "Unit tests for the server, plus linting and tests for the interface. Nothing has to be stood up, so it is quick."
+              },
+              "1": {
+                "a": "Heavy tests",
+                "b": "On their own track, blocking nothing",
+                "c": "Stands up real databases and queues to test against. Far too slow to sit in front of every release."
+              },
+              "2": {
+                "a": "Release",
+                "b": "When code reaches the main branch",
+                "c": "Reruns the fast tests, packages, pushes to the registry, then tells the server to pull and waits for it to report healthy."
               }
             }
           }

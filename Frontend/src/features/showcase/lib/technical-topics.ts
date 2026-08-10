@@ -1,4 +1,13 @@
-import { KeyRound, Radio, Server, Workflow, type LucideIcon } from "lucide-react";
+import {
+  Cloud,
+  KeyRound,
+  Radio,
+  Rocket,
+  Server,
+  Siren,
+  Workflow,
+  type LucideIcon,
+} from "lucide-react";
 
 /* Long-form explainers for the infrastructure topics that carry the most weight, plus the
    realtime transport. Each one answers the same four questions in the same order, because the
@@ -56,6 +65,30 @@ export const SECURITY_TOPIC: TopicSpec = {
   rows: 6,
 };
 
+export const STORAGE_TOPIC: TopicSpec = {
+  id: "storage",
+  icon: Cloud,
+  bullets: { what: 2, why: 3, when: 3, how: 3 },
+  visual: { kind: "cards", cards: 3 },
+  rows: 5,
+};
+
+export const ERRORS_TOPIC: TopicSpec = {
+  id: "errors",
+  icon: Siren,
+  bullets: { what: 3, why: 0, when: 2, how: 3 },
+  visual: { kind: "flow", steps: 5 },
+  rows: 8,
+};
+
+export const DEPLOY_TOPIC: TopicSpec = {
+  id: "deploy",
+  icon: Rocket,
+  bullets: { what: 0, why: 3, when: 2, how: 3 },
+  visual: { kind: "cards", cards: 3 },
+  rows: 3,
+};
+
 export const REALTIME_TOPIC: TopicSpec = {
   id: "realtime",
   icon: Radio,
@@ -64,4 +97,13 @@ export const REALTIME_TOPIC: TopicSpec = {
   rows: 6,
 };
 
-export const INFRA_TOPICS: readonly TopicSpec[] = [OUTBOX_TOPIC, REDIS_TOPIC, SECURITY_TOPIC];
+/* Order matches the infrastructure card grid this replaced, so a reader who saw the old page
+   finds the topics where the cards used to be. */
+export const INFRA_TOPICS: readonly TopicSpec[] = [
+  OUTBOX_TOPIC,
+  REDIS_TOPIC,
+  STORAGE_TOPIC,
+  ERRORS_TOPIC,
+  SECURITY_TOPIC,
+  DEPLOY_TOPIC,
+];
