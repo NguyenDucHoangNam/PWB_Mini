@@ -768,47 +768,407 @@
         "realtime": "Realtime",
         "infrastructure": "Infrastructure"
       },
-      "diagram": {
-        "title": "System context diagram (C4 level 1)",
-        "summary": "C4 level 1 system context: three groups of users interact with Producer Workbench, which in turn integrates with five external systems.",
+      "diagrams": {
         "relation": "{from} → {to}: {label} {tech}",
-        "boundaries": {
-          "people": "People",
-          "external": "External systems"
-        },
-        "types": {
-          "person": "[Person]",
-          "system": "[Software system]",
-          "external": "[External system]"
-        },
-        "legend": {
-          "person": "People",
-          "system": "Our system",
-          "external": "External systems"
-        },
-        "nodes": {
-          "producer": { "name": "Producer", "desc": "Uploads tracks, hosts rooms" },
-          "guest": { "name": "Guest listener", "desc": "Joins rooms, gives feedback" },
-          "admin": { "name": "Administrator", "desc": "Manages accounts and roles" },
-          "workbench": {
-            "name": "Producer Workbench",
-            "desc": "Uploads · voice tags · shared listening"
+        "relationPlain": "{from} → {to}",
+        "context": {
+          "title": "System context diagram (C4 level 1)",
+          "summary": "C4 level 1 system context: three groups of users interact with Producer Workbench, which in turn integrates with five external systems.",
+          "boundaries": {
+            "people": "People",
+            "external": "External systems"
           },
-          "storage": { "name": "Amazon S3", "desc": "Stores audio files" },
-          "oauth": { "name": "Google OAuth", "desc": "Google sign-in" },
-          "tts": { "name": "Google TTS", "desc": "Generates voice tags" },
-          "turn": { "name": "coturn", "desc": "Relays WebRTC media" },
-          "smtp": { "name": "SMTP server", "desc": "Sends OTP email" }
+          "legend": {
+            "actor": "People",
+            "app": "Our system",
+            "external": "External systems"
+          },
+          "nodes": {
+            "producer": {
+              "name": "Producer",
+              "type": "[Person]",
+              "desc": "Uploads tracks, hosts rooms"
+            },
+            "guest": {
+              "name": "Guest listener",
+              "type": "[Person]",
+              "desc": "Joins rooms, gives feedback"
+            },
+            "admin": {
+              "name": "Administrator",
+              "type": "[Person]",
+              "desc": "Manages accounts and roles"
+            },
+            "workbench": {
+              "name": "Producer Workbench",
+              "type": "[Software system]",
+              "desc": "Uploads · voice tags · shared listening"
+            },
+            "storage": {
+              "name": "Amazon S3",
+              "type": "[External system]",
+              "desc": "Stores audio files"
+            },
+            "oauth": {
+              "name": "Google OAuth",
+              "type": "[External system]",
+              "desc": "Google sign-in"
+            },
+            "tts": {
+              "name": "Google TTS",
+              "type": "[External system]",
+              "desc": "Generates voice tags"
+            },
+            "turn": {
+              "name": "coturn",
+              "type": "[External system]",
+              "desc": "Relays WebRTC media"
+            },
+            "smtp": {
+              "name": "SMTP server",
+              "type": "[External system]",
+              "desc": "Sends OTP email"
+            }
+          },
+          "edges": {
+            "producerSystem": {
+              "label": "Uploads tracks, opens rooms",
+              "tech": "[HTTPS]"
+            },
+            "guestSystem": {
+              "label": "Listens, chats, gives feedback",
+              "tech": "[HTTPS · WSS]"
+            },
+            "adminSystem": {
+              "label": "Manages accounts",
+              "tech": "[HTTPS]"
+            },
+            "systemStorage": {
+              "label": "Stores / reads audio files",
+              "tech": "[S3 API · presigned URL]"
+            },
+            "systemOauth": {
+              "label": "Verifies ID tokens",
+              "tech": "[HTTPS]"
+            },
+            "systemTts": {
+              "label": "Synthesises voice tags",
+              "tech": "[gRPC]"
+            },
+            "systemTurn": {
+              "label": "Relays media",
+              "tech": "[TURN · STUN]"
+            },
+            "systemSmtp": {
+              "label": "Sends OTP email",
+              "tech": "[SMTP]"
+            }
+          }
         },
-        "edges": {
-          "producerSystem": { "label": "Uploads tracks, opens rooms", "tech": "[HTTPS]" },
-          "guestSystem": { "label": "Listens, chats, gives feedback", "tech": "[HTTPS · WSS]" },
-          "adminSystem": { "label": "Manages accounts", "tech": "[HTTPS]" },
-          "systemStorage": { "label": "Stores / reads audio files", "tech": "[S3 API · presigned URL]" },
-          "systemOauth": { "label": "Verifies ID tokens", "tech": "[HTTPS]" },
-          "systemTts": { "label": "Synthesises voice tags", "tech": "[gRPC]" },
-          "systemTurn": { "label": "Relays media", "tech": "[TURN · STUN]" },
-          "systemSmtp": { "label": "Sends OTP email", "tech": "[SMTP]" }
+        "containers": {
+          "title": "Container diagram (C4 level 2)",
+          "summary": "C4 level 2 containers: the browser calls into a set of containers running on a single VPS, and the backend talks to Postgres, Redis, Kafka and four external cloud services.",
+          "boundaries": {
+            "vps": "VPS host — Docker Compose · a single instance",
+            "external": "External systems"
+          },
+          "legend": {
+            "actor": "Client",
+            "app": "Application container",
+            "data": "Data & queues",
+            "external": "External services"
+          },
+          "nodes": {
+            "browser": {
+              "name": "Browser",
+              "type": "[Client · SPA]",
+              "desc": "React 19 · STOMP · WebRTC"
+            },
+            "nginx": {
+              "name": "Nginx 1.27",
+              "type": "[Container · reverse proxy]",
+              "desc": "TLS · routes 80/443"
+            },
+            "coturn": {
+              "name": "coturn 4.6",
+              "type": "[Container]",
+              "desc": "WebRTC TURN relay"
+            },
+            "next": {
+              "name": "Next.js 16",
+              "type": "[Container]",
+              "desc": "SSR · port 3000"
+            },
+            "spring": {
+              "name": "Spring Boot 3.5",
+              "type": "[Container · Java 21]",
+              "desc": "66 REST + 11 STOMP · port 8080"
+            },
+            "postgres": {
+              "name": "Postgres 16",
+              "type": "[Database]",
+              "desc": "19 tables · 48 migrations"
+            },
+            "redis": {
+              "name": "Redis 7.2",
+              "type": "[Cache]",
+              "desc": "Sessions · locks · counters"
+            },
+            "kafka": {
+              "name": "Kafka 7.6",
+              "type": "[Message broker]",
+              "desc": "2 topics + 1 DLT"
+            },
+            "storage": {
+              "name": "Amazon S3",
+              "type": "[External service]",
+              "desc": "Audio files · images"
+            },
+            "oauth": {
+              "name": "Google OAuth",
+              "type": "[External service]",
+              "desc": "Sign-in"
+            },
+            "tts": {
+              "name": "Google TTS",
+              "type": "[External service]",
+              "desc": "Generates voice tags"
+            },
+            "smtp": {
+              "name": "SMTP",
+              "type": "[External service]",
+              "desc": "Sends OTP email"
+            }
+          },
+          "edges": {
+            "browserNginx": {
+              "label": "API and WebSocket",
+              "tech": "[HTTPS · WSS]"
+            },
+            "browserCoturn": {
+              "label": "Negotiates WebRTC",
+              "tech": "[TURN · STUN]"
+            },
+            "browserStorage": {
+              "label": "Direct up / download",
+              "tech": "[presigned URL]"
+            },
+            "browserOauth": {
+              "label": "Google sign-in",
+              "tech": "[GIS]"
+            },
+            "nginxSpring": {
+              "label": "Routes /api and /ws",
+              "tech": "[internal HTTP]"
+            },
+            "springPostgres": {
+              "label": "Reads / writes data",
+              "tech": "[JDBC]"
+            },
+            "springKafka": {
+              "label": "Publishes & consumes",
+              "tech": "[Kafka]"
+            },
+            "springStorage": {
+              "label": "Reads / writes objects",
+              "tech": "[AWS SDK v2]"
+            },
+            "springOauth": {
+              "label": "Verifies ID tokens",
+              "tech": "[HTTPS]"
+            },
+            "springTts": {
+              "label": "Synthesises voice tags",
+              "tech": "[gRPC]"
+            },
+            "springSmtp": {
+              "label": "Sends OTP email",
+              "tech": "[SMTP]"
+            }
+          }
+        },
+        "layers": {
+          "title": "The four layers inside the backend container (C4 level 3)",
+          "summary": "C4 level 3 components: the api, application, domain and infrastructure layers inside the backend container. Dependencies always point inward at the domain, and all three modules repeat the same four layers.",
+          "boundaries": {
+            "backend": "pwb-backend — all three modules iam · audio · liveroom repeat these four layers"
+          },
+          "legend": {
+            "app": "Layer that depends outward",
+            "data": "Core layer, depends on nothing"
+          },
+          "nodes": {
+            "api": {
+              "name": "api",
+              "type": "[Layer]",
+              "desc": "11 REST controllers + 4 STOMP controllers · request & response DTOs"
+            },
+            "application": {
+              "name": "application",
+              "type": "[Layer]",
+              "desc": "57 use case impls · command → view/dto · @Transactional on the method"
+            },
+            "domain": {
+              "name": "domain",
+              "type": "[Layer — plain Java, no Spring, no JPA]",
+              "desc": "model · vo · enums · 21 repository ports · service ports"
+            },
+            "infrastructure": {
+              "name": "infrastructure",
+              "type": "[Layer]",
+              "desc": "22 JPA entities · hand-written mappers · adapters · STOMP realtime · schedulers"
+            }
+          },
+          "edges": {
+            "apiApplication": {
+              "label": "Calls the use case",
+              "tech": "[port]"
+            },
+            "applicationDomain": {
+              "label": "Uses models & ports",
+              "tech": "[points inward]"
+            },
+            "infrastructureDomain": {
+              "label": "Implements the ports",
+              "tech": "[points inward]"
+            }
+          }
+        },
+        "deployment": {
+          "title": "Deployment on the VPS",
+          "summary": "Deployment: the Docker containers on a single VPS. Only Nginx publishes ports; coturn runs on the host network and therefore sits outside the pwb-network bridge.",
+          "boundaries": {
+            "vps": "VPS host — Ubuntu · Docker · 4 vCPU · 7.6GB RAM",
+            "network": "pwb-network — bridge, only Nginx publishes ports",
+            "hostNetwork": "Host network — the backend never calls it"
+          },
+          "legend": {
+            "actor": "User device",
+            "app": "Application container",
+            "data": "Data & queues"
+          },
+          "nodes": {
+            "browser": {
+              "name": "Browser",
+              "type": "[User device]",
+              "desc": "HTTPS · WSS · WebRTC"
+            },
+            "nginx": {
+              "name": "Nginx 1.27",
+              "type": "[Container]",
+              "desc": "Publishes 80:80 and 443:443 · certbot vols (ro)"
+            },
+            "certbot": {
+              "name": "Certbot",
+              "type": "[Container]",
+              "desc": "Publishes nothing · writes certbot_conf, shared with Nginx"
+            },
+            "next": {
+              "name": "Next.js 16",
+              "type": "[Container]",
+              "desc": "3000 — internal only · no volume"
+            },
+            "spring": {
+              "name": "Spring Boot 3.5",
+              "type": "[Container · JRE 21 + ffmpeg]",
+              "desc": "8080 internal · mem 1500m · 1 instance · audio_work vol"
+            },
+            "postgres": {
+              "name": "Postgres 16",
+              "type": "[Container]",
+              "desc": "5432 internal · postgres_data vol"
+            },
+            "redis": {
+              "name": "Redis 7.2",
+              "type": "[Container]",
+              "desc": "6379 internal · redis_data vol"
+            },
+            "kafka": {
+              "name": "Kafka 7.6",
+              "type": "[Container]",
+              "desc": "29092 internal · mem 1g · kafka_data vol"
+            },
+            "coturn": {
+              "name": "coturn 4.6",
+              "type": "[Container · network_mode host]",
+              "desc": "UDP 3478 + 49160-49200 · turnserver.conf (ro) · mem 256m"
+            }
+          },
+          "edges": {
+            "browserNginx": {
+              "label": "All HTTPS and WSS traffic",
+              "tech": "[80 · 443]"
+            },
+            "browserCoturn": {
+              "label": "Relays WebRTC media",
+              "tech": "[UDP 3478]"
+            }
+          }
+        },
+        "pipeline": {
+          "title": "CI/CD pipeline from GitHub Actions through GHCR to the VPS",
+          "summary": "CI/CD pipeline: a push to main runs two test jobs in parallel, builds and pushes the images to ghcr.io, then the VPS pulls over SSH and waits for the backend to report health UP.",
+          "boundaries": {
+            "actions": "GitHub Actions — ubuntu-latest",
+            "vps": "VPS host — driven over SSH"
+          },
+          "legend": {
+            "app": "Job on the runner",
+            "external": "Container registry",
+            "actor": "Step run on the VPS"
+          },
+          "nodes": {
+            "trigger": {
+              "name": "push to main",
+              "type": "[Trigger]",
+              "desc": "or run by hand · concurrency 1, never cancelled"
+            },
+            "testBackend": {
+              "name": "Test backend",
+              "type": "[Job]",
+              "desc": "mvn test + ffmpeg"
+            },
+            "testFrontend": {
+              "name": "Test frontend",
+              "type": "[Job]",
+              "desc": "pnpm lint + test"
+            },
+            "build": {
+              "name": "Build & push",
+              "type": "[Job]",
+              "desc": "docker buildx · gha cache, two separate scopes"
+            },
+            "registry": {
+              "name": "ghcr.io",
+              "type": "[Container registry]",
+              "desc": "pwb-backend · pwb-frontend · tags sha-a1b2c3d and main"
+            },
+            "pull": {
+              "name": "Pull over SSH",
+              "type": "[appleboy/ssh]",
+              "desc": "git reset --hard · writes .env.deploy"
+            },
+            "up": {
+              "name": "compose up -d",
+              "type": "[Docker Compose]",
+              "desc": "pulls 2 images · nginx -s reload · prune 168h"
+            },
+            "health": {
+              "name": "Wait for health",
+              "type": "[Check]",
+              "desc": "30 × 10s · /actuator/health UP"
+            }
+          },
+          "edges": {
+            "buildRegistry": {
+              "label": "Pushes both images",
+              "tech": "[docker push]"
+            },
+            "registryPull": {
+              "label": "Pulls the pinned images",
+              "tech": "[docker pull]"
+            }
+          }
         }
       },
       "sections": {

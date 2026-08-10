@@ -18,7 +18,7 @@ Tài liệu này tổng hợp toàn bộ **5 sơ đồ kiến trúc chuẩn hóa
 
 ## 1. C4 mức 1 — Sơ đồ ngữ cảnh hệ thống
 
-> **Chuẩn C4 — Level 1: System Context**: Biểu diễn mối quan hệ giữa người dùng (Producer, Khách nghe demo, Admin), ứng dụng trung tâm Producer Workbench và 4 hệ thống ngoài (S3, OAuth, TTS, SMTP).
+> **Chuẩn C4 — Level 1: System Context**: Biểu diễn mối quan hệ giữa người dùng (Producer, Khách nghe demo, Admin), ứng dụng trung tâm Producer Workbench và 5 hệ thống ngoài (S3, OAuth, TTS, coturn, SMTP).
 
 ```mermaid
 graph TD
@@ -40,17 +40,19 @@ graph TD
         S3["<b>Amazon S3</b><br/>[Hệ thống ngoài]<br/><i>Lưu file nhạc</i>"]:::extBox
         OAUTH["<b>Google OAuth</b><br/>[Hệ thống ngoài]<br/><i>Đăng nhập Google</i>"]:::extBox
         TTS["<b>Google TTS</b><br/>[Hệ thống ngoài]<br/><i>Sinh voice tag</i>"]:::extBox
+        TURN["<b>coturn</b><br/>[Hệ thống ngoài]<br/><i>Chuyển tiếp media WebRTC</i>"]:::extBox
         SMTP["<b>Máy chủ SMTP</b><br/>[Hệ thống ngoài]<br/><i>Gửi email OTP</i>"]:::extBox
     end
 
-    P --> SYS
-    K --> SYS
-    Q --> SYS
+    P -->|"Tải nhạc, mở phòng nghe<br/>[HTTPS]"| SYS
+    K -->|"Nghe chung, chat, góp ý<br/>[HTTPS · WSS]"| SYS
+    Q -->|"Quản lý tài khoản<br/>[HTTPS]"| SYS
 
-    SYS --> S3
-    SYS --> OAUTH
-    SYS --> TTS
-    SYS --> SMTP
+    SYS -->|"Lưu / đọc file nhạc<br/>[S3 API · presigned URL]"| S3
+    SYS -->|"Xác minh ID token<br/>[HTTPS]"| OAUTH
+    SYS -->|"Sinh voice tag<br/>[gRPC]"| TTS
+    SYS -->|"Chuyển tiếp media<br/>[TURN · STUN]"| TURN
+    SYS -->|"Gửi email OTP<br/>[SMTP]"| SMTP
 ```
 
 ---
@@ -85,7 +87,7 @@ graph TD
 
         subgraph DATA_TIER ["Hạ tầng Dữ liệu"]
             direction LR
-            PG["<b>Postgres 16</b><br/>[Database]<br/><i>18 bảng · 48 migration</i>"]:::dbBox
+            PG["<b>Postgres 16</b><br/>[Database]<br/><i>19 bảng · 48 migration</i>"]:::dbBox
             REDIS["<b>Redis 7.2</b><br/>[Cache]<br/><i>Phiên · khoá · đếm</i>"]:::dbBox
             KAFKA["<b>Kafka 7.6</b><br/>[Message broker]<br/><i>2 topic + 1 DLT</i>"]:::dbBox
         end
@@ -133,9 +135,9 @@ graph TD
         
         APP["<b>application</b><br/>[Tầng]<br/><i>57 use case impl · command → view/dto · @Transactional đặt ở method</i>"]:::appBox
         
-        DOM["<b>domain</b><br/>[Tầng — Java thuần, không Spring, không JPA]<br/><i>model · vo · enums · 17 repository port · service port</i>"]:::domainBox
+        DOM["<b>domain</b><br/>[Tầng — Java thuần, không Spring, không JPA]<br/><i>model · vo · enums · 21 repository port · service port</i>"]:::domainBox
         
-        INFRA["<b>infrastructure</b><br/>[Tầng]<br/><i>18 JPA entity · mapper viết tay · adapter · realtime STOMP · scheduler</i>"]:::appBox
+        INFRA["<b>infrastructure</b><br/>[Tầng]<br/><i>22 JPA entity · mapper viết tay · adapter · realtime STOMP · scheduler</i>"]:::appBox
 
         API --> APP
         APP --> DOM
@@ -212,12 +214,15 @@ graph TD
 
     subgraph GHA ["GitHub Actions — ubuntu-latest"]
         direction LR
-        TRIGGER["<b>push lên main</b><br/>[Trigger]<br/>hoặc chạy tay<br/><i>concurrency: 1</i>"]:::appBox
-        CI["<b>CI — ci.yml</b><br/>[Job: test]<br/>mvn test + ffmpeg<br/><i>pnpm lint + test</i>"]:::appBox
-        BUILD["<b>Build & push</b><br/>[Job: build]<br/>docker buildx<br/><i>cache type=gha</i>"]:::appBox
+        TRIGGER["<b>push lên main</b><br/>[Trigger]<br/>hoặc chạy tay<br/><i>concurrency: 1, không huỷ</i>"]:::appBox
+        CI_BE["<b>Test backend</b><br/>[Job: backend]<br/>mvn test<br/><i>cài ffmpeg trên runner</i>"]:::appBox
+        CI_FE["<b>Test frontend</b><br/>[Job: frontend]<br/>pnpm lint<br/><i>pnpm test</i>"]:::appBox
+        BUILD["<b>Build & push</b><br/>[Job: build]<br/>docker buildx<br/><i>cache gha, hai scope riêng</i>"]:::appBox
 
-        TRIGGER --> CI
-        CI --> BUILD
+        TRIGGER --> CI_BE
+        TRIGGER --> CI_FE
+        CI_BE --> BUILD
+        CI_FE --> BUILD
     end
 
     GHCR["<b>ghcr.io</b><br/>[Container registry]<br/>pwb-backend · pwb-frontend<br/><i>tag sha-&lt;short&gt; và tag main</i>"]:::registryBox

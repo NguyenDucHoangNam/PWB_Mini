@@ -768,47 +768,407 @@
         "realtime": "Realtime",
         "infrastructure": "Hạ tầng"
       },
-      "diagram": {
-        "title": "Sơ đồ ngữ cảnh hệ thống (C4 mức 1)",
-        "summary": "Sơ đồ ngữ cảnh C4 mức 1: ba nhóm người dùng tương tác với hệ thống Producer Workbench, và hệ thống này tích hợp với năm hệ thống bên ngoài.",
+      "diagrams": {
         "relation": "{from} → {to}: {label} {tech}",
-        "boundaries": {
-          "people": "Người dùng tương tác",
-          "external": "Hệ thống bên ngoài"
-        },
-        "types": {
-          "person": "[Người dùng]",
-          "system": "[Hệ thống phần mềm]",
-          "external": "[Hệ thống ngoài]"
-        },
-        "legend": {
-          "person": "Người dùng",
-          "system": "Hệ thống của mình",
-          "external": "Hệ thống bên ngoài"
-        },
-        "nodes": {
-          "producer": { "name": "Producer", "desc": "Tải nhạc, mở phòng nghe" },
-          "guest": { "name": "Khách nghe demo", "desc": "Vào phòng, nghe và góp ý" },
-          "admin": { "name": "Quản trị viên", "desc": "Quản lý tài khoản, phân quyền" },
-          "workbench": {
-            "name": "Producer Workbench",
-            "desc": "Tải nhạc · gắn voice tag · nghe chung realtime"
+        "relationPlain": "{from} → {to}",
+        "context": {
+          "title": "Sơ đồ ngữ cảnh hệ thống (C4 mức 1)",
+          "summary": "Sơ đồ ngữ cảnh C4 mức 1: ba nhóm người dùng tương tác với hệ thống Producer Workbench, và hệ thống này tích hợp với năm hệ thống bên ngoài.",
+          "boundaries": {
+            "people": "Người dùng tương tác",
+            "external": "Hệ thống bên ngoài"
           },
-          "storage": { "name": "Amazon S3", "desc": "Lưu file nhạc" },
-          "oauth": { "name": "Google OAuth", "desc": "Đăng nhập Google" },
-          "tts": { "name": "Google TTS", "desc": "Sinh voice tag" },
-          "turn": { "name": "coturn", "desc": "Chuyển tiếp media WebRTC" },
-          "smtp": { "name": "Máy chủ SMTP", "desc": "Gửi email OTP" }
+          "legend": {
+            "actor": "Người dùng",
+            "app": "Hệ thống của mình",
+            "external": "Hệ thống bên ngoài"
+          },
+          "nodes": {
+            "producer": {
+              "name": "Producer",
+              "type": "[Người dùng]",
+              "desc": "Tải nhạc, mở phòng nghe"
+            },
+            "guest": {
+              "name": "Khách nghe demo",
+              "type": "[Người dùng]",
+              "desc": "Vào phòng, nghe và góp ý"
+            },
+            "admin": {
+              "name": "Quản trị viên",
+              "type": "[Người dùng]",
+              "desc": "Quản lý tài khoản, phân quyền"
+            },
+            "workbench": {
+              "name": "Producer Workbench",
+              "type": "[Hệ thống phần mềm]",
+              "desc": "Tải nhạc · gắn voice tag · nghe chung realtime"
+            },
+            "storage": {
+              "name": "Amazon S3",
+              "type": "[Hệ thống ngoài]",
+              "desc": "Lưu file nhạc"
+            },
+            "oauth": {
+              "name": "Google OAuth",
+              "type": "[Hệ thống ngoài]",
+              "desc": "Đăng nhập Google"
+            },
+            "tts": {
+              "name": "Google TTS",
+              "type": "[Hệ thống ngoài]",
+              "desc": "Sinh voice tag"
+            },
+            "turn": {
+              "name": "coturn",
+              "type": "[Hệ thống ngoài]",
+              "desc": "Chuyển tiếp media WebRTC"
+            },
+            "smtp": {
+              "name": "Máy chủ SMTP",
+              "type": "[Hệ thống ngoài]",
+              "desc": "Gửi email OTP"
+            }
+          },
+          "edges": {
+            "producerSystem": {
+              "label": "Tải nhạc, mở phòng nghe",
+              "tech": "[HTTPS]"
+            },
+            "guestSystem": {
+              "label": "Nghe chung, chat, góp ý",
+              "tech": "[HTTPS · WSS]"
+            },
+            "adminSystem": {
+              "label": "Quản lý tài khoản",
+              "tech": "[HTTPS]"
+            },
+            "systemStorage": {
+              "label": "Lưu / đọc file nhạc",
+              "tech": "[S3 API · presigned URL]"
+            },
+            "systemOauth": {
+              "label": "Xác minh ID token",
+              "tech": "[HTTPS]"
+            },
+            "systemTts": {
+              "label": "Sinh voice tag",
+              "tech": "[gRPC]"
+            },
+            "systemTurn": {
+              "label": "Chuyển tiếp media",
+              "tech": "[TURN · STUN]"
+            },
+            "systemSmtp": {
+              "label": "Gửi email OTP",
+              "tech": "[SMTP]"
+            }
+          }
         },
-        "edges": {
-          "producerSystem": { "label": "Tải nhạc, mở phòng nghe", "tech": "[HTTPS]" },
-          "guestSystem": { "label": "Nghe chung, chat, góp ý", "tech": "[HTTPS · WSS]" },
-          "adminSystem": { "label": "Quản lý tài khoản", "tech": "[HTTPS]" },
-          "systemStorage": { "label": "Lưu / đọc file nhạc", "tech": "[S3 API · presigned URL]" },
-          "systemOauth": { "label": "Xác minh ID token", "tech": "[HTTPS]" },
-          "systemTts": { "label": "Sinh voice tag", "tech": "[gRPC]" },
-          "systemTurn": { "label": "Chuyển tiếp media", "tech": "[TURN · STUN]" },
-          "systemSmtp": { "label": "Gửi email OTP", "tech": "[SMTP]" }
+        "containers": {
+          "title": "Sơ đồ container (C4 mức 2)",
+          "summary": "Sơ đồ container C4 mức 2: trình duyệt gọi vào cụm container chạy trên một máy chủ VPS duy nhất, backend nói chuyện với Postgres, Redis, Kafka và bốn dịch vụ đám mây bên ngoài.",
+          "boundaries": {
+            "vps": "Máy chủ VPS — Docker Compose · một instance duy nhất",
+            "external": "Hệ thống bên ngoài"
+          },
+          "legend": {
+            "actor": "Máy khách",
+            "app": "Container ứng dụng",
+            "data": "Dữ liệu & hàng đợi",
+            "external": "Dịch vụ ngoài"
+          },
+          "nodes": {
+            "browser": {
+              "name": "Trình duyệt",
+              "type": "[Client · SPA]",
+              "desc": "React 19 · STOMP · WebRTC"
+            },
+            "nginx": {
+              "name": "Nginx 1.27",
+              "type": "[Container · reverse proxy]",
+              "desc": "TLS · định tuyến 80/443"
+            },
+            "coturn": {
+              "name": "coturn 4.6",
+              "type": "[Container]",
+              "desc": "TURN relay WebRTC"
+            },
+            "next": {
+              "name": "Next.js 16",
+              "type": "[Container]",
+              "desc": "SSR · cổng 3000"
+            },
+            "spring": {
+              "name": "Spring Boot 3.5",
+              "type": "[Container · Java 21]",
+              "desc": "66 REST + 11 STOMP · cổng 8080"
+            },
+            "postgres": {
+              "name": "Postgres 16",
+              "type": "[Database]",
+              "desc": "19 bảng · 48 migration"
+            },
+            "redis": {
+              "name": "Redis 7.2",
+              "type": "[Cache]",
+              "desc": "Phiên · khoá · đếm"
+            },
+            "kafka": {
+              "name": "Kafka 7.6",
+              "type": "[Message broker]",
+              "desc": "2 topic + 1 DLT"
+            },
+            "storage": {
+              "name": "Amazon S3",
+              "type": "[Dịch vụ ngoài]",
+              "desc": "File nhạc · ảnh"
+            },
+            "oauth": {
+              "name": "Google OAuth",
+              "type": "[Dịch vụ ngoài]",
+              "desc": "Đăng nhập"
+            },
+            "tts": {
+              "name": "Google TTS",
+              "type": "[Dịch vụ ngoài]",
+              "desc": "Sinh voice tag"
+            },
+            "smtp": {
+              "name": "SMTP",
+              "type": "[Dịch vụ ngoài]",
+              "desc": "Gửi email OTP"
+            }
+          },
+          "edges": {
+            "browserNginx": {
+              "label": "Gọi API, mở WebSocket",
+              "tech": "[HTTPS · WSS]"
+            },
+            "browserCoturn": {
+              "label": "Đàm phán WebRTC",
+              "tech": "[TURN · STUN]"
+            },
+            "browserStorage": {
+              "label": "Tải file trực tiếp",
+              "tech": "[presigned URL]"
+            },
+            "browserOauth": {
+              "label": "Đăng nhập Google",
+              "tech": "[GIS]"
+            },
+            "nginxSpring": {
+              "label": "Định tuyến /api và /ws",
+              "tech": "[HTTP nội bộ]"
+            },
+            "springPostgres": {
+              "label": "Đọc / ghi dữ liệu",
+              "tech": "[JDBC]"
+            },
+            "springKafka": {
+              "label": "Phát & nhận sự kiện",
+              "tech": "[Kafka]"
+            },
+            "springStorage": {
+              "label": "Ký URL, đọc/ghi object",
+              "tech": "[AWS SDK v2]"
+            },
+            "springOauth": {
+              "label": "Xác minh ID token",
+              "tech": "[HTTPS]"
+            },
+            "springTts": {
+              "label": "Sinh voice tag",
+              "tech": "[gRPC]"
+            },
+            "springSmtp": {
+              "label": "Gửi email OTP",
+              "tech": "[SMTP]"
+            }
+          }
+        },
+        "layers": {
+          "title": "Bốn tầng bên trong container backend (C4 mức 3)",
+          "summary": "Sơ đồ thành phần C4 mức 3: bốn tầng api, application, domain và infrastructure bên trong container backend. Phụ thuộc luôn hướng vào domain, và cả ba module đều lặp lại đúng bốn tầng này.",
+          "boundaries": {
+            "backend": "pwb-backend — cả ba module iam · audio · liveroom đều lặp lại bốn tầng này"
+          },
+          "legend": {
+            "app": "Tầng phụ thuộc ra ngoài",
+            "data": "Tầng lõi, không phụ thuộc gì"
+          },
+          "nodes": {
+            "api": {
+              "name": "api",
+              "type": "[Tầng]",
+              "desc": "11 REST controller + 4 STOMP controller · DTO request & response"
+            },
+            "application": {
+              "name": "application",
+              "type": "[Tầng]",
+              "desc": "57 use case impl · command → view/dto · @Transactional đặt ở method"
+            },
+            "domain": {
+              "name": "domain",
+              "type": "[Tầng — Java thuần, không Spring, không JPA]",
+              "desc": "model · vo · enums · 21 repository port · service port"
+            },
+            "infrastructure": {
+              "name": "infrastructure",
+              "type": "[Tầng]",
+              "desc": "22 JPA entity · mapper viết tay · adapter · realtime STOMP · scheduler"
+            }
+          },
+          "edges": {
+            "apiApplication": {
+              "label": "Gọi vào use case",
+              "tech": "[port]"
+            },
+            "applicationDomain": {
+              "label": "Dùng model & port",
+              "tech": "[hướng vào trong]"
+            },
+            "infrastructureDomain": {
+              "label": "Hiện thực port",
+              "tech": "[hướng vào trong]"
+            }
+          }
+        },
+        "deployment": {
+          "title": "Sơ đồ triển khai trên VPS",
+          "summary": "Sơ đồ triển khai: các container Docker trên một máy chủ VPS. Chỉ Nginx publish cổng ra ngoài; coturn chạy trên host network nên nằm ngoài mạng bridge pwb-network.",
+          "boundaries": {
+            "vps": "Máy chủ VPS — Ubuntu · Docker · 4 vCPU · 7.6GB RAM",
+            "network": "Mạng pwb-network — bridge, chỉ Nginx publish cổng ra ngoài",
+            "hostNetwork": "Host network — backend không gọi tới"
+          },
+          "legend": {
+            "actor": "Thiết bị người dùng",
+            "app": "Container ứng dụng",
+            "data": "Dữ liệu & hàng đợi"
+          },
+          "nodes": {
+            "browser": {
+              "name": "Trình duyệt",
+              "type": "[Thiết bị người dùng]",
+              "desc": "HTTPS · WSS · WebRTC"
+            },
+            "nginx": {
+              "name": "Nginx 1.27",
+              "type": "[Container]",
+              "desc": "Publish 80:80 và 443:443 · vol certbot (ro)"
+            },
+            "certbot": {
+              "name": "Certbot",
+              "type": "[Container]",
+              "desc": "Không publish · ghi vol certbot_conf dùng chung với Nginx"
+            },
+            "next": {
+              "name": "Next.js 16",
+              "type": "[Container]",
+              "desc": "3000 — chỉ nội bộ · không volume"
+            },
+            "spring": {
+              "name": "Spring Boot 3.5",
+              "type": "[Container · JRE 21 + ffmpeg]",
+              "desc": "8080 nội bộ · mem 1500m · 1 instance · vol audio_work"
+            },
+            "postgres": {
+              "name": "Postgres 16",
+              "type": "[Container]",
+              "desc": "5432 nội bộ · vol postgres_data"
+            },
+            "redis": {
+              "name": "Redis 7.2",
+              "type": "[Container]",
+              "desc": "6379 nội bộ · vol redis_data"
+            },
+            "kafka": {
+              "name": "Kafka 7.6",
+              "type": "[Container]",
+              "desc": "29092 nội bộ · mem 1g · vol kafka_data"
+            },
+            "coturn": {
+              "name": "coturn 4.6",
+              "type": "[Container · network_mode host]",
+              "desc": "UDP 3478 + 49160-49200 · mount turnserver.conf (ro) · mem 256m"
+            }
+          },
+          "edges": {
+            "browserNginx": {
+              "label": "Toàn bộ HTTPS và WSS",
+              "tech": "[80 · 443]"
+            },
+            "browserCoturn": {
+              "label": "Relay media WebRTC",
+              "tech": "[UDP 3478]"
+            }
+          }
+        },
+        "pipeline": {
+          "title": "Pipeline CI/CD từ GitHub Actions qua GHCR tới VPS",
+          "summary": "Pipeline CI/CD: push lên main chạy hai job test song song, build và đẩy image lên ghcr.io, rồi VPS pull qua SSH và chờ backend báo health UP.",
+          "boundaries": {
+            "actions": "GitHub Actions — ubuntu-latest",
+            "vps": "Máy chủ VPS — điều khiển qua SSH"
+          },
+          "legend": {
+            "app": "Job trên runner",
+            "external": "Container registry",
+            "actor": "Bước chạy trên VPS"
+          },
+          "nodes": {
+            "trigger": {
+              "name": "push lên main",
+              "type": "[Trigger]",
+              "desc": "hoặc chạy tay · concurrency 1, không huỷ"
+            },
+            "testBackend": {
+              "name": "Test backend",
+              "type": "[Job]",
+              "desc": "mvn test + ffmpeg"
+            },
+            "testFrontend": {
+              "name": "Test frontend",
+              "type": "[Job]",
+              "desc": "pnpm lint + test"
+            },
+            "build": {
+              "name": "Build & push",
+              "type": "[Job]",
+              "desc": "docker buildx · cache gha, hai scope riêng"
+            },
+            "registry": {
+              "name": "ghcr.io",
+              "type": "[Container registry]",
+              "desc": "pwb-backend · pwb-frontend · tag sha-a1b2c3d và main"
+            },
+            "pull": {
+              "name": "Pull qua SSH",
+              "type": "[appleboy/ssh]",
+              "desc": "git reset --hard · ghi .env.deploy"
+            },
+            "up": {
+              "name": "compose up -d",
+              "type": "[Docker Compose]",
+              "desc": "pull 2 image · nginx -s reload · prune 168h"
+            },
+            "health": {
+              "name": "Chờ health",
+              "type": "[Kiểm tra]",
+              "desc": "30 lần × 10s · /actuator/health UP"
+            }
+          },
+          "edges": {
+            "buildRegistry": {
+              "label": "Đẩy 2 image",
+              "tech": "[docker push]"
+            },
+            "registryPull": {
+              "label": "Kéo image đã ghim",
+              "tech": "[docker pull]"
+            }
+          }
         }
       },
       "sections": {

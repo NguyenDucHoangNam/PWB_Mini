@@ -2,8 +2,10 @@
 
 import { Workflow } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { RevealGroup, RevealItem } from "@/components/marketing/section-primitives";
+import { Reveal, RevealGroup, RevealItem } from "@/components/marketing/section-primitives";
 import { MODULE_CARDS } from "@/features/showcase/lib/technical-sections";
+import { LAYERS_DIAGRAM } from "@/features/showcase/lib/technical-diagrams";
+import { TechnicalDiagram } from "./technical-diagram";
 import { TechnicalPlaceholder, TechnicalSectionShell } from "./technical-shell";
 
 export function TechnicalModules() {
@@ -17,10 +19,16 @@ export function TechnicalModules() {
       eyebrow={t("sections.modules.eyebrow")}
       title={t("sections.modules.title")}
     >
+      {/* All three modules repeat the same four layers, so the anatomy is drawn once here
+          rather than three times below. */}
+      <Reveal className="mt-10">
+        <TechnicalDiagram spec={LAYERS_DIAGRAM} />
+      </Reveal>
+
       {/* A module carries several docs' worth of material, so each one gets a full-width
           block. The infrastructure topics get a tighter grid — the difference in footprint
           is what tells the reader which weighs more. */}
-      <RevealGroup className="mt-10 flex flex-col gap-8">
+      <RevealGroup className="mt-8 flex flex-col gap-8">
         {MODULE_CARDS.map(({ key, icon: Icon, stack }) => (
           <RevealItem key={key}>
             <article className="neu-lift rounded-3xl bg-[#e0e5ec] p-6 dark:bg-[#1e222b] sm:p-8">

@@ -2,8 +2,10 @@
 
 import { Server } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { RevealGroup, RevealItem } from "@/components/marketing/section-primitives";
+import { Reveal, RevealGroup, RevealItem } from "@/components/marketing/section-primitives";
 import { INFRA_CARDS } from "@/features/showcase/lib/technical-sections";
+import { DEPLOYMENT_DIAGRAM, PIPELINE_DIAGRAM } from "@/features/showcase/lib/technical-diagrams";
+import { TechnicalDiagram } from "./technical-diagram";
 import { TechnicalPlaceholder, TechnicalSectionShell } from "./technical-shell";
 
 export function TechnicalInfra() {
@@ -17,7 +19,17 @@ export function TechnicalInfra() {
       eyebrow={t("sections.infrastructure.eyebrow")}
       title={t("sections.infrastructure.title")}
     >
-      <RevealGroup className="mt-10 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+      {/* Where it runs, then how it gets there. Both are infrastructure questions and neither
+          belongs to a single module, which is why they land in this panel rather than above. */}
+      <Reveal className="mt-10">
+        <TechnicalDiagram spec={DEPLOYMENT_DIAGRAM} />
+      </Reveal>
+
+      <Reveal className="mt-8">
+        <TechnicalDiagram spec={PIPELINE_DIAGRAM} />
+      </Reveal>
+
+      <RevealGroup className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
         {INFRA_CARDS.map(({ key, icon: Icon }) => (
           <RevealItem key={key} className="h-full">
             <article className="neu-lift flex h-full flex-col rounded-3xl bg-[#e0e5ec] p-6 dark:bg-[#1e222b]">

@@ -14,12 +14,15 @@ graph TD
 
     subgraph GHA ["GitHub Actions — ubuntu-latest"]
         direction LR
-        TRIGGER["<b>push lên main</b><br/>[Trigger]<br/>hoặc chạy tay<br/><i>concurrency: 1</i>"]:::appBox
-        CI["<b>CI — ci.yml</b><br/>[Job: test]<br/>mvn test + ffmpeg<br/><i>pnpm lint + test</i>"]:::appBox
-        BUILD["<b>Build & push</b><br/>[Job: build]<br/>docker buildx<br/><i>cache type=gha</i>"]:::appBox
+        TRIGGER["<b>push lên main</b><br/>[Trigger]<br/>hoặc chạy tay<br/><i>concurrency: 1, không huỷ</i>"]:::appBox
+        CI_BE["<b>Test backend</b><br/>[Job: backend]<br/>mvn test<br/><i>cài ffmpeg trên runner</i>"]:::appBox
+        CI_FE["<b>Test frontend</b><br/>[Job: frontend]<br/>pnpm lint<br/><i>pnpm test</i>"]:::appBox
+        BUILD["<b>Build & push</b><br/>[Job: build]<br/>docker buildx<br/><i>cache gha, hai scope riêng</i>"]:::appBox
 
-        TRIGGER --> CI
-        CI --> BUILD
+        TRIGGER --> CI_BE
+        TRIGGER --> CI_FE
+        CI_BE --> BUILD
+        CI_FE --> BUILD
     end
 
     GHCR["<b>ghcr.io</b><br/>[Container registry]<br/>pwb-backend · pwb-frontend<br/><i>tag sha-&lt;short&gt; và tag main</i>"]:::registryBox
@@ -45,7 +48,7 @@ graph TD
 | Giai đoạn | Thành phần / Công cụ | Mô tả Chi tiết |
 |---|---|---|
 | **Trigger** | GitHub Webhook | Kích hoạt khi `push` vào branch `main` hoặc chạy thủ công (`workflow_dispatch`). Cấu hình `concurrency: 1` đảm bảo chỉ một pipeline chạy tại một thời điểm. |
-| **CI (Test)** | `ci.yml` Job trên GitHub Runner | Chạy `mvn test` (kèm gói `ffmpeg`) cho Backend Java 21 và `pnpm lint + test` cho Frontend Next.js. |
+| **CI (Test)** | `ci.yml` — **hai job chạy song song** | Job `backend` chạy `mvn test` (runner cài thêm `ffmpeg` vì test của `AudioProbeService` gọi `ffprobe` thật); job `frontend` chạy `pnpm lint` rồi `pnpm test`. `build` khai báo `needs: test`, nên chỉ cần một trong hai job đỏ là không image nào được đẩy đi. |
 | **Build & Push** | Docker Buildx | Đóng gói 2 Docker Images (`pwb-backend`, `pwb-frontend`), sử dụng `cache type=gha` và push lên `ghcr.io` với tag `sha-<short>` và `main`. |
 | **Container Registry** | `ghcr.io` | Lưu trữ 2 container image cho frontend và backend sẵn sàng cho VPS kéo về. |
 | **Pull qua SSH** | `appleboy/ssh-action` | Kết nối SSH vào VPS, chạy `git reset --hard` và tạo file `.env.deploy`. |

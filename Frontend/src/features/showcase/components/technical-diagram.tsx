@@ -1,22 +1,19 @@
 "use client";
 
+import { useId } from "react";
 import { useTranslations } from "next-intl";
-import {
-  CONTEXT_BOUNDARIES,
-  CONTEXT_CANVAS,
-  CONTEXT_EDGES,
-  CONTEXT_LEGEND,
-  CONTEXT_NODES,
-  CONTEXT_NODE_STYLE,
-} from "@/features/showcase/lib/context-diagram";
+import { DIAGRAM_KIND_STYLE, type DiagramSpec } from "@/features/showcase/lib/technical-diagrams";
 
-/* The C4 level-1 context diagram. Boxes are HTML and connectors are SVG rather than one
-   drawing in either technology: SVG text does not wrap, and this page runs in two languages
-   whose labels differ in length, so a pure-SVG diagram would overflow its boxes the moment
-   the reader switches locale. Absolute positioning on a fixed canvas keeps the HTML boxes
-   exactly where the hand-computed connector endpoints expect them. */
-export function TechnicalContextDiagram() {
-  const t = useTranslations("features.technical.diagram");
+/* Renders any of the five architecture diagrams. Boxes are HTML and connectors are SVG rather
+   than one drawing in either technology: SVG text does not wrap, and this page runs in two
+   languages whose labels differ in length, so a pure-SVG diagram would overflow its boxes the
+   moment the reader switches locale. Absolute positioning on a fixed canvas keeps the HTML
+   boxes exactly where the hand-computed connector endpoints expect them. */
+export function TechnicalDiagram({ spec }: { spec: DiagramSpec }) {
+  const t = useTranslations("features.technical.diagrams");
+  /* Several diagrams can be mounted in one panel, and a duplicated marker id would make the
+     second one reach into the first one's defs. */
+  const markerId = useId();
 
   return (
     <figure className="neu-pressed rounded-3xl bg-[#e0e5ec] p-4 dark:bg-[#1e222b] sm:p-6">
@@ -25,24 +22,21 @@ export function TechnicalContextDiagram() {
       <div
         role="group"
         tabIndex={0}
-        aria-label={t("title")}
+        aria-label={t(`${spec.id}.title`)}
         className="neu-scroll-thin overflow-x-auto rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
       >
-        <div
-          className="relative mx-auto"
-          style={{ width: CONTEXT_CANVAS.width, height: CONTEXT_CANVAS.height }}
-        >
+        <div className="relative mx-auto" style={{ width: spec.width, height: spec.height }}>
           {/* currentColor rather than a fill per element: markers resolve currentColor against
               their own inherited colour, so setting it once here keeps every arrowhead the
               same shade as the line it caps, in both themes. */}
           <svg
             aria-hidden="true"
-            viewBox={`0 0 ${CONTEXT_CANVAS.width} ${CONTEXT_CANVAS.height}`}
+            viewBox={`0 0 ${spec.width} ${spec.height}`}
             className="absolute inset-0 h-full w-full text-slate-400 dark:text-slate-500"
           >
             <defs>
               <marker
-                id="c4-arrow"
+                id={markerId}
                 viewBox="0 0 10 10"
                 refX="8"
                 refY="5"
@@ -61,7 +55,7 @@ export function TechnicalContextDiagram() {
               </marker>
             </defs>
 
-            {CONTEXT_BOUNDARIES.map(({ key, x, y, w, h }) => (
+            {spec.boundaries.map(({ key, x, y, w, h }) => (
               <rect
                 key={key}
                 x={x}
@@ -77,7 +71,7 @@ export function TechnicalContextDiagram() {
               />
             ))}
 
-            {CONTEXT_EDGES.map(({ key, x1, y1, x2, y2 }) => (
+            {spec.edges.map(({ key, x1, y1, x2, y2 }) => (
               <line
                 key={key}
                 x1={x1}
@@ -86,23 +80,23 @@ export function TechnicalContextDiagram() {
                 y2={y2}
                 stroke="currentColor"
                 strokeWidth={1.25}
-                markerEnd="url(#c4-arrow)"
+                markerEnd={`url(#${markerId})`}
               />
             ))}
           </svg>
 
-          {CONTEXT_BOUNDARIES.map(({ key, x, y }) => (
+          {spec.boundaries.map(({ key, x, y }) => (
             <span
               key={key}
               className="absolute font-mono text-[0.62rem] font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400"
               style={{ left: x + 14, top: y + 12 }}
             >
-              {t(`boundaries.${key}`)}
+              {t(`${spec.id}.boundaries.${key}`)}
             </span>
           ))}
 
-          {CONTEXT_NODES.map(({ key, kind, x, y, w, h }) => {
-            const palette = CONTEXT_NODE_STYLE[kind];
+          {spec.nodes.map(({ key, kind, x, y, w, h }) => {
+            const palette = DIAGRAM_KIND_STYLE[kind];
 
             return (
               <div
@@ -118,13 +112,13 @@ export function TechnicalContextDiagram() {
                 }}
               >
                 <span className="text-[0.9rem] font-bold leading-tight text-white">
-                  {t(`nodes.${key}.name`)}
+                  {t(`${spec.id}.nodes.${key}.name`)}
                 </span>
                 <span className="mt-1 font-mono text-[0.6rem] uppercase tracking-[0.1em] text-white/65">
-                  {t(`types.${kind}`)}
+                  {t(`${spec.id}.nodes.${key}.type`)}
                 </span>
                 <span className="mt-1.5 text-[0.72rem] font-medium leading-snug text-white/85">
-                  {t(`nodes.${key}.desc`)}
+                  {t(`${spec.id}.nodes.${key}.desc`)}
                 </span>
               </div>
             );
@@ -133,34 +127,39 @@ export function TechnicalContextDiagram() {
           {/* The fan of connectors is dense enough that a label always sits across some other
               line. Painting the panel's own surface behind each one is what keeps them
               legible — the surrounding colour is fixed here, so the match is exact. */}
-          {CONTEXT_EDGES.map(({ key, labelX, labelBottom }) => (
-            <div
-              key={key}
-              className="absolute -translate-x-1/2 -translate-y-full bg-[#e0e5ec] px-1.5 text-center dark:bg-[#1e222b]"
-              style={{ left: labelX, top: labelBottom, width: 180 }}
-            >
-              <span className="block text-[0.7rem] font-semibold leading-snug text-slate-600 dark:text-slate-300">
-                {t(`edges.${key}.label`)}
-              </span>
-              <span className="block font-mono text-[0.62rem] font-bold leading-snug text-slate-400 dark:text-slate-500">
-                {t(`edges.${key}.tech`)}
-              </span>
-            </div>
-          ))}
+          {spec.edges.map(({ key, labelX, labelBottom }) =>
+            labelX === undefined || labelBottom === undefined ? null : (
+              <div
+                key={key}
+                className="absolute -translate-x-1/2 -translate-y-full bg-[#e0e5ec] px-1.5 text-center dark:bg-[#1e222b]"
+                style={{ left: labelX, top: labelBottom, width: 150 }}
+              >
+                <span className="block text-[0.7rem] font-semibold leading-snug text-slate-600 dark:text-slate-300">
+                  {t(`${spec.id}.edges.${key}.label`)}
+                </span>
+                <span className="block font-mono text-[0.62rem] font-bold leading-snug text-slate-400 dark:text-slate-500">
+                  {t(`${spec.id}.edges.${key}.tech`)}
+                </span>
+              </div>
+            ),
+          )}
 
-          <div className="absolute flex items-center gap-6" style={{ left: 0, top: 512 }}>
-            {CONTEXT_LEGEND.map((kind) => (
+          <div
+            className="absolute flex flex-wrap items-center gap-x-6 gap-y-2"
+            style={{ left: 0, top: spec.height - 38 }}
+          >
+            {spec.legend.map((kind) => (
               <span key={kind} className="flex items-center gap-2">
                 <span
                   aria-hidden="true"
                   className="size-3 shrink-0 rounded-sm border"
                   style={{
-                    backgroundColor: CONTEXT_NODE_STYLE[kind].fill,
-                    borderColor: CONTEXT_NODE_STYLE[kind].border,
+                    backgroundColor: DIAGRAM_KIND_STYLE[kind].fill,
+                    borderColor: DIAGRAM_KIND_STYLE[kind].border,
                   }}
                 />
                 <span className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                  {t(`legend.${kind}`)}
+                  {t(`${spec.id}.legend.${kind}`)}
                 </span>
               </span>
             ))}
@@ -171,16 +170,21 @@ export function TechnicalContextDiagram() {
       {/* The drawing carries the relationships in its geometry, which a screen reader cannot
           follow. This spells each one out and is the only reason the SVG can stay aria-hidden. */}
       <figcaption className="sr-only">
-        <p>{t("summary")}</p>
+        <p>{t(`${spec.id}.summary`)}</p>
         <ul>
-          {CONTEXT_EDGES.map(({ key, from, to }) => (
+          {spec.edges.map(({ key, from, to, labelX }) => (
             <li key={key}>
-              {t("relation", {
-                from: t(`nodes.${from}.name`),
-                to: t(`nodes.${to}.name`),
-                label: t(`edges.${key}.label`),
-                tech: t(`edges.${key}.tech`),
-              })}
+              {labelX === undefined
+                ? t("relationPlain", {
+                    from: t(`${spec.id}.nodes.${from}.name`),
+                    to: t(`${spec.id}.nodes.${to}.name`),
+                  })
+                : t("relation", {
+                    from: t(`${spec.id}.nodes.${from}.name`),
+                    to: t(`${spec.id}.nodes.${to}.name`),
+                    label: t(`${spec.id}.edges.${key}.label`),
+                    tech: t(`${spec.id}.edges.${key}.tech`),
+                  })}
             </li>
           ))}
         </ul>

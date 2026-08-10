@@ -18,9 +18,9 @@ graph TD
         
         APP["<b>application</b><br/>[Tầng]<br/><i>57 use case impl · command → view/dto · @Transactional đặt ở method</i>"]:::appBox
         
-        DOM["<b>domain</b><br/>[Tầng — Java thuần, không Spring, không JPA]<br/><i>model · vo · enums · 17 repository port · service port</i>"]:::domainBox
+        DOM["<b>domain</b><br/>[Tầng — Java thuần, không Spring, không JPA]<br/><i>model · vo · enums · 21 repository port · service port</i>"]:::domainBox
         
-        INFRA["<b>infrastructure</b><br/>[Tầng]<br/><i>18 JPA entity · mapper viết tay · adapter · realtime STOMP · scheduler</i>"]:::appBox
+        INFRA["<b>infrastructure</b><br/>[Tầng]<br/><i>22 JPA entity · mapper viết tay · adapter · realtime STOMP · scheduler</i>"]:::appBox
 
         API --> APP
         APP --> DOM
@@ -36,5 +36,5 @@ graph TD
 |---|---|---|
 | **`api`** | Spring Controllers | Tiếp nhận request: 11 REST controllers + 4 STOMP controllers. Quản lý DTO Request & Response. |
 | **`application`** | Use Cases & Commands | 57 Use Case Implementations. Chuyển đổi Command sang View/DTO. Quản lý giao tác với `@Transactional` đặt tại cấp method. |
-| **`domain`** | Pure Java (Không Spring, Không JPA) | Trái tim nghiệp vụ: Models, Value Objects (VO), Enums, 17 Repository Ports và Service Ports. |
-| **`infrastructure`** | JPA, Redis, Adapters | Implement các Ports của Domain: 18 JPA Entities, Mappers viết tay, Adapters kết nối hệ thống ngoài, Realtime STOMP & Schedulers. |
+| **`domain`** | Pure Java (Không Spring, Không JPA) | Trái tim nghiệp vụ: Models, Value Objects (VO), Enums, 21 Repository Ports và Service Ports. |
+| **`infrastructure`** | JPA, Redis, Adapters | Implement các Ports của Domain: 22 JPA Entities, Mappers viết tay, Adapters kết nối hệ thống ngoài, Realtime STOMP & Schedulers. |

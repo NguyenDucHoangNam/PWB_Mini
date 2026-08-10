@@ -32,7 +32,7 @@ graph TD
 
         subgraph DATA_TIER ["Hạ tầng Dữ liệu"]
             direction LR
-            PG["<b>Postgres 16</b><br/>[Database]<br/><i>18 bảng · 48 migration</i>"]:::dbBox
+            PG["<b>Postgres 16</b><br/>[Database]<br/><i>19 bảng · 48 migration</i>"]:::dbBox
             REDIS["<b>Redis 7.2</b><br/>[Cache]<br/><i>Phiên · khoá · đếm</i>"]:::dbBox
             KAFKA["<b>Kafka 7.6</b><br/>[Message broker]<br/><i>2 topic + 1 DLT</i>"]:::dbBox
         end
@@ -73,7 +73,7 @@ graph TD
 | **coturn 4.6** | Container | TURN relay WebRTC | Đóng vai trò STUN/TURN server hỗ trợ kết nối âm thanh realtime qua WebRTC NAT traversal. |
 | **Next.js 16** | Container | SSR, cổng 3000 nội bộ | Giao diện Frontend Server-Side Rendering (SSR). |
 | **Spring Boot 3.5** | Container | Java 21, 66 REST + 11 STOMP | Backend API & Realtime WebSockets giao tiếp với DB, Cache, Kafka và Cloud APIs. |
-| **Postgres 16** | Database | 18 bảng, 48 migration | Lưu trữ toàn bộ dữ liệu quan hệ của hệ thống. |
+| **Postgres 16** | Database | 19 bảng, 48 migration | Lưu trữ toàn bộ dữ liệu quan hệ của hệ thống. |
 | **Redis 7.2** | Cache | Phiên, khoá, đếm | Caching, lưu trữ session người dùng, rate limit và lock phân tán. |
 | **Kafka 7.6** | Message broker | 2 topic + 1 DLT | Hàng chờ xử lý sự kiện bất đồng bộ (chuyển đổi định dạng nhạc). |
 | **Hệ thống bên ngoài** | External Services | S3, OAuth, TTS, SMTP | Dịch vụ lưu trữ file, xác thực, tổng hợp giọng nói và gửi mail OTP. |
