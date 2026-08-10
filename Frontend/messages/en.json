@@ -1171,6 +1171,350 @@
           }
         }
       },
+      "topics": {
+        "questions": {
+          "what": "What it is",
+          "why": "Why it has to exist",
+          "when": "When it gets used",
+          "how": "How it is put together"
+        },
+        "outbox": {
+          "title": "The event queue — outbox and Kafka",
+          "lead": "Some work does not need the user waiting on it: sending a verification email, merging a voice tag into a track. Rather than make them sit through it, the system records the intent and does the work afterwards. The hard part is recording that intent in a way that can never be wrong.",
+          "what": {
+            "body": "Kafka is an event streaming platform: a sender drops a message onto a named channel, a receiver reads it back and acts on it, and the message is kept in order rather than disappearing the moment somebody reads it. The outbox is the pattern that goes with it — instead of publishing straight to Kafka, the intent to publish is written as a row in the same business database, and a background process reads that row and does the real send.",
+            "points": {
+              "0": "A channel keeps messages in order and lets several readers consume it without consuming it away from each other.",
+              "1": "Readers share the work as a group; when one dies its share moves to the ones still alive.",
+              "2": "A message that cannot be processed is moved to a separate dead channel for later inspection instead of blocking the queue behind it."
+            }
+          },
+          "why": {
+            "body": "Because one business operation usually has to do two things in two different systems: write to the database, and tell the outside world. No single transaction covers both, so every ordering fails in its own way.",
+            "points": {
+              "0": "Publish before the transaction finishes: if it is rolled back the event has already gone — announcing something that never happened.",
+              "1": "Publish after the transaction finishes: if the process dies at that exact moment, it happened and nobody was told.",
+              "2": "Writing to the outbox puts both inside one transaction — they succeed together or they are rolled back together. No phantom events, no lost ones."
+            }
+          },
+          "when": {
+            "body": "Every background job in the system goes this way, without exception: no business operation is allowed to publish to Kafka directly. Two flows use it today — sending verification email, and merging a watermark or voice tag into a track with an audio processing tool.",
+            "points": {
+              "0": "A good fit when the event must be guaranteed to arrive, and a small delay is an acceptable price for that guarantee.",
+              "1": "A bad fit when something has to happen inside a second — that goes over the realtime channel, not through here."
+            }
+          },
+          "how": {
+            "body": "A dedicated table acts as the outgoing mailbox. The business code only raises an internal note along the lines of “I want an email sent”; the infrastructure layer catches it and writes to the mailbox inside the same transaction, so the business module never learns where the event ends up. A background process handles the rest: pick up the mail, publish it, mark it sent. It is woken the instant the transaction finishes; alongside that it still rescans every five seconds as a safety net, in case the wake-up itself failed."
+          },
+          "visualTitle": "The path of one verification email, from the moment somebody signs up",
+          "flow": {
+            "0": {
+              "title": "Somebody signs up",
+              "body": "The account is created. The email itself — subject, plain text, HTML — is composed right here, so that the later sending step needs to know nothing about templates or languages."
+            },
+            "1": {
+              "title": "The intent to send is written to the outgoing mailbox",
+              "body": "Same transaction as creating the account. This is the crux: if creating the account is rolled back, this row disappears with it."
+            },
+            "2": {
+              "title": "The user gets their answer immediately",
+              "body": "The request succeeds here. Everything after this runs in the background with nobody waiting on it."
+            },
+            "3": {
+              "title": "The background process is woken",
+              "body": "The moment the transaction finishes. It claims a batch for itself and holds it for sixty seconds, so that if it dies mid-way the hold expires and a later run picks that same batch back up."
+            },
+            "4": {
+              "title": "Published onto the channel",
+              "body": "Only marked as sent once the publish succeeds. If Kafka is down the row returns to the waiting state and is retried on a later scan — nothing is lost."
+            },
+            "5": {
+              "title": "The reader picks it up and sends the real email",
+              "body": "It checks the content and hands it to the mail server. Because the content was composed back at step one, all that is left here is the sending."
+            },
+            "6": {
+              "title": "Retry on failure, and set aside what never succeeds",
+              "body": "The gap between attempts grows, for a minute in total. Past that the message is moved to the dead channel for inspection, rather than sitting there blocking the mail behind it."
+            }
+          }
+        },
+        "redis": {
+          "title": "The short-term store — Redis",
+          "lead": "Some data lives for a few minutes and then has to vanish by itself, while being read and written constantly. Putting it in the main database is the wrong home: every check becomes a trip to disk, and somebody has to write the cleanup.",
+          "what": {
+            "body": "Redis is a data store that lives in memory. No tables, no relationships, no complex queries — just keys and values, in exchange for reads and writes under a thousandth of a second.",
+            "points": {
+              "0": "Each entry is a key and a value; the value can be a string, a set or a list.",
+              "1": "Every key can be given a lifetime. When it expires Redis deletes it — nobody has to sweep up, and the application needs no expiry logic of its own."
+            }
+          },
+          "why": {
+            "body": "Because the three kinds of data below all pay a heavy price in the main database and gain nothing for it.",
+            "points": {
+              "0": "A rate counter has to be incremented and checked on every single call — in the main database that turns every call into another disk write.",
+              "1": "Short-lived state like a login session or a cooldown lives for minutes to weeks; kept somewhere permanent, somebody has to write the cleanup.",
+              "2": "Some sequences of steps have to run start to finish with nothing slipping in between, and Redis does exactly that in a single command."
+            }
+          },
+          "when": {
+            "body": "Three purposes, all of them short-lived state. What is deliberately not kept here matters just as much.",
+            "points": {
+              "0": "Holding login sessions: which sessions are alive, traces of rotated sessions so an old one cannot be reused, and which tokens have been signed out.",
+              "1": "Counting and cooling down: blocking calls that come too fast, blocking password guessing, stopping repeated mail.",
+              "2": "Not used to cache read data, not used to hold browser sessions, not used as a queue — all three have a home elsewhere."
+            }
+          },
+          "how": {
+            "body": "Ten groups of keys, and none of them lives forever — every one has a lifetime. This is also the single most worth-remembering fact about the system: the list of who is currently signed in exists only here, and the main database has no idea.",
+            "points": {
+              "0": "Session tokens are hashed before being used as keys, so somebody who can read Redis still cannot impersonate anybody — the same principle as hashing passwords.",
+              "1": "Wiping Redis therefore signs out the entire system. That is a known and accepted price for keeping sessions here."
+            }
+          },
+          "visualTitle": "Three different questions, three different techniques",
+          "cards": {
+            "0": {
+              "tag": "How many times in a minute",
+              "title": "A counter that runs in one piece",
+              "body": "Increment, set the lifetime if this is the first one, compare against the limit — the whole chain runs as a single uninterruptible step. Split apart, a process dying in the gap leaves a counter with no lifetime, and that user is blocked forever."
+            },
+            "1": {
+              "tag": "Has it been long enough since last time",
+              "title": "Claim the slot if nobody holds it",
+              "body": "A different question from counting, so a different technique: just try to create a key with a lifetime. Creating it means enough time has passed; failing to means there is still a wait, and the seconds remaining are the answer."
+            },
+            "2": {
+              "tag": "What belongs to this person",
+              "title": "Group them into a set",
+              "body": "All of one person's sessions are grouped together for exactly one purpose: revoking all of them when they change their password. Without it you would have to scan the whole store to find them, instead of asking once."
+            }
+          },
+          "table": {
+            "title": "When Redis is down each place reacts differently — and that is deliberate",
+            "head": {
+              "a": "Where",
+              "b": "If Redis is down",
+              "c": "Why that choice"
+            },
+            "rows": {
+              "0": {
+                "a": "Limits on sign-in operations",
+                "b": "Refuse to serve",
+                "c": "A limiter that is wide open protects nothing, precisely when the system is already weak."
+              },
+              "1": {
+                "a": "Cooldown between password resets",
+                "b": "Refuse, no exceptions",
+                "c": "This path sends mail to an arbitrary address. Left open it becomes an unmetered mail relay."
+              },
+              "2": {
+                "a": "Cooldown on signup and resending a code",
+                "b": "Follow the general setting",
+                "c": "Important enough to block, not important enough to be as rigid as the two rows above."
+              },
+              "3": {
+                "a": "The general limit on every call",
+                "b": "Let it through, log a warning",
+                "c": "Blocking the whole system over a much smaller risk is breaking the product."
+              },
+              "4": {
+                "a": "Blocking room-code guessing",
+                "b": "Let it through, log a warning",
+                "c": "There is another layer behind it: even a correct guess still has to be approved by the room owner."
+              }
+            }
+          }
+        },
+        "security": {
+          "title": "Securing calls, and limiting how fast they come",
+          "lead": "Every call into the system passes through a chain of checks stacked one after another. The order is not a matter of taste — put one in the wrong place and a whole layer of protection stops working, with no error logged anywhere.",
+          "what": {
+            "body": "Rate limiting is counting calls within a window of time and refusing them past a threshold. Simple enough in principle, but the system does not use one mechanism — it uses six, each answering a different question at a different layer, and more than one can refuse the same call."
+          },
+          "why": {
+            "body": "Because without it the three things below happen with nothing standing in the way.",
+            "points": {
+              "0": "One caller hammering the system slows it down for everybody else.",
+              "1": "An attacker guesses passwords or verification codes by trying over and over until one lands.",
+              "2": "Costs run away: one feature bills an external service every single time somebody presses it."
+            }
+          },
+          "when": {
+            "body": "The general counter applies to every call, signed in or not. Around it sit narrower layers placed at the specific spots worth suspecting: the sign-in operations, the operations that send mail, and the one feature that calls a paid external service."
+          },
+          "how": {
+            "body": "Count against the account when the caller is known, and only fall back to counting against the network address when they are not. That distinction matters more than it looks: a whole building sharing one connection shares one counter, and the person who gets blocked has no way to find out why.",
+            "points": {
+              "0": "The general ceiling is five hundred calls a minute across every feature, and the number remaining comes back in the header of every response.",
+              "1": "Exactly one feature has a much tighter rule of its own, and it exists because of money rather than security: every preview of a generated voice is a billed call.",
+              "2": "A caller address declared by a proxy is trusted only when the call genuinely arrives from a proxy registered in advance. Trust it unconditionally and anybody can declare their own address, which makes every address-based limit meaningless."
+            }
+          },
+          "visualTitle": "The layers a call passes through, in order",
+          "layers": {
+            "0": {
+              "title": "Language and tracking id",
+              "role": "Runs before everything",
+              "body": "Sets the response language from what the browser asked for, and attaches a tracking id so that every log line produced afterwards can be traced back to this exact call."
+            },
+            "1": {
+              "title": "Identify the caller",
+              "role": "Identifies only, never blocks",
+              "body": "Reads the token if one is present, checks whether it has been revoked, and records who the caller is. A call with no token still carries on — blocking belongs to the last layer, not this one."
+            },
+            "2": {
+              "title": "Count the calls",
+              "role": "The position is the point",
+              "body": "It has to sit exactly between the other two. Move it ahead of identification and nobody is known yet, so everything is counted against the network address and people sharing a connection share a counter. Move it behind authorisation and a call with no token has already been refused before it could be counted, so an anonymous flood escapes the counter entirely."
+            },
+            "3": {
+              "title": "Check permissions",
+              "role": "Blocking happens here",
+              "body": "Compares the caller just identified against the list of public features. Not on the list and without a valid token, the call stops here."
+            },
+            "4": {
+              "title": "Business logic",
+              "role": "The destination",
+              "body": "Reaching this point means the caller is known, is under their limit, and is allowed."
+            }
+          },
+          "table": {
+            "title": "Six limiting layers, each answering a different question",
+            "head": {
+              "a": "Layer",
+              "b": "The question it answers",
+              "c": "Scope"
+            },
+            "rows": {
+              "0": {
+                "a": "The general counter at the door",
+                "b": "Is this caller going too fast?",
+                "c": "Every feature, anonymous and signed in alike"
+              },
+              "1": {
+                "a": "Per-operation counters on auth",
+                "b": "Is this operation being called too often?",
+                "c": "Sign-in, session refresh, code verification"
+              },
+              "2": {
+                "a": "Cooldown between attempts",
+                "b": "Has it been long enough since last time?",
+                "c": "Signup, resending a code, password reset"
+              },
+              "3": {
+                "a": "Failed password counter",
+                "b": "Is somebody guessing a password?",
+                "c": "Sign-in only, locking by account and by address"
+              },
+              "4": {
+                "a": "Room-code guess throttle",
+                "b": "Is somebody trying room codes in bulk?",
+                "c": "Looking up a listening room by code"
+              },
+              "5": {
+                "a": "Flood control on the realtime channel",
+                "b": "Is this connection sending too much?",
+                "c": "The realtime channel, split by kind of message"
+              }
+            }
+          }
+        },
+        "realtime": {
+          "title": "The realtime channel — WebSocket and STOMP",
+          "lead": "A shared listening room has to push events down to several people at once: somebody just joined, the host just muted someone, the track was just scrubbed, a message arrived. Asking the server again on a timer does not work — a few seconds of delay ruins the feeling of listening together.",
+          "what": {
+            "body": "A WebSocket is a connection held open between browser and server, both directions, where the server does not have to be asked before it can say something. STOMP is the messaging convention that runs on top of it, so both sides agree on what it means to subscribe to a channel, send a message, or receive one.",
+            "points": {
+              "0": "Shared channels: everybody in the same room receives them, for things that concern the whole room.",
+              "1": "Private channels: one person receives them, for things that concern only that person."
+            }
+          },
+          "why": {
+            "body": "Four constraints shape the whole design, and the first is what makes the authentication here look unlike the rest of the system.",
+            "points": {
+              "0": "The browser has no way to attach a credential while the connection is being opened. Not a decision — there is simply no mechanism.",
+              "1": "Rooms are private: an outsider must not read what happens inside, even if they guess the room correctly.",
+              "2": "Events pushed down have to reflect what was actually recorded. Announcing “deleted” and then rolling the transaction back is lying to the user.",
+              "3": "Polling is both slow and wasteful: seven people in a room multiplied by several kinds of state means far more empty checks than useful ones."
+            }
+          },
+          "when": {
+            "body": "Only for shared listening rooms, and only for what has to be seen at once: people joining and leaving, playback control, messages, comments pinned to a moment in the track, and the negotiation that sets up direct voice. Background work that nobody is watching goes through the queue instead."
+          },
+          "how": {
+            "body": "Since no credential can be attached while opening the connection, it is sent in the very first message afterwards. The consequence is that the connection opens but can do nothing at all until that first message is accepted. After that, everything sent upward passes through three checks in a fixed order.",
+            "points": {
+              "0": "Authentication first, so the two layers after it know who is sending.",
+              "1": "Flood control before permissions, so a connection firing five hundred messages a second is stopped before it can generate five hundred lookups asking whether that person belongs to the room.",
+              "2": "Channel permissions last: to listen to a room you must be its host, currently inside it, or waiting for approval — somebody waiting also needs to hear that the room filled up or closed."
+            }
+          },
+          "visualTitle": "From opening the connection to receiving the first event",
+          "flow": {
+            "0": {
+              "title": "Open the connection, with no credential attached",
+              "body": "The opening handshake carries no credential, because the browser cannot attach one. This entrance therefore has to be left public — which sounds like a hole, except the real gate is the very next step."
+            },
+            "1": {
+              "title": "The first message carries the credential",
+              "body": "This is where it is checked. Invalid, and the connection is useless: open, but unable to send or receive anything. Valid, and the sender's identity is attached to the connection — which is what every later layer relies on."
+            },
+            "2": {
+              "title": "Ask to listen to the room's channels",
+              "body": "The server checks whether this person really belongs to that room, rather than trusting the room they claimed. If they do not, the request is refused outright."
+            },
+            "3": {
+              "title": "Send an action upward",
+              "body": "Everything sent upward must go through the business path; firing straight at the broadcast channel is refused. Without that block, anybody signed in could inject fake events into a room — through no business logic, leaving no trace, and everybody in the room would believe them because a fake looks exactly like the real thing."
+            },
+            "4": {
+              "title": "The event is pushed down, after the write has landed",
+              "body": "Broadcasting only happens once the transaction has finished. That way what everybody sees always matches what was actually recorded — there is no announcing something and then rolling it back."
+            }
+          },
+          "table": {
+            "title": "What each channel carries",
+            "head": {
+              "a": "Channel",
+              "b": "Who receives it",
+              "c": "What it carries"
+            },
+            "rows": {
+              "0": {
+                "a": "The room's shared channel",
+                "b": "The whole room",
+                "c": "Joining, leaving, being removed, capacity, the room's lifecycle"
+              },
+              "1": {
+                "a": "The chat channel",
+                "b": "The whole room",
+                "c": "New messages"
+              },
+              "2": {
+                "a": "The playback channel",
+                "b": "The whole room",
+                "c": "Play, pause, seek, track changes, comments pinned to a moment"
+              },
+              "3": {
+                "a": "The private channel",
+                "b": "One person",
+                "c": "The decision on their request to join"
+              },
+              "4": {
+                "a": "The private voice channel",
+                "b": "One person",
+                "c": "The negotiation that sets up a direct voice connection"
+              },
+              "5": {
+                "a": "The private error channel",
+                "b": "One person",
+                "c": "The error for the exact message that person just sent"
+              }
+            }
+          }
+        }
+      },
       "sections": {
         "overview": {
           "eyebrow": "Overview",

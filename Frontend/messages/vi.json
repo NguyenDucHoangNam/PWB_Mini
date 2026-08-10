@@ -1171,6 +1171,350 @@
           }
         }
       },
+      "topics": {
+        "questions": {
+          "what": "Nó là gì",
+          "why": "Vì sao phải dùng",
+          "when": "Khi nào dùng đến",
+          "how": "Triển khai ở đâu"
+        },
+        "outbox": {
+          "title": "Hàng đợi sự kiện — Outbox và Kafka",
+          "lead": "Có những việc người dùng không cần đợi: gửi email xác thực, ghép voice tag vào bài hát. Thay vì bắt họ ngồi chờ, hệ thống ghi lại ý định rồi làm sau. Vấn đề nằm ở chỗ ghi lại ý định đó sao cho không bao giờ sai.",
+          "what": {
+            "body": "Kafka là một nền tảng truyền sự kiện: bên gửi ném thông điệp vào một kênh chủ đề, bên nhận đọc ra và xử lý, và thông điệp được lưu lại theo đúng thứ tự thay vì biến mất ngay khi có người đọc. Outbox là một mẫu thiết kế đi kèm — thay vì gửi thẳng vào Kafka, việc gửi được ghi thành một dòng trong chính cơ sở dữ liệu nghiệp vụ, rồi một tiến trình nền đọc dòng đó và gửi đi thật.",
+            "points": {
+              "0": "Kênh chủ đề giữ thông điệp theo thứ tự và cho nhiều bên cùng đọc mà không xoá của nhau.",
+              "1": "Nhóm người nhận chia nhau công việc; một bên chết thì phần việc của nó tự chuyển sang bên còn sống.",
+              "2": "Thông điệp hỏng không nằm chặn hàng đợi mà bị đẩy sang một kênh chết riêng để xem lại sau."
+            }
+          },
+          "why": {
+            "body": "Vì một thao tác nghiệp vụ thường phải làm hai việc thuộc hai hệ thống khác nhau: ghi vào cơ sở dữ liệu, và báo cho bên ngoài biết. Không có giao dịch nào bao được cả hai, nên làm cách nào cũng hỏng theo một kiểu riêng.",
+            "points": {
+              "0": "Gửi trước khi giao dịch hoàn tất: giao dịch bị huỷ thì sự kiện đã bay đi rồi — báo một chuyện chưa từng xảy ra.",
+              "1": "Gửi sau khi giao dịch hoàn tất: tiến trình chết đúng lúc đó thì chuyện đã xảy ra mà không ai được báo.",
+              "2": "Ghi vào outbox thì cả hai nằm trong cùng một giao dịch — hoặc cùng thành công, hoặc cùng bị huỷ. Không có sự kiện ma, không có sự kiện mất."
+            }
+          },
+          "when": {
+            "body": "Mọi việc chạy nền trong hệ thống đều đi đường này, không có ngoại lệ: không nghiệp vụ nào được phép gửi thẳng vào Kafka. Hiện có hai luồng — gửi email xác thực, và ghép watermark hoặc voice tag vào bài hát bằng công cụ xử lý âm thanh.",
+            "points": {
+              "0": "Hợp khi cần chắc chắn sự kiện sẽ tới nơi, và chấp nhận độ trễ nhỏ để đổi lấy điều đó.",
+              "1": "Không hợp khi cần tức thì dưới một giây — những thứ đó đi đường realtime, không đi qua đây."
+            }
+          },
+          "how": {
+            "body": "Một bảng riêng trong cơ sở dữ liệu đóng vai hòm thư đi. Nghiệp vụ chỉ phát ra một thông báo nội bộ kiểu “tôi muốn gửi email”; tầng hạ tầng bắt lấy và ghi vào hòm thư trong cùng giao dịch, nên module nghiệp vụ không cần biết sự kiện đi đâu. Một tiến trình nền nhận phần còn lại: nhặt thư, gửi vào Kafka, đánh dấu đã gửi. Ngay sau khi giao dịch hoàn tất, tiến trình này được đánh thức để chạy luôn; song song đó nó vẫn tự quét lại mỗi năm giây như một lưới an toàn, phòng khi cú đánh thức thất bại."
+          },
+          "visualTitle": "Đường đi của một email xác thực, từ lúc bấm đăng ký",
+          "flow": {
+            "0": {
+              "title": "Người dùng bấm đăng ký",
+              "body": "Tài khoản được tạo. Nội dung email — tiêu đề, phần chữ, phần HTML — được soạn xong ngay tại đây, để bước gửi sau này không cần biết gì về mẫu thư hay ngôn ngữ."
+            },
+            "1": {
+              "title": "Ghi ý định gửi vào hòm thư đi",
+              "body": "Cùng một giao dịch với việc tạo tài khoản. Đây là mấu chốt: nếu việc tạo tài khoản bị huỷ, dòng thư này cũng biến mất theo."
+            },
+            "2": {
+              "title": "Người dùng nhận kết quả ngay",
+              "body": "Yêu cầu kết thúc thành công tại đây. Toàn bộ các bước sau chạy nền, người dùng không phải chờ."
+            },
+            "3": {
+              "title": "Tiến trình nền được đánh thức",
+              "body": "Ngay sau khi giao dịch hoàn tất. Nó nhận riêng cho mình một lô thư và giữ chỗ trong sáu mươi giây, để nếu nó chết giữa chừng thì hết thời hạn giữ chỗ sẽ có lượt khác nhặt lại đúng lô đó."
+            },
+            "4": {
+              "title": "Đẩy vào kênh chủ đề",
+              "body": "Gửi xong mới đánh dấu đã gửi. Nếu Kafka đang chết, dòng thư quay về trạng thái chờ và được thử lại ở lượt quét sau — không có gì mất đi."
+            },
+            "5": {
+              "title": "Bên nhận đọc ra và gửi thư thật",
+              "body": "Kiểm tra nội dung rồi chuyển cho máy chủ thư. Vì nội dung đã soạn sẵn từ bước một, bước này chỉ còn việc gửi."
+            },
+            "6": {
+              "title": "Hỏng thì thử lại, thử mãi không được thì để riêng",
+              "body": "Khoảng cách giữa các lần thử tăng dần, tổng cộng một phút. Quá đó thì thông điệp bị chuyển sang kênh chết để xem lại, thay vì nằm chặn những thư phía sau."
+            }
+          }
+        },
+        "redis": {
+          "title": "Bộ nhớ tạm — Redis",
+          "lead": "Có những dữ liệu chỉ sống vài phút rồi phải tự biến mất, và bị đọc ghi liên tục. Đưa chúng vào cơ sở dữ liệu chính là sai chỗ: mỗi lần kiểm tra là một lần chạm đĩa, và phải tự viết thêm việc dọn rác.",
+          "what": {
+            "body": "Redis là một kho dữ liệu nằm trên bộ nhớ trong. Không bảng, không quan hệ, không truy vấn phức tạp — chỉ có khoá và giá trị, đổi lại tốc độ đọc ghi dưới một phần nghìn giây.",
+            "points": {
+              "0": "Mỗi mục là một cặp khoá và giá trị; giá trị có thể là một chuỗi, một tập hợp hay một danh sách.",
+              "1": "Mỗi khoá gán được thời hạn sống. Hết hạn Redis tự xoá, không cần ai đi dọn và không cần logic kiểm tra hết hạn trong ứng dụng."
+            }
+          },
+          "why": {
+            "body": "Vì ba loại dữ liệu dưới đây đặt trong cơ sở dữ liệu chính đều trả giá đắt mà không được gì thêm.",
+            "points": {
+              "0": "Bộ đếm tần suất phải tăng và kiểm tra ở mỗi lượt gọi — đặt trong cơ sở dữ liệu chính thì mỗi lượt gọi thành thêm một lần ghi đĩa.",
+              "1": "Trạng thái ngắn hạn như phiên đăng nhập hay thời gian chờ chỉ sống vài phút tới vài tuần; đặt ở nơi lưu vĩnh viễn thì phải tự viết việc dọn dẹp.",
+              "2": "Có những chuỗi thao tác phải chạy liền một mạch không ai chen ngang được, và Redis làm được điều đó trong một lệnh duy nhất."
+            }
+          },
+          "when": {
+            "body": "Đúng ba mục đích, tất cả đều là trạng thái ngắn hạn. Quan trọng không kém là những gì cố ý không dùng tới.",
+            "points": {
+              "0": "Giữ phiên đăng nhập: danh sách phiên còn sống, dấu vết phiên đã xoay để chống dùng lại, và danh sách thẻ đã đăng xuất.",
+              "1": "Đếm tần suất và thời gian chờ: chặn gọi quá nhanh, chặn dò mật khẩu, ngăn gửi thư liên tục.",
+              "2": "Không dùng để lưu tạm dữ liệu đọc, không giữ phiên trình duyệt, không làm hàng đợi — ba việc đó đã có chỗ khác lo."
+            }
+          },
+          "how": {
+            "body": "Mười nhóm khoá, và không nhóm nào sống vĩnh viễn — tất cả đều có thời hạn. Đây cũng là chỗ đáng nhớ nhất về hệ thống: danh sách ai đang đăng nhập chỉ tồn tại ở đây, cơ sở dữ liệu chính hoàn toàn không biết.",
+            "points": {
+              "0": "Thẻ phiên được băm trước khi làm khoá, nên người đọc được Redis vẫn không mạo danh được ai — cùng nguyên tắc với việc băm mật khẩu.",
+              "1": "Xoá sạch Redis đồng nghĩa với đăng xuất toàn hệ thống. Đó là cái giá đã biết trước của việc để phiên sống ở đây."
+            }
+          },
+          "visualTitle": "Ba câu hỏi khác nhau, ba cách làm khác nhau",
+          "cards": {
+            "0": {
+              "tag": "Bao nhiêu lần trong một phút",
+              "title": "Bộ đếm chạy liền mạch",
+              "body": "Tăng bộ đếm, đặt hạn sống nếu là lần đầu, rồi so với ngưỡng — cả chuỗi chạy liền một mạch. Nếu tách rời, một tiến trình chết đúng khe giữa sẽ để lại bộ đếm không có hạn sống, và người dùng đó bị chặn vĩnh viễn."
+            },
+            "1": {
+              "tag": "Đã đủ lâu kể từ lần trước chưa",
+              "title": "Đặt chỗ nếu chưa ai đặt",
+              "body": "Câu hỏi khác hẳn bộ đếm, nên cách làm cũng khác: chỉ cần thử tạo một khoá có hạn sống. Tạo được nghĩa là đã đủ lâu; không tạo được nghĩa là còn phải chờ, và số giây còn lại chính là phần trả về."
+            },
+            "2": {
+              "tag": "Của người này gồm những gì",
+              "title": "Gom thành một tập hợp",
+              "body": "Mọi phiên của một người được gom vào một tập hợp, chỉ để phục vụ đúng một việc: thu hồi tất cả khi họ đổi mật khẩu. Không có nó thì phải quét toàn bộ kho để tìm, thay vì hỏi đúng một lần."
+            }
+          },
+          "table": {
+            "title": "Redis chết thì mỗi chỗ phản ứng một kiểu — và đó là chủ ý",
+            "head": {
+              "a": "Chỗ",
+              "b": "Redis chết thì",
+              "c": "Vì sao chọn như vậy"
+            },
+            "rows": {
+              "0": {
+                "a": "Giới hạn các thao tác đăng nhập",
+                "b": "Từ chối phục vụ",
+                "c": "Một bộ giới hạn mở toang thì không bảo vệ được gì, đúng vào lúc hệ thống đã yếu."
+              },
+              "1": {
+                "a": "Thời gian chờ giữa hai lần đặt lại mật khẩu",
+                "b": "Từ chối, không có ngoại lệ",
+                "c": "Đường này gửi thư tới một địa chỉ tuỳ ý. Để hở là biến nó thành trạm phát tán thư không ai đếm."
+              },
+              "2": {
+                "a": "Thời gian chờ khi đăng ký hoặc gửi lại mã",
+                "b": "Theo cấu hình chung",
+                "c": "Đủ quan trọng để chặn, nhưng không tới mức phải cứng nhắc như hai dòng trên."
+              },
+              "3": {
+                "a": "Giới hạn tần suất chung cho mọi lời gọi",
+                "b": "Cho qua, chỉ ghi cảnh báo",
+                "c": "Chặn toàn bộ hệ thống vì một rủi ro nhỏ hơn nhiều là làm hỏng sản phẩm."
+              },
+              "4": {
+                "a": "Chặn dò mã phòng nghe chung",
+                "b": "Cho qua, chỉ ghi cảnh báo",
+                "c": "Phía sau vẫn còn một lớp nữa: người dò có mã đúng thì vẫn phải chờ chủ phòng duyệt."
+              }
+            }
+          }
+        },
+        "security": {
+          "title": "Bảo mật lời gọi và giới hạn tần suất",
+          "lead": "Mọi lời gọi vào hệ thống đều đi qua một dãy lớp kiểm tra xếp nối nhau. Thứ tự các lớp không phải chuyện thẩm mỹ — đặt sai một chỗ là cả lớp bảo vệ mất tác dụng mà không có lỗi nào được ghi ra.",
+          "what": {
+            "body": "Giới hạn tần suất là việc đếm số lời gọi trong một khoảng thời gian và từ chối khi vượt ngưỡng. Nghe đơn giản, nhưng hệ thống không dùng một cơ chế duy nhất mà dùng sáu, mỗi cơ chế trả lời một câu hỏi khác nhau và nằm ở một tầng khác nhau — chúng có thể cùng chặn một lời gọi."
+          },
+          "why": {
+            "body": "Vì thiếu nó thì ba chuyện dưới đây xảy ra mà không có gì cản.",
+            "points": {
+              "0": "Một người gọi liên tục làm chậm tất cả những người còn lại.",
+              "1": "Kẻ tấn công dò mật khẩu hoặc dò mã xác thực bằng cách thử liên tục cho tới khi trúng.",
+              "2": "Chi phí trượt khỏi tầm kiểm soát: có một chức năng mà mỗi lần bấm là một lần dịch vụ bên ngoài tính tiền."
+            }
+          },
+          "when": {
+            "body": "Lớp đếm chung áp cho mọi lời gọi, không phân biệt đã đăng nhập hay chưa. Bên cạnh đó là các lớp hẹp hơn đặt đúng vào những chỗ đáng ngờ: các thao tác đăng nhập, các thao tác gửi thư, và một chức năng gọi dịch vụ trả phí bên ngoài."
+          },
+          "how": {
+            "body": "Đếm theo tài khoản khi biết người gọi là ai, và chỉ lùi về đếm theo địa chỉ mạng khi không biết. Khác biệt này quan trọng hơn vẻ ngoài của nó: cả một toà nhà đi chung một đường mạng sẽ dùng chung một bộ đếm, và người bị chặn không có cách nào biết vì sao mình bị chặn.",
+            "points": {
+              "0": "Trần chung là năm trăm lượt mỗi phút cho mọi chức năng, và số lượt còn lại được trả về ngay trong phần đầu của mỗi phản hồi.",
+              "1": "Đúng một chức năng có luật riêng chặt hơn nhiều, và nó tồn tại vì tiền chứ không vì bảo mật: mỗi lần nghe thử giọng đọc là một lần bị tính phí.",
+              "2": "Địa chỉ người gọi do lớp proxy khai báo chỉ được tin khi lời gọi thật sự đến từ một proxy đã đăng ký trước. Tin vô điều kiện thì ai cũng tự khai địa chỉ của mình, và mọi giới hạn theo địa chỉ trở thành vô nghĩa."
+            }
+          },
+          "visualTitle": "Các lớp một lời gọi phải đi qua, theo đúng thứ tự",
+          "layers": {
+            "0": {
+              "title": "Ngôn ngữ và mã theo dõi",
+              "role": "Chạy trước mọi thứ",
+              "body": "Đặt ngôn ngữ phản hồi theo khai báo của trình duyệt, và gắn cho lời gọi một mã theo dõi để mọi dòng nhật ký sinh ra sau đó đều truy ngược được về đúng lời gọi này."
+            },
+            "1": {
+              "title": "Nhận diện người gọi",
+              "role": "Chỉ nhận diện, không chặn",
+              "body": "Đọc thẻ xác thực nếu có, kiểm tra thẻ đã bị thu hồi chưa, rồi ghi lại người gọi là ai. Lời gọi không mang thẻ vẫn đi tiếp bình thường — việc chặn thuộc về lớp cuối, không phải lớp này."
+            },
+            "2": {
+              "title": "Đếm tần suất",
+              "role": "Vị trí quyết định",
+              "body": "Phải nằm chính giữa hai lớp kia. Đặt lên trước lớp nhận diện thì chưa biết người gọi là ai nên mọi thứ đều bị đếm theo địa chỉ mạng, và những người dùng chung một đường mạng bị gộp bộ đếm. Đặt xuống sau lớp phân quyền thì lời gọi thiếu thẻ đã bị từ chối trước khi kịp đếm, và một đợt tấn công nặc danh thoát hoàn toàn khỏi bộ đếm."
+            },
+            "3": {
+              "title": "Kiểm tra quyền",
+              "role": "Chặn ở đây",
+              "body": "So người gọi vừa nhận diện được với danh sách chức năng công khai. Không nằm trong danh sách và không có thẻ hợp lệ thì dừng tại đây."
+            },
+            "4": {
+              "title": "Xử lý nghiệp vụ",
+              "role": "Đích đến",
+              "body": "Tới được đây nghĩa là đã biết người gọi là ai, đã chắc chắn họ chưa vượt hạn mức, và đã chắc chắn họ có quyền."
+            }
+          },
+          "table": {
+            "title": "Sáu lớp giới hạn, mỗi lớp trả lời một câu hỏi khác nhau",
+            "head": {
+              "a": "Lớp",
+              "b": "Câu hỏi nó trả lời",
+              "c": "Phạm vi"
+            },
+            "rows": {
+              "0": {
+                "a": "Đếm chung ở cửa vào",
+                "b": "Người này có gọi quá nhanh không?",
+                "c": "Mọi chức năng, cả nặc danh lẫn đã đăng nhập"
+              },
+              "1": {
+                "a": "Đếm theo từng thao tác xác thực",
+                "b": "Thao tác này có bị gọi quá nhiều không?",
+                "c": "Đăng nhập, làm mới phiên, xác minh mã"
+              },
+              "2": {
+                "a": "Thời gian chờ giữa hai lần",
+                "b": "Đã đủ lâu kể từ lần trước chưa?",
+                "c": "Đăng ký, gửi lại mã, đặt lại mật khẩu"
+              },
+              "3": {
+                "a": "Đếm số lần sai mật khẩu",
+                "b": "Có ai đang dò mật khẩu không?",
+                "c": "Riêng đăng nhập, khoá theo cả tài khoản lẫn địa chỉ"
+              },
+              "4": {
+                "a": "Chặn dò mã phòng",
+                "b": "Có ai đang thử mã phòng hàng loạt không?",
+                "c": "Tra mã phòng nghe chung"
+              },
+              "5": {
+                "a": "Chống lụt trên kênh realtime",
+                "b": "Kết nối này có bắn quá nhiều tin không?",
+                "c": "Kênh realtime, tách theo từng loại tin"
+              }
+            }
+          }
+        },
+        "realtime": {
+          "title": "Kênh realtime — WebSocket và STOMP",
+          "lead": "Phòng nghe chung cần đẩy sự kiện xuống nhiều người cùng lúc: có người vừa vào, chủ phòng vừa tắt mic của ai đó, bài hát vừa được tua, có tin nhắn mới. Hỏi lại máy chủ theo chu kỳ không dùng được — trễ vài giây là hỏng cảm giác nghe cùng nhau.",
+          "what": {
+            "body": "WebSocket là một kênh nối mở liên tục giữa trình duyệt và máy chủ, hai chiều, không phải hỏi mới có trả lời. STOMP là bộ quy ước nhắn tin chạy trên kênh đó, để hai bên thống nhất được thế nào là đăng ký một kênh, gửi một tin, hay nhận một tin.",
+            "points": {
+              "0": "Kênh chung: mọi người trong cùng một phòng đều nhận, dùng cho những chuyện của cả phòng.",
+              "1": "Kênh riêng: chỉ một người nhận, dùng cho những chuyện chỉ liên quan tới người đó."
+            }
+          },
+          "why": {
+            "body": "Bốn ràng buộc định hình toàn bộ thiết kế, và ràng buộc đầu tiên là thứ khiến phần xác thực trông lạ so với phần còn lại của hệ thống.",
+            "points": {
+              "0": "Trình duyệt không có cách nào gắn thẻ xác thực vào lúc bắt tay mở kênh. Không phải chọn không làm, mà là không có cách.",
+              "1": "Phòng là riêng tư: người ngoài không được đọc nội dung phòng, kể cả khi họ đoán trúng mã phòng.",
+              "2": "Sự kiện đẩy xuống phải phản ánh thứ đã ghi thật. Báo “đã xoá” rồi giao dịch bị huỷ là nói dối người dùng.",
+              "3": "Hỏi lại theo chu kỳ vừa trễ vừa lãng phí: bảy người trong phòng nhân với vài loại trạng thái thì số lần hỏi không có gì mới lớn hơn hẳn số lần có tin."
+            }
+          },
+          "when": {
+            "body": "Chỉ dùng cho phòng nghe chung, và chỉ cho những gì cần thấy ngay: người ra vào phòng, điều khiển phát nhạc, tin nhắn, bình luận theo mốc thời gian trong bài, và phần thương lượng kết nối thoại. Những việc chạy nền không cần thấy ngay thì đi đường hàng đợi, không đi đường này."
+          },
+          "how": {
+            "body": "Vì không gắn được thẻ lúc bắt tay, thẻ được gửi ngay ở tin đầu tiên sau khi kênh mở. Hệ quả: kênh mở được nhưng không làm được gì cho tới khi tin đầu tiên đó được chấp nhận. Sau đó mọi tin gửi lên đều đi qua ba lớp kiểm tra, theo thứ tự cố định.",
+            "points": {
+              "0": "Xác thực trước, để hai lớp sau biết người gửi là ai.",
+              "1": "Chống lụt đứng trước phân quyền, để một kết nối bắn năm trăm tin mỗi giây bị chặn trước khi kịp tạo ra năm trăm lượt tra cứu xem người đó có phải thành viên phòng không.",
+              "2": "Phân quyền kênh đứng cuối: muốn nghe kênh của một phòng thì phải là chủ phòng, đang ở trong phòng, hoặc đang đứng chờ duyệt — người chờ duyệt cũng cần nghe để biết phòng đầy hay đã đóng."
+            }
+          },
+          "visualTitle": "Từ lúc mở kênh tới lúc nhận được sự kiện đầu tiên",
+          "flow": {
+            "0": {
+              "title": "Mở kênh, chưa kèm thẻ xác thực",
+              "body": "Bước bắt tay không mang theo thẻ, vì trình duyệt không cho phép. Đường vào này vì thế phải để công khai — nghe như lỗ hổng, nhưng lớp chặn thật nằm ở ngay bước sau."
+            },
+            "1": {
+              "title": "Tin đầu tiên mang thẻ đi kèm",
+              "body": "Thẻ được kiểm tra tại đây. Không hợp lệ thì kênh coi như vô dụng: mở thì mở được, nhưng không gửi và không nhận được gì. Hợp lệ thì danh tính người gửi được gắn vào kênh, và mọi lớp phía sau dựa vào đúng thứ đó."
+            },
+            "2": {
+              "title": "Xin nghe các kênh của phòng",
+              "body": "Máy chủ kiểm tra người này có thật sự thuộc về phòng đó không, thay vì tin vào mã phòng họ gửi lên. Không thuộc thì lời xin bị từ chối ngay."
+            },
+            "3": {
+              "title": "Gửi một hành động lên",
+              "body": "Mọi thứ gửi lên đều phải đi qua đường xử lý nghiệp vụ, không được bắn thẳng vào kênh phát. Thiếu chặn này thì bất kỳ ai đã đăng nhập cũng bơm được sự kiện giả vào phòng — không qua nghiệp vụ nào, không để lại dấu vết nào, mà người trong phòng vẫn tin vì tin giả trông hệt tin thật."
+            },
+            "4": {
+              "title": "Sự kiện được đẩy xuống, sau khi đã ghi xong",
+              "body": "Việc phát chỉ xảy ra sau khi giao dịch hoàn tất. Nhờ vậy thứ mọi người nhìn thấy luôn khớp với thứ đã được ghi lại — không có chuyện báo xong rồi giao dịch bị huỷ."
+            }
+          },
+          "table": {
+            "title": "Kênh nào chở gì",
+            "head": {
+              "a": "Kênh",
+              "b": "Ai nhận",
+              "c": "Chở gì"
+            },
+            "rows": {
+              "0": {
+                "a": "Kênh chung của phòng",
+                "b": "Cả phòng",
+                "c": "Vào phòng, rời phòng, bị mời ra, sức chứa, vòng đời phòng"
+              },
+              "1": {
+                "a": "Kênh trò chuyện",
+                "b": "Cả phòng",
+                "c": "Tin nhắn mới"
+              },
+              "2": {
+                "a": "Kênh phát nhạc",
+                "b": "Cả phòng",
+                "c": "Phát, dừng, tua, đổi bài, bình luận theo mốc thời gian"
+              },
+              "3": {
+                "a": "Kênh riêng",
+                "b": "Một người",
+                "c": "Kết quả duyệt hoặc từ chối yêu cầu vào phòng"
+              },
+              "4": {
+                "a": "Kênh thoại riêng",
+                "b": "Một người",
+                "c": "Phần thương lượng để dựng kết nối thoại trực tiếp"
+              },
+              "5": {
+                "a": "Kênh lỗi riêng",
+                "b": "Một người",
+                "c": "Báo lỗi cho đúng tin mà người đó vừa gửi lên"
+              }
+            }
+          }
+        }
+      },
       "sections": {
         "overview": {
           "eyebrow": "Tổng quan",
