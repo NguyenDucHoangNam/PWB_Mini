@@ -1,7 +1,6 @@
 import {
   Cloud,
   KeyRound,
-  Radio,
   Rocket,
   Server,
   Siren,
@@ -9,12 +8,15 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-/* Long-form explainers for the infrastructure topics that carry the most weight, plus the
-   realtime transport. Each one answers the same four questions in the same order, because the
-   reader arriving at the second topic should not have to work out where the answers live.
+/* Long-form explainers for the infrastructure topics that carry the most weight. Each one
+   answers the same four questions in the same order, because the reader arriving at the second
+   topic should not have to work out where the answers live.
 
-   Source material is docs/technical/ — infra-01 (outbox & Kafka), infra-02 (Redis),
-   infra-06 (HTTP security & rate limiting) and 13 (realtime STOMP). */
+   Realtime used to be one of these and no longer is: a protocol cannot be introduced through a
+   what/why/when/how grid, so it moved to its own chapter under technical-realtime-content.ts.
+
+   Source material is docs/technical/ — infra-01 (outbox & Kafka), infra-02 (Redis) and
+   infra-06 (HTTP security & rate limiting). */
 
 export const TOPIC_QUESTIONS = ["what", "why", "when", "how"] as const;
 export type TopicQuestion = (typeof TOPIC_QUESTIONS)[number];
@@ -89,21 +91,11 @@ export const DEPLOY_TOPIC: TopicSpec = {
   rows: 3,
 };
 
-export const REALTIME_TOPIC: TopicSpec = {
-  id: "realtime",
-  icon: Radio,
-  bullets: { what: 2, why: 4, when: 0, how: 3 },
-  visual: { kind: "flow", steps: 5 },
-  rows: 6,
-};
-
 /* Order matches the infrastructure card grid this replaced, so a reader who saw the old page
    finds the topics where the cards used to be. */
 export const INFRA_TOPICS: readonly TopicSpec[] = [
   OUTBOX_TOPIC,
   REDIS_TOPIC,
-  STORAGE_TOPIC,
-  ERRORS_TOPIC,
   SECURITY_TOPIC,
   DEPLOY_TOPIC,
 ];

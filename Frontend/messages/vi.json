@@ -792,7 +792,7 @@
         "relation": "{from} → {to}: {label} {tech}",
         "relationPlain": "{from} → {to}",
         "context": {
-          "title": "Sơ đồ ngữ cảnh hệ thống (C4 mức 1)",
+          "title": "System Context Diagram (C4 Level 1)",
           "summary": "Sơ đồ ngữ cảnh C4 mức 1: ba nhóm người dùng tương tác với hệ thống Producer Workbench, và hệ thống này tích hợp với năm hệ thống bên ngoài.",
           "boundaries": {
             "people": "Người dùng tương tác",
@@ -886,7 +886,7 @@
           }
         },
         "containers": {
-          "title": "Sơ đồ container (C4 mức 2)",
+          "title": "Container Architecture Diagram (C4 Level 2)",
           "summary": "Sơ đồ container C4 mức 2: trình duyệt gọi vào cụm container chạy trên một máy chủ VPS duy nhất, backend nói chuyện với Postgres, Redis, Kafka và bốn dịch vụ đám mây bên ngoài.",
           "boundaries": {
             "vps": "Máy chủ VPS — Docker Compose · một instance duy nhất",
@@ -1008,7 +1008,7 @@
           }
         },
         "layers": {
-          "title": "Bốn tầng bên trong container backend (C4 mức 3)",
+          "title": "Backend Layering Architecture (C4 Level 3)",
           "summary": "Sơ đồ thành phần C4 mức 3: bốn tầng api, application, domain và infrastructure bên trong container backend. Phụ thuộc luôn hướng vào domain, và cả ba module đều lặp lại đúng bốn tầng này.",
           "boundaries": {
             "backend": "pwb-backend — cả ba module iam · audio · liveroom đều lặp lại bốn tầng này"
@@ -1055,7 +1055,7 @@
           }
         },
         "deployment": {
-          "title": "Sơ đồ triển khai trên VPS",
+          "title": "VPS Infrastructure Deployment Diagram",
           "summary": "Sơ đồ triển khai: các container Docker trên một máy chủ VPS. Chỉ Nginx publish cổng ra ngoài; coturn chạy trên host network nên nằm ngoài mạng bridge pwb-network.",
           "boundaries": {
             "vps": "Máy chủ VPS — Ubuntu · Docker · 4 vCPU · 7.6GB RAM",
@@ -1126,7 +1126,7 @@
           }
         },
         "pipeline": {
-          "title": "Pipeline CI/CD từ GitHub Actions qua GHCR tới VPS",
+          "title": "CI/CD Data Pipeline Diagram",
           "summary": "Pipeline CI/CD: push lên main chạy hai job test song song, build và đẩy image lên ghcr.io, rồi VPS pull qua SSH và chờ backend báo health UP.",
           "boundaries": {
             "actions": "GitHub Actions — ubuntu-latest",
@@ -1187,6 +1187,326 @@
             "registryPull": {
               "label": "Kéo image đã ghim",
               "tech": "[docker pull]"
+            }
+          }
+        },
+        "realtime": {
+          "nodes": {
+            "browser": {
+              "name": "Trình duyệt",
+              "type": "[Người dùng]",
+              "desc": "Giữ một kết nối mở tới máy chủ"
+            },
+            "auth": {
+              "name": "1 · Kiểm tra danh tính",
+              "type": "[Cửa vào]",
+              "desc": "Bạn là ai? Chưa trả lời được thì chưa làm gì được"
+            },
+            "rate": {
+              "name": "2 · Kiểm tra tần suất",
+              "type": "[Cửa vào]",
+              "desc": "Có đang gửi quá nhanh không?"
+            },
+            "scope": {
+              "name": "3 · Kiểm tra quyền",
+              "type": "[Cửa vào]",
+              "desc": "Bạn có thuộc phòng này không?"
+            },
+            "controller": {
+              "name": "Tiếp nhận yêu cầu",
+              "type": "[Xử lý]",
+              "desc": "Cửa duy nhất để vào nghiệp vụ"
+            },
+            "usecase": {
+              "name": "Xử lý nghiệp vụ",
+              "type": "[Giao dịch]",
+              "desc": "Đổi bài, ghi dữ liệu xuống cơ sở dữ liệu"
+            },
+            "publisher": {
+              "name": "Phát sự kiện",
+              "type": "[Thông báo]",
+              "desc": "Chờ ghi xong mới phát"
+            },
+            "broker": {
+              "name": "Bộ phát tin",
+              "type": "[Trung chuyển]",
+              "desc": "Biết ai đang nghe kênh nào"
+            },
+            "topics": {
+              "name": "Kênh chung",
+              "type": "[Cả phòng]",
+              "desc": "Mọi người trong phòng cùng nhận"
+            },
+            "queues": {
+              "name": "Kênh riêng",
+              "type": "[Một người]",
+              "desc": "Chỉ đúng một người nhận"
+            }
+          },
+          "edges": {
+            "browserAuth": {
+              "label": "Mở kết nối, gửi yêu cầu",
+              "tech": "[hai chiều]"
+            },
+            "publisherBroker": {
+              "label": "Chỉ phát sau khi ghi xong",
+              "tech": "[an toàn]"
+            },
+            "topicsBrowser": {
+              "label": "Cả phòng nhận cùng lúc",
+              "tech": "[đẩy xuống]"
+            },
+            "queuesBrowser": {
+              "label": "Riêng một người nhận",
+              "tech": "[đẩy xuống]"
+            }
+          },
+          "boundaries": {
+            "inbound": "Ba cửa kiểm tra",
+            "app": "Xử lý nghiệp vụ",
+            "broker": "Phân phát tới người nghe"
+          },
+          "legend": {
+            "actor": "Người dùng",
+            "app": "Bước xử lý",
+            "data": "Kênh"
+          },
+          "title": "Luồng xử lý của hệ thống: từ trình duyệt, qua ba cửa kiểm tra, vào nghiệp vụ, rồi phát ngược lại cho người nghe",
+          "summary": "Trình duyệt mở một kết nối và gửi yêu cầu lên. Yêu cầu đi qua ba cửa kiểm tra: bạn là ai, có gửi quá nhanh không, có thuộc phòng này không. Qua được cả ba thì nghiệp vụ chạy và ghi dữ liệu. Ghi xong mới phát sự kiện ra kênh chung cho cả phòng hoặc kênh riêng cho một người."
+        },
+        "pubsub": {
+          "title": "Mô hình đăng — nghe: người gửi chỉ đăng lên một kênh, không hề biết ai đang nghe",
+          "summary": "Người gửi đăng nội dung lên một kênh. Kênh chung chuyển tới mọi người đang đăng ký nghe kênh đó; kênh riêng chỉ chuyển tới đúng một người. Người gửi không cần biết có bao nhiêu người nghe.",
+          "boundaries": {
+            "broker": "Bộ phát tin — giữ danh sách ai đang nghe kênh nào"
+          },
+          "legend": {
+            "app": "Người gửi",
+            "data": "Kênh",
+            "actor": "Người nghe"
+          },
+          "nodes": {
+            "sender": {
+              "name": "Máy chủ",
+              "type": "[Người gửi]",
+              "desc": "Chỉ cần chọn đúng kênh"
+            },
+            "topic": {
+              "name": "Kênh chung",
+              "type": "[Topic]",
+              "desc": "Ai đăng ký cũng nhận"
+            },
+            "queue": {
+              "name": "Kênh riêng",
+              "type": "[Queue]",
+              "desc": "Chỉ một người nhận"
+            },
+            "listenerA": {
+              "name": "Người nghe A",
+              "type": "[Trình duyệt]",
+              "desc": "Đang trong phòng"
+            },
+            "listenerB": {
+              "name": "Người nghe B",
+              "type": "[Trình duyệt]",
+              "desc": "Đang trong phòng"
+            },
+            "listenerC": {
+              "name": "Người nghe C",
+              "type": "[Trình duyệt]",
+              "desc": "Đang trong phòng"
+            },
+            "listenerD": {
+              "name": "Người nghe D",
+              "type": "[Trình duyệt]",
+              "desc": "Chỉ mình D nhận"
+            }
+          },
+          "edges": {
+            "senderTopic": {
+              "label": "Đăng một lần",
+              "tech": "[1 thao tác]"
+            },
+            "senderQueue": {
+              "label": "Gửi riêng",
+              "tech": "[1 thao tác]"
+            }
+          }
+        }
+      },
+      "realtime": {
+        "intro": "Đây là phần khó nhất của hệ thống, nên nó được viết từ đầu: bắt đầu bằng giới hạn của web thông thường, rồi lần lượt tới kết nối, tới bộ quy ước chạy trên kết nối đó, tới mô hình phân phát, và cuối cùng mới là những gì chúng tôi đã dựng.",
+        "toc": {
+          "label": "Nội dung phần này",
+          "items": {
+            "problem": "Vấn đề của HTTP truyền thống",
+            "websocket": "Giải pháp: đường ống WebSocket",
+            "stomp": "Tại sao lại đẻ thêm STOMP?",
+            "pubsub": "Mô hình hoạt động thực tế",
+            "system": "Áp dụng vào hệ thống của chúng ta"
+          }
+        },
+        "problem": {
+          "eyebrow": "Mở đầu",
+          "title": "Vấn đề của HTTP truyền thống",
+          "lead": "Toàn bộ web mà chúng ta quen dùng chạy trên một quy tắc duy nhất: client hỏi thì server mới trả lời. Quy tắc đó đủ dùng cho gần như mọi trang web — và hỏng ngay khi bạn cần một căn phòng nghe nhạc chung.",
+          "points": {
+            "0": "Cơ chế đó gọi là Request – Response. Trình duyệt gửi một yêu cầu, máy chủ trả về một phản hồi, rồi kết nối đóng lại. Máy chủ không có cách nào tự bắt chuyện trước. Nó chỉ được nói khi được hỏi.",
+            "1": "Bây giờ hãy tưởng tượng bảy người cùng ngồi trong một phòng nghe nhạc. Chủ phòng bấm play. Sáu người còn lại phải nghe đúng đoạn đó, ngay lúc đó. Nhưng trình duyệt của họ đâu biết vừa có chuyện gì xảy ra — và máy chủ thì không được phép chủ động báo.",
+            "2": "Cách chữa cháy quen thuộc là hỏi liên tục: cứ vài giây lại gửi một yêu cầu “có gì mới không?”. Nó chạy được, nhưng trả giá gấp đôi. Người dùng luôn chậm hơn thực tế vài giây, đủ để cảm giác “nghe cùng nhau” biến mất. Còn máy chủ thì nhận về một núi câu hỏi mà gần như câu nào cũng phải trả lời “chưa có gì”."
+          },
+          "compare": {
+            "have": {
+              "tag": "Thứ web thông thường cho",
+              "title": "Máy chủ im lặng cho tới khi được hỏi",
+              "body": "Muốn biết có thay đổi thì phải tự đi hỏi. Hỏi thưa thì tin đến muộn, hỏi dày thì tốn tài nguyên cho những câu trả lời rỗng. Không có lựa chọn nào tốt."
+            },
+            "need": {
+              "tag": "Thứ chúng ta cần",
+              "title": "Máy chủ chủ động báo ngay khi có chuyện",
+              "body": "Chủ phòng bấm play thì trong vài chục mili giây, sáu người kia biết. Không ai phải hỏi. Đây chính là chỗ mà HTTP thông thường không với tới, và là lý do phần còn lại của mục này tồn tại."
+            }
+          }
+        },
+        "websocket": {
+          "eyebrow": "Giải pháp",
+          "title": "Đường ống WebSocket",
+          "lead": "WebSocket giải quyết đúng vấn đề trên bằng cách bỏ hẳn kiểu hỏi–đáp. Thay vì mở rồi đóng một kết nối cho mỗi câu hỏi, hai bên mở một kết nối và giữ nó mở suốt.",
+          "points": {
+            "0": {
+              "title": "Bắt đầu bằng một cái bắt tay",
+              "body": "Kết nối vẫn khởi đầu như một yêu cầu web bình thường, nhưng kèm một lời đề nghị: “ta chuyển sang nói chuyện kiểu khác nhé”. Máy chủ đồng ý, và từ giây phút đó trở đi đường truyền không còn chạy theo luật hỏi–đáp nữa."
+            },
+            "1": {
+              "title": "Hai chiều, cùng lúc",
+              "body": "Cả hai đầu đều gửi được bất cứ khi nào, không cần chờ tới lượt và không cần được hỏi trước. Đây là điểm khác biệt cốt lõi: lần đầu tiên máy chủ có quyền nói trước."
+            },
+            "2": {
+              "title": "Mở liên tục",
+              "body": "Kết nối không đóng sau mỗi lần trao đổi. Không phải bắt tay lại, không phải xác thực lại từ đầu cho từng tin nhắn — thứ vốn chiếm phần lớn chi phí của kiểu hỏi–đáp."
+            },
+            "3": {
+              "title": "Nhẹ hơn nhiều",
+              "body": "Một yêu cầu web thông thường kéo theo hàng trăm byte thông tin phụ mỗi lần gửi. Trên một kết nối đã mở, phần phụ đó chỉ còn vài byte. Với những tin gửi liên tục như vị trí phát nhạc, khác biệt này là rất lớn."
+            }
+          },
+          "closing": "Kết quả: thay vì trễ vài giây và tiêu tốn tài nguyên cho những câu hỏi rỗng, sự kiện tới nơi trong vài chục mili giây và chỉ có tin thật mới chạy trên đường truyền."
+        },
+        "stomp": {
+          "eyebrow": "Vì sao cần thêm một lớp nữa",
+          "title": "Tại sao lại đẻ thêm STOMP?",
+          "question": "“Đã có WebSocket kết nối hai chiều rồi, tại sao còn phải dùng thêm STOMP?”",
+          "answer": "Vì WebSocket cho bạn một đường ống, chứ không cho bạn một ngôn ngữ. Nó bảo đảm rằng thứ bạn gửi sẽ tới nơi, nhưng hoàn toàn không quan tâm thứ đó là gì. Với nó, mọi tin nhắn chỉ là một chuỗi ký tự. Ba việc dưới đây, WebSocket không làm hộ bạn dòng nào.",
+          "gaps": {
+            "0": {
+              "title": "Phân biệt tin này với tin kia",
+              "body": "Một tin vừa tới: đó là tin nhắn chat, là lệnh tua nhạc, hay là thông báo có người vào phòng? WebSocket không có khái niệm ấy. Bạn buộc phải tự nghĩ ra một quy ước riêng, rồi tự viết đoạn phân loại ở cả hai đầu, và tự bảo nhau đừng ai làm sai."
+            },
+            "1": {
+              "title": "Gửi cho đúng người, đúng nhóm",
+              "body": "Máy chủ đang giữ hàng trăm kết nối. Muốn gửi cho sáu người trong một phòng cụ thể, bạn phải tự lưu danh sách ai đang ở phòng nào, tự lọc, tự dọn khi có người rớt mạng. Toàn bộ phần sổ sách đó là của bạn."
+            },
+            "2": {
+              "title": "Cho phép người nghe chọn thứ họ quan tâm",
+              "body": "Một người đang mở khung chat, người khác thì đóng. Không có cách nào chuẩn để nói “tôi muốn nghe cái này, không muốn nghe cái kia”. Bạn lại phải tự định nghĩa lấy một cơ chế đăng ký."
+            }
+          },
+          "analogy": {
+            "tag": "Cách hiểu gọn nhất",
+            "title": "WebSocket đứng dưới STOMP, y hệt cách TCP đứng dưới HTTP",
+            "body": "TCP chỉ biết chuyển byte từ máy này sang máy kia; chính HTTP mới định nghĩa thế nào là GET, thế nào là POST, mã 404 nghĩa là gì. Không ai tự viết lại HTTP cho mỗi dự án. Ở đây cũng vậy: WebSocket lo phần đường truyền, STOMP định nghĩa phần ý nghĩa — đặt tên kênh, đăng ký nghe, gửi đi, báo lỗi. Một bộ quy ước có sẵn, cả hai đầu đều hiểu, không phải phát minh lại."
+          },
+          "sample": {
+            "caption": "“Bộ quy ước” ở đây rất cụ thể. Một tin STOMP chỉ là văn bản thuần: dòng đầu nói đây là hành động gì, mấy dòng sau nói gửi tới kênh nào và nội dung thuộc kiểu gì, rồi tới nội dung. Đọc bằng mắt thường được, không cần công cụ nào."
+          }
+        },
+        "pubsub": {
+          "eyebrow": "Mô hình hoạt động",
+          "title": "Đăng và nghe, thay vì gửi cho từng người",
+          "lead": "Đây là ý tưởng khiến mọi thứ trở nên đơn giản: người gửi không gửi cho người nhận. Người gửi đăng nội dung lên một kênh, và ai quan tâm thì tự đăng ký nghe kênh đó.",
+          "radio": {
+            "title": "Giống hệt một đài phát thanh",
+            "body": "Đài không cần biết tối nay có bao nhiêu người mở radio, họ là ai, ở đâu. Đài chỉ phát trên đúng tần số của mình. Ai muốn nghe thì dò đúng tần số đó. Thêm một nghìn người nghe cũng không bắt đài phải làm gì khác đi."
+          },
+          "kinds": {
+            "0": {
+              "title": "Kênh chung — chuyện của cả phòng",
+              "body": "Dùng cho những gì mọi người trong phòng đều cần biết: có người vừa vào, bài hát vừa đổi, có tin nhắn mới. Máy chủ đăng một lần, cả phòng cùng nhận."
+            },
+            "1": {
+              "title": "Kênh riêng — chuyện của một người",
+              "body": "Dùng cho những gì chỉ liên quan tới đúng một người: yêu cầu vào phòng của bạn được duyệt hay bị từ chối, hoặc một thông báo lỗi cho thao tác bạn vừa làm. Năm người kia không nhận được gì."
+            }
+          },
+          "closing": "Cái lợi lớn nhất nằm ở chỗ máy chủ được giải phóng khỏi câu hỏi “gửi cho ai”. Nó chỉ cần chọn đúng kênh. Người thứ tám bước vào phòng, người thứ ba rời đi, ai đó rớt mạng rồi vào lại — không dòng nào trong phần xử lý nghiệp vụ phải thay đổi."
+        },
+        "system": {
+          "eyebrow": "Áp dụng",
+          "title": "Hệ thống của chúng ta hoạt động như thế nào",
+          "lead": "Ghép cả ba lớp trên lại, đây là luồng xử lý thực tế mỗi khi ai đó làm một việc gì trong phòng. Sơ đồ dưới đây là toàn cảnh; phần sau đi lại đúng con đường ấy theo từng bước.",
+          "flow": {
+            "title": "Sáu bước của một thao tác",
+            "lead": "Lấy ví dụ chủ phòng bấm play. Đây là những gì xảy ra, theo đúng thứ tự.",
+            "steps": {
+              "0": {
+                "title": "Mở kết nối và cho biết mình là ai",
+                "body": "Ngay khi vào phòng, trình duyệt mở một kết nối tới máy chủ và gửi kèm thông tin đăng nhập. Chưa xác nhận được danh tính thì kết nối tuy mở nhưng không làm được gì — đây là chốt chặn đầu tiên, và cũng là thứ mọi bước sau dựa vào."
+              },
+              "1": {
+                "title": "Xin nghe các kênh của phòng",
+                "body": "Trình duyệt nói cho máy chủ biết nó muốn nghe kênh của phòng nào. Máy chủ không tin ngay: phòng ở đây là riêng tư, nên nó tra lại xem người này có thật sự là chủ phòng, đang ở trong phòng, hay đang chờ được duyệt. Không thuộc nhóm nào thì bị từ chối."
+              },
+              "2": {
+                "title": "Gửi thao tác lên, qua một cửa duy nhất",
+                "body": "Khi chủ phòng bấm play, trình duyệt gửi thao tác đó lên. Mọi thao tác đều bắt buộc đi qua phần xử lý nghiệp vụ, không có đường tắt nào cho phép bắn thẳng ra kênh chung. Thiếu ràng buộc này thì bất kỳ ai cũng có thể tự tạo tin giả rồi phát vào phòng, và những người trong phòng sẽ tin ngay vì tin giả trông y hệt tin thật."
+              },
+              "3": {
+                "title": "Kiểm tra tần suất trước khi tốn công xử lý",
+                "body": "Trước khi chạm vào nghiệp vụ, hệ thống xem người này có đang gửi quá nhanh không. Đặt chốt này ở đây chứ không đặt sau là có lý do: một kết nối bắn hàng trăm thao tác mỗi giây phải bị chặn trước khi nó kịp bắt cơ sở dữ liệu làm hàng trăm lượt tra cứu vô ích."
+              },
+              "4": {
+                "title": "Xử lý nghiệp vụ và ghi dữ liệu",
+                "body": "Đổi bài, tính lại vị trí phát, lưu xuống cơ sở dữ liệu. Trong suốt bước này chưa có thông báo nào được gửi đi cho ai cả."
+              },
+              "5": {
+                "title": "Ghi xong mới thông báo",
+                "body": "Chỉ khi dữ liệu đã được lưu thành công, sự kiện mới được đăng lên kênh của phòng và tới sáu người còn lại. Thứ tự này quan trọng: nếu báo trước rồi việc ghi thất bại, mọi người sẽ thấy một trạng thái không hề tồn tại. Kèm theo mỗi sự kiện là giờ của máy chủ, để các trình duyệt lấy đó làm mốc chung thay vì tin vào đồng hồ máy mình."
+              }
+            }
+          },
+          "channels": {
+            "title": "Các kênh đang dùng",
+            "lead": "Sáu kênh, chia làm hai nhóm đúng như mô hình ở mục trước.",
+            "head": {
+              "a": "Kênh",
+              "b": "Ai nhận",
+              "c": "Dùng để làm gì"
+            },
+            "rows": {
+              "0": {
+                "b": "Cả phòng",
+                "c": "Có người vào, rời đi, bị mời ra; sức chứa thay đổi; phòng mở hoặc đóng"
+              },
+              "1": {
+                "b": "Cả phòng",
+                "c": "Tin nhắn mới trong khung chat"
+              },
+              "2": {
+                "b": "Cả phòng",
+                "c": "Phát, dừng, tua, đổi bài, và bình luận gắn vào mốc thời gian trong bài"
+              },
+              "3": {
+                "b": "Một người",
+                "c": "Kết quả duyệt hoặc từ chối yêu cầu vào phòng; trạng thái hiện tại gửi riêng cho người vừa vào"
+              },
+              "4": {
+                "b": "Một người",
+                "c": "Phần trao đổi để hai trình duyệt dựng kết nối thoại trực tiếp với nhau"
+              },
+              "5": {
+                "b": "Một người",
+                "c": "Báo lỗi cho đúng thao tác người đó vừa làm"
+              }
             }
           }
         }
@@ -1700,100 +2020,6 @@
                 "a": "Đưa lên máy chủ",
                 "b": "Khi mã vào nhánh chính",
                 "c": "Chạy lại kiểm thử nhanh, đóng gói, đẩy lên kho, rồi ra lệnh cho máy chủ kéo về và chờ nó báo khoẻ."
-              }
-            }
-          }
-        },
-        "realtime": {
-          "title": "Kênh realtime — WebSocket và STOMP",
-          "lead": "Phòng nghe chung cần đẩy sự kiện xuống nhiều người cùng lúc: có người vừa vào, chủ phòng vừa tắt mic của ai đó, bài hát vừa được tua, có tin nhắn mới. Hỏi lại máy chủ theo chu kỳ không dùng được — trễ vài giây là hỏng cảm giác nghe cùng nhau.",
-          "what": {
-            "body": "WebSocket là một kênh nối mở liên tục giữa trình duyệt và máy chủ, hai chiều, không phải hỏi mới có trả lời. STOMP là bộ quy ước nhắn tin chạy trên kênh đó, để hai bên thống nhất được thế nào là đăng ký một kênh, gửi một tin, hay nhận một tin.",
-            "points": {
-              "0": "Kênh chung: mọi người trong cùng một phòng đều nhận, dùng cho những chuyện của cả phòng.",
-              "1": "Kênh riêng: chỉ một người nhận, dùng cho những chuyện chỉ liên quan tới người đó."
-            }
-          },
-          "why": {
-            "body": "Bốn ràng buộc định hình toàn bộ thiết kế, và ràng buộc đầu tiên là thứ khiến phần xác thực trông lạ so với phần còn lại của hệ thống.",
-            "points": {
-              "0": "Trình duyệt không có cách nào gắn thẻ xác thực vào lúc bắt tay mở kênh. Không phải chọn không làm, mà là không có cách.",
-              "1": "Phòng là riêng tư: người ngoài không được đọc nội dung phòng, kể cả khi họ đoán trúng mã phòng.",
-              "2": "Sự kiện đẩy xuống phải phản ánh thứ đã ghi thật. Báo “đã xoá” rồi giao dịch bị huỷ là nói dối người dùng.",
-              "3": "Hỏi lại theo chu kỳ vừa trễ vừa lãng phí: bảy người trong phòng nhân với vài loại trạng thái thì số lần hỏi không có gì mới lớn hơn hẳn số lần có tin."
-            }
-          },
-          "when": {
-            "body": "Chỉ dùng cho phòng nghe chung, và chỉ cho những gì cần thấy ngay: người ra vào phòng, điều khiển phát nhạc, tin nhắn, bình luận theo mốc thời gian trong bài, và phần thương lượng kết nối thoại. Những việc chạy nền không cần thấy ngay thì đi đường hàng đợi, không đi đường này."
-          },
-          "how": {
-            "body": "Vì không gắn được thẻ lúc bắt tay, thẻ được gửi ngay ở tin đầu tiên sau khi kênh mở. Hệ quả: kênh mở được nhưng không làm được gì cho tới khi tin đầu tiên đó được chấp nhận. Sau đó mọi tin gửi lên đều đi qua ba lớp kiểm tra, theo thứ tự cố định.",
-            "points": {
-              "0": "Xác thực trước, để hai lớp sau biết người gửi là ai.",
-              "1": "Chống lụt đứng trước phân quyền, để một kết nối bắn năm trăm tin mỗi giây bị chặn trước khi kịp tạo ra năm trăm lượt tra cứu xem người đó có phải thành viên phòng không.",
-              "2": "Phân quyền kênh đứng cuối: muốn nghe kênh của một phòng thì phải là chủ phòng, đang ở trong phòng, hoặc đang đứng chờ duyệt — người chờ duyệt cũng cần nghe để biết phòng đầy hay đã đóng."
-            }
-          },
-          "visualTitle": "Từ lúc mở kênh tới lúc nhận được sự kiện đầu tiên",
-          "flow": {
-            "0": {
-              "title": "Mở kênh, chưa kèm thẻ xác thực",
-              "body": "Bước bắt tay không mang theo thẻ, vì trình duyệt không cho phép. Đường vào này vì thế phải để công khai — nghe như lỗ hổng, nhưng lớp chặn thật nằm ở ngay bước sau."
-            },
-            "1": {
-              "title": "Tin đầu tiên mang thẻ đi kèm",
-              "body": "Thẻ được kiểm tra tại đây. Không hợp lệ thì kênh coi như vô dụng: mở thì mở được, nhưng không gửi và không nhận được gì. Hợp lệ thì danh tính người gửi được gắn vào kênh, và mọi lớp phía sau dựa vào đúng thứ đó."
-            },
-            "2": {
-              "title": "Xin nghe các kênh của phòng",
-              "body": "Máy chủ kiểm tra người này có thật sự thuộc về phòng đó không, thay vì tin vào mã phòng họ gửi lên. Không thuộc thì lời xin bị từ chối ngay."
-            },
-            "3": {
-              "title": "Gửi một hành động lên",
-              "body": "Mọi thứ gửi lên đều phải đi qua đường xử lý nghiệp vụ, không được bắn thẳng vào kênh phát. Thiếu chặn này thì bất kỳ ai đã đăng nhập cũng bơm được sự kiện giả vào phòng — không qua nghiệp vụ nào, không để lại dấu vết nào, mà người trong phòng vẫn tin vì tin giả trông hệt tin thật."
-            },
-            "4": {
-              "title": "Sự kiện được đẩy xuống, sau khi đã ghi xong",
-              "body": "Việc phát chỉ xảy ra sau khi giao dịch hoàn tất. Nhờ vậy thứ mọi người nhìn thấy luôn khớp với thứ đã được ghi lại — không có chuyện báo xong rồi giao dịch bị huỷ."
-            }
-          },
-          "table": {
-            "title": "Kênh nào chở gì",
-            "head": {
-              "a": "Kênh",
-              "b": "Ai nhận",
-              "c": "Chở gì"
-            },
-            "rows": {
-              "0": {
-                "a": "Kênh chung của phòng",
-                "b": "Cả phòng",
-                "c": "Vào phòng, rời phòng, bị mời ra, sức chứa, vòng đời phòng"
-              },
-              "1": {
-                "a": "Kênh trò chuyện",
-                "b": "Cả phòng",
-                "c": "Tin nhắn mới"
-              },
-              "2": {
-                "a": "Kênh phát nhạc",
-                "b": "Cả phòng",
-                "c": "Phát, dừng, tua, đổi bài, bình luận theo mốc thời gian"
-              },
-              "3": {
-                "a": "Kênh riêng",
-                "b": "Một người",
-                "c": "Kết quả duyệt hoặc từ chối yêu cầu vào phòng"
-              },
-              "4": {
-                "a": "Kênh thoại riêng",
-                "b": "Một người",
-                "c": "Phần thương lượng để dựng kết nối thoại trực tiếp"
-              },
-              "5": {
-                "a": "Kênh lỗi riêng",
-                "b": "Một người",
-                "c": "Báo lỗi cho đúng tin mà người đó vừa gửi lên"
               }
             }
           }

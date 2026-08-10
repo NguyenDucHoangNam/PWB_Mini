@@ -792,7 +792,7 @@
         "relation": "{from} → {to}: {label} {tech}",
         "relationPlain": "{from} → {to}",
         "context": {
-          "title": "System context diagram (C4 level 1)",
+          "title": "System Context Diagram (C4 Level 1)",
           "summary": "C4 level 1 system context: three groups of users interact with Producer Workbench, which in turn integrates with five external systems.",
           "boundaries": {
             "people": "People",
@@ -886,7 +886,7 @@
           }
         },
         "containers": {
-          "title": "Container diagram (C4 level 2)",
+          "title": "Container Architecture Diagram (C4 Level 2)",
           "summary": "C4 level 2 containers: the browser calls into a set of containers running on a single VPS, and the backend talks to Postgres, Redis, Kafka and four external cloud services.",
           "boundaries": {
             "vps": "VPS host — Docker Compose · a single instance",
@@ -1008,7 +1008,7 @@
           }
         },
         "layers": {
-          "title": "The four layers inside the backend container (C4 level 3)",
+          "title": "Backend Layering Architecture (C4 Level 3)",
           "summary": "C4 level 3 components: the api, application, domain and infrastructure layers inside the backend container. Dependencies always point inward at the domain, and all three modules repeat the same four layers.",
           "boundaries": {
             "backend": "pwb-backend — all three modules iam · audio · liveroom repeat these four layers"
@@ -1055,7 +1055,7 @@
           }
         },
         "deployment": {
-          "title": "Deployment on the VPS",
+          "title": "VPS Infrastructure Deployment Diagram",
           "summary": "Deployment: the Docker containers on a single VPS. Only Nginx publishes ports; coturn runs on the host network and therefore sits outside the pwb-network bridge.",
           "boundaries": {
             "vps": "VPS host — Ubuntu · Docker · 4 vCPU · 7.6GB RAM",
@@ -1126,7 +1126,7 @@
           }
         },
         "pipeline": {
-          "title": "CI/CD pipeline from GitHub Actions through GHCR to the VPS",
+          "title": "CI/CD Data Pipeline Diagram",
           "summary": "CI/CD pipeline: a push to main runs two test jobs in parallel, builds and pushes the images to ghcr.io, then the VPS pulls over SSH and waits for the backend to report health UP.",
           "boundaries": {
             "actions": "GitHub Actions — ubuntu-latest",
@@ -1187,6 +1187,326 @@
             "registryPull": {
               "label": "Pulls the pinned images",
               "tech": "[docker pull]"
+            }
+          }
+        },
+        "realtime": {
+          "nodes": {
+            "browser": {
+              "name": "Browser",
+              "type": "[User]",
+              "desc": "Holds one open connection to the server"
+            },
+            "auth": {
+              "name": "1 · Identity check",
+              "type": "[Gate]",
+              "desc": "Who are you? Nothing works until this is answered"
+            },
+            "rate": {
+              "name": "2 · Rate check",
+              "type": "[Gate]",
+              "desc": "Are you sending too fast?"
+            },
+            "scope": {
+              "name": "3 · Permission check",
+              "type": "[Gate]",
+              "desc": "Do you belong to this room?"
+            },
+            "controller": {
+              "name": "Request intake",
+              "type": "[Handling]",
+              "desc": "The only door into the business logic"
+            },
+            "usecase": {
+              "name": "Business logic",
+              "type": "[Transaction]",
+              "desc": "Change the track, write it to the database"
+            },
+            "publisher": {
+              "name": "Event publishing",
+              "type": "[Notify]",
+              "desc": "Waits for the write to finish first"
+            },
+            "broker": {
+              "name": "Broker",
+              "type": "[Relay]",
+              "desc": "Knows who is listening to what"
+            },
+            "topics": {
+              "name": "Shared channel",
+              "type": "[Whole room]",
+              "desc": "Everyone in the room receives it"
+            },
+            "queues": {
+              "name": "Private channel",
+              "type": "[One person]",
+              "desc": "Exactly one recipient"
+            }
+          },
+          "edges": {
+            "browserAuth": {
+              "label": "Opens the connection, sends a request",
+              "tech": "[two-way]"
+            },
+            "publisherBroker": {
+              "label": "Published only after the write",
+              "tech": "[safe]"
+            },
+            "topicsBrowser": {
+              "label": "The whole room, at once",
+              "tech": "[pushed]"
+            },
+            "queuesBrowser": {
+              "label": "One person only",
+              "tech": "[pushed]"
+            }
+          },
+          "boundaries": {
+            "inbound": "Three checks",
+            "app": "Business logic",
+            "broker": "Delivery to listeners"
+          },
+          "legend": {
+            "actor": "User",
+            "app": "Processing step",
+            "data": "Channel"
+          },
+          "title": "How the system handles a request: from the browser, through three checks, into the business logic, and back out to the listeners",
+          "summary": "The browser opens a connection and sends a request. It passes three checks: who you are, whether you are sending too fast, and whether you belong to this room. Past all three, the business logic runs and writes to the database. Only then is the event published, either to the shared channel for the whole room or to one person's private channel."
+        },
+        "pubsub": {
+          "title": "Publish and subscribe: the sender only posts to a channel and never learns who is listening",
+          "summary": "The sender posts to a channel. A shared channel delivers to everyone subscribed to it; a private channel delivers to exactly one person. The sender never needs to know how many listeners there are.",
+          "boundaries": {
+            "broker": "Broker — keeps track of who is listening to what"
+          },
+          "legend": {
+            "app": "Sender",
+            "data": "Channel",
+            "actor": "Listener"
+          },
+          "nodes": {
+            "sender": {
+              "name": "Server",
+              "type": "[Sender]",
+              "desc": "Only has to pick the right channel"
+            },
+            "topic": {
+              "name": "Shared channel",
+              "type": "[Topic]",
+              "desc": "Everyone subscribed receives it"
+            },
+            "queue": {
+              "name": "Private channel",
+              "type": "[Queue]",
+              "desc": "Exactly one recipient"
+            },
+            "listenerA": {
+              "name": "Listener A",
+              "type": "[Browser]",
+              "desc": "In the room"
+            },
+            "listenerB": {
+              "name": "Listener B",
+              "type": "[Browser]",
+              "desc": "In the room"
+            },
+            "listenerC": {
+              "name": "Listener C",
+              "type": "[Browser]",
+              "desc": "In the room"
+            },
+            "listenerD": {
+              "name": "Listener D",
+              "type": "[Browser]",
+              "desc": "Only D receives this"
+            }
+          },
+          "edges": {
+            "senderTopic": {
+              "label": "Posted once",
+              "tech": "[one call]"
+            },
+            "senderQueue": {
+              "label": "Sent privately",
+              "tech": "[one call]"
+            }
+          }
+        }
+      },
+      "realtime": {
+        "intro": "This is the hardest part of the system, so it is written from the ground up: start with what an ordinary web page cannot do, then the connection that fixes it, the conventions that ride on that connection, the delivery model, and only at the end what was actually built here.",
+        "toc": {
+          "label": "In this section",
+          "items": {
+            "problem": "The problem with ordinary HTTP",
+            "websocket": "The fix: a WebSocket pipe",
+            "stomp": "So why add STOMP on top?",
+            "pubsub": "How delivery actually works",
+            "system": "How we applied it"
+          }
+        },
+        "problem": {
+          "eyebrow": "Starting point",
+          "title": "The problem with ordinary HTTP",
+          "lead": "The entire web we are used to runs on a single rule: the server answers only when asked. That rule is enough for almost every website — and it breaks the moment you want a shared listening room.",
+          "points": {
+            "0": "The mechanism is called request–response. The browser sends a request, the server returns a reply, and the exchange is over. The server has no way to start a conversation. It only speaks when spoken to.",
+            "1": "Now picture seven people in one listening room. The owner hits play. The other six need to hear that same moment, at that moment. But their browsers have no idea anything happened — and the server is not allowed to volunteer it.",
+            "2": "The familiar workaround is to keep asking: every few seconds, send a request saying “anything new?”. It works, and it costs twice over. Users are always a few seconds behind reality, which is enough for the sense of listening together to disappear. And the server collects a mountain of questions it has to answer with “nothing yet”."
+          },
+          "compare": {
+            "have": {
+              "tag": "What the ordinary web gives you",
+              "title": "A server that stays silent until asked",
+              "body": "Finding out whether anything changed means going and asking. Ask rarely and news arrives late; ask often and you burn resources on empty answers. Neither option is good."
+            },
+            "need": {
+              "tag": "What we need",
+              "title": "A server that speaks the moment something happens",
+              "body": "The owner hits play and, within tens of milliseconds, the other six know. Nobody asked. This is precisely where ordinary HTTP stops, and the reason the rest of this section exists."
+            }
+          }
+        },
+        "websocket": {
+          "eyebrow": "The fix",
+          "title": "A WebSocket pipe",
+          "lead": "WebSocket solves exactly that by dropping the ask-and-answer shape. Instead of opening and closing a connection per question, both sides open one connection and hold it open.",
+          "points": {
+            "0": {
+              "title": "It starts with a handshake",
+              "body": "The connection still begins as an ordinary web request, but it carries a proposal: let us switch to talking a different way. The server agrees, and from that moment the link no longer follows request–response rules."
+            },
+            "1": {
+              "title": "Both directions, at the same time",
+              "body": "Either end can send whenever it wants, without waiting for a turn and without being asked first. This is the core difference: for the first time, the server may speak first."
+            },
+            "2": {
+              "title": "Held open",
+              "body": "The connection does not close after each exchange. No repeated handshake, no re-establishing who you are for every single message — which is where most of the cost of request–response goes."
+            },
+            "3": {
+              "title": "Far lighter per message",
+              "body": "An ordinary web request drags hundreds of bytes of overhead along every time. On a connection that is already open, that overhead drops to a handful of bytes. For a steady trickle of messages like playback position, the difference is large."
+            }
+          },
+          "closing": "The result: instead of a few seconds of lag and resources spent on empty questions, events land in tens of milliseconds and only real news travels the wire."
+        },
+        "stomp": {
+          "eyebrow": "Why another layer",
+          "title": "So why add STOMP on top?",
+          "question": "“We already have a two-way WebSocket connection — why bring in STOMP as well?”",
+          "answer": "Because WebSocket gives you a pipe, not a language. It guarantees that what you send arrives, and takes no interest whatsoever in what it is. As far as it is concerned, every message is just a run of characters. The three jobs below are ones WebSocket does not do a single line of for you.",
+          "gaps": {
+            "0": {
+              "title": "Telling one message apart from another",
+              "body": "A message just arrived: is it a chat line, a seek command, or a notice that someone joined? WebSocket has no concept of that. You are forced to invent a convention of your own, write the sorting logic at both ends, and rely on everyone remembering to follow it."
+            },
+            "1": {
+              "title": "Delivering to the right person or group",
+              "body": "The server is holding hundreds of connections. To reach the six people in one particular room, you have to track who is in which room, filter, and clean up when someone drops off. All of that bookkeeping is yours."
+            },
+            "2": {
+              "title": "Letting listeners choose what they care about",
+              "body": "One person has the chat panel open, another has closed it. There is no standard way to say “send me this, not that”. Once again you would be defining a subscription mechanism from scratch."
+            }
+          },
+          "analogy": {
+            "tag": "The shortest way to see it",
+            "title": "WebSocket sits under STOMP exactly as TCP sits under HTTP",
+            "body": "TCP only knows how to move bytes between machines; it is HTTP that defines what GET means, what POST means, what a 404 is. Nobody rewrites HTTP for each new project. The same applies here: WebSocket handles the transport, STOMP defines the meaning — naming channels, subscribing to them, sending, reporting errors. A ready-made set of conventions both ends already understand, instead of one you invent."
+          },
+          "sample": {
+            "caption": "Those “conventions” are very concrete. A STOMP message is plain text: the first line says what kind of action this is, the next lines say which channel it is for and what the content is, then the content itself. Readable by eye, no tooling required."
+          }
+        },
+        "pubsub": {
+          "eyebrow": "The model",
+          "title": "Publish and subscribe, instead of sending to each person",
+          "lead": "This is the idea that makes the whole thing simple: the sender does not send to recipients. The sender posts to a channel, and whoever cares subscribes to that channel.",
+          "radio": {
+            "title": "Exactly like a radio station",
+            "body": "The station does not need to know how many people have a radio on tonight, who they are, or where they live. It broadcasts on its frequency. Anyone who wants to listen tunes in. A thousand more listeners does not make the station do anything differently."
+          },
+          "kinds": {
+            "0": {
+              "title": "Shared channel — the room's business",
+              "body": "For anything everyone in the room needs to know: someone joined, the track changed, a message arrived. The server posts once and the whole room receives it."
+            },
+            "1": {
+              "title": "Private channel — one person's business",
+              "body": "For anything that concerns exactly one person: your request to join was approved or refused, or an error for something you just did. The other five receive nothing."
+            }
+          },
+          "closing": "The real gain is that the server is freed from the question of who to send to. It only has to pick the right channel. An eighth person walks in, a third one leaves, someone drops off and comes back — not one line of the business logic changes."
+        },
+        "system": {
+          "eyebrow": "Applied",
+          "title": "How our system works",
+          "lead": "With all three layers in place, this is what actually happens whenever someone does something in a room. The diagram is the whole picture; what follows walks the same path one stage at a time.",
+          "flow": {
+            "title": "Six stages of one action",
+            "lead": "Take the room owner hitting play. This is what happens, in order.",
+            "steps": {
+              "0": {
+                "title": "Open the connection and say who you are",
+                "body": "On entering a room, the browser opens a connection to the server and sends its sign-in details along with it. Until identity is confirmed the connection is open but useless — this is the first gate, and everything after it depends on the answer."
+              },
+              "1": {
+                "title": "Ask to listen to the room's channels",
+                "body": "The browser tells the server which room's channels it wants. The server does not simply believe it: rooms here are private, so it checks whether this person really is the owner, currently in the room, or waiting for approval. Anyone else is refused."
+              },
+              "2": {
+                "title": "Send the action up, through a single door",
+                "body": "When the owner hits play, the browser sends that action up. Every action must go through the business logic; there is no shortcut that lets anything be posted straight onto a shared channel. Without that rule anyone could fabricate a message and broadcast it into a room, and everyone there would believe it, because a fake looks exactly like the real thing."
+              },
+              "3": {
+                "title": "Check the rate before spending any work",
+                "body": "Before the business logic is touched, the system checks whether this person is sending too fast. Putting the check here rather than later is deliberate: a connection firing hundreds of actions a second has to be stopped before it can make the database perform hundreds of pointless lookups."
+              },
+              "4": {
+                "title": "Run the logic and write the data",
+                "body": "Change the track, recompute the playback position, save it to the database. Throughout this stage nothing has been announced to anyone."
+              },
+              "5": {
+                "title": "Announce only once the write succeeded",
+                "body": "Only after the data is safely stored is the event posted to the room's channel and delivered to the other six. The order matters: announce first and then fail to write, and everyone sees a state that never existed. Each event also carries the server's clock, so browsers use that as the shared reference instead of trusting their own."
+              }
+            }
+          },
+          "channels": {
+            "title": "The channels in use",
+            "lead": "Six channels, split into the two groups from the model above.",
+            "head": {
+              "a": "Channel",
+              "b": "Who receives",
+              "c": "What it is for"
+            },
+            "rows": {
+              "0": {
+                "b": "Whole room",
+                "c": "People joining, leaving, being removed; capacity changes; the room opening or closing"
+              },
+              "1": {
+                "b": "Whole room",
+                "c": "New messages in the chat panel"
+              },
+              "2": {
+                "b": "Whole room",
+                "c": "Play, pause, seek, track changes, and comments pinned to a moment in the track"
+              },
+              "3": {
+                "b": "One person",
+                "c": "Approval or refusal of a join request; current state sent privately to someone who just arrived"
+              },
+              "4": {
+                "b": "One person",
+                "c": "The exchange two browsers use to set up a direct voice connection"
+              },
+              "5": {
+                "b": "One person",
+                "c": "An error for the specific action that person just took"
+              }
             }
           }
         }
@@ -1700,100 +2020,6 @@
                 "a": "Release",
                 "b": "When code reaches the main branch",
                 "c": "Reruns the fast tests, packages, pushes to the registry, then tells the server to pull and waits for it to report healthy."
-              }
-            }
-          }
-        },
-        "realtime": {
-          "title": "The realtime channel — WebSocket and STOMP",
-          "lead": "A shared listening room has to push events down to several people at once: somebody just joined, the host just muted someone, the track was just scrubbed, a message arrived. Asking the server again on a timer does not work — a few seconds of delay ruins the feeling of listening together.",
-          "what": {
-            "body": "A WebSocket is a connection held open between browser and server, both directions, where the server does not have to be asked before it can say something. STOMP is the messaging convention that runs on top of it, so both sides agree on what it means to subscribe to a channel, send a message, or receive one.",
-            "points": {
-              "0": "Shared channels: everybody in the same room receives them, for things that concern the whole room.",
-              "1": "Private channels: one person receives them, for things that concern only that person."
-            }
-          },
-          "why": {
-            "body": "Four constraints shape the whole design, and the first is what makes the authentication here look unlike the rest of the system.",
-            "points": {
-              "0": "The browser has no way to attach a credential while the connection is being opened. Not a decision — there is simply no mechanism.",
-              "1": "Rooms are private: an outsider must not read what happens inside, even if they guess the room correctly.",
-              "2": "Events pushed down have to reflect what was actually recorded. Announcing “deleted” and then rolling the transaction back is lying to the user.",
-              "3": "Polling is both slow and wasteful: seven people in a room multiplied by several kinds of state means far more empty checks than useful ones."
-            }
-          },
-          "when": {
-            "body": "Only for shared listening rooms, and only for what has to be seen at once: people joining and leaving, playback control, messages, comments pinned to a moment in the track, and the negotiation that sets up direct voice. Background work that nobody is watching goes through the queue instead."
-          },
-          "how": {
-            "body": "Since no credential can be attached while opening the connection, it is sent in the very first message afterwards. The consequence is that the connection opens but can do nothing at all until that first message is accepted. After that, everything sent upward passes through three checks in a fixed order.",
-            "points": {
-              "0": "Authentication first, so the two layers after it know who is sending.",
-              "1": "Flood control before permissions, so a connection firing five hundred messages a second is stopped before it can generate five hundred lookups asking whether that person belongs to the room.",
-              "2": "Channel permissions last: to listen to a room you must be its host, currently inside it, or waiting for approval — somebody waiting also needs to hear that the room filled up or closed."
-            }
-          },
-          "visualTitle": "From opening the connection to receiving the first event",
-          "flow": {
-            "0": {
-              "title": "Open the connection, with no credential attached",
-              "body": "The opening handshake carries no credential, because the browser cannot attach one. This entrance therefore has to be left public — which sounds like a hole, except the real gate is the very next step."
-            },
-            "1": {
-              "title": "The first message carries the credential",
-              "body": "This is where it is checked. Invalid, and the connection is useless: open, but unable to send or receive anything. Valid, and the sender's identity is attached to the connection — which is what every later layer relies on."
-            },
-            "2": {
-              "title": "Ask to listen to the room's channels",
-              "body": "The server checks whether this person really belongs to that room, rather than trusting the room they claimed. If they do not, the request is refused outright."
-            },
-            "3": {
-              "title": "Send an action upward",
-              "body": "Everything sent upward must go through the business path; firing straight at the broadcast channel is refused. Without that block, anybody signed in could inject fake events into a room — through no business logic, leaving no trace, and everybody in the room would believe them because a fake looks exactly like the real thing."
-            },
-            "4": {
-              "title": "The event is pushed down, after the write has landed",
-              "body": "Broadcasting only happens once the transaction has finished. That way what everybody sees always matches what was actually recorded — there is no announcing something and then rolling it back."
-            }
-          },
-          "table": {
-            "title": "What each channel carries",
-            "head": {
-              "a": "Channel",
-              "b": "Who receives it",
-              "c": "What it carries"
-            },
-            "rows": {
-              "0": {
-                "a": "The room's shared channel",
-                "b": "The whole room",
-                "c": "Joining, leaving, being removed, capacity, the room's lifecycle"
-              },
-              "1": {
-                "a": "The chat channel",
-                "b": "The whole room",
-                "c": "New messages"
-              },
-              "2": {
-                "a": "The playback channel",
-                "b": "The whole room",
-                "c": "Play, pause, seek, track changes, comments pinned to a moment"
-              },
-              "3": {
-                "a": "The private channel",
-                "b": "One person",
-                "c": "The decision on their request to join"
-              },
-              "4": {
-                "a": "The private voice channel",
-                "b": "One person",
-                "c": "The negotiation that sets up a direct voice connection"
-              },
-              "5": {
-                "a": "The private error channel",
-                "b": "One person",
-                "c": "The error for the exact message that person just sent"
               }
             }
           }

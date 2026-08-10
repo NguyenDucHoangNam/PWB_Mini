@@ -15,7 +15,6 @@ export function TechnicalInfra() {
   return (
     <TechnicalSectionShell
       id="infrastructure"
-      index={4}
       icon={Server}
       eyebrow={t("sections.infrastructure.eyebrow")}
       title={t("sections.infrastructure.title")}

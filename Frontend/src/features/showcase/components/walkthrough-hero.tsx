@@ -54,9 +54,6 @@ export function WalkthroughHero() {
                       <Icon aria-hidden="true" className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
                       {t(`modules.${key}.title`)}
                     </span>
-                    <span className="mt-1 block font-mono text-[0.66rem] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
-                      {t("hero.moduleMeta", { steps })}
-                    </span>
                   </span>
                 </>
               );

@@ -229,6 +229,113 @@ export const DEPLOYMENT_DIAGRAM: DiagramSpec = {
   legend: ["actor", "app", "data"],
 };
 
+/* --------------------------------------------------------------- publish / subscribe, alone */
+
+/* Deliberately abstract: no room, no controller, no product noun anywhere on it. The point of
+   the section it belongs to is that the sender addresses a channel and never a person, and any
+   concrete label would invite the reader to work out who is talking to whom instead — which is
+   the exact habit the model breaks. */
+export const PUBSUB_DIAGRAM: DiagramSpec = {
+  id: "pubsub",
+  width: 1000,
+  height: 470,
+  boundaries: [{ key: "broker", x: 350, y: 40, w: 300, h: 380 }],
+  nodes: [
+    { key: "sender", kind: "app", x: 20, y: 170, w: 200, h: 100 },
+
+    { key: "topic", kind: "data", x: 380, y: 80, w: 240, h: 90 },
+    { key: "queue", kind: "data", x: 380, y: 290, w: 240, h: 90 },
+
+    { key: "listenerA", kind: "actor", x: 760, y: 20, w: 200, h: 76 },
+    { key: "listenerB", kind: "actor", x: 760, y: 112, w: 200, h: 76 },
+    { key: "listenerC", kind: "actor", x: 760, y: 204, w: 200, h: 76 },
+    { key: "listenerD", kind: "actor", x: 760, y: 300, w: 200, h: 76 },
+  ],
+  edges: [
+    { key: "senderTopic", from: "sender", to: "topic", x1: 220, y1: 195, x2: 380, y2: 140, labelX: 300, labelBottom: 152 },
+    { key: "senderQueue", from: "sender", to: "queue", x1: 220, y1: 245, x2: 380, y2: 320, labelX: 300, labelBottom: 320 },
+
+    /* Three unlabelled arrows off one box is the whole argument: the sender drew one of them,
+       and the other two cost it nothing. */
+    { key: "topicA", from: "topic", to: "listenerA", x1: 620, y1: 110, x2: 760, y2: 58 },
+    { key: "topicB", from: "topic", to: "listenerB", x1: 620, y1: 125, x2: 760, y2: 150 },
+    { key: "topicC", from: "topic", to: "listenerC", x1: 620, y1: 140, x2: 760, y2: 242 },
+
+    { key: "queueD", from: "queue", to: "listenerD", x1: 620, y1: 335, x2: 760, y2: 338 },
+  ],
+  legend: ["app", "data", "actor"],
+};
+
+/* ------------------------------------------------------- the STOMP pipeline, inbound to out */
+
+/* Not a C4 level — this one is drawn for the realtime section alone, and its subject is a
+   path rather than a structure: one frame's journey from the browser, through the three
+   inbound gates, into a use case, and back out through the broker to two kinds of
+   destination. Read it clockwise.
+
+   Two things are deliberately absent. The `ERROR` frame path is not drawn: it belongs to the
+   trap callout below the diagram, where there is room to say why a refused frame takes the
+   whole socket with it, and a tenth box plus a crossing edge would cost more than it explains.
+   Nor are the `/app` destination patterns on the arrows — they sit in the controller box's
+   own subtitle, which is where this diagram style already puts detail.
+
+   The two return lines run down the empty left column on purpose: it is the only band wide
+   enough to carry both a line and its label without either crossing a box. */
+export const REALTIME_DIAGRAM: DiagramSpec = {
+  id: "realtime",
+  width: 1100,
+  height: 830,
+  boundaries: [
+    { key: "inbound", x: 330, y: 30, w: 300, h: 440 },
+    { key: "app", x: 690, y: 30, w: 390, h: 440 },
+    { key: "broker", x: 350, y: 545, w: 730, h: 240 },
+  ],
+  nodes: [
+    { key: "browser", kind: "actor", x: 20, y: 70, w: 240, h: 88 },
+
+    /* The three gates keep the order they are registered in, top to bottom. That order is
+       load-bearing — authentication first so the other two have a principal, throttling
+       before authorisation so a flood is stopped before it can cost 500 membership
+       queries — so the drawing must not reshuffle them for looks. */
+    { key: "auth", kind: "app", x: 350, y: 90, w: 260, h: 88 },
+    { key: "rate", kind: "app", x: 350, y: 210, w: 260, h: 88 },
+    { key: "scope", kind: "app", x: 350, y: 330, w: 260, h: 88 },
+
+    { key: "controller", kind: "app", x: 710, y: 90, w: 260, h: 88 },
+    { key: "usecase", kind: "app", x: 710, y: 210, w: 260, h: 88 },
+    { key: "publisher", kind: "app", x: 710, y: 330, w: 260, h: 88 },
+
+    { key: "broker", kind: "data", x: 790, y: 630, w: 260, h: 88 },
+    { key: "topics", kind: "data", x: 390, y: 590, w: 280, h: 80 },
+    { key: "queues", kind: "data", x: 390, y: 690, w: 280, h: 80 },
+  ],
+  edges: [
+    /* Label parked above both boxes rather than in the 90px gap between them, which cannot
+       hold two lines of text in either language. */
+    { key: "browserAuth", from: "browser", to: "auth", x1: 260, y1: 114, x2: 350, y2: 134, labelX: 305, labelBottom: 62 },
+
+    { key: "authRate", from: "auth", to: "rate", x1: 480, y1: 178, x2: 480, y2: 210 },
+    { key: "rateScope", from: "rate", to: "scope", x1: 480, y1: 298, x2: 480, y2: 330 },
+    { key: "scopeController", from: "scope", to: "controller", x1: 610, y1: 374, x2: 710, y2: 134 },
+
+    { key: "controllerUsecase", from: "controller", to: "usecase", x1: 840, y1: 178, x2: 840, y2: 210 },
+    { key: "usecasePublisher", from: "usecase", to: "publisher", x1: 840, y1: 298, x2: 840, y2: 330 },
+
+    /* The longest run on the canvas, and the only one that earns its length: the gap between
+       the publisher and the broker is where the after-commit wait happens. */
+    { key: "publisherBroker", from: "publisher", to: "broker", x1: 870, y1: 418, x2: 870, y2: 630, labelX: 870, labelBottom: 540 },
+
+    { key: "brokerTopics", from: "broker", to: "topics", x1: 790, y1: 665, x2: 670, y2: 635 },
+    { key: "brokerQueues", from: "broker", to: "queues", x1: 790, y1: 700, x2: 670, y2: 720 },
+
+    /* Both labels are pinned to a height where their own line has already cleared the
+       interceptor column — any lower and the wider of the two runs into the third gate. */
+    { key: "topicsBrowser", from: "topics", to: "browser", x1: 390, y1: 630, x2: 230, y2: 158, labelX: 261, labelBottom: 250 },
+    { key: "queuesBrowser", from: "queues", to: "browser", x1: 390, y1: 730, x2: 120, y2: 158, labelX: 201, labelBottom: 330 },
+  ],
+  legend: ["actor", "app", "data"],
+};
+
 /* ------------------------------------------------------------------------ CI/CD pipeline */
 
 /* The mermaid source folds the test stage into one node. It is two jobs running in parallel —

@@ -5,11 +5,11 @@ import type { LucideIcon } from "lucide-react";
 import { PenLine } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Eyebrow, Reveal, SectionTitle } from "@/components/marketing/section-primitives";
+import { TECHNICAL_SECTION_IDS } from "@/features/showcase/lib/technical-sections";
 import { cn } from "@/lib/utils";
 
 interface TechnicalSectionShellProps {
   id: string;
-  index: number;
   icon: LucideIcon;
   title: string;
   eyebrow: string;
@@ -19,13 +19,17 @@ interface TechnicalSectionShellProps {
 
 export function TechnicalSectionShell({
   id,
-  index,
   icon: Icon,
   title,
   eyebrow,
   children,
   className,
 }: TechnicalSectionShellProps) {
+  /* Read off the section list rather than passed in. The number also appears on the nav tab,
+     where it is the tab's position, so a hand-written one here drifts the moment a section is
+     added or dropped — which is exactly what happened when "modules" was removed. */
+  const index = TECHNICAL_SECTION_IDS.indexOf(id) + 1;
+
   return (
     /* The panel holds no focusable content of its own, so it takes a tab stop — otherwise
        a keyboard reader leaves the tab bar and lands past everything they just switched to. */

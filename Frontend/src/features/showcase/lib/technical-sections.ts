@@ -22,7 +22,6 @@ export interface TechnicalSection {
 /* Anchors stay in English so a shared URL keeps working when the reader switches locale. */
 export const TECHNICAL_SECTIONS: readonly TechnicalSection[] = [
   { id: "overview", icon: Layers },
-  { id: "modules", icon: Workflow },
   { id: "realtime", icon: Radio },
   { id: "infrastructure", icon: Server },
 ];
@@ -43,8 +42,6 @@ export const MODULE_CARDS = [
 export const INFRA_CARDS = [
   { key: "outbox", icon: Workflow },
   { key: "redis", icon: Database },
-  { key: "storage", icon: Cloud },
-  { key: "errors", icon: Siren },
   { key: "security", icon: ShieldCheck },
   { key: "deploy", icon: Rocket },
 ] as const;

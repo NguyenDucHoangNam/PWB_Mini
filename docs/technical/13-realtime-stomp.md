@@ -46,7 +46,13 @@ flowchart TD
 
     MM -. "ném exception" .-> EH["LiveroomStompExceptionHandler<br/>→ /user/queue/liveroom/errors"]
     EH --> C
+
+    I1 -. "từ chối" .-> ERR["Frame ERROR<br/><i>rồi đóng luôn socket</i>"]
+    I3 -. "từ chối" .-> ERR
+    ERR --> C
 ```
+
+Hai đường lỗi trong sơ đồ **không giống nhau** và đây là chỗ dễ nhầm nhất: exception ném từ `@MessageMapping` đi về kênh lỗi riêng và kết nối vẫn sống; exception ném từ một interceptor làm đứt cả kết nối. Chi tiết ở mục 7.1.
 
 Cấu hình ở `WebSocketConfig` (`modules/liveroom/src/main/java/com/pwb/liveroom/infrastructure/realtime/config/WebSocketConfig.java`):
 
@@ -70,6 +76,8 @@ registry.addEndpoint("/ws").setAllowedOriginPatterns(origins).withSockJS();
 ```
 
 Nhìn như lỗi copy-paste, nhưng **`withSockJS()` thay thế mapping WebSocket thuần của endpoint chứ không cộng thêm vào**. Chỉ gọi dòng dưới thì client WebSocket thuần mất đường vào; chỉ gọi dòng trên thì mất đường dự phòng SockJS cho môi trường có proxy chặn WebSocket. Mỗi kiểu một lần đăng ký là cách giữ được cả hai.
+
+Hai đăng ký không giẫm lên nhau vì chúng sinh ra **hai URL pattern khác nhau**. `WebMvcStompWebSocketEndpointRegistration.getMappings()` là một khối `if/else`: có SockJS thì map `path + "/**"` vào `SockJsHttpRequestHandler`, không có thì map đúng `path` vào `WebSocketHttpRequestHandler`. Kết quả là `/ws` phục vụ WebSocket thuần còn `/ws/**` phục vụ SockJS — cũng là lý do dòng `- /ws/**` trong `public-endpoints` phủ được cả hai.
 
 ### 3.2. Token đi trên frame CONNECT, không đi trên handshake
 
@@ -103,6 +111,19 @@ Kết quả: một socket mở được, nhưng không làm được gì cho t�
 | Chờ mạng | Nếu `navigator.onLine === false` thì hoãn thêm 2s thay vì đốt một lần thử. |
 | Heartbeat | 10s cả hai chiều. |
 | `reconnectDelay: 0` | Tắt reconnect tự động của thư viện — nếu bật, nó sẽ chạy song song với vòng backoff tự viết và tạo ra hai chuỗi thử kết nối chồng nhau. |
+| Frame `ERROR` là điểm dừng | `onStompError` đặt `wantConnected = false`, nên toàn bộ vòng backoff ở trên **không chạy**. Đúng ý đồ: một lần bị từ chối quyền thì thử lại bao nhiêu lần cũng bị từ chối như thế. |
+
+**Một lỗi đang tồn tại ở đây.** `onStompError` gán cứng `code: "LR_080"` cho *mọi* frame `ERROR`:
+
+```ts
+client.onStompError = (frame) => {
+  this.setStatus("unauthorized", this.attempt);
+  this.wantConnected = false;
+  this.emitFrameError({ ..., message: frame.headers.message ?? "", code: "LR_080", ... });
+};
+```
+
+Nhưng `ERROR` không chỉ đến từ `WS_UNAUTHORIZED`. Một CONNECT hỏng token cũng về đúng đường này với `WS_UNAUTHENTICATED`, và người dùng nhận được câu "bạn không được phép đăng ký phòng này" (`LR_080`) trong khi vấn đề thật là phiên đăng nhập đã hết hạn. Chuỗi phân biệt hai trường hợp **đang có sẵn** trong `frame.headers.message` — server đặt đúng bằng `ex.getMessage()`, tức là chuỗi `"WS_UNAUTHENTICATED"` hoặc `"WS_UNAUTHORIZED"` — nhưng nó chỉ được nhét vào trường `message` rồi bỏ qua. `use-room-session.ts` sau đó ánh xạ trạng thái `unauthorized` thẳng thành `LiveroomErrorCode.WS_UNAUTHORIZED`, nên sai lệch đi tiếp tới tận màn hình.
 
 Client đăng ký **3 kênh cá nhân ngay khi CONNECT** (`/user/queue/liveroom`, `.../errors`, `.../rtc`) và **3 kênh phòng chỉ khi đã được phép** vào phòng (`ensureRoomSubscriptions(roomId, allowed)`). Tách hai nhóm là cần thiết: người đang chờ duyệt phải nhận được quyết định trên kênh cá nhân trước khi họ có quyền nghe kênh phòng.
 
@@ -119,6 +140,8 @@ Client đăng ký **3 kênh cá nhân ngay khi CONNECT** (`/user/queue/liveroom`
 | `/app/liveroom/{roomId}/comments/add` · `/get` | `TrackCommentStompController` |
 | `/app/liveroom/{roomId}/rtc/offer` · `/answer` · `/ice` | `RtcStompController` |
 
+Hai trong số đó — `music/get-state` và `comments/get` — là **lệnh đọc, không phải lệnh ghi**. Chúng không phát gì ra phòng; câu trả lời quay về kênh riêng của đúng người hỏi (xem bảng dưới). Nhờ vậy một người mở lại tab và kéo trạng thái về không làm sáu người còn lại nhận thêm frame nào.
+
 ### 4.2. Server đẩy xuống
 
 | Destination | Ai nhận | Chở gì |
@@ -126,9 +149,19 @@ Client đăng ký **3 kênh cá nhân ngay khi CONNECT** (`/user/queue/liveroom`
 | `/topic/liveroom/{roomId}` | Cả phòng | Sự kiện chung: vào/ra/kick, media, sức chứa, vòng đời phòng |
 | `/topic/liveroom/{roomId}/chat` | Cả phòng | `CHAT_MESSAGE_RECEIVED` |
 | `/topic/liveroom/{roomId}/music` | Cả phòng | Trạng thái phát nhạc, đổi bài, track comment |
-| `/user/queue/liveroom` | Một người | Quyết định duyệt/từ chối yêu cầu tham gia |
+| `/user/queue/liveroom` | Một người | Quyết định duyệt/từ chối yêu cầu tham gia; **ảnh chụp trạng thái phát nhạc**; **ảnh chụp bình luận theo mốc thời gian** |
 | `/user/queue/liveroom/rtc` | Một người | SDP offer/answer, ICE candidate |
-| `/user/queue/liveroom/errors` | Một người | `ApiResponse.error` cho frame vừa gửi |
+| `/user/queue/liveroom/errors` | Một người | `ApiResponse.error` cho frame vừa gửi, và cảnh báo vượt hạn mức (`LR_081`) |
+
+Kênh riêng chở nhiều hơn tên gọi gợi ra. Ba nhóm, đọc ra từ các lời gọi `sendToUser`:
+
+| Nhóm | Sự kiện | Phát ra từ |
+|---|---|---|
+| Kết quả xin vào phòng | `REQUEST_APPROVED`, `REQUEST_REJECTED_BY_OWNER`, `REQUEST_REJECTED_BY_CAPACITY`, `REQUEST_LOCKED` | `ApproveJoinRequestUseCaseImpl`, `RejectJoinRequestUseCaseImpl` |
+| Ảnh chụp nhạc | `MUSIC_PLAYBACK_STATE_CHANGED` | `Playbacks.sendCurrentTo` — trả lời `music/get-state`, **và** đẩy cho người vừa được duyệt ngay trong `ApproveJoinRequestUseCaseImpl` |
+| Ảnh chụp bình luận | `TRACK_COMMENT_SNAPSHOT` | `GetTrackCommentsUseCaseImpl` — trả lời `comments/get` |
+
+Chi tiết đáng chú ý ở dòng giữa: **cùng một loại sự kiện đi trên hai kênh khác nhau tuỳ ngữ cảnh**. Khi ai đó bấm play, `Playbacks.announce` phát `MUSIC_PLAYBACK_STATE_CHANGED` ra `/topic/liveroom/{roomId}/music` cho cả phòng. Khi một người vừa được duyệt vào, đúng loại sự kiện ấy đi riêng tới mình họ để họ bắt kịp bài đang chạy — không ai khác cần nhận lại thứ họ đã biết. Client xử lý được vì nó gộp **năm kênh sự kiện** — ba topic phòng cộng `/user/queue/liveroom` và `.../rtc` — vào một hàm `handleEvent` duy nhất rồi phân nhánh theo `type`, không theo kênh. Chỉ `.../errors` đi lối riêng (`handleFrameError`), vì nó chở `ApiResponse` chứ không chở `RoomEvent`.
 
 28 loại sự kiện trong `LiveroomEventType`. Tất cả dùng chung một hình dạng:
 
@@ -167,7 +200,7 @@ Xác thực trước để hai lớp sau có principal mà dùng. Rate limit tr�
 
 Điều kiện 3 dễ bị bỏ sót: người đang đứng ngoài chờ cũng cần nghe kênh phòng để thấy phòng đầy hay phòng đóng cửa trong lúc họ chờ.
 
-Không thoả thì ném `MessageDeliveryException("WS_UNAUTHORIZED")` → mã `LR_080`.
+Không thoả thì ném `MessageDeliveryException("WS_UNAUTHORIZED")` → mã `LR_080`. Cần biết trước khi đọc tiếp: ném ở đây **không chỉ từ chối lời xin đăng ký, nó làm đứt cả kết nối** — mục 7.1.
 
 ### 5.2. Cấm client bắn thẳng vào broker
 
@@ -191,7 +224,9 @@ Vì sao cần: simple broker của Spring **chuyển tiếp nguyên văn** một
 | `CHAT` | chứa `/chat/` hoặc `/comments/` | **15** | Tốc độ gõ của người thật |
 | `OTHER` | còn lại (điều khiển nhạc…) | **60** | Tua/chỉnh âm lượng có thể dồn dập nhưng không tới mức RTC |
 
-Khoá đếm là `sessionId + "|" + bucket`, giữ trong `ConcurrentHashMap` **cục bộ trong tiến trình** (không phải Redis như rate limit HTTP — xem mục 10). Vượt hạn mức thì frame bị **nuốt** (`return null`) chứ không ném exception, và người gửi nhận **đúng một** cảnh báo `LR_081` cho mỗi cửa sổ nhờ cờ `claimWarning()`. Nuốt thay vì ném là có chủ ý: một client đang lụt mà nhận về 400 lỗi nữa thì chỉ tốn thêm băng thông cho cả hai phía.
+Khoá đếm là `sessionId + "|" + bucket`, giữ trong `ConcurrentHashMap` **cục bộ trong tiến trình** (không phải Redis như rate limit HTTP — xem mục 10). Vượt hạn mức thì frame bị **nuốt** (`return null`) chứ không ném exception, và người gửi nhận **đúng một** cảnh báo `LR_081` cho mỗi cửa sổ nhờ cờ `claimWarning()`. Cảnh báo đi bằng `convertAndSendToUser` thẳng tới `LiveroomStompExceptionHandler.ERROR_QUEUE`, tức là hạ cánh trên `/user/queue/liveroom/errors` — cùng kênh với lỗi của controller, nên client không phải học thêm kênh nào.
+
+Nuốt thay vì ném là **bắt buộc**, không phải tuỳ chọn. Ném `MessageDeliveryException` ở tầng interceptor sẽ đóng luôn WebSocket (mục 7.1), nghĩa là một người gõ chat hơi nhanh sẽ bị văng khỏi phòng. Tiết kiệm băng thông chỉ là phần thưởng đi kèm.
 
 Dọn dẹp: `SessionDisconnectEvent` xoá mọi khoá bắt đầu bằng `sessionId` — nếu không, map sẽ phình theo mỗi lần reconnect.
 
@@ -232,9 +267,45 @@ Quy tắc rút ra: **use case cứ gọi `publisher.broadcastToRoom(...)` thẳn
 
 ## 7. Xử lý lỗi trên đường STOMP
 
+Có **hai** đường lỗi hoàn toàn khác nhau trên kênh này, và nhầm chúng với nhau dẫn tới kết luận sai về cả bảo mật lẫn trải nghiệm. Mục 7.1 nói về đường thứ nhất — đường mà `LiveroomStompExceptionHandler` không hề chạm tới.
+
+### 7.1. Interceptor từ chối một frame là đứt cả kết nối
+
+Một `MessageDeliveryException` ném từ `preSend` của bất kỳ interceptor nào đi theo đường này, hoàn toàn bên trong Spring:
+
+```
+ChannelInterceptor.preSend ném
+  → StompSubProtocolHandler.handleMessageFromClient bắt Throwable
+  → handleError(session, ex, message)
+  → không có StompSubProtocolErrorHandler nào được đăng ký
+  → sendErrorMessage(session, ex)
+```
+
+Và `sendErrorMessage` kết thúc như sau (`spring-websocket`):
+
+```java
+try {
+    session.sendMessage(new TextMessage(bytes));   // frame ERROR
+}
+catch (Throwable ex) { ... }
+finally {
+    session.close(CloseStatus.PROTOCOL_ERROR);      // luôn chạy
+}
+```
+
+Lệnh đóng nằm trong `finally`, **không có nhánh nào bỏ qua nó**. Nghĩa là:
+
+- Một lời `SUBSCRIBE` bị `StompSubscriptionScopeInterceptor` từ chối **không chỉ hỏng lời xin đó** — cả WebSocket bị đóng. Người dùng mất luôn ba kênh cá nhân đang chạy.
+- `LiveroomStompExceptionHandler` **không bao giờ thấy** những exception này. `@MessageExceptionHandler` chỉ bắt exception ném ra từ thân một phương thức `@MessageMapping`; frame bị chặn ở interceptor thì chưa từng tới controller. Không có gì hạ cánh trên `/user/queue/liveroom/errors` trong trường hợp này.
+- Đây là lý do bắt buộc khiến bộ chống lụt phải nuốt frame thay vì ném (mục 5.3).
+
+Frame `ERROR` chở đúng một thông tin dùng được: header `message`, mà Spring đặt bằng `ex.getMessage()`. `MessagingException` **không** ghi đè `getMessage()` — chỉ `toString()` mới nối thêm `failedMessage` — nên header nhận đúng chuỗi mô tả, tức `"WS_UNAUTHENTICATED"` hoặc `"WS_UNAUTHORIZED"`, không rò rỉ nội dung frame gốc. Client hiện đang bỏ phí chuỗi này (mục 3.3).
+
+### 7.2. Exception từ controller đi về kênh lỗi riêng
+
 `GlobalExceptionHandler` gắn với servlet dispatch, **không bao giờ nhìn thấy một STOMP frame**. Không có gì thay thế thì một frame bị từ chối chết lặng phía server trong khi client ngồi đợi một broadcast không bao giờ tới.
 
-`LiveroomStompExceptionHandler` (`@ControllerAdvice` + `@MessageExceptionHandler` + `@SendToUser`) lấp chỗ đó:
+`LiveroomStompExceptionHandler` (`@ControllerAdvice` + `@MessageExceptionHandler` + `@SendToUser`) lấp chỗ đó — và khác với 7.1, **kết nối vẫn sống**:
 
 | Exception | Trả về |
 |---|---|
@@ -257,7 +328,7 @@ Thông điệp được dịch qua `MessageSource` theo `LocaleContextHolder`, c
 
 Khi một người bị kick, chỉ gửi sự kiện là chưa đủ — kết nối của họ phải đứt, nếu không họ vẫn nghe được topic phòng cho tới khi tự đóng tab.
 
-**Cách nhiều nơi mách là vô dụng ở đây:** đẩy một frame `DISCONNECT` từ server xuống. Spring **loại bỏ** frame `DISCONNECT` theo chiều server→client. Muốn ngắt thật thì phải đóng `WebSocketSession`.
+**Cách nhiều nơi mách là vô dụng ở đây:** đẩy một frame `DISCONNECT` từ server xuống. Spring **không có đường nào phát ra frame đó**. Trong `StompSubProtocolHandler.getStompHeaderAccessor`, mọi thứ server gửi qua broker channel mà mang lệnh rỗng hoặc `SEND` đều bị `updateStompCommandAsServerMessage()` đổi thành frame `MESSAGE`; chỉ `CONNECT_ACK`, `DISCONNECT_ACK` và heartbeat có nhánh riêng, và không nhánh nào sinh ra `DISCONNECT`. Muốn ngắt thật thì phải đóng `WebSocketSession`.
 
 Nhưng `WebSocketSession` không có sẵn ở tầng messaging, nên `WebSocketConfig` cài một decorator ở tầng transport để bắt chúng:
 
@@ -313,6 +384,9 @@ Không cần thêm endpoint nào cho việc này: mỗi sự kiện đã là m�
 | **Không có retry / bù frame mất** | Client mất frame lúc mạng chập phải chờ tới lần reconnect | Chấp nhận được — reconnect đã kéo lại toàn bộ trạng thái |
 | **Client bị giới hạn 8 lần thử rồi `offline`** | Người dùng phải bấm thử lại thủ công | Có chủ ý: thử vô hạn giữ tab treo và đốt pin |
 | **`RoomSubscriptionPolicy` chạm database mỗi lần SUBSCRIBE** | 3 truy vấn cho mỗi lần vào phòng | Chưa thành vấn đề; nếu thành thì cache theo `(userId, cycleId)` |
+| **Một `SUBSCRIBE` bị từ chối đóng luôn cả kết nối** (mục 7.1) | Người dùng mất cả ba kênh cá nhân, không chỉ hỏng lời xin vào phòng | Muốn từ chối "mềm" thì phải đăng ký một `StompSubProtocolErrorHandler` hoặc chuyển sang trả lỗi qua kênh errors thay vì ném |
+| **Client gán cứng `LR_080` cho mọi frame `ERROR`** (mục 3.3) | Token hết hạn hiển thị thành "không được phép vào phòng" | Sửa được ngay: đọc `frame.headers.message` và ánh xạ `WS_UNAUTHENTICATED` sang mã riêng |
+| **Module `liveroom` chưa có test tự động nào** | `find modules/liveroom/src/test` không có gì, trong khi `iam` có 68 file. Mọi khẳng định trong tài liệu này chỉ được bảo chứng bằng đọc code | Nợ thật; ưu tiên phủ trước ba interceptor và `afterCommit` của publisher |
 
 ---
 
@@ -323,6 +397,8 @@ Không cần thêm endpoint nào cho việc này: mỗi sự kiện đã là m�
 - Hardened the channel against forged events: client `SEND` to broker destinations is refused outright, including the `/user/` prefix, where Spring's `DefaultUserDestinationResolver` takes the recipient **from the destination string instead of the session principal** — a path that let any authenticated client deliver a forged event into another user's private queue.
 - Enforced per-room subscription authorization in a channel interceptor backed by a membership policy (owner / active participant / pending requester).
 - Guaranteed **events are published only after transaction commit**, and documented the double-deferral trap where wrapping a publish in a second commit callback makes the event vanish with no error.
-- Implemented **server-initiated disconnects** by decorating the WebSocket transport to capture sessions — Spring discards server-sent `DISCONNECT` frames — with a 2-second grace so a kicked user receives the reason before the socket closes.
-- Added a per-session, per-category STOMP flood limiter (RTC 400 / chat 15 / other 60 frames per 10s) that drops frames silently and warns the sender once per window.
+- Implemented **server-initiated disconnects** by decorating the WebSocket transport to capture sessions — Spring has no outbound path that emits a `DISCONNECT` frame, since anything the server sends through the broker channel is rewritten to `MESSAGE` — with a 2-second grace so a kicked user receives the reason before the socket closes.
+- Traced the two distinct STOMP failure paths and their consequences: an exception from a channel interceptor sends an `ERROR` frame and then **unconditionally closes the socket** (`session.close` sits in a `finally` block), never reaching `@MessageExceptionHandler`, which is why the flood limiter drops frames instead of throwing.
+- Added a per-session, per-category STOMP flood limiter (RTC 400 / chat 15 / other 60 frames per 10s) that drops frames silently and warns the sender once per window on the shared error queue.
+- Routed **read-style destinations** (`music/get-state`, `comments/get`) to the requester's private queue rather than the room topic, so one client resyncing after a reload costs the other six participants nothing — the same event type travels the room topic or a single user's queue depending on who needs it.
 - Derived a **client clock offset from every event timestamp**, keeping absolute server deadlines and playback positions correct on machines with skewed clocks, without an extra round trip.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useEffect, useRef, useState, useId } from "react";
 import { useTranslations } from "next-intl";
 import { DIAGRAM_KIND_STYLE, type DiagramSpec } from "@/features/showcase/lib/technical-diagrams";
 
@@ -9,23 +9,73 @@ import { DIAGRAM_KIND_STYLE, type DiagramSpec } from "@/features/showcase/lib/te
    languages whose labels differ in length, so a pure-SVG diagram would overflow its boxes the
    moment the reader switches locale. Absolute positioning on a fixed canvas keeps the HTML
    boxes exactly where the hand-computed connector endpoints expect them. */
-export function TechnicalDiagram({ spec }: { spec: DiagramSpec }) {
+/* `flat` drops the moulded frame for a plain outline. The realtime section uses it: that
+   section is carrying the heaviest explanation on the site, and a raised panel inside a raised
+   panel inside a raised card competes with the drawing for the reader's attention. Default
+   stays moulded so the other panels are untouched. */
+export function TechnicalDiagram({ spec, flat = false }: { spec: DiagramSpec; flat?: boolean }) {
   const t = useTranslations("features.technical.diagrams");
-  /* Several diagrams can be mounted in one panel, and a duplicated marker id would make the
-     second one reach into the first one's defs. */
   const markerId = useId();
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+
+    const updateScale = () => {
+      const containerWidth = el.clientWidth;
+      if (containerWidth > 0 && containerWidth < spec.width) {
+        setScale(containerWidth / spec.width);
+      } else {
+        setScale(1);
+      }
+    };
+
+    updateScale();
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [spec.width]);
+
+  const scaledHeight = spec.height * scale;
 
   return (
-    <figure className="neu-pressed rounded-3xl bg-[#e0e5ec] p-4 dark:bg-[#1e222b] sm:p-6">
-      {/* A scrollable region needs its own tab stop, or a keyboard reader cannot pan the
-          diagram on a narrow screen. */}
+    <figure
+      className={[
+        "overflow-hidden rounded-3xl p-4 sm:p-6",
+        flat
+          ? "border border-slate-300/70 bg-[#e0e5ec] dark:border-slate-600/50 dark:bg-[#1e222b]"
+          : "neu-pressed bg-[#e0e5ec] dark:bg-[#1e222b]",
+      ].join(" ")}
+    >
+      <div className="mb-4 flex items-center justify-between gap-3 px-1">
+        <div className="flex items-center gap-2.5">
+          <span
+            aria-hidden="true"
+            className={`flex size-2.5 rounded-full bg-indigo-600 dark:bg-indigo-400 ${flat ? "" : "neu-pressed"}`}
+          />
+          <h3 className="font-heading text-base font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-lg">
+            {t(`${spec.id}.title`)}
+          </h3>
+        </div>
+      </div>
       <div
+        ref={wrapperRef}
         role="group"
         tabIndex={0}
         aria-label={t(`${spec.id}.title`)}
-        className="neu-scroll-thin overflow-x-auto rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+        className="relative w-full overflow-hidden rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+        style={{ height: scaledHeight }}
       >
-        <div className="relative mx-auto" style={{ width: spec.width, height: spec.height }}>
+        <div
+          className="absolute left-0 top-0 origin-top-left"
+          style={{
+            width: spec.width,
+            height: spec.height,
+            transform: `scale(${scale})`,
+          }}
+        >
           {/* currentColor rather than a fill per element: markers resolve currentColor against
               their own inherited colour, so setting it once here keeps every arrowhead the
               same shade as the line it caps, in both themes. */}

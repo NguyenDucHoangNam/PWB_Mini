@@ -5,7 +5,6 @@ import { useReducedMotion } from "framer-motion";
 import { TECHNICAL_SECTION_IDS } from "@/features/showcase/lib/technical-sections";
 import { TechnicalHero } from "./technical-hero";
 import { TechnicalInfra } from "./technical-infra";
-import { TechnicalModules } from "./technical-modules";
 import { TechnicalNav } from "./technical-nav";
 import { TechnicalOutro } from "./technical-outro";
 import { TechnicalOverview } from "./technical-overview";
@@ -14,7 +13,6 @@ import { TechnicalRealtime } from "./technical-realtime";
 
 const PANELS: Record<string, ComponentType> = {
   overview: TechnicalOverview,
-  modules: TechnicalModules,
   realtime: TechnicalRealtime,
   infrastructure: TechnicalInfra,
 };

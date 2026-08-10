@@ -39,7 +39,7 @@ export function StepMediaFrame({ slot, hint, media, className }: StepMediaFrameP
       )}
 
       {media ? (
-        <div className="neu-raised-sm overflow-hidden rounded-2xl bg-[#e0e5ec] dark:bg-[#1e222b]">
+        <div className="overflow-hidden rounded-3xl bg-slate-900 p-2 sm:p-2.5 shadow-xl shadow-slate-900/25 border border-slate-800 ring-1 ring-slate-900/40 transition-all">
           {media.kind === "image" ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
@@ -47,7 +47,7 @@ export function StepMediaFrame({ slot, hint, media, className }: StepMediaFrameP
               alt={hint}
               loading="lazy"
               decoding="async"
-              className="block w-full rounded-2xl"
+              className="block w-full rounded-2xl border border-slate-700/50 shadow-md"
             />
           ) : (
             <video
@@ -59,7 +59,7 @@ export function StepMediaFrame({ slot, hint, media, className }: StepMediaFrameP
               playsInline
               preload="metadata"
               aria-label={hint}
-              className="block w-full rounded-2xl"
+              className="block w-full rounded-2xl border border-slate-700/50 shadow-md"
             />
           )}
         </div>
