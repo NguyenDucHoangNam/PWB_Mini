@@ -768,6 +768,49 @@
         "realtime": "Realtime",
         "infrastructure": "Infrastructure"
       },
+      "diagram": {
+        "title": "System context diagram (C4 level 1)",
+        "summary": "C4 level 1 system context: three groups of users interact with Producer Workbench, which in turn integrates with five external systems.",
+        "relation": "{from} → {to}: {label} {tech}",
+        "boundaries": {
+          "people": "People",
+          "external": "External systems"
+        },
+        "types": {
+          "person": "[Person]",
+          "system": "[Software system]",
+          "external": "[External system]"
+        },
+        "legend": {
+          "person": "People",
+          "system": "Our system",
+          "external": "External systems"
+        },
+        "nodes": {
+          "producer": { "name": "Producer", "desc": "Uploads tracks, hosts rooms" },
+          "guest": { "name": "Guest listener", "desc": "Joins rooms, gives feedback" },
+          "admin": { "name": "Administrator", "desc": "Manages accounts and roles" },
+          "workbench": {
+            "name": "Producer Workbench",
+            "desc": "Uploads · voice tags · shared listening"
+          },
+          "storage": { "name": "Amazon S3", "desc": "Stores audio files" },
+          "oauth": { "name": "Google OAuth", "desc": "Google sign-in" },
+          "tts": { "name": "Google TTS", "desc": "Generates voice tags" },
+          "turn": { "name": "coturn", "desc": "Relays WebRTC media" },
+          "smtp": { "name": "SMTP server", "desc": "Sends OTP email" }
+        },
+        "edges": {
+          "producerSystem": { "label": "Uploads tracks, opens rooms", "tech": "[HTTPS]" },
+          "guestSystem": { "label": "Listens, chats, gives feedback", "tech": "[HTTPS · WSS]" },
+          "adminSystem": { "label": "Manages accounts", "tech": "[HTTPS]" },
+          "systemStorage": { "label": "Stores / reads audio files", "tech": "[S3 API · presigned URL]" },
+          "systemOauth": { "label": "Verifies ID tokens", "tech": "[HTTPS]" },
+          "systemTts": { "label": "Synthesises voice tags", "tech": "[gRPC]" },
+          "systemTurn": { "label": "Relays media", "tech": "[TURN · STUN]" },
+          "systemSmtp": { "label": "Sends OTP email", "tech": "[SMTP]" }
+        }
+      },
       "sections": {
         "overview": {
           "eyebrow": "Overview",

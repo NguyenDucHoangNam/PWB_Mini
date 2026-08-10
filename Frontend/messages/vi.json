@@ -768,6 +768,49 @@
         "realtime": "Realtime",
         "infrastructure": "Hạ tầng"
       },
+      "diagram": {
+        "title": "Sơ đồ ngữ cảnh hệ thống (C4 mức 1)",
+        "summary": "Sơ đồ ngữ cảnh C4 mức 1: ba nhóm người dùng tương tác với hệ thống Producer Workbench, và hệ thống này tích hợp với năm hệ thống bên ngoài.",
+        "relation": "{from} → {to}: {label} {tech}",
+        "boundaries": {
+          "people": "Người dùng tương tác",
+          "external": "Hệ thống bên ngoài"
+        },
+        "types": {
+          "person": "[Người dùng]",
+          "system": "[Hệ thống phần mềm]",
+          "external": "[Hệ thống ngoài]"
+        },
+        "legend": {
+          "person": "Người dùng",
+          "system": "Hệ thống của mình",
+          "external": "Hệ thống bên ngoài"
+        },
+        "nodes": {
+          "producer": { "name": "Producer", "desc": "Tải nhạc, mở phòng nghe" },
+          "guest": { "name": "Khách nghe demo", "desc": "Vào phòng, nghe và góp ý" },
+          "admin": { "name": "Quản trị viên", "desc": "Quản lý tài khoản, phân quyền" },
+          "workbench": {
+            "name": "Producer Workbench",
+            "desc": "Tải nhạc · gắn voice tag · nghe chung realtime"
+          },
+          "storage": { "name": "Amazon S3", "desc": "Lưu file nhạc" },
+          "oauth": { "name": "Google OAuth", "desc": "Đăng nhập Google" },
+          "tts": { "name": "Google TTS", "desc": "Sinh voice tag" },
+          "turn": { "name": "coturn", "desc": "Chuyển tiếp media WebRTC" },
+          "smtp": { "name": "Máy chủ SMTP", "desc": "Gửi email OTP" }
+        },
+        "edges": {
+          "producerSystem": { "label": "Tải nhạc, mở phòng nghe", "tech": "[HTTPS]" },
+          "guestSystem": { "label": "Nghe chung, chat, góp ý", "tech": "[HTTPS · WSS]" },
+          "adminSystem": { "label": "Quản lý tài khoản", "tech": "[HTTPS]" },
+          "systemStorage": { "label": "Lưu / đọc file nhạc", "tech": "[S3 API · presigned URL]" },
+          "systemOauth": { "label": "Xác minh ID token", "tech": "[HTTPS]" },
+          "systemTts": { "label": "Sinh voice tag", "tech": "[gRPC]" },
+          "systemTurn": { "label": "Chuyển tiếp media", "tech": "[TURN · STUN]" },
+          "systemSmtp": { "label": "Gửi email OTP", "tech": "[SMTP]" }
+        }
+      },
       "sections": {
         "overview": {
           "eyebrow": "Tổng quan",

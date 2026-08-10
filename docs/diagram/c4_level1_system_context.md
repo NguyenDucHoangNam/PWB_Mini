@@ -26,17 +26,19 @@ graph TD
         S3["<b>Amazon S3</b><br/>[Hệ thống ngoài]<br/><i>Lưu file nhạc</i>"]:::extBox
         OAUTH["<b>Google OAuth</b><br/>[Hệ thống ngoài]<br/><i>Đăng nhập Google</i>"]:::extBox
         TTS["<b>Google TTS</b><br/>[Hệ thống ngoài]<br/><i>Sinh voice tag</i>"]:::extBox
+        TURN["<b>coturn</b><br/>[Hệ thống ngoài]<br/><i>Chuyển tiếp media WebRTC</i>"]:::extBox
         SMTP["<b>Máy chủ SMTP</b><br/>[Hệ thống ngoài]<br/><i>Gửi email OTP</i>"]:::extBox
     end
 
-    P --> SYS
-    K --> SYS
-    Q --> SYS
+    P -->|"Tải nhạc, mở phòng nghe<br/>[HTTPS]"| SYS
+    K -->|"Nghe chung, chat, góp ý<br/>[HTTPS · WSS]"| SYS
+    Q -->|"Quản lý tài khoản<br/>[HTTPS]"| SYS
 
-    SYS --> S3
-    SYS --> OAUTH
-    SYS --> TTS
-    SYS --> SMTP
+    SYS -->|"Lưu / đọc file nhạc<br/>[S3 API · presigned URL]"| S3
+    SYS -->|"Xác minh ID token<br/>[HTTPS]"| OAUTH
+    SYS -->|"Sinh voice tag<br/>[gRPC]"| TTS
+    SYS -->|"Chuyển tiếp media<br/>[TURN · STUN]"| TURN
+    SYS -->|"Gửi email OTP<br/>[SMTP]"| SMTP
 ```
 
 ---
@@ -52,4 +54,16 @@ graph TD
 | **Amazon S3** | Hệ thống ngoài | Lưu trữ file nhạc và tài nguyên truyền thông. |
 | **Google OAuth** | Hệ thống ngoài | Xác thực đăng nhập qua Google. |
 | **Google TTS** | Hệ thống ngoài | Sinh voice tag tự động. |
+| **coturn** | Hệ thống ngoài | Máy chủ TURN/STUN, chuyển tiếp luồng media WebRTC giữa các thành viên trong phòng khi kết nối ngang hàng trực tiếp không thiết lập được. |
 | **Máy chủ SMTP** | Hệ thống ngoài | Gửi email chứa mã OTP. |
+
+---
+
+## 3. Ghi chú về phạm vi mức 1
+
+Sơ đồ này cố ý **không** tách frontend khỏi backend: ở C4 mức 1, ứng dụng web chạy trong trình duyệt vẫn nằm bên trong ranh giới Producer Workbench. Hệ quả là hai chi tiết dưới đây đúng với code nhưng thuộc về mức 2 (Container), không vẽ ở đây:
+
+- **File nhạc không đi qua backend.** Backend chỉ ký presigned URL (`PutObjectPresignRequest` / `GetObjectPresignRequest` trong `S3StorageServiceImpl`), còn trình duyệt đẩy và tải file trực tiếp với S3. Ở mức 1 điều này gộp thành một quan hệ `Producer Workbench → Amazon S3`, nhãn ghi rõ `presigned URL`.
+- **Luồng đăng nhập Google bắt đầu ở trình duyệt.** Frontend nạp Google Identity Services rồi gửi ID token về backend; backend chỉ xác minh token bằng `GoogleIdTokenVerifier`. Ở mức 1 vẫn là một quan hệ `Producer Workbench → Google OAuth`.
+
+Giao thức trên nhãn lấy từ code, không suy từ tài liệu: Google TTS đi **gRPC** (client dựng bằng `TextToSpeechSettings` mặc định trong `GoogleTtsAdapter`), không phải REST.
