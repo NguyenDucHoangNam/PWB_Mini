@@ -752,16 +752,52 @@
     },
     "technical": {
       "back": "Quay lại hướng dẫn",
-      "eyebrow": "Phân tích kỹ thuật",
-      "title": "Ba bài toán khó nhất và cách chúng được giải.",
-      "lead": "Không phải danh sách công nghệ. Mỗi phần dưới đây là một ràng buộc thật gặp phải khi làm, hướng giải đã chọn, và cái đã phải đánh đổi để đi theo hướng đó.",
-      "tocTitle": "Nội dung",
-      "stat1Label": "Kiến trúc",
-      "stat1Value": "Hexagonal",
-      "stat2Label": "Realtime",
-      "stat2Value": "STOMP + WebRTC",
-      "stat3Label": "Xử lý âm thanh",
-      "stat3Value": "FFmpeg / EBU R128",
+      "pending": "Đang soạn nội dung",
+      "hero": {
+        "eyebrow": "Phân tích kỹ thuật",
+        "title": "Hệ thống này được ráp lại như thế nào.",
+        "lead": "Đi qua kiến trúc tổng thể, ba module, tầng realtime và phần hạ tầng bên dưới — viết từ code, không viết từ bản đặc tả."
+      },
+      "nav": {
+        "title": "Trong trang này",
+        "overview": "Tổng quan",
+        "modules": "Ba module",
+        "realtime": "Realtime",
+        "infrastructure": "Hạ tầng"
+      },
+      "sections": {
+        "overview": {
+          "eyebrow": "Tổng quan",
+          "title": "Nhìn toàn hệ thống một lượt."
+        },
+        "modules": {
+          "eyebrow": "Ba module",
+          "title": "Ba module, một tiến trình."
+        },
+        "realtime": {
+          "eyebrow": "Realtime",
+          "title": "WebSocket và STOMP."
+        },
+        "infrastructure": {
+          "eyebrow": "Hạ tầng",
+          "title": "Những gì chạy bên dưới."
+        }
+      },
+      "cards": {
+        "modules": {
+          "iam": "IAM",
+          "audio": "Audio",
+          "liveroom": "Live Room"
+        },
+        "infra": {
+          "outbox": "Outbox & Kafka",
+          "redis": "Redis",
+          "storage": "Lưu trữ S3",
+          "errors": "Lỗi & i18n",
+          "security": "Bảo mật & rate limit",
+          "deploy": "Triển khai"
+        }
+      },
       "outro": {
         "eyebrow": "Tiếp theo",
         "title": "Đọc xong rồi thì nghe thử.",

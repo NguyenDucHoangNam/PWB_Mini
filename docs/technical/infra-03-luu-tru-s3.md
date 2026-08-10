@@ -40,7 +40,7 @@ Cấu hình `StorageProperties` có phần điều khiển multipart, kèm comme
 
 ---
 
-## 3. Thời hạn URL: bốn giá trị khác nhau, và một chỗ bất đối xứng
+## 3. Thời hạn URL: năm giá trị khác nhau, và một chỗ bất đối xứng
 
 | Đường | Thời hạn | Vì sao |
 |---|---|---|
@@ -49,6 +49,7 @@ Cấu hình `StorageProperties` có phần điều khiển multipart, kèm comme
 | Ảnh đại diện trong Live Room | **12 giờ** | Phòng nhận URL một lần, màn hình sống lâu hơn 15 phút |
 | Nhạc trong Live Room | **1 giờ** | Một buổi nghe dài hơn một lượt xem trang |
 | `GET /songs/{id}/audio-url` | **client chọn**, 1 phút – 1 ngày | Nhu cầu khác nhau thật |
+| `GET /voice-tags/{id}/audio-url` | **1 giờ** cố định | Controller quyết định, client không chọn được |
 
 Hai cách khác nhau để giải cùng một vấn đề:
 
@@ -57,7 +58,7 @@ Hai cách khác nhau để giải cùng một vấn đề:
 
 Cách của IAM an toàn hơn: client không tự nâng thời hạn được. Cách của Audio linh hoạt hơn nhưng cần chặn khoảng.
 
-> **Chỗ bất đối xứng:** `GET /songs/{id}/audio-url` kiểm khoảng 1 phút – 1 ngày, còn `GET /voice-tags/{id}/audio-url` **truyền thẳng xuống không kiểm gì**. Hai endpoint gần như giống hệt nhau, một cái có trần, một cái không.
+> **Chỗ bất đối xứng:** `GET /songs/{id}/audio-url` cho client chọn TTL qua tham số `expiresIn`, kiểm khoảng 1 phút – 1 ngày (cả `@Min`/`@Max` ở Controller lẫn `assertExpirationInRange` ở UseCase). Còn `GET /voice-tags/{id}/audio-url` cố định 1 giờ tại Controller, không nhận tham số từ client. Hai endpoint phục vụ cùng mục đích nhưng chọn cách tiếp cận khác nhau mà không có lý do rõ ràng.
 
 Cạm bẫy đi kèm cách IAM: **quên truyền TTL dài là hỏng lặng lẽ.** URL ảnh đại diện trong phòng hết hạn sau 15 phút sẽ không báo lỗi — nó chỉ trở thành ảnh vỡ, và client rơi về hiển thị chữ cái đầu tên.
 
@@ -96,7 +97,7 @@ Cả ba đều chỉ tốn dung lượng, không làm sai dữ liệu — đó l
 
 | Module | Cổng | Ghi chú |
 |---|---|---|
-| Audio | `StoragePort` (`domain/service`) | `presignUpload`, `presignDownload`, `findMetadata`, `uploadBytes`, `uploadFromPath`, `delete` |
+| Audio | `StoragePort` (`domain/service`) | `presignUpload`, `presignDownload`, `findMetadata`, `uploadBytes`, `uploadFromPath`, `downloadToPath`, `delete` |
 | IAM | `StorageService` | `upload`, `delete`, `generatePresignedUrl` |
 | Live Room | *không có cổng riêng* | Mượn `StoragePort` của Audio qua `AudioSongCatalogAdapter` |
 
@@ -138,7 +139,7 @@ Cùng một quy tắc, viết ở hai nơi, không dùng chung hàm nào. Thêm 
 | Voice tag: qua backend | URL ký sẵn | Cần bytes để đo ffprobe | Chiếm luồng Tomcat, nhưng chỉ ≤10 MB |
 | Thời hạn khác nhau theo ngữ cảnh | Một giá trị chung | Nhu cầu thật sự khác nhau | Bốn con số phải nhớ; quên là ảnh vỡ lặng lẽ |
 | IAM: TTL do bên gọi truyền | Client chọn | Client không tự nâng thời hạn | Bên gọi phải nhớ truyền |
-| Audio: TTL do client chọn, có trần | Server quyết định | Linh hoạt cho nhiều loại màn hình | Phải kiểm khoảng — và một endpoint quên kiểm |
+| Audio Song: TTL do client chọn, có trần | Server quyết định | Linh hoạt cho nhiều loại màn hình | Phải kiểm khoảng; voice tag chọn cách khác (cố định) không rõ lý do |
 | Xoá tệp sau commit | Trong transaction | Rollback không làm mất tệp | Sinh rác khi commit rồi xoá hỏng |
 | Xoá hỏng chỉ log | Ném lỗi | Ảnh/bài mới đã sống, không có gì để undo | Rác tích tụ, không ai dọn |
 | Hai cổng cho một dịch vụ | Một cổng chung | Mỗi module khai báo đúng cái mình cần | Hai adapter bọc cùng một client |
@@ -182,10 +183,10 @@ docker exec -e PGPASSWORD="$(grep -E '^POSTGRES_PASSWORD=' .env | cut -d= -f2-)"
 **Thấy chỗ bất đối xứng về thời hạn** — xin URL nhạc với thời hạn 2 ngày:
 
 ```bash
-curl -s "http://localhost:8080/api/v1/songs/<songId>/audio-url?expirationSeconds=172800" -H "Authorization: Bearer $T"
+curl -s "http://localhost:8080/api/v1/songs/<songId>/audio-url?expiresIn=172800" -H "Authorization: Bearer $T"
 ```
 
-Bị từ chối. Gọi cùng giá trị đó với `GET /voice-tags/{id}/audio-url`: **được chấp nhận**.
+Bị từ chối (vượt trần 86 400 giây). Gọi `GET /voice-tags/{id}/audio-url` thì không có tham số để chọn — endpoint luôn trả URL 1 giờ cố định, bất kể client muốn gì.
 
 **Thấy URL hết hạn** — lấy một URL ảnh đại diện (15 phút), mở được ngay; chờ quá 15 phút rồi mở lại, S3 trả `AccessDenied` kèm `Request has expired`.
 
@@ -200,7 +201,7 @@ Bị từ chối. Gọi cùng giá trị đó với `GET /voice-tags/{id}/audio-
 | **Không có công việc dọn rác** | Ba nguồn rác đã biết, không cái nào được dọn — mục 4 |
 | URL ký sẵn không thu hồi được | Chỉ giới hạn được bằng thời hạn |
 | URL tải lên không mang giới hạn kích thước | Tệp quá to lên được bucket rồi mới bị từ chối, và nằm lại |
-| `voice-tags/audio-url` không kiểm khoảng thời hạn | Mục 3 |
+| `voice-tags/audio-url` cố định 1 giờ, không cho client tuỳ chỉnh | Song cho chọn, voice tag không — mục 3 |
 | Quên truyền TTL dài là ảnh vỡ lặng lẽ | Mục 3 |
 | Logic "khoá vs URL ngoài" nằm hai chỗ | Mục 6 |
 | Không kiểm nội dung tệp bài hát | Chỉ kiểm phần mở rộng và kích thước; tệp giả chỉ lộ khi FFmpeg chạy |

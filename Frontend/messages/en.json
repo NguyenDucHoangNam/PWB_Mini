@@ -752,16 +752,52 @@
     },
     "technical": {
       "back": "Back to the walkthrough",
-      "eyebrow": "Technical write-up",
-      "title": "The three hardest problems, and how they were solved.",
-      "lead": "Not a stack list. Each case below is a real constraint hit while building, the approach taken, and what had to be given up to take it.",
-      "tocTitle": "Contents",
-      "stat1Label": "Architecture",
-      "stat1Value": "Hexagonal",
-      "stat2Label": "Realtime",
-      "stat2Value": "STOMP + WebRTC",
-      "stat3Label": "Audio",
-      "stat3Value": "FFmpeg / EBU R128",
+      "pending": "Content in progress",
+      "hero": {
+        "eyebrow": "Technical write-up",
+        "title": "How this system is put together.",
+        "lead": "A read-through of the architecture, the three modules, the realtime layer and the infrastructure underneath — written from the code, not from a spec."
+      },
+      "nav": {
+        "title": "On this page",
+        "overview": "Overview",
+        "modules": "Modules",
+        "realtime": "Realtime",
+        "infrastructure": "Infrastructure"
+      },
+      "sections": {
+        "overview": {
+          "eyebrow": "Overview",
+          "title": "The system at a glance."
+        },
+        "modules": {
+          "eyebrow": "Modules",
+          "title": "Three modules, one process."
+        },
+        "realtime": {
+          "eyebrow": "Realtime",
+          "title": "WebSocket and STOMP."
+        },
+        "infrastructure": {
+          "eyebrow": "Infrastructure",
+          "title": "What runs underneath."
+        }
+      },
+      "cards": {
+        "modules": {
+          "iam": "IAM",
+          "audio": "Audio",
+          "liveroom": "Live Room"
+        },
+        "infra": {
+          "outbox": "Outbox & Kafka",
+          "redis": "Redis",
+          "storage": "S3 storage",
+          "errors": "Errors & i18n",
+          "security": "Security & rate limiting",
+          "deploy": "Deployment"
+        }
+      },
       "outro": {
         "eyebrow": "Next",
         "title": "Enough reading. Go listen.",

@@ -1,30 +1,79 @@
 # Hạ tầng — Outbox & Kafka
 
 > `shared-infrastructure`: `infra/outbox`, `infra/kafka`, `infra/mail`
-> Đây là **đường B** trong [bản đồ hệ thống](00-ban-do-he-thong.md) — xương sống bất đồng bộ của cả hệ thống.
 
 ---
 
-## 1. Bài toán: hai lệnh ghi, một sự thật
+## 1. Kafka là gì
 
-Một use case cần làm hai việc: lưu vào database, và báo cho phần khác của hệ thống. Hai việc ấy nằm ở hai nơi khác nhau, và không có transaction nào bao được cả hai.
+Apache Kafka là một **distributed event streaming platform** — nền tảng truyền tải sự kiện phân tán. Khác với hàng đợi truyền thống (RabbitMQ, ActiveMQ), Kafka lưu thông điệp lên đĩa theo thứ tự, cho phép nhiều consumer đọc cùng một luồng dữ liệu mà không xoá nó.
 
-```
-save() rồi gửi Kafka   →  gửi xong mà transaction rollback: đã báo một chuyện chưa từng xảy ra
-commit rồi gửi Kafka   →  tiến trình chết ở giữa: chuyện đã xảy ra mà không ai biết
-```
+Ba khái niệm cốt lõi:
 
-Không có thứ tự nào đúng. **Outbox pattern** thoát khỏi thế lưỡng nan bằng cách biến việc thứ hai thành một lệnh ghi database:
+**Topic** — một kênh chủ đề. Producer ghi vào topic, consumer đọc từ topic. Một topic có thể chia thành nhiều partition để xử lý song song.
 
-> Ghi ý định gửi vào **cùng transaction** với thay đổi nghiệp vụ. Một tiến trình khác đọc bảng đó và gửi thật.
+**Consumer group** — một nhóm consumer cùng đọc một topic. Kafka đảm bảo mỗi partition chỉ được một consumer trong group xử lý tại một thời điểm. Nếu consumer chết, Kafka tự gán lại partition cho consumer khác trong group (rebalance).
 
-Hai chuyện giờ hoặc cùng xảy ra, hoặc cùng không.
-
-**Không use case nào trong hệ thống này gửi thẳng vào Kafka** — kiểm chứng được ở [bản đồ §6](00-ban-do-he-thong.md): bảng outbox có đúng ba loại sự kiện, phủ kín ba đường bất đồng bộ.
+**Dead Letter Topic (DLT)** — khi một thông điệp gặp lỗi và hết số lần thử lại, nó được đẩy sang DLT thay vì chặn hàng đợi. DLT lưu giữ thông điệp hỏng để phân tích sau.
 
 ---
 
-## 2. Bảng `outbox_events`
+## 2. Kafka giữ vai trò gì trong hệ thống này
+
+Kafka là **xương sống bất đồng bộ** — mọi tác vụ không cần trả kết quả ngay cho user đều đi qua Kafka. Hiện tại có hai đường:
+
+| Đường | Topic | Consumer group | Mô tả |
+|---|---|---|---|
+| **Email** | `notification.email.v1` | `pwb-mail-consumer` | Gửi email xác thực OTP, thông báo qua SMTP. Nội dung email đã được render sẵn trước khi xếp hàng |
+| **Audio processing** | `voice.processing.v1` | `audio-song-processor` | Merge watermark/voice tag vào bài hát bằng FFmpeg. Mỗi bài tốn hàng phút |
+
+Mỗi topic có một DLT tương ứng (thêm hậu tố `.DLT`), ví dụ `notification.email.v1.DLT`.
+
+Kafka chạy ở chế độ **KRaft** (không cần Zookeeper), image `confluentinc/cp-kafka:7.6.0`, một node duy nhất vừa là broker vừa là controller. Dữ liệu được lưu trên volume `kafka_data`.
+
+---
+
+## 3. Outbox Pattern là gì
+
+Outbox Pattern giải quyết bài toán **dual write** — khi một thao tác nghiệp vụ cần đồng thời ghi vào database và gửi thông điệp ra hệ thống khác. Hai hành động này thuộc hai hệ thống khác nhau, không có distributed transaction nào bao được cả hai.
+
+Nếu gửi thẳng vào Kafka mà không qua outbox:
+
+- Gửi **trong** transaction → Kafka nhận thông điệp, nhưng nếu transaction rollback thì đó là một sự kiện "ma" — báo chuyện chưa từng xảy ra.
+- Gửi **sau** commit → tiến trình chết ở giữa thì chuyện đã xảy ra mà không ai biết — sự kiện "mất".
+
+Outbox Pattern thoát khỏi thế lưỡng nan bằng cách biến việc "gửi ra ngoài" thành một lệnh INSERT vào bảng outbox, nằm gọn trong cùng database transaction với thay đổi nghiệp vụ. Một tiến trình nền riêng (relay) đọc bảng đó rồi gửi thật vào Kafka.
+
+Hai việc — ghi nghiệp vụ và ghi ý định gửi — hoặc cùng thành công, hoặc cùng rollback. Không mất, không thừa.
+
+---
+
+## 4. Vì sao phải dùng Outbox Pattern
+
+- **Tính nhất quán**: nghiệp vụ và sự kiện luôn đồng bộ. Không có sự kiện ma, không có sự kiện mất.
+- **Khả năng phục hồi**: Kafka chết, SMTP chết — request của user vẫn thành công (201). Khi dịch vụ hồi phục, sự kiện tự động được gửi lại.
+- **Tách bạch phụ thuộc**: module nghiệp vụ không biết sự kiện đi đâu. IAM chỉ phát một Spring event "tôi muốn gửi email", việc nó thành outbox → Kafka → SMTP là chuyện của hạ tầng.
+
+---
+
+## 5. Khi nào sử dụng
+
+Trong PWB, **mọi đường bất đồng bộ đều đi qua outbox** — không use case nào gửi thẳng vào Kafka.
+
+Outbox phù hợp khi:
+
+- Cần đảm bảo **at-least-once delivery** cho sự kiện bất đồng bộ.
+- Chấp nhận **độ trễ nhỏ** (gần tức thì nhờ cơ chế nudge, fallback tối đa 5 giây nhờ poll định kỳ) để đổi lấy tính nhất quán.
+
+Không phù hợp khi cần realtime tức thì (sub-second latency) — những gì cần như vậy đi đường STOMP/WebSocket.
+
+---
+
+## 6. Triển khai trong dự án
+
+### 6.1. Bảng `outbox_events`
+
+Schema được tạo bởi Flyway migration `V100` + `V101`, gồm 17 cột:
 
 ```
 id · event_id · event_type · aggregate_type · aggregate_id
@@ -33,56 +82,116 @@ status · retry_count · next_attempt_at · last_error
 created_at · sent_at · version · lease_until
 ```
 
-Ba index, trong đó một **partial index**:
+Bốn trạng thái: `PENDING` → `PROCESSING` → `SENT` (hoặc `FAILED`).
 
-```
-idx_outbox_status_next_attempt   (status, next_attempt_at)
-idx_outbox_lease_until           (lease_until) WHERE status = 'PROCESSING'
-idx_outbox_topic                 (topic)
-```
+Bốn index:
 
-Partial index chỉ phủ hàng `PROCESSING` — nhóm nhỏ nhất và duy nhất mà truy vấn thu hồi lease quan tâm. Index đầy đủ trên `lease_until` sẽ phải chứa cả những hàng `SENT` đã tích luỹ, mà chúng không bao giờ được hỏi tới.
+| Index | Cột | Mục đích |
+|---|---|---|
+| `idx_outbox_status_next_attempt` | `(status, next_attempt_at)` | Relay tìm hàng cần gửi |
+| `idx_outbox_lease_until` | `(lease_until) WHERE status = 'PROCESSING'` | **Partial index** — chỉ phủ hàng đang xử lý, dùng cho thu hồi lease |
+| `idx_outbox_topic` | `(topic)` | Lọc theo topic |
+| `uk_outbox_event_id` | `(event_id) UNIQUE` | Đảm bảo idempotency — cùng sự kiện không ghi hai lần |
 
-`version` là khoá lạc quan — chuẩn bị sẵn cho việc nhiều worker cùng chạy.
+`version` là khoá lạc quan — chuẩn bị sẵn cho kịch bản nhiều worker cùng chạy.
+
+### 6.2. Ghi vào outbox
+
+Module nghiệp vụ không import outbox. Nó phát một Spring application event, listener ở tầng hạ tầng bắt event đó và ghi hàng vào bảng `outbox_events` trong cùng transaction.
+
+Có hai đường ghi:
+
+**Đường audio** — Audio module gọi `OutboxEnqueueHelper.enqueue()`. Helper tạo một `OutboxEnqueueRequested` event. `OutboxEnqueueListener` dùng `@TransactionalEventListener(BEFORE_COMMIT)` bắt event này và gọi `OutboxWriter` để INSERT hàng trước khi transaction commit.
+
+**Đường email** — IAM module phát `EmailEventRequested` qua `ApplicationEventPublisher`. `OutboxEmailEnqueueListener` ở `infra/mail/api` bắt event, serialize payload thành JSON, rồi gọi `OutboxWriter` trực tiếp. IAM không import bất kỳ class nào từ `infra/outbox`.
+
+`OutboxWriter` có hai cài đặt: `OutboxJpaWriter` dùng trong production — ghi thật vào database; `LoggingOutboxWriter` dùng khi test — chỉ ghi log, cho phép chạy hệ thống mà không cần bảng outbox.
+
+### 6.3. Relay — đọc outbox rồi gửi vào Kafka
+
+`OutboxRelayScheduler` là tiến trình nền đọc bảng outbox và gửi sự kiện thật vào Kafka.
+
+**Claim bằng lease**: Relay dùng `SELECT ... FOR UPDATE SKIP LOCKED` để claim một lô hàng `PENDING`, đổi trạng thái thành `PROCESSING` và gán `lease_until` (mặc định 60 giây). Nếu relay chết sau khi claim, hàng sẽ kẹt ở `PROCESSING` — nhưng nhờ lease, sau 60 giây worker khác (hoặc chính nó sau khi khởi động lại) sẽ nhặt lại hàng hết hạn.
+
+**Thu hồi trước, nhận mới sau**: Mỗi lần chạy, relay ưu tiên thu hồi lease hết hạn trước, rồi mới claim hàng mới, tổng không vượt `batchSize` (mặc định 20). Nếu không ưu tiên như vậy, một dòng chảy sự kiện liên tục sẽ khiến hàng bị bỏ rơi không bao giờ tới lượt.
+
+**Gửi sau khi commit**: Việc gửi Kafka được đăng ký qua `TransactionSynchronization.afterCommit()`. Nếu gửi trước khi commit, consumer có thể xử lý xong trước khi hàng kịp được đánh dấu `PROCESSING` — hàng đó sẽ được claim lại và gửi lần nữa.
+
+**Cách ly lỗi**: Relay bọc `try/catch` từng sự kiện trong vòng lặp. Một payload hỏng không chặn cả lô.
+
+### 6.4. Nudge — relay tức thì
+
+Relay quét bảng mỗi **5 giây** (poll định kỳ), nhưng đây chỉ là lưới an toàn. Trong trường hợp thường, `OutboxRelayTrigger` kích hoạt relay **ngay lập tức** sau khi writer commit.
+
+Sau khi persist hàng outbox, `OutboxJpaWriter` gọi `OutboxRelayTrigger.requestPublish()`. Trigger đợi transaction commit xong rồi submit relay lên executor riêng — relay chạy ngay, không chờ poll cycle tiếp theo.
+
+Một nudge cho mỗi transaction là đủ — relay sẽ claim cả lô. Nếu nudge thất bại (executor đầy, relay ném lỗi), poll 5 giây vẫn nhặt được. Nudge là tối ưu, poll là bảo đảm.
+
+### 6.5. Kafka producer — gửi vào topic
+
+`KafkaOutboxPublisher` nhận entity từ relay, gửi vào Kafka topic tương ứng (dựa trên trường `topic` trong bảng outbox). Khi Kafka trả kết quả (thành công hoặc lỗi), publisher cập nhật trạng thái hàng:
+
+- **Thành công**: đổi status sang `SENT`, ghi `sent_at`.
+- **Lỗi**: tăng `retry_count`, ghi `last_error`, đổi status về `PENDING` để relay nhặt lại ở lần quét tiếp theo.
+
+Producer dùng `StringSerializer` cho cả key và value. Key là `payload_key` trong bảng outbox (thường là aggregate ID), đảm bảo các sự kiện của cùng một entity luôn vào cùng partition — giữ thứ tự.
+
+### 6.6. Kafka consumer — nhận và xử lý
+
+`KafkaConsumerConfig` dựng hai container factory: một cho String deserializer, một cho JSON deserializer. Cả hai đều dùng DLT và `setConcurrency(1)`.
+
+**Chính sách lỗi** (String factory — factory mà cả hai consumer hiện tại đều dùng):
+
+- **Retry theo cấp số nhân**: bắt đầu 1 giây, nhân đôi, tối đa 30 giây mỗi lần, bỏ cuộc sau tổng cộng 60 giây. Đủ cho chập mạng, không giữ partition cả buổi.
+- **Danh sách lỗi không thử lại**: `MailPayloadException`, `MailTemplateException`, `IllegalArgumentException`. Payload JSON hỏng không bao giờ parse được — thử lại chỉ tổ chặn partition. Nó đi thẳng DLT.
+- **DLT giữ nguyên partition**: thứ tự trong partition được bảo toàn cả ở hàng chết.
+- **Commit offset sau khi đẩy DLT**: tránh consumer đọc lại bản ghi hỏng mãi mãi.
+
+**Email consumer** (`MailKafkaConsumer`): làm ba bước — parse JSON thành `EmailPayload`, validate (toEmail, subject, htmlBody không rỗng), gửi qua SMTP. Nội dung email đã được render sẵn trước khi xếp hàng (tại IAM module), nên consumer không cần biết template hay ngôn ngữ. Email gửi cả bản text lẫn HTML — client thư không hiển thị được HTML vẫn đọc được.
+
+**Audio consumer** (`SongProcessingConsumer`): nhận yêu cầu merge watermark/voice tag vào bài hát. FFmpeg chạy hàng phút mỗi bài, nên consumer nới `max.poll.interval.ms` lên 30 phút (mặc định 5 phút). Nếu không, Kafka sẽ coi consumer đã chết và rebalance partition — bài hát bị merge hai lần.
 
 ---
 
-## 3. Relay: nhận việc bằng lease
+## 7. Luồng end-to-end — ví dụ: gửi email OTP khi đăng ký
 
-`OutboxRelayScheduler` chạy mỗi **5 giây**, và đây là phần đáng đọc nhất:
-
-```java
-List<UUID> reclaimed = repository.reclaimExpiredLease(batchSize, now, nextAttempt, leaseUntil);
-int remaining = Math.max(0, batchSize - reclaimed.size());
-List<UUID> fresh = remaining == 0 ? List.of()
-        : repository.claimBatch(remaining, now, nextAttempt, leaseUntil);
+```
+   IAM Module                     shared-infrastructure                    Kafka
+  ┌──────────┐    ┌──────────────────┐    ┌──────────────┐    ┌──────────────────┐
+  │ register │───→│ OutboxEmail      │───→│ OutboxJpa    │───→│  outbox_events   │
+  │ (201)    │    │ EnqueueListener  │    │ Writer       │    │  status=PENDING  │
+  └──────────┘    └──────────────────┘    └──────┬───────┘    └────────┬─────────┘
+                                                 │ nudge               │
+                                          ┌──────▼───────┐            │
+                                          │ OutboxRelay  │◄───────────┘
+                                          │ Trigger /    │  poll 5s (fallback)
+                                          │ Scheduler    │
+                                          └──────┬───────┘
+                                                 │ claim + send
+                                          ┌──────▼───────┐    ┌──────────────────┐
+                                          │ KafkaOutbox  │───→│ notification     │
+                                          │ Publisher    │    │ .email.v1        │
+                                          └──────────────┘    └────────┬─────────┘
+                                                                       │
+                                                                ┌──────▼───────┐
+                                                                │ MailKafka    │
+                                                                │ Consumer     │───→ SMTP
+                                                                └──────────────┘
 ```
 
-**Thu hồi lease hết hạn trước, nhận việc mới sau** — và tổng không vượt `batchSize`.
+1. User đăng ký → IAM render email (subject, HTML, text) → phát `EmailEventRequested`.
+2. `OutboxEmailEnqueueListener` serialize payload thành JSON → gọi `OutboxWriter` → INSERT vào `outbox_events` trong cùng transaction với user creation.
+3. `OutboxJpaWriter` gọi `OutboxRelayTrigger.requestPublish()` → sau khi transaction commit, relay chạy ngay.
+4. `OutboxRelayScheduler` claim hàng (lease 60 giây) → `KafkaOutboxPublisher` gửi vào topic `notification.email.v1`.
+5. `MailKafkaConsumer` nhận message → parse → validate → gửi SMTP.
+6. Nếu SMTP lỗi → retry (exponential backoff, tổng 60 giây) → nếu vẫn lỗi → DLT.
+7. User nhận `201 Created` từ bước 1. Toàn bộ bước 2–6 là bất đồng bộ.
 
-Lease (`lease_until`, mặc định **60 giây**) là cách giải bài toán: một worker nhận việc rồi chết thì hàng đó mắc kẹt ở `PROCESSING` mãi mãi. Với lease, sau 60 giây worker khác — hoặc chính nó sau khi khởi động lại — nhặt lại được.
+Hệ quả: nếu SMTP hỏng, user đã nhận `201` và thông báo "mã xác thực đã gửi", nhưng email không bao giờ tới. Đây là cái giá cố hữu của việc tách bất đồng bộ.
 
-Thứ tự "thu hồi trước" quan trọng: việc cũ bị bỏ rơi được ưu tiên hơn việc mới. Ngược lại thì một dòng chảy sự kiện liên tục sẽ khiến hàng bị bỏ rơi không bao giờ tới lượt.
+---
 
-### 3.1. Gửi sau khi commit — lại là khuôn mẫu ấy
-
-```java
-if (TransactionSynchronizationManager.isSynchronizationActive()) {
-    TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-        @Override public void afterCommit() { submit.run(); }
-    });
-} else {
-    submit.run();
-}
-```
-
-Bản thân việc nhận lease là một transaction. Gửi Kafka **trước khi** transaction đó commit thì consumer có thể xử lý xong và trả lời trước khi hàng kịp được đánh dấu `PROCESSING` — hàng đó sẽ được nhận lại và gửi lần nữa.
-
-Đây là **lần thứ ba** cùng một khuôn mẫu xuất hiện trong hệ thống: [publisher của Live Room](13-realtime-stomp.md), [sổ session STOMP](13-realtime-stomp.md), và ở đây.
-
-`try/catch` bọc từng sự kiện trong vòng lặp — một payload hỏng không chặn cả lô, cùng nguyên tắc với [scheduler của Live Room](liveroom-07-scheduler.md).
-
-Cấu hình:
+## 8. Cấu hình
 
 ```yaml
 pwb.outbox:
@@ -90,176 +199,20 @@ pwb.outbox:
   retry: { max-attempts: 3, backoff-seconds: [1, 5, 30] }
 ```
 
----
+Kafka consumer (String factory):
 
-## 4. Ghi vào outbox: qua sự kiện Spring, không gọi thẳng
-
-`infra/outbox/api` có `OutboxEnqueueHelper`, `OutboxEnqueueListener`, `OutboxEnqueueRequested`, `OutboxWriter`.
-
-Người gọi phát một **sự kiện ứng dụng của Spring**; listener biến nó thành một hàng. Thấy rõ ở đường email ([iam-01 §7](iam-01-dang-ky-va-otp.md)):
-
-```java
-applicationEventPublisher.publishEvent(new EmailEventRequested(payload));
-```
-
-Vì sao thêm một tầng gián tiếp: module nghiệp vụ **không phải phụ thuộc vào outbox**. IAM chỉ biết "tôi muốn gửi email"; việc điều đó được thực hiện qua outbox → Kafka → SMTP là chuyện của hạ tầng.
-
-Có **hai** cài đặt của `OutboxWriter`: `OutboxJpaWriter` (thật) và `LoggingOutboxWriter` (chỉ ghi log). Cái sau cho phép chạy hệ thống mà không cần bảng outbox — hữu ích khi test.
-
----
-
-## 5. Kafka: một cấu hình, ba consumer
-
-`KafkaConsumerConfig` dựng hai container factory (một cho `String`, một cho JSON), cả hai cùng chính sách lỗi:
-
-```java
-DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
-        kafkaTemplate,
-        (record, ex) -> new TopicPartition(record.topic() + ".DLT", record.partition()));
-
-ExponentialBackOff backOff = new ExponentialBackOff(1000L, 2.0);
-backOff.setMaxInterval(30_000L);
-backOff.setMaxElapsedTime(60_000L);
-
-DefaultErrorHandler handler = new DefaultErrorHandler(recoverer, backOff);
-handler.addNotRetryableExceptions(
-        MailPayloadException.class,
-        MailTemplateException.class,
-        IllegalArgumentException.class);
-handler.setCommitRecovered(true);
-factory.setConcurrency(1);
-```
-
-Năm quyết định trong khối này:
-
-**Thử lại theo cấp số nhân, tổng cộng 60 giây.** Bắt đầu 1 giây, nhân đôi, tối đa 30 giây mỗi lần, bỏ cuộc sau 60 giây. Đủ để vượt qua một lần chập mạng, không đủ để giữ một partition cả buổi.
-
-**Danh sách lỗi không thử lại.** Đây là phần quan trọng nhất. Một payload JSON hỏng sẽ **không bao giờ** parse được, nên thử lại 60 giây chỉ tổ chặn partition. Nó đi thẳng DLT.
-
-Chú ý: danh sách này **liệt kê tên lớp cụ thể của từng module** — `MailPayloadException`, `MailTemplateException`. Cấu hình chung phải biết tên ngoại lệ của từng consumer. Thêm consumer mới có lỗi không-thử-lại-được thì phải sửa file này, và **quên là lỗi đó sẽ được thử lại vô ích rồi mới vào DLT sau 60 giây**. Chiều ngược lại cũng phải nhớ: gỡ một consumer thì dòng tương ứng ở đây thành rác — `SearchIndexPayloadException` đã được xoá khỏi danh sách này cùng lúc gỡ Elasticsearch.
-
-**`.DLT` giữ nguyên partition.** Thứ tự trong một partition được bảo toàn cả ở hàng chết.
-
-**`setCommitRecovered(true)`** — sau khi đẩy vào DLT thì commit offset. Không có nó, consumer đọc lại đúng bản ghi đó mãi mãi.
-
-**`setConcurrency(1)`** — một luồng cho mỗi listener. Với `voice.processing.v1` thì bắt buộc (FFmpeg ăn CPU, xem [audio-04 §3](audio-04-pipeline-xu-ly.md)); với email thì đây là giới hạn thông lượng chưa cần gỡ.
-
-### 5.1. Hai consumer, hai tính cách
-
-| Topic | Consumer group | Đặc thù |
+| Tham số | Giá trị | Ý nghĩa |
 |---|---|---|
-| `notification.email.v1` | `pwb-mail-consumer` | Gửi SMTP; nội dung đã kết xuất sẵn |
-| `voice.processing.v1` | `audio-song-processor` | **Chạy hàng phút**; phải nới `max.poll.interval.ms` lên 30 phút |
+| `ExponentialBackOff` initial interval | 1 giây | Khoảng cách retry đầu tiên |
+| `ExponentialBackOff` multiplier | 2.0 | Nhân đôi mỗi lần |
+| `maxInterval` | 30 giây | Trần mỗi lần retry |
+| `maxElapsedTime` | 60 giây | Bỏ cuộc sau tổng cộng 60 giây |
+| `concurrency` | 1 | Một luồng cho mỗi listener |
+| `commitRecovered` | true | Commit offset sau khi đẩy DLT |
 
-Cái thứ hai là ngoại lệ duy nhất không dùng mặc định — lý do ở [audio-04 §3](audio-04-pipeline-xu-ly.md).
+Audio consumer override:
 
-> Từng có consumer thứ ba, `pwb-search-indexer` trên `search.index.v1`, ghi vào Elasticsearch. Nó là nguồn phát sự kiện lớn nhất của bảng outbox — 75 trong 83 dòng — và biến mất cùng Elasticsearch ngày 2026-08-10.
-
----
-
-## 6. Consumer email — ví dụ đầy đủ nhất
-
-`MailKafkaConsumer` làm đúng ba bước: parse → validate → gửi, và mỗi bước ném một loại lỗi khác nhau:
-
-```java
-private void validatePayload(EmailPayload payload) {
-    if (payload == null) throw new MailPayloadException("Mail payload is null");
-    if (payload.toEmail() == null || payload.toEmail().isBlank())
-        throw new MailTemplateException("Mail payload toEmail is blank");
-    if (payload.subject() == null || payload.subject().isBlank())
-        throw new MailTemplateException("Mail payload subject is blank (template not rendered?)");
-    if (payload.htmlBody() == null || payload.htmlBody().isBlank())
-        throw new MailTemplateException("Mail payload htmlBody is blank (template not rendered?)");
-}
-```
-
-Hai câu `(template not rendered?)` chỉ thẳng vào nguyên nhân thường gặp. Nội dung email được **kết xuất trước khi xếp hàng** ([iam-01 §7](iam-01-dang-ky-va-otp.md)), nên `subject` rỗng nghĩa là việc kết xuất đã hỏng từ lúc gửi đi, không phải consumer hỏng.
-
-Cả hai lỗi đều nằm trong danh sách không-thử-lại: một payload thiếu tiêu đề sẽ không tự mọc tiêu đề ở lần thử sau.
-
-Email gửi **cả bản text lẫn HTML** (`helper.setText(text, html)`) — client thư nào không hiển thị được HTML vẫn đọc được.
-
-### 6.1. Hệ quả cần biết: người dùng không bao giờ biết email hỏng
-
-Chuỗi `register` → 201 → outbox → Kafka → SMTP hỏng → DLT hoàn toàn **không có đường phản hồi ngược**. Người dùng nhận `201 Created` và câu "Mã xác thực đã được gửi", rồi ngồi chờ một email không bao giờ tới.
-
-Đây là cái giá cố hữu của việc tách bất đồng bộ. Chữa được bằng cách theo dõi DLT và cảnh báo — hiện chưa có.
-
----
-
-## 7. Quyết định & đánh đổi
-
-| Quyết định | Thay vì | Vì sao | Cái giá |
-|---|---|---|---|
-| Outbox cho **mọi** đường bất đồng bộ | Gửi thẳng Kafka | Không có sự kiện ma, không mất sự kiện | Trễ tới 5 giây; thêm một bảng lớn dần |
-| Ghi qua sự kiện Spring | Gọi thẳng `OutboxWriter` | Module nghiệp vụ không phụ thuộc outbox | Thêm một tầng gián tiếp khi đọc code |
-| Lease 60 giây | Không có lease | Worker chết không làm kẹt hàng vĩnh viễn | Hàng có thể gửi hai lần nếu worker chỉ chậm |
-| Thu hồi lease trước, nhận mới sau | Ngược lại | Việc bị bỏ rơi không bị bỏ đói | Lô có thể toàn việc cũ |
-| Gửi sau khi commit lease | Gửi ngay | Không gửi trùng do consumer chạy trước khi lease được ghi | Thêm một lớp hoãn |
-| Partial index cho `lease_until` | Index đầy đủ | Chỉ phủ nhóm hàng thật sự được hỏi | Phải nhớ điều kiện khi đổi truy vấn |
-| Backoff 1s→30s, bỏ cuộc sau 60s | Thử lại lâu hơn | Chập mạng thì qua được; hỏng thật thì không giữ partition | Sự cố dài hơn 60 giây đẩy mọi thứ vào DLT |
-| Danh sách lỗi không thử lại | Thử lại mọi lỗi | Payload hỏng không chặn partition | Cấu hình chung phải biết tên lớp của từng module |
-| `.DLT` giữ nguyên partition | Một partition | Thứ tự được bảo toàn ở hàng chết | — |
-| `concurrency = 1` | Nhiều luồng | Bắt buộc cho FFmpeg | Email cũng bị giới hạn theo |
-| Kết xuất email trước khi xếp hàng | Kết xuất lúc gửi | Consumer không cần biết template hay ngôn ngữ | Payload lớn; sửa template không ảnh hưởng thư đang chờ |
-
----
-
-## 8. Tự kiểm chứng
-
-**Xem ba đường bất đồng bộ trong một truy vấn:**
-
-```bash
-docker exec -e PGPASSWORD="$(grep -E '^POSTGRES_PASSWORD=' .env | cut -d= -f2-)" pwb-postgres psql -U pwb_user -d pwb_db -c "SELECT event_type, aggregate_type, topic, status, count(*) FROM outbox_events GROUP BY 1,2,3,4 ORDER BY 5 DESC;"
-```
-
-**Bắt một hàng trong lúc đang xử lý** — chạy liên tục trong khi tạo một bài hát có voice tag:
-
-```bash
-docker exec -e PGPASSWORD="$(grep -E '^POSTGRES_PASSWORD=' .env | cut -d= -f2-)" pwb-postgres psql -U pwb_user -d pwb_db -c "SELECT event_type, status, retry_count, lease_until, next_attempt_at FROM outbox_events WHERE status <> 'SENT';"
-```
-
-Trong tối đa 5 giây sẽ thấy hàng đi từ `PENDING` → `PROCESSING` (có `lease_until`) → `SENT`.
-
-**Thấy outbox cứu sự kiện khi Kafka chết** — thí nghiệm thuyết phục nhất của file:
-
-```bash
-docker stop pwb-kafka
-```
-
-Đăng ký một tài khoản mới. Request vẫn **thành công** (201). Xem bảng: hàng `EmailPersisted` ở `PENDING`/`PROCESSING` với `retry_count` tăng dần và `last_error` có nội dung. Bật lại:
-
-```bash
-docker start pwb-kafka
-```
-
-Trong vài chục giây hàng chuyển `SENT` — **sự kiện không mất**.
-
-**Xem hàng chết:**
-
-```bash
-docker exec pwb-kafka kafka-run-class kafka.tools.GetOffsetShell --bootstrap-server localhost:9092 --topic notification.email.v1.DLT
-```
-
-**Xem độ trễ của từng consumer group:**
-
-```bash
-docker exec pwb-kafka kafka-consumer-groups --bootstrap-server localhost:9092 --describe --all-groups | head -20
-```
-
-Cột `LAG` là số bản ghi chưa xử lý.
-
----
-
-## 9. Giới hạn hiện tại
-
-| Giới hạn | Chi tiết |
-|---|---|
-| **Không ai theo dõi DLT** | Sự kiện vào hàng chết là mất hẳn, không cảnh báo, không có công cụ phát lại — mục 6.1 |
-| Bảng `outbox_events` không được dọn | Hàng `SENT` giữ vĩnh viễn; chưa có scheduler nào xoá |
-| Trễ tối thiểu 5 giây | Chu kỳ quét; sự kiện cần nhanh hơn phải đi đường realtime |
-| Thông lượng 20 hàng / 5 giây | Khoảng 4 sự kiện/giây; đủ hiện tại, không đủ cho tải lớn |
-| `concurrency = 1` cho mọi consumer | Email bị giới hạn theo nhu cầu của FFmpeg — mục 5 |
-| Danh sách lỗi không-thử-lại phải cập nhật thủ công | Quên là chịu 60 giây thử lại vô ích — mục 5 |
-| Nhiều instance thì relay chạy trùng | Lease giảm nhẹ nhưng chưa có test; cùng vấn đề với [scheduler Live Room](liveroom-07-scheduler.md) |
-| Không đo được | Không có chỉ số cho độ sâu hàng đợi, tỉ lệ thử lại, tuổi hàng cũ nhất |
+| Tham số | Giá trị | Ý nghĩa |
+|---|---|---|
+| `max.poll.records` | 1 | Lấy một record mỗi lần poll |
+| `max.poll.interval.ms` | 1.800.000 (30 phút) | Cho phép FFmpeg chạy lâu mà không bị Kafka coi là chết |
