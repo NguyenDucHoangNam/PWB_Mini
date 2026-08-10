@@ -4,7 +4,6 @@ import {
   Rocket,
   Server,
   Siren,
-  Workflow,
   type LucideIcon,
 } from "lucide-react";
 
@@ -12,11 +11,13 @@ import {
    answers the same four questions in the same order, because the reader arriving at the second
    topic should not have to work out where the answers live.
 
-   Realtime used to be one of these and no longer is: a protocol cannot be introduced through a
-   what/why/when/how grid, so it moved to its own chapter under technical-realtime-content.ts.
+   Two subjects have outgrown this format and left it: the realtime layer and the event queue.
+   Both had to argue why they exist before they could say what they are, and a
+   what/why/when/how grid cannot carry an argument. They live in their own chapter files —
+   technical-realtime-content.ts and technical-outbox-content.ts.
 
-   Source material is docs/technical/ — infra-01 (outbox & Kafka), infra-02 (Redis) and
-   infra-06 (HTTP security & rate limiting). */
+   Source material is docs/technical/ — infra-02 (Redis) and infra-06 (HTTP security and rate
+   limiting). */
 
 export const TOPIC_QUESTIONS = ["what", "why", "when", "how"] as const;
 export type TopicQuestion = (typeof TOPIC_QUESTIONS)[number];
@@ -40,14 +41,6 @@ export interface TopicSpec {
   /** Rows in the closing table. Zero means the topic has none. */
   rows: number;
 }
-
-export const OUTBOX_TOPIC: TopicSpec = {
-  id: "outbox",
-  icon: Workflow,
-  bullets: { what: 3, why: 3, when: 2, how: 0 },
-  visual: { kind: "flow", steps: 7 },
-  rows: 0,
-};
 
 export const REDIS_TOPIC: TopicSpec = {
   id: "redis",
@@ -94,7 +87,6 @@ export const DEPLOY_TOPIC: TopicSpec = {
 /* Order matches the infrastructure card grid this replaced, so a reader who saw the old page
    finds the topics where the cards used to be. */
 export const INFRA_TOPICS: readonly TopicSpec[] = [
-  OUTBOX_TOPIC,
   REDIS_TOPIC,
   SECURITY_TOPIC,
   DEPLOY_TOPIC,

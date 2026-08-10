@@ -1332,6 +1332,72 @@
               "tech": "[one call]"
             }
           }
+        },
+        "outbox": {
+          "title": "From one user action to a sent email: what shares a transaction, and what runs later",
+          "summary": "The user triggers an action. Inside a single transaction the system writes the business data and adds one row to a queue table. The user gets their response right here. A background process then reads that table, sends the message to Kafka for real, and a consumer picks it up to send the email or process the audio.",
+          "boundaries": {
+            "transaction": "One transaction — all of it succeeds, or none of it does",
+            "async": "Runs later — the user is long gone"
+          },
+          "legend": {
+            "actor": "User",
+            "app": "Processing step",
+            "data": "Storage",
+            "external": "External service"
+          },
+          "nodes": {
+            "user": {
+              "name": "User",
+              "type": "[Browser]",
+              "desc": "Gets a reply immediately, waits for nothing"
+            },
+            "usecase": {
+              "name": "Business logic",
+              "type": "[Transaction]",
+              "desc": "Two writes, and sends nothing anywhere"
+            },
+            "dbBusiness": {
+              "name": "Business table",
+              "type": "[PostgreSQL]",
+              "desc": "Accounts, songs…"
+            },
+            "dbOutbox": {
+              "name": "Queue table",
+              "type": "[PostgreSQL]",
+              "desc": "One row: “this needs sending”"
+            },
+            "relay": {
+              "name": "Background process",
+              "type": "[Runs on a timer]",
+              "desc": "Takes a batch, marks it in progress"
+            },
+            "topic": {
+              "name": "Kafka channel",
+              "type": "[Kept on disk]",
+              "desc": "Ordered, and reading does not consume it"
+            },
+            "consumers": {
+              "name": "Consumer",
+              "type": "[Handling]",
+              "desc": "Reads it and does the real work"
+            },
+            "targets": {
+              "name": "SMTP · FFmpeg",
+              "type": "[External]",
+              "desc": "Sends the mail, merges the audio"
+            }
+          },
+          "edges": {
+            "outboxRelay": {
+              "label": "Reads the waiting rows",
+              "tech": "[every 5 seconds]"
+            },
+            "relayTopic": {
+              "label": "Only now is it really sent",
+              "tech": "[after the write]"
+            }
+          }
         }
       },
       "realtime": {
@@ -1511,73 +1577,167 @@
           }
         }
       },
+      "outbox": {
+        "title": "The event queue — Kafka and the outbox",
+        "intro": "Some work cannot be done while the user waits. This section starts there: why anything needs queueing, what Kafka solves, where Kafka alone still falls short, and how pairing it with one database table means no event is ever lost or invented.",
+        "toc": {
+          "label": "In this section",
+          "items": {
+            "waiting": "Work the user cannot wait for",
+            "kafka": "What Kafka is",
+            "dualwrite": "Where Kafka alone falls short",
+            "outbox": "The outbox: record the intent to send",
+            "system": "How we applied it"
+          }
+        },
+        "waiting": {
+          "eyebrow": "Starting point",
+          "title": "Some work cannot be done while the user waits",
+          "lead": "One user action usually drags other work behind it. The problem is that the trailing work is sometimes thousands of times slower than the action itself.",
+          "jobs": {
+            "0": {
+              "cost": "Seconds",
+              "title": "The verification email on sign-up",
+              "body": "Creating an account row takes milliseconds. Sending an email means opening a connection out to the internet, waiting for the other side to answer, and taking a few seconds over it is entirely normal."
+            },
+            "1": {
+              "cost": "Minutes",
+              "title": "Merging a voice tag into a track",
+              "body": "The audio tool has to decode the whole track, mix the tag in, and encode it again. A long track takes minutes. There is no version of this where a browser waits it out."
+            }
+          },
+          "closing": "Doing this work while the user waits means they stare at a spinner for minutes. Worse: if the mail server is down, the sign-up fails too — even though the account was created perfectly well. A side job kills the main one. The way out is to answer the user immediately and hand the slow work to something else to finish later."
+        },
+        "kafka": {
+          "eyebrow": "The tool",
+          "title": "What Kafka is",
+          "lead": "Kafka is where that work gets queued. But it does not behave like an ordinary queue, and that difference is exactly why it gets chosen.",
+          "notebook": {
+            "title": "Picture a notebook, not a mailbox",
+            "body": "Empty a mailbox and the letters are gone. Kafka behaves like a notebook: each job is appended as a line at the end, in order, written to disk. A reader only records how far down the page it has got — the line itself stays. So a consumer that dies mid-way can restart and carry on from where it was, and adding a second reader later requires no change at all on the writing side."
+          },
+          "ideas": {
+            "0": {
+              "title": "Channels — one notebook per kind of work",
+              "body": "Sending email and processing audio have nothing to do with each other, so they live in separate channels. A channel can also be split into parts so several readers work in parallel, with order still preserved inside each part."
+            },
+            "1": {
+              "title": "Reader groups — sharing work and covering for each other",
+              "body": "Several processes reading the same channel can form a group. Kafka hands each member its own share and guarantees that a given part is handled by exactly one of them. If a process dies, its share is reassigned to the survivors."
+            },
+            "2": {
+              "title": "A book for broken jobs, so one bad item cannot block the rest",
+              "body": "Some jobs fail however many times you retry — malformed content, for instance. Retrying forever leaves everything behind it stuck in line. Kafka lets those be moved to a separate channel for inspection later, while the main queue keeps moving."
+            }
+          },
+          "closing": "It looks like enough at this point: write the job to Kafka and answer the user right away. But there is a gap, and it is not in Kafka."
+        },
+        "dualwrite": {
+          "eyebrow": "The hard part",
+          "title": "Kafka alone still falls short",
+          "lead": "The trouble is that one action now has to touch two separate systems at once: write data to the database, and queue a job in Kafka.",
+          "setup": "A database offers transactions: several writes are grouped so that either all of them stick or none do. But Kafka lives outside the database, so it cannot be part of that group. There are only two places to put the send, and both are wrong.",
+          "options": {
+            "0": {
+              "tag": "Option 1",
+              "title": "Send to Kafka before the transaction finishes",
+              "body": "The job is in Kafka. And then the transaction hits an error and is rolled back entirely — the account was never created.",
+              "result": "Result: a verification email for an account that does not exist. An event describing something that never happened."
+            },
+            "1": {
+              "tag": "Option 2",
+              "title": "Send to Kafka after the transaction completes",
+              "body": "The data is safely stored. But between storing it and sending, the process is killed, the server restarts, or the network drops.",
+              "result": "Result: the account exists but the email was never queued. The user waits for a code that is not coming."
+            }
+          },
+          "closing": "There is no third option. As long as the send sits outside the transaction, there is always a moment where the two systems disagree. The way out is not picking the less-wrong option — it is making the send stop being outside the transaction at all."
+        },
+        "outbox": {
+          "eyebrow": "The fix",
+          "title": "The outbox — record the intent to send, inside the same transaction",
+          "lead": "The name comes from an out-tray: you do not carry the letter to the post office yourself, you put it in the tray, and the postal worker collects it.",
+          "idea": {
+            "tag": "The shortest way to see it",
+            "title": "Do not send. Just record that a send is needed — in that same database",
+            "body": "Instead of calling out to Kafka, the business logic writes one more row into a dedicated table, right beside the business data, in the same transaction. The row says what needs sending and to which channel. Because both are writes to the same database, they belong to one transaction: either both exist or neither does. The dilemma from the previous chapter disappears — not because it is handled more cleverly, but because it no longer exists."
+          },
+          "relay": {
+            "title": "So who collects the post?",
+            "lead": "A background process runs on a timer, reads the waiting rows, and sends them to Kafka for real. Simple enough in outline, but there are three things it has to get right.",
+            "rules": {
+              "0": {
+                "title": "No two workers holding the same job",
+                "body": "When taking work, the process locks exactly the rows it claims and skips any another worker is holding. That is what lets several run side by side without an email going out twice."
+              },
+              "1": {
+                "title": "Abandoned work has to return to the queue",
+                "body": "If a process dies right after claiming, those rows would be stuck forever. So a claim is only held for a limited time; once it expires without finishing, someone else may pick it up. And every pass takes expired work before new work — otherwise a steady stream of fresh jobs means the abandoned ones never get a turn."
+              },
+              "2": {
+                "title": "Not waiting five seconds to start",
+                "body": "The process scans the table on a cycle, but that is only the safety net. Normally, as soon as the transaction completes, the system nudges it to run immediately — so the delay is close to zero. If that nudge fails, the periodic scan still catches the row. One for speed, one for certainty."
+              }
+            }
+          }
+        },
+        "system": {
+          "eyebrow": "Applied",
+          "title": "How our system puts them together",
+          "lead": "With both in place, this is the real path of an event. The diagram is the whole picture — note the two dashed frames, because the boundary between them is the part worth remembering.",
+          "flow": {
+            "title": "Six stages, following one sign-up",
+            "lead": "From the button press to the email landing in an inbox.",
+            "steps": {
+              "0": {
+                "title": "The user hits sign up",
+                "body": "The system creates the account and, at the same time, composes the entire email — subject, text part, HTML part. Composing it here rather than in the consumer matters: this is the point at which the user's language is known."
+              },
+              "1": {
+                "title": "Two writes in one transaction",
+                "body": "The account goes into its own table, and the email just composed becomes one row in the queue table. Two writes, one transaction. Nothing has been sent anywhere yet."
+              },
+              "2": {
+                "title": "The user gets their answer immediately",
+                "body": "The transaction completes and the server responds that the account was created. Everything that follows happens out of sight; the user waits not one extra millisecond for it."
+              },
+              "3": {
+                "title": "The background process claims the work and sends it to Kafka",
+                "body": "It takes the waiting row, marks it in progress, and only then sends it to the matching channel. That order matters: sending before marking means the consumer could finish before the row is recorded, and the job would be done a second time."
+              },
+              "4": {
+                "title": "The consumer reads it and does the real work",
+                "body": "For email: read the content, check it is valid, hand it to the mail server — sending both a plain-text and an HTML version so any mail client can display it. For audio: run the merge tool, which may take minutes."
+              },
+              "5": {
+                "title": "Retry what might work, set aside what never will",
+                "body": "A flaky mail server gets retried, with a widening gap between attempts, giving up after about a minute. Failures where retrying is pointless — malformed content, say — go straight to the channel for broken jobs without a single retry, so they do not hold up everything behind them."
+              }
+            }
+          },
+          "lanes": {
+            "title": "The two lanes running today",
+            "lead": "Everything asynchronous in the system goes through exactly this mechanism, and there are two lanes.",
+            "items": {
+              "0": {
+                "title": "Outgoing mail",
+                "body": "Sign-up verification codes, password resets, and other notifications. The content is composed in advance, so the consumer only has to send it."
+              },
+              "1": {
+                "title": "Audio processing",
+                "body": "Merging voice tags into tracks. Because each track takes minutes, this lane is given far more time before it is considered stalled — without that, the system would assume the consumer had died and hand the track to another one, merging it twice."
+              }
+            }
+          },
+          "closing": "There is a price, and it is inherent rather than a bug: because the user already got a success response at stage three, a mail server that is properly down leaves them looking at “your verification code has been sent” while the email never arrives. That is what you trade away when you move work into the background."
+        }
+      },
       "topics": {
         "questions": {
           "what": "What it is",
           "why": "Why it has to exist",
           "when": "When it gets used",
           "how": "How it is put together"
-        },
-        "outbox": {
-          "title": "The event queue — outbox and Kafka",
-          "lead": "Some work does not need the user waiting on it: sending a verification email, merging a voice tag into a track. Rather than make them sit through it, the system records the intent and does the work afterwards. The hard part is recording that intent in a way that can never be wrong.",
-          "what": {
-            "body": "Kafka is an event streaming platform: a sender drops a message onto a named channel, a receiver reads it back and acts on it, and the message is kept in order rather than disappearing the moment somebody reads it. The outbox is the pattern that goes with it — instead of publishing straight to Kafka, the intent to publish is written as a row in the same business database, and a background process reads that row and does the real send.",
-            "points": {
-              "0": "A channel keeps messages in order and lets several readers consume it without consuming it away from each other.",
-              "1": "Readers share the work as a group; when one dies its share moves to the ones still alive.",
-              "2": "A message that cannot be processed is moved to a separate dead channel for later inspection instead of blocking the queue behind it."
-            }
-          },
-          "why": {
-            "body": "Because one business operation usually has to do two things in two different systems: write to the database, and tell the outside world. No single transaction covers both, so every ordering fails in its own way.",
-            "points": {
-              "0": "Publish before the transaction finishes: if it is rolled back the event has already gone — announcing something that never happened.",
-              "1": "Publish after the transaction finishes: if the process dies at that exact moment, it happened and nobody was told.",
-              "2": "Writing to the outbox puts both inside one transaction — they succeed together or they are rolled back together. No phantom events, no lost ones."
-            }
-          },
-          "when": {
-            "body": "Every background job in the system goes this way, without exception: no business operation is allowed to publish to Kafka directly. Two flows use it today — sending verification email, and merging a watermark or voice tag into a track with an audio processing tool.",
-            "points": {
-              "0": "A good fit when the event must be guaranteed to arrive, and a small delay is an acceptable price for that guarantee.",
-              "1": "A bad fit when something has to happen inside a second — that goes over the realtime channel, not through here."
-            }
-          },
-          "how": {
-            "body": "A dedicated table acts as the outgoing mailbox. The business code only raises an internal note along the lines of “I want an email sent”; the infrastructure layer catches it and writes to the mailbox inside the same transaction, so the business module never learns where the event ends up. A background process handles the rest: pick up the mail, publish it, mark it sent. It is woken the instant the transaction finishes; alongside that it still rescans every five seconds as a safety net, in case the wake-up itself failed."
-          },
-          "visualTitle": "The path of one verification email, from the moment somebody signs up",
-          "flow": {
-            "0": {
-              "title": "Somebody signs up",
-              "body": "The account is created. The email itself — subject, plain text, HTML — is composed right here, so that the later sending step needs to know nothing about templates or languages."
-            },
-            "1": {
-              "title": "The intent to send is written to the outgoing mailbox",
-              "body": "Same transaction as creating the account. This is the crux: if creating the account is rolled back, this row disappears with it."
-            },
-            "2": {
-              "title": "The user gets their answer immediately",
-              "body": "The request succeeds here. Everything after this runs in the background with nobody waiting on it."
-            },
-            "3": {
-              "title": "The background process is woken",
-              "body": "The moment the transaction finishes. It claims a batch for itself and holds it for sixty seconds, so that if it dies mid-way the hold expires and a later run picks that same batch back up."
-            },
-            "4": {
-              "title": "Published onto the channel",
-              "body": "Only marked as sent once the publish succeeds. If Kafka is down the row returns to the waiting state and is retried on a later scan — nothing is lost."
-            },
-            "5": {
-              "title": "The reader picks it up and sends the real email",
-              "body": "It checks the content and hands it to the mail server. Because the content was composed back at step one, all that is left here is the sending."
-            },
-            "6": {
-              "title": "Retry on failure, and set aside what never succeeds",
-              "body": "The gap between attempts grows, for a minute in total. Past that the message is moved to the dead channel for inspection, rather than sitting there blocking the mail behind it."
-            }
-          }
         },
         "redis": {
           "title": "The short-term store — Redis",

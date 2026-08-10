@@ -229,6 +229,55 @@ export const DEPLOYMENT_DIAGRAM: DiagramSpec = {
   legend: ["actor", "app", "data"],
 };
 
+/* ------------------------------------------------------------------ outbox, end to end */
+
+/* The whole argument of the outbox chapter is which things share a transaction and which do
+   not, so the two dashed frames carry more weight here than any box does: everything in the
+   top frame either happens together or not at all, and everything in the bottom frame happens
+   later, on its own time, with the user long gone.
+
+   Only two arrows are labelled — the two that cross between those frames. Inside a frame the
+   relationships are already stated by the boxes' own subtitles, and the column gaps are too
+   tight to hold readable text in either language. */
+export const OUTBOX_DIAGRAM: DiagramSpec = {
+  id: "outbox",
+  width: 1100,
+  height: 700,
+  boundaries: [
+    { key: "transaction", x: 20, y: 120, w: 620, h: 250 },
+    { key: "async", x: 20, y: 430, w: 1060, h: 210 },
+  ],
+  nodes: [
+    { key: "user", kind: "actor", x: 50, y: 20, w: 240, h: 76 },
+    { key: "usecase", kind: "app", x: 50, y: 190, w: 240, h: 100 },
+
+    /* Side by side inside the same frame, deliberately the same colour and size: the point is
+       that the second write is nothing special — just another row, in the same database, in
+       the same transaction. */
+    { key: "dbBusiness", kind: "data", x: 370, y: 160, w: 250, h: 85 },
+    { key: "dbOutbox", kind: "data", x: 370, y: 260, w: 250, h: 85 },
+
+    { key: "relay", kind: "app", x: 790, y: 210, w: 260, h: 100 },
+
+    { key: "topic", kind: "data", x: 790, y: 490, w: 260, h: 100 },
+    { key: "consumers", kind: "app", x: 420, y: 490, w: 260, h: 100 },
+    { key: "targets", kind: "external", x: 50, y: 490, w: 260, h: 100 },
+  ],
+  edges: [
+    { key: "userUsecase", from: "user", to: "usecase", x1: 170, y1: 96, x2: 170, y2: 190 },
+
+    { key: "usecaseBusiness", from: "usecase", to: "dbBusiness", x1: 290, y1: 220, x2: 370, y2: 200 },
+    { key: "usecaseOutbox", from: "usecase", to: "dbOutbox", x1: 290, y1: 260, x2: 370, y2: 295 },
+
+    { key: "outboxRelay", from: "dbOutbox", to: "relay", x1: 620, y1: 300, x2: 790, y2: 260, labelX: 705, labelBottom: 220 },
+    { key: "relayTopic", from: "relay", to: "topic", x1: 920, y1: 310, x2: 920, y2: 490, labelX: 920, labelBottom: 420 },
+
+    { key: "topicConsumers", from: "topic", to: "consumers", x1: 790, y1: 540, x2: 680, y2: 540 },
+    { key: "consumersTargets", from: "consumers", to: "targets", x1: 420, y1: 540, x2: 310, y2: 540 },
+  ],
+  legend: ["actor", "app", "data", "external"],
+};
+
 /* --------------------------------------------------------------- publish / subscribe, alone */
 
 /* Deliberately abstract: no room, no controller, no product noun anywhere on it. The point of

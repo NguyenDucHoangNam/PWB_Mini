@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { Radio } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Reveal, RevealGroup, RevealItem } from "@/components/marketing/section-primitives";
@@ -15,6 +14,7 @@ import {
   STOMP_GAPS,
   WEBSOCKET_POINTS,
 } from "@/features/showcase/lib/technical-realtime-content";
+import { CARD, Chapter, ChapterIndex, Prose, RULE, StepRail, ids } from "./technical-chapter";
 import { TechnicalDiagram } from "./technical-diagram";
 import { TechnicalSectionShell } from "./technical-shell";
 
@@ -24,70 +24,6 @@ import { TechnicalSectionShell } from "./technical-shell";
    The trade is that this section no longer matches the others exactly — worth it here and
    nowhere else on the page. */
 
-const CARD = "rounded-2xl border border-slate-300/70 p-5 dark:border-slate-600/50";
-const RULE = "border-slate-300/70 dark:border-slate-600/50";
-
-function ids(prefix: string, count: number) {
-  return Array.from({ length: count }, (_, index) => `${prefix}.${index}`);
-}
-
-/* One numbered chapter. The number is the reader's place in the argument, so it is part of the
-   heading rather than decoration beside it. */
-function Chapter({
-  id,
-  step,
-  eyebrow,
-  title,
-  lead,
-  children,
-}: {
-  id: string;
-  step: number;
-  eyebrow: string;
-  title: string;
-  lead?: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="mt-16 first:mt-12">
-      <Reveal>
-        {/* scroll-mt keeps the heading clear of the sticky page header when the contents
-            list jumps here. */}
-        <div id={`rt-${id}`} className="scroll-mt-28">
-          <div className="flex items-center gap-3">
-            <span className="font-mono text-sm font-bold tabular-nums text-indigo-600 dark:text-indigo-400">
-              {String(step).padStart(2, "0")}
-            </span>
-            <span className="font-mono text-[0.62rem] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-              {eyebrow}
-            </span>
-          </div>
-
-          <h3 className="mt-3 max-w-3xl text-balance font-heading text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50 sm:text-3xl">
-            {title}
-          </h3>
-
-          {lead ? (
-            <p className="mt-4 max-w-3xl text-pretty text-base leading-relaxed text-slate-600 dark:text-slate-300 sm:text-lg">
-              {lead}
-            </p>
-          ) : null}
-        </div>
-      </Reveal>
-
-      {children}
-    </section>
-  );
-}
-
-function Prose({ children }: { children: ReactNode }) {
-  return (
-    <p className="max-w-3xl text-pretty text-base leading-relaxed text-slate-600 dark:text-slate-300">
-      {children}
-    </p>
-  );
-}
-
 /* ------------------------------------------------------------------- 01 · request / response */
 
 function ProblemChapter() {
@@ -95,7 +31,7 @@ function ProblemChapter() {
 
   return (
     <Chapter
-      id="problem"
+      id="rt-problem"
       step={1}
       eyebrow={t("eyebrow")}
       title={t("title")}
@@ -147,7 +83,7 @@ function WebSocketChapter() {
 
   return (
     <Chapter
-      id="websocket"
+      id="rt-websocket"
       step={2}
       eyebrow={t("eyebrow")}
       title={t("title")}
@@ -181,7 +117,7 @@ function StompChapter() {
   const t = useTranslations("features.technical.realtime.stomp");
 
   return (
-    <Chapter id="stomp" step={3} eyebrow={t("eyebrow")} title={t("title")}>
+    <Chapter id="rt-stomp" step={3} eyebrow={t("eyebrow")} title={t("title")}>
       {/* The reader's own objection, quoted back at them before it is answered. Stating it
           plainly is what stops the rest of the chapter reading as unprompted detail. */}
       <Reveal className="mt-6">
@@ -259,7 +195,7 @@ function PubSubChapter() {
   const t = useTranslations("features.technical.realtime.pubsub");
 
   return (
-    <Chapter id="pubsub" step={4} eyebrow={t("eyebrow")} title={t("title")} lead={t("lead")}>
+    <Chapter id="rt-pubsub" step={4} eyebrow={t("eyebrow")} title={t("title")} lead={t("lead")}>
       <Reveal className="mt-7">
         <div className={`rounded-2xl border p-5 sm:p-6 ${RULE}`}>
           <p className="max-w-3xl text-pretty text-base font-semibold leading-relaxed text-slate-900 dark:text-slate-50">
@@ -303,7 +239,7 @@ function SystemChapter() {
   const t = useTranslations("features.technical.realtime.system");
 
   return (
-    <Chapter id="system" step={5} eyebrow={t("eyebrow")} title={t("title")} lead={t("lead")}>
+    <Chapter id="rt-system" step={5} eyebrow={t("eyebrow")} title={t("title")} lead={t("lead")}>
       {/* The whole path first, then the same path one stage at a time. Seeing the shape before
           the detail is what lets a reader place each step as it arrives. */}
       <Reveal className="mt-7">
@@ -320,36 +256,11 @@ function SystemChapter() {
       </Reveal>
 
       <RevealGroup className="mt-6 flex flex-col">
-        {ids("flow.steps", FLOW_STEPS).map((key, index) => (
-          <RevealItem key={key}>
-            <div className="flex gap-4 sm:gap-5">
-              {/* The rail belongs to the spacer column, not to a border on the card, so it
-                  keeps running through the gap between two stages. */}
-              <div className="flex flex-col items-center">
-                <span
-                  className={`flex size-9 shrink-0 items-center justify-center rounded-full border font-mono text-xs font-bold tabular-nums text-indigo-600 dark:text-indigo-400 ${RULE}`}
-                >
-                  {index + 1}
-                </span>
-                {index < FLOW_STEPS - 1 ? (
-                  <span
-                    aria-hidden="true"
-                    className="my-1 w-px grow bg-slate-300/70 dark:bg-slate-600/50"
-                  />
-                ) : null}
-              </div>
-
-              <div className={index < FLOW_STEPS - 1 ? "pb-7" : undefined}>
-                <h5 className="font-heading text-base font-bold tracking-tight text-slate-900 dark:text-slate-50">
-                  {t(`${key}.title`)}
-                </h5>
-                <p className="mt-2 max-w-3xl text-pretty text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                  {t(`${key}.body`)}
-                </p>
-              </div>
-            </div>
-          </RevealItem>
-        ))}
+        <StepRail
+          count={FLOW_STEPS}
+          title={(index) => t(`flow.steps.${index}.title`)}
+          body={(index) => t(`flow.steps.${index}.body`)}
+        />
       </RevealGroup>
 
       <Reveal className="mt-10">
@@ -425,31 +336,13 @@ export function TechnicalRealtime() {
         </p>
       </Reveal>
 
-      {/* Plain anchors rather than state: every chapter is mounted, and a link the browser
-          resolves itself keeps working while JavaScript is still loading. */}
       <Reveal className="mt-7">
-        <nav aria-label={tr("toc.label")}>
-          <ol className={`flex flex-col divide-y border-y ${RULE} divide-slate-300/70 dark:divide-slate-600/50`}>
-            {REALTIME_BLOCKS.map((block, index) => (
-              <li key={block}>
-                <a
-                  href={`#rt-${block}`}
-                  className="group flex items-baseline gap-4 py-3 text-slate-600 transition-colors hover:text-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="font-mono text-xs font-bold tabular-nums text-indigo-600 dark:text-indigo-400"
-                  >
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <span className="text-pretty text-base font-semibold">
-                    {tr(`toc.items.${block}`)}
-                  </span>
-                </a>
-              </li>
-            ))}
-          </ol>
-        </nav>
+        <ChapterIndex
+          label={tr("toc.label")}
+          blocks={REALTIME_BLOCKS}
+          anchorPrefix="rt"
+          title={(block) => tr(`toc.items.${block}`)}
+        />
       </Reveal>
 
       <ProblemChapter />

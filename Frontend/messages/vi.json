@@ -1332,6 +1332,72 @@
               "tech": "[1 thao tác]"
             }
           }
+        },
+        "outbox": {
+          "title": "Từ một thao tác của người dùng tới email gửi đi: phần nào nằm trong giao dịch, phần nào chạy nền",
+          "summary": "Người dùng gọi một thao tác. Trong cùng một giao dịch, hệ thống ghi dữ liệu nghiệp vụ và ghi thêm một dòng vào bảng hàng chờ. Người dùng nhận phản hồi ngay tại đây. Sau đó một tiến trình nền đọc bảng hàng chờ, gửi thật vào Kafka, và bên nhận lấy ra để gửi email hoặc xử lý âm thanh.",
+          "boundaries": {
+            "transaction": "Một giao dịch — hoặc cùng thành công, hoặc cùng huỷ",
+            "async": "Chạy nền — người dùng đã đi từ lâu"
+          },
+          "legend": {
+            "actor": "Người dùng",
+            "app": "Bước xử lý",
+            "data": "Nơi lưu",
+            "external": "Dịch vụ ngoài"
+          },
+          "nodes": {
+            "user": {
+              "name": "Người dùng",
+              "type": "[Trình duyệt]",
+              "desc": "Nhận phản hồi ngay, không chờ"
+            },
+            "usecase": {
+              "name": "Xử lý nghiệp vụ",
+              "type": "[Giao dịch]",
+              "desc": "Làm hai việc ghi, không gửi đi đâu cả"
+            },
+            "dbBusiness": {
+              "name": "Bảng nghiệp vụ",
+              "type": "[PostgreSQL]",
+              "desc": "Tài khoản, bài hát…"
+            },
+            "dbOutbox": {
+              "name": "Bảng hàng chờ",
+              "type": "[PostgreSQL]",
+              "desc": "Một dòng: “cần gửi cái này”"
+            },
+            "relay": {
+              "name": "Tiến trình nền",
+              "type": "[Chạy đều đặn]",
+              "desc": "Nhận phần việc, đánh dấu đang xử lý"
+            },
+            "topic": {
+              "name": "Kênh Kafka",
+              "type": "[Lưu trên đĩa]",
+              "desc": "Giữ theo thứ tự, đọc xong không mất"
+            },
+            "consumers": {
+              "name": "Bên nhận",
+              "type": "[Xử lý]",
+              "desc": "Đọc và làm việc thật"
+            },
+            "targets": {
+              "name": "SMTP · FFmpeg",
+              "type": "[Dịch vụ ngoài]",
+              "desc": "Gửi email, ghép âm thanh"
+            }
+          },
+          "edges": {
+            "outboxRelay": {
+              "label": "Đọc những dòng đang chờ",
+              "tech": "[mỗi 5 giây]"
+            },
+            "relayTopic": {
+              "label": "Lúc này mới gửi thật",
+              "tech": "[sau khi ghi xong]"
+            }
+          }
         }
       },
       "realtime": {
@@ -1511,73 +1577,167 @@
           }
         }
       },
+      "outbox": {
+        "title": "Hàng đợi sự kiện — Kafka và Outbox",
+        "intro": "Có những việc không thể bắt người dùng ngồi đợi. Mục này đi từ chỗ đó: vì sao phải xếp hàng, Kafka giải quyết được gì, chỗ nào Kafka một mình vẫn chưa đủ, và cách ghép nó với một bảng trong cơ sở dữ liệu để không bao giờ mất hay bịa ra một sự kiện nào.",
+        "toc": {
+          "label": "Nội dung phần này",
+          "items": {
+            "waiting": "Việc không thể bắt người dùng đợi",
+            "kafka": "Kafka là gì",
+            "dualwrite": "Chỗ Kafka một mình chưa đủ",
+            "outbox": "Outbox: ghi ý định gửi vào cùng giao dịch",
+            "system": "Áp dụng vào hệ thống của chúng ta"
+          }
+        },
+        "waiting": {
+          "eyebrow": "Mở đầu",
+          "title": "Có những việc không thể bắt người dùng ngồi đợi",
+          "lead": "Một thao tác của người dùng thường kéo theo những việc khác. Vấn đề là các việc kéo theo đó đôi khi chậm hơn hàng nghìn lần so với chính thao tác gốc.",
+          "jobs": {
+            "0": {
+              "cost": "Vài giây",
+              "title": "Gửi email xác thực khi đăng ký",
+              "body": "Tạo một tài khoản trong cơ sở dữ liệu mất vài mili giây. Gửi một email qua máy chủ thư thì phải mở kết nối ra ngoài internet, chờ bên kia trả lời, và mất vài giây là chuyện bình thường."
+            },
+            "1": {
+              "cost": "Hàng phút",
+              "title": "Ghép dấu tiếng nói vào bài hát",
+              "body": "Công cụ xử lý âm thanh phải giải mã cả bài, chèn tiếng, rồi mã hoá lại. Một bài dài mất vài phút. Không có cách nào bắt trình duyệt chờ ngần ấy."
+            }
+          },
+          "closing": "Nếu làm những việc này ngay trong lúc người dùng đang chờ, họ nhìn vòng xoay tải hàng phút. Tệ hơn: máy chủ thư đang hỏng thì thao tác đăng ký cũng hỏng theo, dù tài khoản đã tạo xong hoàn toàn bình thường. Một việc phụ làm chết một việc chính. Cách thoát là trả lời người dùng ngay, còn phần việc chậm thì xếp vào hàng đợi cho một tiến trình khác làm sau."
+        },
+        "kafka": {
+          "eyebrow": "Công cụ",
+          "title": "Kafka là gì",
+          "lead": "Kafka là chỗ để xếp hàng những việc như vậy. Nhưng nó không giống hàng đợi thông thường, và điểm khác biệt đó chính là lý do người ta chọn nó.",
+          "notebook": {
+            "title": "Hãy hình dung một cuốn sổ ghi chép, không phải một hộp thư",
+            "body": "Hộp thư thì lấy thư ra là hộp rỗng đi. Kafka thì giống một cuốn sổ: mỗi việc được ghi thêm một dòng vào cuối, theo đúng thứ tự, và lưu xuống đĩa. Người đọc chỉ đánh dấu mình đã đọc tới dòng nào — dòng đó vẫn nằm nguyên trong sổ. Nhờ vậy một bên xử lý chết giữa chừng thì khởi động lại vẫn đọc tiếp được từ chỗ cũ, và về sau muốn thêm một bên đọc nữa cũng không phải sửa gì ở bên ghi."
+          },
+          "ideas": {
+            "0": {
+              "title": "Kênh — mỗi loại việc một cuốn sổ riêng",
+              "body": "Việc gửi email và việc xử lý âm thanh không liên quan gì tới nhau, nên chúng nằm ở hai kênh khác nhau. Một kênh còn chia nhỏ được để nhiều bên đọc song song, mà vẫn giữ được thứ tự trong từng phần."
+            },
+            "1": {
+              "title": "Nhóm đọc — chia việc và tự bù cho nhau",
+              "body": "Nhiều tiến trình cùng đọc một kênh có thể gộp thành một nhóm. Kafka tự chia phần cho từng thành viên và bảo đảm một phần chỉ có đúng một người xử lý. Nếu một tiến trình chết, phần việc của nó được giao lại cho tiến trình còn sống."
+            },
+            "2": {
+              "title": "Sổ ghi việc hỏng — để một việc xấu không chặn cả hàng",
+              "body": "Có những việc thử bao nhiêu lần cũng hỏng, chẳng hạn nội dung sai định dạng ngay từ đầu. Nếu cứ thử lại mãi thì mọi việc phía sau bị kẹt lại chờ nó. Kafka cho phép chuyển hẳn những việc như vậy sang một kênh riêng để xem xét sau, và hàng đợi chính chạy tiếp."
+            }
+          },
+          "closing": "Đến đây tưởng như đã đủ: cứ ghi việc vào Kafka rồi trả lời người dùng ngay. Nhưng còn một chỗ hở, và nó không nằm ở Kafka."
+        },
+        "dualwrite": {
+          "eyebrow": "Chỗ khó",
+          "title": "Kafka một mình vẫn chưa đủ",
+          "lead": "Vấn đề nằm ở chỗ một thao tác giờ phải chạm vào hai hệ thống khác nhau cùng lúc: ghi dữ liệu xuống cơ sở dữ liệu, và xếp một việc vào Kafka.",
+          "setup": "Cơ sở dữ liệu có cơ chế giao dịch: nhiều thao tác ghi được gom lại, hoặc tất cả cùng thành công, hoặc tất cả cùng bị huỷ. Nhưng Kafka nằm ngoài cơ sở dữ liệu, nên nó không nằm trong giao dịch đó. Chỉ có hai chỗ để đặt lệnh gửi, và cả hai đều sai.",
+          "options": {
+            "0": {
+              "tag": "Cách 1",
+              "title": "Gửi vào Kafka trước khi giao dịch kết thúc",
+              "body": "Việc đã nằm trong Kafka. Nhưng ngay sau đó giao dịch gặp lỗi và bị huỷ toàn bộ — tài khoản không hề được tạo.",
+              "result": "Hậu quả: một email xác thực được gửi cho tài khoản không tồn tại. Sự kiện nói về chuyện chưa từng xảy ra."
+            },
+            "1": {
+              "tag": "Cách 2",
+              "title": "Gửi vào Kafka sau khi giao dịch đã xong",
+              "body": "Dữ liệu đã lưu an toàn. Nhưng giữa lúc lưu xong và lúc gửi, tiến trình bị tắt, máy chủ khởi động lại, hoặc mạng đứt.",
+              "result": "Hậu quả: tài khoản đã tạo nhưng email không bao giờ được xếp hàng. Người dùng ngồi đợi một mã xác thực không tồn tại."
+            }
+          },
+          "closing": "Không có cách thứ ba. Chừng nào lệnh gửi còn nằm ngoài giao dịch, luôn có một khoảnh khắc mà hai hệ thống nói hai chuyện khác nhau. Lối thoát không phải là chọn cách ít sai hơn, mà là làm cho việc gửi không còn nằm ngoài giao dịch nữa."
+        },
+        "outbox": {
+          "eyebrow": "Giải pháp",
+          "title": "Outbox — ghi ý định gửi vào cùng một giao dịch",
+          "lead": "Tên gọi lấy từ khay thư đi: bạn không tự mang thư ra bưu điện, bạn đặt nó vào khay, và người đưa thư sẽ lấy đi.",
+          "idea": {
+            "tag": "Cách hiểu gọn nhất",
+            "title": "Đừng gửi. Chỉ ghi lại rằng cần gửi — vào chính cơ sở dữ liệu đó",
+            "body": "Thay vì gọi sang Kafka, thao tác nghiệp vụ ghi thêm một dòng vào một bảng riêng, ngay bên cạnh dữ liệu nghiệp vụ, trong cùng một giao dịch. Dòng đó ghi rõ cần gửi gì và gửi vào kênh nào. Vì cả hai đều là lệnh ghi xuống cùng một cơ sở dữ liệu, chúng nằm gọn trong một giao dịch: hoặc cùng có, hoặc cùng không. Thế lưỡng nan ở mục trước biến mất, không phải vì được xử lý khéo hơn, mà vì nó không còn tồn tại."
+          },
+          "relay": {
+            "title": "Rồi ai mang thư đi?",
+            "lead": "Một tiến trình nền chạy đều đặn, đọc những dòng đang chờ trong bảng đó và gửi thật vào Kafka. Nghe đơn giản, nhưng có ba điều nó buộc phải làm đúng.",
+            "rules": {
+              "0": {
+                "title": "Không hai người cùng ôm một việc",
+                "body": "Khi nhận việc, tiến trình khoá đúng những dòng nó lấy và bỏ qua những dòng người khác đang giữ. Nhờ vậy chạy nhiều tiến trình song song cũng không có chuyện một email bị gửi hai lần."
+              },
+              "1": {
+                "title": "Việc bị bỏ rơi phải quay lại hàng",
+                "body": "Nếu tiến trình chết ngay sau khi nhận việc, những dòng đó sẽ kẹt lại mãi. Nên mỗi lần nhận, nó chỉ giữ chỗ trong một khoảng thời gian; hết hạn mà chưa xong thì người khác được phép nhặt lại. Và mỗi vòng chạy đều ưu tiên nhặt việc quá hạn trước rồi mới lấy việc mới — nếu không, một dòng chảy việc mới liên tục sẽ khiến việc cũ không bao giờ tới lượt."
+              },
+              "2": {
+                "title": "Không chờ hết năm giây mới chạy",
+                "body": "Tiến trình quét bảng theo chu kỳ, nhưng đó chỉ là lưới an toàn. Bình thường, ngay sau khi giao dịch kết thúc, hệ thống đánh tiếng cho nó chạy luôn — nên độ trễ gần như bằng không. Nếu tiếng gọi đó thất bại, vòng quét định kỳ vẫn nhặt được. Một cái để nhanh, một cái để chắc."
+              }
+            }
+          }
+        },
+        "system": {
+          "eyebrow": "Áp dụng",
+          "title": "Hệ thống của chúng ta ghép chúng lại thế nào",
+          "lead": "Ghép cả hai lại, đây là đường đi thật của một sự kiện. Sơ đồ dưới đây là toàn cảnh — chú ý hai khung nét đứt, vì ranh giới giữa chúng mới là điều đáng nhớ.",
+          "flow": {
+            "title": "Sáu bước, lấy ví dụ một lần đăng ký",
+            "lead": "Từ lúc bấm nút tới lúc email nằm trong hộp thư.",
+            "steps": {
+              "0": {
+                "title": "Người dùng bấm đăng ký",
+                "body": "Hệ thống tạo tài khoản, đồng thời soạn sẵn toàn bộ nội dung email — tiêu đề, phần chữ, phần HTML. Soạn ngay tại đây chứ không để bên nhận soạn, vì lúc này mới biết người dùng đang dùng ngôn ngữ nào."
+              },
+              "1": {
+                "title": "Ghi hai thứ trong cùng một giao dịch",
+                "body": "Tài khoản được ghi vào bảng của nó, và nội dung email vừa soạn được ghi thành một dòng trong bảng hàng chờ. Hai lệnh ghi, một giao dịch. Chưa có gì được gửi đi đâu cả."
+              },
+              "2": {
+                "title": "Người dùng nhận phản hồi ngay",
+                "body": "Giao dịch kết thúc, máy chủ trả lời “đã tạo tài khoản”. Toàn bộ phần còn lại diễn ra sau lưng, người dùng không phải chờ thêm mili giây nào."
+              },
+              "3": {
+                "title": "Tiến trình nền nhận việc và gửi vào Kafka",
+                "body": "Nó nhặt dòng đang chờ, đánh dấu đang xử lý, rồi mới gửi vào kênh tương ứng. Thứ tự này quan trọng: gửi trước khi đánh dấu thì bên nhận có thể xử lý xong trước khi dòng kịp được ghi nhận, và việc đó sẽ bị làm lại lần nữa."
+              },
+              "4": {
+                "title": "Bên nhận đọc và làm việc thật",
+                "body": "Với email: đọc nội dung, kiểm tra hợp lệ, gửi qua máy chủ thư — gửi kèm cả bản chữ thuần lẫn bản HTML để phần mềm đọc thư nào cũng hiển thị được. Với âm thanh: chạy công cụ ghép tiếng, có thể mất hàng phút."
+              },
+              "5": {
+                "title": "Hỏng thì thử lại, hỏng hẳn thì để riêng ra",
+                "body": "Máy chủ thư chập chờn thì bên nhận thử lại, giãn dần khoảng cách giữa các lần và bỏ cuộc sau khoảng một phút. Còn những lỗi thử lại cũng vô ích — nội dung sai định dạng chẳng hạn — thì bị đưa thẳng sang kênh chứa việc hỏng, không thử lần nào, để không chặn những việc phía sau."
+              }
+            }
+          },
+          "lanes": {
+            "title": "Hai làn đang chạy",
+            "lead": "Mọi việc chạy nền trong hệ thống đều đi qua đúng cơ chế trên, và hiện có hai làn.",
+            "items": {
+              "0": {
+                "title": "Thư đi",
+                "body": "Mã xác thực khi đăng ký, đặt lại mật khẩu, và các thông báo khác. Nội dung đã soạn sẵn từ trước nên bên nhận chỉ việc gửi."
+              },
+              "1": {
+                "title": "Xử lý âm thanh",
+                "body": "Ghép dấu tiếng nói vào bài hát. Vì mỗi bài mất hàng phút, làn này được nới thời gian cho phép xử lý lên rất nhiều — nếu không, hệ thống sẽ tưởng bên nhận đã chết và giao bài đó cho người khác, dẫn tới ghép hai lần."
+              }
+            }
+          },
+          "closing": "Có một cái giá phải trả, và nó là cố hữu chứ không phải lỗi: vì người dùng đã nhận phản hồi thành công từ bước ba, nếu máy chủ thư hỏng hẳn thì họ vẫn thấy thông báo “mã xác thực đã được gửi” trong khi email không bao giờ tới. Đó là điều bạn đánh đổi khi tách một việc ra chạy nền."
+        }
+      },
       "topics": {
         "questions": {
           "what": "Nó là gì",
           "why": "Vì sao phải dùng",
           "when": "Khi nào dùng đến",
           "how": "Triển khai ở đâu"
-        },
-        "outbox": {
-          "title": "Hàng đợi sự kiện — Outbox và Kafka",
-          "lead": "Có những việc người dùng không cần đợi: gửi email xác thực, ghép voice tag vào bài hát. Thay vì bắt họ ngồi chờ, hệ thống ghi lại ý định rồi làm sau. Vấn đề nằm ở chỗ ghi lại ý định đó sao cho không bao giờ sai.",
-          "what": {
-            "body": "Kafka là một nền tảng truyền sự kiện: bên gửi ném thông điệp vào một kênh chủ đề, bên nhận đọc ra và xử lý, và thông điệp được lưu lại theo đúng thứ tự thay vì biến mất ngay khi có người đọc. Outbox là một mẫu thiết kế đi kèm — thay vì gửi thẳng vào Kafka, việc gửi được ghi thành một dòng trong chính cơ sở dữ liệu nghiệp vụ, rồi một tiến trình nền đọc dòng đó và gửi đi thật.",
-            "points": {
-              "0": "Kênh chủ đề giữ thông điệp theo thứ tự và cho nhiều bên cùng đọc mà không xoá của nhau.",
-              "1": "Nhóm người nhận chia nhau công việc; một bên chết thì phần việc của nó tự chuyển sang bên còn sống.",
-              "2": "Thông điệp hỏng không nằm chặn hàng đợi mà bị đẩy sang một kênh chết riêng để xem lại sau."
-            }
-          },
-          "why": {
-            "body": "Vì một thao tác nghiệp vụ thường phải làm hai việc thuộc hai hệ thống khác nhau: ghi vào cơ sở dữ liệu, và báo cho bên ngoài biết. Không có giao dịch nào bao được cả hai, nên làm cách nào cũng hỏng theo một kiểu riêng.",
-            "points": {
-              "0": "Gửi trước khi giao dịch hoàn tất: giao dịch bị huỷ thì sự kiện đã bay đi rồi — báo một chuyện chưa từng xảy ra.",
-              "1": "Gửi sau khi giao dịch hoàn tất: tiến trình chết đúng lúc đó thì chuyện đã xảy ra mà không ai được báo.",
-              "2": "Ghi vào outbox thì cả hai nằm trong cùng một giao dịch — hoặc cùng thành công, hoặc cùng bị huỷ. Không có sự kiện ma, không có sự kiện mất."
-            }
-          },
-          "when": {
-            "body": "Mọi việc chạy nền trong hệ thống đều đi đường này, không có ngoại lệ: không nghiệp vụ nào được phép gửi thẳng vào Kafka. Hiện có hai luồng — gửi email xác thực, và ghép watermark hoặc voice tag vào bài hát bằng công cụ xử lý âm thanh.",
-            "points": {
-              "0": "Hợp khi cần chắc chắn sự kiện sẽ tới nơi, và chấp nhận độ trễ nhỏ để đổi lấy điều đó.",
-              "1": "Không hợp khi cần tức thì dưới một giây — những thứ đó đi đường realtime, không đi qua đây."
-            }
-          },
-          "how": {
-            "body": "Một bảng riêng trong cơ sở dữ liệu đóng vai hòm thư đi. Nghiệp vụ chỉ phát ra một thông báo nội bộ kiểu “tôi muốn gửi email”; tầng hạ tầng bắt lấy và ghi vào hòm thư trong cùng giao dịch, nên module nghiệp vụ không cần biết sự kiện đi đâu. Một tiến trình nền nhận phần còn lại: nhặt thư, gửi vào Kafka, đánh dấu đã gửi. Ngay sau khi giao dịch hoàn tất, tiến trình này được đánh thức để chạy luôn; song song đó nó vẫn tự quét lại mỗi năm giây như một lưới an toàn, phòng khi cú đánh thức thất bại."
-          },
-          "visualTitle": "Đường đi của một email xác thực, từ lúc bấm đăng ký",
-          "flow": {
-            "0": {
-              "title": "Người dùng bấm đăng ký",
-              "body": "Tài khoản được tạo. Nội dung email — tiêu đề, phần chữ, phần HTML — được soạn xong ngay tại đây, để bước gửi sau này không cần biết gì về mẫu thư hay ngôn ngữ."
-            },
-            "1": {
-              "title": "Ghi ý định gửi vào hòm thư đi",
-              "body": "Cùng một giao dịch với việc tạo tài khoản. Đây là mấu chốt: nếu việc tạo tài khoản bị huỷ, dòng thư này cũng biến mất theo."
-            },
-            "2": {
-              "title": "Người dùng nhận kết quả ngay",
-              "body": "Yêu cầu kết thúc thành công tại đây. Toàn bộ các bước sau chạy nền, người dùng không phải chờ."
-            },
-            "3": {
-              "title": "Tiến trình nền được đánh thức",
-              "body": "Ngay sau khi giao dịch hoàn tất. Nó nhận riêng cho mình một lô thư và giữ chỗ trong sáu mươi giây, để nếu nó chết giữa chừng thì hết thời hạn giữ chỗ sẽ có lượt khác nhặt lại đúng lô đó."
-            },
-            "4": {
-              "title": "Đẩy vào kênh chủ đề",
-              "body": "Gửi xong mới đánh dấu đã gửi. Nếu Kafka đang chết, dòng thư quay về trạng thái chờ và được thử lại ở lượt quét sau — không có gì mất đi."
-            },
-            "5": {
-              "title": "Bên nhận đọc ra và gửi thư thật",
-              "body": "Kiểm tra nội dung rồi chuyển cho máy chủ thư. Vì nội dung đã soạn sẵn từ bước một, bước này chỉ còn việc gửi."
-            },
-            "6": {
-              "title": "Hỏng thì thử lại, thử mãi không được thì để riêng",
-              "body": "Khoảng cách giữa các lần thử tăng dần, tổng cộng một phút. Quá đó thì thông điệp bị chuyển sang kênh chết để xem lại, thay vì nằm chặn những thư phía sau."
-            }
-          }
         },
         "redis": {
           "title": "Bộ nhớ tạm — Redis",

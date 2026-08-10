@@ -6,6 +6,7 @@ import { Reveal } from "@/components/marketing/section-primitives";
 import { DEPLOYMENT_DIAGRAM, PIPELINE_DIAGRAM } from "@/features/showcase/lib/technical-diagrams";
 import { INFRA_TOPICS } from "@/features/showcase/lib/technical-topics";
 import { TechnicalDiagram } from "./technical-diagram";
+import { TechnicalOutbox } from "./technical-outbox";
 import { TechnicalTopic } from "./technical-topic";
 import { TechnicalSectionShell } from "./technical-shell";
 
@@ -29,8 +30,14 @@ export function TechnicalInfra() {
         <TechnicalDiagram spec={PIPELINE_DIAGRAM} />
       </Reveal>
 
-      {/* All six infrastructure topics are written up now, so the placeholder card grid that
-          used to sit here is gone rather than left rendering an empty row. */}
+      {/* The event queue goes first and gets its own chapter format rather than the shared
+          four-question card. It carries the same weight as the realtime layer — everything
+          asynchronous in the system runs through it — and the question it answers is a "why
+          does this exist at all", which the card format cannot hold. */}
+      <div className="mt-8">
+        <TechnicalOutbox />
+      </div>
+
       <div className="mt-8 flex flex-col gap-8">
         {INFRA_TOPICS.map((topic) => (
           <TechnicalTopic key={topic.id} spec={topic} />
