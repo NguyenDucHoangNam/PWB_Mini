@@ -1,9 +1,9 @@
 # Production stack for a single VPS. Read docs/deployment-plan.md before changing anything here.
 #
 # Two rules this file exists to enforce:
-#   1. Only Nginx publishes ports. Postgres, Redis, Kafka and Elasticsearch talk over the internal
-#      network only — the development compose publishes all of them, which on a public VPS would
-#      expose a database and an Elasticsearch running with authentication disabled.
+#   1. Only Nginx publishes ports. Postgres, Redis and Kafka talk over the internal network only —
+#      the development compose publishes all of them, which on a public VPS would expose a database
+#      to the internet.
 #   2. The backend runs as exactly one instance. Its STOMP broker is in-memory, so a second replica
 #      would put two people in "the same" live room without either seeing the other.
 #
@@ -77,42 +77,6 @@ services:
       timeout: 10s
       retries: 5
 
-  elasticsearch:
-    image: elasticsearch:8.12.0
-    container_name: pwb-elasticsearch
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      # Never used by this application, and it runs a separate native controller process inside the
-      # container. Worth about 8MB — small, but it is 8MB of the margin measured below.
-      - xpack.ml.enabled=false
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m
-    # Raised from 1g on 2026-08-08 after measuring, not estimating. On a 4-vCPU container running
-    # 8.12.0 with this heap, after indexing 10,000 documents and running 300 searches:
-    #
-    #   1024m limit -> 917MiB anonymous, ~90MiB spare  (8.8%)
-    #   1280m limit -> 945MiB anonymous, ~335MiB spare (26%)
-    #
-    # The old setting did survive that run, so this is widening a thin margin rather than fixing a
-    # reproduced crash. What makes the margin worth widening is that almost none of it is reclaimable:
-    # page cache measured 5MiB against ~950MiB of anonymous memory, so there is nothing for the kernel
-    # to evict when it gets tight — the next step past the limit is a SIGKILL, not a slowdown.
-    #
-    # -Xms equals -Xmx on Elasticsearch's own recommendation, so the heap is committed up front: 512m
-    # of the total is spoken for before the first document arrives, and the rest is thread stacks,
-    # metaspace and direct buffers that grow with load.
-    mem_limit: 1280m
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-    networks:
-      - pwb-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-
   backend:
     # Named so the image can come from either direction. CI builds it on a GitHub runner and pushes
     # it here, and the VPS only pulls — building on the VPS itself would put a Maven reactor and the
@@ -131,8 +95,7 @@ services:
       - .env.prod
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      # Service names, not localhost. Inside this container localhost is the container itself —
-      # the reason SPRING_ELASTICSEARCH_URIS in particular has to be stated explicitly.
+      # Service names, not localhost. Inside this container localhost is the container itself.
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       # Derived from the same variables the postgres and redis services are configured with, rather
       # than repeated under their Spring names in .env.prod. Two copies of a password is a bug
@@ -144,7 +107,6 @@ services:
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
       # No `file:` prefix — the adapter resolves this path itself and only understands
       # `classpath:`; see the note in application-prod.yml.
       GCP_TTS_CREDENTIALS_PATH: /run/secrets/gcp-tts.json
@@ -297,8 +259,6 @@ volumes:
   redis_data:
     driver: local
   kafka_data:
-    driver: local
-  elasticsearch_data:
     driver: local
   audio_work:
     driver: local

@@ -7,9 +7,9 @@ import org.springframework.data.repository.NoRepositoryBean;
 import java.util.UUID;
 
 /**
- * {@link JpaSpecificationExecutor} is here for the search fallback: when Elasticsearch is unavailable the
- * same filter combination has to be expressed against the database, and building it from a specification
- * keeps the two paths returning the same rows rather than a subset.
+ * {@link JpaSpecificationExecutor} is here for search: the filter combination a caller sends is open-ended,
+ * and composing it from a specification keeps one query covering every combination rather than a derived
+ * method per shape.
  */
 @NoRepositoryBean
 public interface AudioJpaRepository<T> extends JpaRepository<T, UUID>, JpaSpecificationExecutor<T> {

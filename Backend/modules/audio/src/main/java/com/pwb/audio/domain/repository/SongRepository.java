@@ -26,16 +26,7 @@ public interface SongRepository {
      */
     Page<Song> findAllByUserIdAndStatusIn(UUID userId, Collection<SongStatus> statuses, Pageable pageable);
 
-    /**
-     * Reads the rows a search matched. Returned in no particular order — the caller holds the relevance
-     * ordering and re-applies it, since a database has no notion of how well a row matched.
-     */
-    List<Song> findAllByIdIn(Collection<UUID> ids);
-
-    /**
-     * The fallback for a search when the engine is unavailable. Applies the same filters, matching the
-     * title as a plain substring.
-     */
+    /** Applies every criterion, matching the title as a plain substring. */
     Page<Song> search(SongSearchCriteria criteria, Pageable pageable);
 
     /** Hard delete: songs carry no soft-delete state, removal is permanent. */

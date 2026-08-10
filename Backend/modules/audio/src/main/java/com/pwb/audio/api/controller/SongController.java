@@ -143,7 +143,7 @@ public class SongController {
     public ResponseEntity<ApiResponse<PageResponse<SongResponse>>> listSongs(
             @CurrentUser UUID userId,
             @RequestParam(required = false) List<SongStatus> status,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Page<SongView> page = songUseCase.listSongs(userId, status, pageable);
         PageResponse<SongResponse> body = PageResponses.from(page, SongResponse::from);
@@ -151,13 +151,12 @@ public class SongController {
     }
 
     /**
-     * Full-text search over the caller's own library. Separate from the listing above rather than a
-     * parameter on it, because the two order results by different things — relevance here, upload date
-     * there — and a single endpoint that silently switched between them would page inconsistently.
+     * Search over the caller's own library. Separate from the listing above rather than a parameter on
+     * it, because this one takes a keyword and a set of narrowing filters that the listing does not, and
+     * folding both shapes into one endpoint would make the accepted parameters depend on each other.
      *
-     * <p>Only the title is searched. Rows come back ranked, tolerant of typos and of missing Vietnamese
-     * diacritics, so "ha noi" finds "Hà Nội". If the search engine is unavailable the answer falls back to
-     * a database query: the same filters, plain substring matching, no ranking.
+     * <p>Only the title is matched, as a plain substring: the comparison is against the characters as
+     * stored, so there is no tolerance for typos and "ha noi" does not find "Hà Nội".
      *
      * @param q      the search text; blank means the filters alone decide the result
      * @param status repeatable, same as on the listing
@@ -170,7 +169,7 @@ public class SongController {
             @RequestParam(required = false) String format,
             @RequestParam(required = false) @Min(0) Integer minDuration,
             @RequestParam(required = false) @Min(0) Integer maxDuration,
-            @PageableDefault(size = 20) Pageable pageable
+            @PageableDefault(size = 10) Pageable pageable
     ) {
         SongSearchCriteria criteria = new SongSearchCriteria(
                 userId, q, status == null ? List.of() : status, format, minDuration, maxDuration);

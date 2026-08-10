@@ -13,16 +13,8 @@ import com.pwb.iam.infrastructure.config.RateLimitProperties;
 import com.pwb.iam.infrastructure.config.RefreshTokenProperties;
 import com.pwb.iam.infrastructure.config.SecurityProperties;
 import com.pwb.iam.infrastructure.config.SeederProperties;
-import com.pwb.iam.domain.repository.UserSearchCriteria;
-import com.pwb.iam.domain.service.UserSearchHits;
-import com.pwb.iam.domain.service.UserSearchPort;
-import com.pwb.iam.domain.service.UserSuggestion;
 import com.pwb.iam.infrastructure.persistence.adapter.RoleRepositoryImpl;
-import com.pwb.iam.infrastructure.search.IamSearchIndexWriter;
-import com.pwb.infra.search.SearchReindexService;
 import com.pwb.infra.storage.StorageService;
-import java.util.List;
-import java.util.Optional;
 import org.mockito.Mockito;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -80,9 +72,9 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
         // Anything scanned here that depends on a bean from the excluded auto-configurations above
         // takes down every context in the module, not just its own test: the first failure trips
         // Spring's context failure threshold and every later class reports "skipping repeated
-        // attempt" instead of its real result. The search collaborators are supplied as beans below
-        // rather than excluded here, because the classes needing them are ordinary application
-        // beans that the rest of the suite does exercise.
+        // attempt" instead of its real result. The storage collaborator is supplied as a bean below
+        // rather than excluded here, because the class needing it is an ordinary application bean
+        // that the rest of the suite does exercise.
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.REGEX,
                 pattern = {
@@ -106,54 +98,18 @@ public class TestIamConfiguration {
     }
 
     /*
-     * Stand-ins for the infrastructure this configuration deliberately does not start.
+     * Stand-in for the infrastructure this configuration deliberately does not start.
      *
-     * InfraAutoConfiguration is excluded above, and com.pwb.iam.infrastructure.search is left out of
-     * the scan, because both ultimately want a live Elasticsearch and S3. Scanned application beans
-     * still depend on four types from them, and any single one missing fails *every* context in the
-     * module rather than just the test that needed it:
+     * InfraAutoConfiguration is excluded above because it ultimately wants a live S3. A scanned
+     * application bean still depends on one type from it, and a missing bean fails *every* context
+     * in the module rather than just the test that needed it:
      *
-     *   UserRepositoryImpl           -> IamSearchIndexWriter   (com.pwb.iam.infrastructure.search)
-     *   AdminSearchUsersUseCaseImpl  -> UserSearchPort         (domain port, ES adapter not scanned)
-     *   AdminSearchController        -> SearchReindexService   (com.pwb.infra.search)
-     *   AvatarUrlResolver            -> StorageService         (com.pwb.infra.storage)
+     *   AvatarUrlResolver -> StorageService (com.pwb.infra.storage)
      *
      * Found by listing every com.pwb.infra.* type injected into the scanned packages, not by fixing
      * them one failure at a time — the context failure threshold reveals only the first one, so
      * iterating on the error message costs a full run per bean and still ends early.
      */
-
-    /**
-     * Written out rather than mocked because the empty Optional is meaningful: it is the port's own
-     * "search is unavailable" signal, and callers answer it by falling back to Postgres. A mock
-     * would return the same value while saying nothing about why.
-     */
-    @Bean
-    public UserSearchPort userSearchPort() {
-        return new UserSearchPort() {
-            @Override
-            public Optional<UserSearchHits> search(UserSearchCriteria criteria, int from, int size) {
-                return Optional.empty();
-            }
-
-            @Override
-            public Optional<List<UserSuggestion>> suggest(UserSearchCriteria criteria, int limit) {
-                return Optional.empty();
-            }
-        };
-    }
-
-    /** Indexing is fire-and-forget; the tests assert on Postgres state, never on the index. */
-    @Bean
-    public IamSearchIndexWriter iamSearchIndexWriter() {
-        return Mockito.mock(IamSearchIndexWriter.class);
-    }
-
-    /** Only reachable through /api/v1/admin/search, which no test in this module exercises. */
-    @Bean
-    public SearchReindexService searchReindexService() {
-        return Mockito.mock(SearchReindexService.class);
-    }
 
     /** Avatar URLs are presigned S3 links; no assertion in this module looks at one. */
     @Bean

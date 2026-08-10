@@ -8,7 +8,6 @@ import com.pwb.liveroom.infrastructure.persistence.entity.LiveRoomJpaEntity;
 import com.pwb.liveroom.infrastructure.persistence.mapper.LiveRoomMapper;
 import com.pwb.liveroom.infrastructure.persistence.repository.LiveRoomJpaRepository;
 import com.pwb.liveroom.infrastructure.persistence.specification.LiveRoomSpecifications;
-import com.pwb.liveroom.infrastructure.search.LiveroomSearchIndexWriter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,15 +25,12 @@ public class LiveRoomRepositoryImpl implements LiveRoomRepository {
 
     private final LiveRoomJpaRepository liveRoomJpaRepository;
     private final LiveRoomMapper liveRoomMapper;
-    private final LiveroomSearchIndexWriter searchIndexWriter;
 
     @Override
     public LiveRoom save(LiveRoom room) {
-        LiveRoom saved = room.isNew()
+        return room.isNew()
                 ? liveRoomMapper.toDomain(liveRoomJpaRepository.save(liveRoomMapper.toEntity(room)))
                 : liveRoomMapper.toDomain(liveRoomJpaRepository.save(applyToExisting(room)));
-        searchIndexWriter.roomSaved(saved);
-        return saved;
     }
 
     @Override
@@ -87,16 +83,6 @@ public class LiveRoomRepositoryImpl implements LiveRoomRepository {
     @Override
     public List<UUID> findEmptyRoomIds(Instant startedBefore) {
         return liveRoomJpaRepository.findEmptyRoomIds(startedBefore);
-    }
-
-    @Override
-    public List<LiveRoom> findAllByIdIn(Collection<UUID> ids) {
-        if (ids.isEmpty()) {
-            return List.of();
-        }
-        return liveRoomJpaRepository.findAllById(ids).stream()
-                .map(liveRoomMapper::toDomain)
-                .toList();
     }
 
     @Override

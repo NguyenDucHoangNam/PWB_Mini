@@ -11,7 +11,6 @@ import com.pwb.iam.infrastructure.persistence.entity.RoleJpaEntity;
 import com.pwb.iam.infrastructure.persistence.mapper.UserMapper;
 import com.pwb.iam.infrastructure.persistence.repository.RoleJpaRepository;
 import com.pwb.iam.infrastructure.persistence.repository.UserJpaRepository;
-import com.pwb.iam.infrastructure.search.IamSearchIndexWriter;
 import com.pwb.iam.testsupport.AbstractRepositoryIT;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,7 +21,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
 
 @DisplayName("UserRepositoryImpl — H2 integration")
 class UserRepositoryImplIT extends AbstractRepositoryIT {
@@ -36,10 +34,7 @@ class UserRepositoryImplIT extends AbstractRepositoryIT {
 
     @BeforeEach
     void setUp() {
-        // Every save now also feeds the search index. That path ends in Kafka via the outbox, which
-        // this H2-only test has no business exercising — the indexing contract is covered by the
-        // search module's own tests. Mocked so the repository behaviour stays the subject here.
-        repository = new UserRepositoryImpl(userJpaRepository, userMapper, mock(IamSearchIndexWriter.class));
+        repository = new UserRepositoryImpl(userJpaRepository, userMapper);
         userJpaRepository.deleteAll();
         roleJpaRepository.deleteAll();
         userRole = roleJpaRepository.save(RoleJpaEntity.builder()

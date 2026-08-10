@@ -66,37 +66,12 @@ services:
       timeout: 10s
       retries: 5
 
-  elasticsearch:
-    image: elasticsearch:8.12.0
-    container_name: pwb-elasticsearch
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m
-    # Heap is only half of what Elasticsearch uses; Lucene wants off-heap room on top. Left uncapped it
-    # competes with Postgres for the same RAM on this one machine, and a Postgres pushed into swap slows
-    # down every part of the app, including the parts that have nothing to do with search.
-    mem_limit: 1g
-    ports:
-      - "9200:9200"
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-    networks:
-      - pwb-network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-
 volumes:
   postgres_data:
     driver: local
   redis_data:
     driver: local
   kafka_data:
-    driver: local
-  elasticsearch_data:
     driver: local
 
 networks:

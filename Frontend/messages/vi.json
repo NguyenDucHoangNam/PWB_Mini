@@ -634,6 +634,26 @@
               }
             }
           },
+          "devices": {
+            "title": "Kiểm tra camera và micro",
+            "body": "Trước khi gửi yêu cầu tham gia phòng, bạn có thể kiểm tra và xem trước thiết bị camera, micro của mình. Bước này hoàn toàn tuỳ chọn — bạn có thể chọn tắt hết thiết bị rồi vào phòng và bật lên sau.",
+            "note": "Ứng dụng tự động lưu lựa chọn thiết bị của bạn cho các lần tham gia phòng tiếp theo.",
+            "mediaHint": "Giao diện xem trước camera và các nút bật/tắt mic/camera trước khi xin vào phòng.",
+            "facts": {
+              "preview": {
+                "label": "Xem trước",
+                "value": "Khung xem trực tiếp tín hiệu camera"
+              },
+              "camera": {
+                "label": "Camera",
+                "value": "Tùy chọn bật/tắt trước khi xin vào"
+              },
+              "mic": {
+                "label": "Micro",
+                "value": "Tùy chọn bật/tắt trước khi xin vào"
+              }
+            }
+          },
           "door": {
             "title": "Chờ chủ phòng cho vào",
             "body": "Nhập mã xong, yêu cầu của bạn hiện ra trước mặt chủ phòng và chủ phòng bấm Cho vào hoặc Từ chối. Được duyệt, bạn vào phòng sau một nhịp đếm ngược ngắn, hoặc bấm để vào ngay. Nếu phòng vừa đầy trong lúc bạn chờ, yêu cầu sẽ bị từ chối vì hết chỗ.",
@@ -675,22 +695,22 @@
             }
           },
           "listen": {
-            "title": "Nghe nhạc cùng nhau",
-            "body": "Chọn một bài trong thư viện của bạn, cả phòng sẽ nghe ở đúng cùng một vị trí. Phát, tạm dừng, tua và âm lượng đều áp dụng cho mọi người. Ngay dưới dạng sóng, ai cũng ghim được bình luận vào một mốc thời gian, và bình luận đó hiện lên khi nhạc chạy tới nơi.",
-            "note": "Bạn chỉ chọn được bài trong thư viện của chính mình và bài đã xử lý xong. Khi chủ phòng thoát ra, nhạc tạm dừng cho tới lúc chủ phòng quay lại.",
-            "mediaHint": "Video ngắn: chọn một bài, nhạc chạy, và một bình luận hiện lên đúng mốc của nó.",
+            "title": "Nói chuyện, chat và nghe nhạc cùng nhau",
+            "body": "Trong phòng Live Room, các thành viên có thể bật micro/camera để trao đổi trực tiếp, nhắn tin nhanh qua khung Chat và cùng nghe nhạc đồng bộ. Mọi thao tác phát, tạm dừng, tua bài hay ghim bình luận theo mốc thời gian đều được đồng bộ thời gian thực cho cả phòng.",
+            "note": "Bạn có thể tự do bật/tắt micro, camera hoặc gửi tin nhắn chat bất cứ lúc nào. Khi phát nhạc, tất cả mọi người sẽ cùng nghe chính xác tại một mốc thời gian.",
+            "mediaHint": "Hình ảnh phòng Live Room hoạt động: hiển thị video thành viên, khung chat realtime và trình phát nhạc đồng bộ.",
             "facts": {
               "source": {
-                "label": "Nguồn nhạc",
-                "value": "Thư viện của người chọn bài"
+                "label": "Nói chuyện & Chat",
+                "value": "Trực tiếp qua Micro, Camera & Khung chat"
               },
               "sync": {
-                "label": "Đồng bộ",
-                "value": "Cả phòng nghe cùng một vị trí"
+                "label": "Nghe nhạc đồng bộ",
+                "value": "Cả phòng nghe cùng một mốc thời gian thực"
               },
               "comments": {
-                "label": "Bình luận theo mốc",
-                "value": "Tối đa 200 ký tự"
+                "label": "Ghim bình luận",
+                "value": "Ghim nhận xét theo từng mốc phát bài hát"
               }
             }
           },
@@ -752,16 +772,1452 @@
     },
     "technical": {
       "back": "Quay lại hướng dẫn",
-      "eyebrow": "Phân tích kỹ thuật",
-      "title": "Ba bài toán khó nhất và cách chúng được giải.",
-      "lead": "Không phải danh sách công nghệ. Mỗi phần dưới đây là một ràng buộc thật gặp phải khi làm, hướng giải đã chọn, và cái đã phải đánh đổi để đi theo hướng đó.",
-      "tocTitle": "Nội dung",
-      "stat1Label": "Kiến trúc",
-      "stat1Value": "Hexagonal",
-      "stat2Label": "Realtime",
-      "stat2Value": "STOMP + WebRTC",
-      "stat3Label": "Xử lý âm thanh",
-      "stat3Value": "FFmpeg / EBU R128",
+      "pending": "Đang soạn nội dung",
+      "hero": {
+        "eyebrow": "Phân tích kỹ thuật",
+        "title": "Hệ thống này được ráp lại như thế nào.",
+        "lead": "Đi qua kiến trúc tổng thể, ba module, tầng realtime và phần hạ tầng bên dưới — viết từ code, không viết từ bản đặc tả."
+      },
+      "nav": {
+        "title": "Các phần",
+        "pagerTitle": "Chuyển giữa các phần",
+        "previous": "Phần trước",
+        "next": "Phần tiếp theo",
+        "overview": "Tổng quan",
+        "modules": "Ba module",
+        "realtime": "Realtime",
+        "infrastructure": "Hạ tầng"
+      },
+      "diagrams": {
+        "relation": "{from} → {to}: {label} {tech}",
+        "relationPlain": "{from} → {to}",
+        "context": {
+          "title": "System Context Diagram (C4 Level 1)",
+          "summary": "Sơ đồ ngữ cảnh C4 mức 1: ba nhóm người dùng tương tác với hệ thống Producer Workbench, và hệ thống này tích hợp với năm hệ thống bên ngoài.",
+          "boundaries": {
+            "people": "Người dùng tương tác",
+            "external": "Hệ thống bên ngoài"
+          },
+          "legend": {
+            "actor": "Người dùng",
+            "app": "Hệ thống của mình",
+            "external": "Hệ thống bên ngoài"
+          },
+          "nodes": {
+            "producer": {
+              "name": "Producer",
+              "type": "[Người dùng]",
+              "desc": "Tải nhạc, mở phòng nghe"
+            },
+            "guest": {
+              "name": "Khách nghe demo",
+              "type": "[Người dùng]",
+              "desc": "Vào phòng, nghe và góp ý"
+            },
+            "admin": {
+              "name": "Quản trị viên",
+              "type": "[Người dùng]",
+              "desc": "Quản lý tài khoản, phân quyền"
+            },
+            "workbench": {
+              "name": "Producer Workbench",
+              "type": "[Hệ thống phần mềm]",
+              "desc": "Tải nhạc · gắn voice tag · nghe chung realtime"
+            },
+            "storage": {
+              "name": "Amazon S3",
+              "type": "[Hệ thống ngoài]",
+              "desc": "Lưu file nhạc"
+            },
+            "oauth": {
+              "name": "Google OAuth",
+              "type": "[Hệ thống ngoài]",
+              "desc": "Đăng nhập Google"
+            },
+            "tts": {
+              "name": "Google TTS",
+              "type": "[Hệ thống ngoài]",
+              "desc": "Sinh voice tag"
+            },
+            "turn": {
+              "name": "coturn",
+              "type": "[Hệ thống ngoài]",
+              "desc": "Chuyển tiếp media WebRTC"
+            },
+            "smtp": {
+              "name": "Máy chủ SMTP",
+              "type": "[Hệ thống ngoài]",
+              "desc": "Gửi email OTP"
+            }
+          },
+          "edges": {
+            "producerSystem": {
+              "label": "Tải nhạc, mở phòng nghe",
+              "tech": "[HTTPS]"
+            },
+            "guestSystem": {
+              "label": "Nghe chung, chat, góp ý",
+              "tech": "[HTTPS · WSS]"
+            },
+            "adminSystem": {
+              "label": "Quản lý tài khoản",
+              "tech": "[HTTPS]"
+            },
+            "systemStorage": {
+              "label": "Lưu / đọc file nhạc",
+              "tech": "[S3 API · presigned URL]"
+            },
+            "systemOauth": {
+              "label": "Xác minh ID token",
+              "tech": "[HTTPS]"
+            },
+            "systemTts": {
+              "label": "Sinh voice tag",
+              "tech": "[gRPC]"
+            },
+            "systemTurn": {
+              "label": "Chuyển tiếp media",
+              "tech": "[TURN · STUN]"
+            },
+            "systemSmtp": {
+              "label": "Gửi email OTP",
+              "tech": "[SMTP]"
+            }
+          }
+        },
+        "containers": {
+          "title": "Container Architecture Diagram (C4 Level 2)",
+          "summary": "Sơ đồ container C4 mức 2: trình duyệt gọi vào cụm container chạy trên một máy chủ VPS duy nhất, backend nói chuyện với Postgres, Redis, Kafka và bốn dịch vụ đám mây bên ngoài.",
+          "boundaries": {
+            "vps": "Máy chủ VPS — Docker Compose · một instance duy nhất",
+            "external": "Hệ thống bên ngoài"
+          },
+          "legend": {
+            "actor": "Máy khách",
+            "app": "Container ứng dụng",
+            "data": "Dữ liệu & hàng đợi",
+            "external": "Dịch vụ ngoài"
+          },
+          "nodes": {
+            "browser": {
+              "name": "Trình duyệt",
+              "type": "[Client · SPA]",
+              "desc": "React 19 · STOMP · WebRTC"
+            },
+            "nginx": {
+              "name": "Nginx 1.27",
+              "type": "[Container · reverse proxy]",
+              "desc": "TLS · định tuyến 80/443"
+            },
+            "coturn": {
+              "name": "coturn 4.6",
+              "type": "[Container]",
+              "desc": "TURN relay WebRTC"
+            },
+            "next": {
+              "name": "Next.js 16",
+              "type": "[Container]",
+              "desc": "SSR · cổng 3000"
+            },
+            "spring": {
+              "name": "Spring Boot 3.5",
+              "type": "[Container · Java 21]",
+              "desc": "66 REST + 11 STOMP · cổng 8080"
+            },
+            "postgres": {
+              "name": "Postgres 16",
+              "type": "[Database]",
+              "desc": "19 bảng · 48 migration"
+            },
+            "redis": {
+              "name": "Redis 7.2",
+              "type": "[Cache]",
+              "desc": "Phiên · khoá · đếm"
+            },
+            "kafka": {
+              "name": "Kafka 7.6",
+              "type": "[Message broker]",
+              "desc": "2 topic + 1 DLT"
+            },
+            "storage": {
+              "name": "Amazon S3",
+              "type": "[Dịch vụ ngoài]",
+              "desc": "File nhạc · ảnh"
+            },
+            "oauth": {
+              "name": "Google OAuth",
+              "type": "[Dịch vụ ngoài]",
+              "desc": "Đăng nhập"
+            },
+            "tts": {
+              "name": "Google TTS",
+              "type": "[Dịch vụ ngoài]",
+              "desc": "Sinh voice tag"
+            },
+            "smtp": {
+              "name": "SMTP",
+              "type": "[Dịch vụ ngoài]",
+              "desc": "Gửi email OTP"
+            }
+          },
+          "edges": {
+            "browserNginx": {
+              "label": "Gọi API, mở WebSocket",
+              "tech": "[HTTPS · WSS]"
+            },
+            "browserCoturn": {
+              "label": "Đàm phán WebRTC",
+              "tech": "[TURN · STUN]"
+            },
+            "browserStorage": {
+              "label": "Tải file trực tiếp",
+              "tech": "[presigned URL]"
+            },
+            "browserOauth": {
+              "label": "Đăng nhập Google",
+              "tech": "[GIS]"
+            },
+            "nginxSpring": {
+              "label": "Định tuyến /api và /ws",
+              "tech": "[HTTP nội bộ]"
+            },
+            "springPostgres": {
+              "label": "Đọc / ghi dữ liệu",
+              "tech": "[JDBC]"
+            },
+            "springKafka": {
+              "label": "Phát & nhận sự kiện",
+              "tech": "[Kafka]"
+            },
+            "springStorage": {
+              "label": "Ký URL, đọc/ghi object",
+              "tech": "[AWS SDK v2]"
+            },
+            "springOauth": {
+              "label": "Xác minh ID token",
+              "tech": "[HTTPS]"
+            },
+            "springTts": {
+              "label": "Sinh voice tag",
+              "tech": "[gRPC]"
+            },
+            "springSmtp": {
+              "label": "Gửi email OTP",
+              "tech": "[SMTP]"
+            }
+          }
+        },
+        "layers": {
+          "title": "Backend Layering Architecture (C4 Level 3)",
+          "summary": "Sơ đồ thành phần C4 mức 3: bốn tầng api, application, domain và infrastructure bên trong container backend. Phụ thuộc luôn hướng vào domain, và cả ba module đều lặp lại đúng bốn tầng này.",
+          "boundaries": {
+            "backend": "pwb-backend — cả ba module iam · audio · liveroom đều lặp lại bốn tầng này"
+          },
+          "legend": {
+            "app": "Tầng phụ thuộc ra ngoài",
+            "data": "Tầng lõi, không phụ thuộc gì"
+          },
+          "nodes": {
+            "api": {
+              "name": "api",
+              "type": "[Tầng]",
+              "desc": "11 REST controller + 4 STOMP controller · DTO request & response"
+            },
+            "application": {
+              "name": "application",
+              "type": "[Tầng]",
+              "desc": "57 use case impl · command → view/dto · @Transactional đặt ở method"
+            },
+            "domain": {
+              "name": "domain",
+              "type": "[Tầng — Java thuần, không Spring, không JPA]",
+              "desc": "model · vo · enums · 21 repository port · service port"
+            },
+            "infrastructure": {
+              "name": "infrastructure",
+              "type": "[Tầng]",
+              "desc": "22 JPA entity · mapper viết tay · adapter · realtime STOMP · scheduler"
+            }
+          },
+          "edges": {
+            "apiApplication": {
+              "label": "Gọi vào use case",
+              "tech": "[port]"
+            },
+            "applicationDomain": {
+              "label": "Dùng model & port",
+              "tech": "[hướng vào trong]"
+            },
+            "infrastructureDomain": {
+              "label": "Hiện thực port",
+              "tech": "[hướng vào trong]"
+            }
+          }
+        },
+        "deployment": {
+          "title": "VPS Infrastructure Deployment Diagram",
+          "summary": "Sơ đồ triển khai: các container Docker trên một máy chủ VPS. Chỉ Nginx publish cổng ra ngoài; coturn chạy trên host network nên nằm ngoài mạng bridge pwb-network.",
+          "boundaries": {
+            "vps": "Máy chủ VPS — Ubuntu · Docker · 4 vCPU · 7.6GB RAM",
+            "network": "Mạng pwb-network — bridge, chỉ Nginx publish cổng ra ngoài",
+            "hostNetwork": "Host network — backend không gọi tới"
+          },
+          "legend": {
+            "actor": "Thiết bị người dùng",
+            "app": "Container ứng dụng",
+            "data": "Dữ liệu & hàng đợi"
+          },
+          "nodes": {
+            "browser": {
+              "name": "Trình duyệt",
+              "type": "[Thiết bị người dùng]",
+              "desc": "HTTPS · WSS · WebRTC"
+            },
+            "nginx": {
+              "name": "Nginx 1.27",
+              "type": "[Container]",
+              "desc": "Publish 80:80 và 443:443 · vol certbot (ro)"
+            },
+            "certbot": {
+              "name": "Certbot",
+              "type": "[Container]",
+              "desc": "Không publish · ghi vol certbot_conf dùng chung với Nginx"
+            },
+            "next": {
+              "name": "Next.js 16",
+              "type": "[Container]",
+              "desc": "3000 — chỉ nội bộ · không volume"
+            },
+            "spring": {
+              "name": "Spring Boot 3.5",
+              "type": "[Container · JRE 21 + ffmpeg]",
+              "desc": "8080 nội bộ · mem 1500m · 1 instance · vol audio_work"
+            },
+            "postgres": {
+              "name": "Postgres 16",
+              "type": "[Container]",
+              "desc": "5432 nội bộ · vol postgres_data"
+            },
+            "redis": {
+              "name": "Redis 7.2",
+              "type": "[Container]",
+              "desc": "6379 nội bộ · vol redis_data"
+            },
+            "kafka": {
+              "name": "Kafka 7.6",
+              "type": "[Container]",
+              "desc": "29092 nội bộ · mem 1g · vol kafka_data"
+            },
+            "coturn": {
+              "name": "coturn 4.6",
+              "type": "[Container · network_mode host]",
+              "desc": "UDP 3478 + 49160-49200 · mount turnserver.conf (ro) · mem 256m"
+            }
+          },
+          "edges": {
+            "browserNginx": {
+              "label": "Toàn bộ HTTPS và WSS",
+              "tech": "[80 · 443]"
+            },
+            "browserCoturn": {
+              "label": "Relay media WebRTC",
+              "tech": "[UDP 3478]"
+            }
+          }
+        },
+        "pipeline": {
+          "title": "CI/CD Data Pipeline Diagram",
+          "summary": "Pipeline CI/CD: push lên main chạy hai job test song song, build và đẩy image lên ghcr.io, rồi VPS pull qua SSH và chờ backend báo health UP.",
+          "boundaries": {
+            "actions": "GitHub Actions — ubuntu-latest",
+            "vps": "Máy chủ VPS — điều khiển qua SSH"
+          },
+          "legend": {
+            "app": "Job trên runner",
+            "external": "Container registry",
+            "actor": "Bước chạy trên VPS"
+          },
+          "nodes": {
+            "trigger": {
+              "name": "push lên main",
+              "type": "[Trigger]",
+              "desc": "hoặc chạy tay · concurrency 1, không huỷ"
+            },
+            "testBackend": {
+              "name": "Test backend",
+              "type": "[Job]",
+              "desc": "mvn test + ffmpeg"
+            },
+            "testFrontend": {
+              "name": "Test frontend",
+              "type": "[Job]",
+              "desc": "pnpm lint + test"
+            },
+            "build": {
+              "name": "Build & push",
+              "type": "[Job]",
+              "desc": "docker buildx · cache gha, hai scope riêng"
+            },
+            "registry": {
+              "name": "ghcr.io",
+              "type": "[Container registry]",
+              "desc": "pwb-backend · pwb-frontend · tag sha-a1b2c3d và main"
+            },
+            "pull": {
+              "name": "Pull qua SSH",
+              "type": "[appleboy/ssh]",
+              "desc": "git reset --hard · ghi .env.deploy"
+            },
+            "up": {
+              "name": "compose up -d",
+              "type": "[Docker Compose]",
+              "desc": "pull 2 image · nginx -s reload · prune 168h"
+            },
+            "health": {
+              "name": "Chờ health",
+              "type": "[Kiểm tra]",
+              "desc": "30 lần × 10s · /actuator/health UP"
+            }
+          },
+          "edges": {
+            "buildRegistry": {
+              "label": "Đẩy 2 image",
+              "tech": "[docker push]"
+            },
+            "registryPull": {
+              "label": "Kéo image đã ghim",
+              "tech": "[docker pull]"
+            }
+          }
+        },
+        "realtime": {
+          "nodes": {
+            "browser": {
+              "name": "Trình duyệt",
+              "type": "[Người dùng]",
+              "desc": "Giữ một kết nối mở tới máy chủ"
+            },
+            "auth": {
+              "name": "1 · Kiểm tra danh tính",
+              "type": "[Cửa vào]",
+              "desc": "Bạn là ai? Chưa trả lời được thì chưa làm gì được"
+            },
+            "rate": {
+              "name": "2 · Kiểm tra tần suất",
+              "type": "[Cửa vào]",
+              "desc": "Có đang gửi quá nhanh không?"
+            },
+            "scope": {
+              "name": "3 · Kiểm tra quyền",
+              "type": "[Cửa vào]",
+              "desc": "Bạn có thuộc phòng này không?"
+            },
+            "controller": {
+              "name": "Tiếp nhận yêu cầu",
+              "type": "[Xử lý]",
+              "desc": "Cửa duy nhất để vào nghiệp vụ"
+            },
+            "usecase": {
+              "name": "Xử lý nghiệp vụ",
+              "type": "[Giao dịch]",
+              "desc": "Đổi bài, ghi dữ liệu xuống cơ sở dữ liệu"
+            },
+            "publisher": {
+              "name": "Phát sự kiện",
+              "type": "[Thông báo]",
+              "desc": "Chờ ghi xong mới phát"
+            },
+            "broker": {
+              "name": "Bộ phát tin",
+              "type": "[Trung chuyển]",
+              "desc": "Biết ai đang nghe kênh nào"
+            },
+            "topics": {
+              "name": "Kênh chung",
+              "type": "[Cả phòng]",
+              "desc": "Mọi người trong phòng cùng nhận"
+            },
+            "queues": {
+              "name": "Kênh riêng",
+              "type": "[Một người]",
+              "desc": "Chỉ đúng một người nhận"
+            }
+          },
+          "edges": {
+            "browserAuth": {
+              "label": "Mở kết nối, gửi yêu cầu",
+              "tech": "[hai chiều]"
+            },
+            "publisherBroker": {
+              "label": "Chỉ phát sau khi ghi xong",
+              "tech": "[an toàn]"
+            },
+            "topicsBrowser": {
+              "label": "Cả phòng nhận cùng lúc",
+              "tech": "[đẩy xuống]"
+            },
+            "queuesBrowser": {
+              "label": "Riêng một người nhận",
+              "tech": "[đẩy xuống]"
+            }
+          },
+          "boundaries": {
+            "inbound": "Ba cửa kiểm tra",
+            "app": "Xử lý nghiệp vụ",
+            "broker": "Phân phát tới người nghe"
+          },
+          "legend": {
+            "actor": "Người dùng",
+            "app": "Bước xử lý",
+            "data": "Kênh"
+          },
+          "title": "Luồng xử lý của hệ thống: từ trình duyệt, qua ba cửa kiểm tra, vào nghiệp vụ, rồi phát ngược lại cho người nghe",
+          "summary": "Trình duyệt mở một kết nối và gửi yêu cầu lên. Yêu cầu đi qua ba cửa kiểm tra: bạn là ai, có gửi quá nhanh không, có thuộc phòng này không. Qua được cả ba thì nghiệp vụ chạy và ghi dữ liệu. Ghi xong mới phát sự kiện ra kênh chung cho cả phòng hoặc kênh riêng cho một người."
+        },
+        "pubsub": {
+          "title": "Mô hình đăng — nghe: người gửi chỉ đăng lên một kênh, không hề biết ai đang nghe",
+          "summary": "Người gửi đăng nội dung lên một kênh. Kênh chung chuyển tới mọi người đang đăng ký nghe kênh đó; kênh riêng chỉ chuyển tới đúng một người. Người gửi không cần biết có bao nhiêu người nghe.",
+          "boundaries": {
+            "broker": "Bộ phát tin — giữ danh sách ai đang nghe kênh nào"
+          },
+          "legend": {
+            "app": "Người gửi",
+            "data": "Kênh",
+            "actor": "Người nghe"
+          },
+          "nodes": {
+            "sender": {
+              "name": "Máy chủ",
+              "type": "[Người gửi]",
+              "desc": "Chỉ cần chọn đúng kênh"
+            },
+            "topic": {
+              "name": "Kênh chung",
+              "type": "[Topic]",
+              "desc": "Ai đăng ký cũng nhận"
+            },
+            "queue": {
+              "name": "Kênh riêng",
+              "type": "[Queue]",
+              "desc": "Chỉ một người nhận"
+            },
+            "listenerA": {
+              "name": "Người nghe A",
+              "type": "[Trình duyệt]",
+              "desc": "Đang trong phòng"
+            },
+            "listenerB": {
+              "name": "Người nghe B",
+              "type": "[Trình duyệt]",
+              "desc": "Đang trong phòng"
+            },
+            "listenerC": {
+              "name": "Người nghe C",
+              "type": "[Trình duyệt]",
+              "desc": "Đang trong phòng"
+            },
+            "listenerD": {
+              "name": "Người nghe D",
+              "type": "[Trình duyệt]",
+              "desc": "Chỉ mình D nhận"
+            }
+          },
+          "edges": {
+            "senderTopic": {
+              "label": "Đăng một lần",
+              "tech": "[1 thao tác]"
+            },
+            "senderQueue": {
+              "label": "Gửi riêng",
+              "tech": "[1 thao tác]"
+            }
+          }
+        },
+        "outbox": {
+          "title": "Từ một thao tác của người dùng tới email gửi đi: phần nào nằm trong giao dịch, phần nào chạy nền",
+          "summary": "Người dùng gọi một thao tác. Trong cùng một giao dịch, hệ thống ghi dữ liệu nghiệp vụ và ghi thêm một dòng vào bảng hàng chờ. Người dùng nhận phản hồi ngay tại đây. Sau đó một tiến trình nền đọc bảng hàng chờ, gửi thật vào Kafka, và bên nhận lấy ra để gửi email hoặc xử lý âm thanh.",
+          "boundaries": {
+            "transaction": "Một giao dịch — hoặc cùng thành công, hoặc cùng huỷ",
+            "async": "Chạy nền — người dùng đã đi từ lâu"
+          },
+          "legend": {
+            "actor": "Người dùng",
+            "app": "Bước xử lý",
+            "data": "Nơi lưu",
+            "external": "Dịch vụ ngoài"
+          },
+          "nodes": {
+            "user": {
+              "name": "Người dùng",
+              "type": "[Trình duyệt]",
+              "desc": "Nhận phản hồi ngay, không chờ"
+            },
+            "usecase": {
+              "name": "Xử lý nghiệp vụ",
+              "type": "[Giao dịch]",
+              "desc": "Làm hai việc ghi, không gửi đi đâu cả"
+            },
+            "dbBusiness": {
+              "name": "Bảng nghiệp vụ",
+              "type": "[PostgreSQL]",
+              "desc": "Tài khoản, bài hát…"
+            },
+            "dbOutbox": {
+              "name": "Bảng hàng chờ",
+              "type": "[PostgreSQL]",
+              "desc": "Một dòng: “cần gửi cái này”"
+            },
+            "relay": {
+              "name": "Tiến trình nền",
+              "type": "[Chạy đều đặn]",
+              "desc": "Nhận phần việc, đánh dấu đang xử lý"
+            },
+            "topic": {
+              "name": "Kênh Kafka",
+              "type": "[Lưu trên đĩa]",
+              "desc": "Giữ theo thứ tự, đọc xong không mất"
+            },
+            "consumers": {
+              "name": "Bên nhận",
+              "type": "[Xử lý]",
+              "desc": "Đọc và làm việc thật"
+            },
+            "targets": {
+              "name": "SMTP · FFmpeg",
+              "type": "[Dịch vụ ngoài]",
+              "desc": "Gửi email, ghép âm thanh"
+            }
+          },
+          "edges": {
+            "outboxRelay": {
+              "label": "Đọc những dòng đang chờ",
+              "tech": "[mỗi 5 giây]"
+            },
+            "relayTopic": {
+              "label": "Lúc này mới gửi thật",
+              "tech": "[sau khi ghi xong]"
+            }
+          }
+        }
+      },
+      "realtime": {
+        "intro": "Đây là phần khó nhất của hệ thống, nên nó được viết từ đầu: bắt đầu bằng giới hạn của web thông thường, rồi lần lượt tới kết nối, tới bộ quy ước chạy trên kết nối đó, tới mô hình phân phát, và cuối cùng mới là những gì chúng tôi đã dựng.",
+        "toc": {
+          "label": "Nội dung phần này",
+          "items": {
+            "problem": "Vấn đề của HTTP truyền thống",
+            "websocket": "Giải pháp: đường ống WebSocket",
+            "stomp": "Tại sao lại đẻ thêm STOMP?",
+            "pubsub": "Mô hình hoạt động thực tế",
+            "system": "Áp dụng vào hệ thống của chúng ta"
+          }
+        },
+        "problem": {
+          "eyebrow": "Mở đầu",
+          "title": "Vấn đề của HTTP truyền thống",
+          "lead": "Toàn bộ web mà chúng ta quen dùng chạy trên một quy tắc duy nhất: client hỏi thì server mới trả lời. Quy tắc đó đủ dùng cho gần như mọi trang web — và hỏng ngay khi bạn cần một căn phòng nghe nhạc chung.",
+          "points": {
+            "0": "Cơ chế đó gọi là Request – Response. Trình duyệt gửi một yêu cầu, máy chủ trả về một phản hồi, rồi kết nối đóng lại. Máy chủ không có cách nào tự bắt chuyện trước. Nó chỉ được nói khi được hỏi.",
+            "1": "Bây giờ hãy tưởng tượng bảy người cùng ngồi trong một phòng nghe nhạc. Chủ phòng bấm play. Sáu người còn lại phải nghe đúng đoạn đó, ngay lúc đó. Nhưng trình duyệt của họ đâu biết vừa có chuyện gì xảy ra — và máy chủ thì không được phép chủ động báo.",
+            "2": "Cách chữa cháy quen thuộc là hỏi liên tục: cứ vài giây lại gửi một yêu cầu “có gì mới không?”. Nó chạy được, nhưng trả giá gấp đôi. Người dùng luôn chậm hơn thực tế vài giây, đủ để cảm giác “nghe cùng nhau” biến mất. Còn máy chủ thì nhận về một núi câu hỏi mà gần như câu nào cũng phải trả lời “chưa có gì”."
+          },
+          "compare": {
+            "have": {
+              "tag": "Thứ web thông thường cho",
+              "title": "Máy chủ im lặng cho tới khi được hỏi",
+              "body": "Muốn biết có thay đổi thì phải tự đi hỏi. Hỏi thưa thì tin đến muộn, hỏi dày thì tốn tài nguyên cho những câu trả lời rỗng. Không có lựa chọn nào tốt."
+            },
+            "need": {
+              "tag": "Thứ chúng ta cần",
+              "title": "Máy chủ chủ động báo ngay khi có chuyện",
+              "body": "Chủ phòng bấm play thì trong vài chục mili giây, sáu người kia biết. Không ai phải hỏi. Đây chính là chỗ mà HTTP thông thường không với tới, và là lý do phần còn lại của mục này tồn tại."
+            }
+          }
+        },
+        "websocket": {
+          "eyebrow": "Giải pháp",
+          "title": "Đường ống WebSocket",
+          "lead": "WebSocket giải quyết đúng vấn đề trên bằng cách bỏ hẳn kiểu hỏi–đáp. Thay vì mở rồi đóng một kết nối cho mỗi câu hỏi, hai bên mở một kết nối và giữ nó mở suốt.",
+          "points": {
+            "0": {
+              "title": "Bắt đầu bằng một cái bắt tay",
+              "body": "Kết nối vẫn khởi đầu như một yêu cầu web bình thường, nhưng kèm một lời đề nghị: “ta chuyển sang nói chuyện kiểu khác nhé”. Máy chủ đồng ý, và từ giây phút đó trở đi đường truyền không còn chạy theo luật hỏi–đáp nữa."
+            },
+            "1": {
+              "title": "Hai chiều, cùng lúc",
+              "body": "Cả hai đầu đều gửi được bất cứ khi nào, không cần chờ tới lượt và không cần được hỏi trước. Đây là điểm khác biệt cốt lõi: lần đầu tiên máy chủ có quyền nói trước."
+            },
+            "2": {
+              "title": "Mở liên tục",
+              "body": "Kết nối không đóng sau mỗi lần trao đổi. Không phải bắt tay lại, không phải xác thực lại từ đầu cho từng tin nhắn — thứ vốn chiếm phần lớn chi phí của kiểu hỏi–đáp."
+            },
+            "3": {
+              "title": "Nhẹ hơn nhiều",
+              "body": "Một yêu cầu web thông thường kéo theo hàng trăm byte thông tin phụ mỗi lần gửi. Trên một kết nối đã mở, phần phụ đó chỉ còn vài byte. Với những tin gửi liên tục như vị trí phát nhạc, khác biệt này là rất lớn."
+            }
+          },
+          "closing": "Kết quả: thay vì trễ vài giây và tiêu tốn tài nguyên cho những câu hỏi rỗng, sự kiện tới nơi trong vài chục mili giây và chỉ có tin thật mới chạy trên đường truyền."
+        },
+        "stomp": {
+          "eyebrow": "Vì sao cần thêm một lớp nữa",
+          "title": "Tại sao lại đẻ thêm STOMP?",
+          "question": "“Đã có WebSocket kết nối hai chiều rồi, tại sao còn phải dùng thêm STOMP?”",
+          "answer": "Vì WebSocket cho bạn một đường ống, chứ không cho bạn một ngôn ngữ. Nó bảo đảm rằng thứ bạn gửi sẽ tới nơi, nhưng hoàn toàn không quan tâm thứ đó là gì. Với nó, mọi tin nhắn chỉ là một chuỗi ký tự. Ba việc dưới đây, WebSocket không làm hộ bạn dòng nào.",
+          "gaps": {
+            "0": {
+              "title": "Phân biệt tin này với tin kia",
+              "body": "Một tin vừa tới: đó là tin nhắn chat, là lệnh tua nhạc, hay là thông báo có người vào phòng? WebSocket không có khái niệm ấy. Bạn buộc phải tự nghĩ ra một quy ước riêng, rồi tự viết đoạn phân loại ở cả hai đầu, và tự bảo nhau đừng ai làm sai."
+            },
+            "1": {
+              "title": "Gửi cho đúng người, đúng nhóm",
+              "body": "Máy chủ đang giữ hàng trăm kết nối. Muốn gửi cho sáu người trong một phòng cụ thể, bạn phải tự lưu danh sách ai đang ở phòng nào, tự lọc, tự dọn khi có người rớt mạng. Toàn bộ phần sổ sách đó là của bạn."
+            },
+            "2": {
+              "title": "Cho phép người nghe chọn thứ họ quan tâm",
+              "body": "Một người đang mở khung chat, người khác thì đóng. Không có cách nào chuẩn để nói “tôi muốn nghe cái này, không muốn nghe cái kia”. Bạn lại phải tự định nghĩa lấy một cơ chế đăng ký."
+            }
+          },
+          "analogy": {
+            "tag": "Cách hiểu gọn nhất",
+            "title": "WebSocket đứng dưới STOMP, y hệt cách TCP đứng dưới HTTP",
+            "body": "TCP chỉ biết chuyển byte từ máy này sang máy kia; chính HTTP mới định nghĩa thế nào là GET, thế nào là POST, mã 404 nghĩa là gì. Không ai tự viết lại HTTP cho mỗi dự án. Ở đây cũng vậy: WebSocket lo phần đường truyền, STOMP định nghĩa phần ý nghĩa — đặt tên kênh, đăng ký nghe, gửi đi, báo lỗi. Một bộ quy ước có sẵn, cả hai đầu đều hiểu, không phải phát minh lại."
+          },
+          "sample": {
+            "caption": "“Bộ quy ước” ở đây rất cụ thể. Một tin STOMP chỉ là văn bản thuần: dòng đầu nói đây là hành động gì, mấy dòng sau nói gửi tới kênh nào và nội dung thuộc kiểu gì, rồi tới nội dung. Đọc bằng mắt thường được, không cần công cụ nào."
+          }
+        },
+        "pubsub": {
+          "eyebrow": "Mô hình hoạt động",
+          "title": "Đăng và nghe, thay vì gửi cho từng người",
+          "lead": "Đây là ý tưởng khiến mọi thứ trở nên đơn giản: người gửi không gửi cho người nhận. Người gửi đăng nội dung lên một kênh, và ai quan tâm thì tự đăng ký nghe kênh đó.",
+          "radio": {
+            "title": "Giống hệt một đài phát thanh",
+            "body": "Đài không cần biết tối nay có bao nhiêu người mở radio, họ là ai, ở đâu. Đài chỉ phát trên đúng tần số của mình. Ai muốn nghe thì dò đúng tần số đó. Thêm một nghìn người nghe cũng không bắt đài phải làm gì khác đi."
+          },
+          "kinds": {
+            "0": {
+              "title": "Kênh chung — chuyện của cả phòng",
+              "body": "Dùng cho những gì mọi người trong phòng đều cần biết: có người vừa vào, bài hát vừa đổi, có tin nhắn mới. Máy chủ đăng một lần, cả phòng cùng nhận."
+            },
+            "1": {
+              "title": "Kênh riêng — chuyện của một người",
+              "body": "Dùng cho những gì chỉ liên quan tới đúng một người: yêu cầu vào phòng của bạn được duyệt hay bị từ chối, hoặc một thông báo lỗi cho thao tác bạn vừa làm. Năm người kia không nhận được gì."
+            }
+          },
+          "closing": "Cái lợi lớn nhất nằm ở chỗ máy chủ được giải phóng khỏi câu hỏi “gửi cho ai”. Nó chỉ cần chọn đúng kênh. Người thứ tám bước vào phòng, người thứ ba rời đi, ai đó rớt mạng rồi vào lại — không dòng nào trong phần xử lý nghiệp vụ phải thay đổi."
+        },
+        "system": {
+          "eyebrow": "Áp dụng",
+          "title": "Hệ thống của chúng ta hoạt động như thế nào",
+          "lead": "Ghép cả ba lớp trên lại, đây là luồng xử lý thực tế mỗi khi ai đó làm một việc gì trong phòng. Sơ đồ dưới đây là toàn cảnh; phần sau đi lại đúng con đường ấy theo từng bước.",
+          "flow": {
+            "title": "Sáu bước của một thao tác",
+            "lead": "Lấy ví dụ chủ phòng bấm play. Đây là những gì xảy ra, theo đúng thứ tự.",
+            "steps": {
+              "0": {
+                "title": "Mở kết nối và cho biết mình là ai",
+                "body": "Ngay khi vào phòng, trình duyệt mở một kết nối tới máy chủ và gửi kèm thông tin đăng nhập. Chưa xác nhận được danh tính thì kết nối tuy mở nhưng không làm được gì — đây là chốt chặn đầu tiên, và cũng là thứ mọi bước sau dựa vào."
+              },
+              "1": {
+                "title": "Xin nghe các kênh của phòng",
+                "body": "Trình duyệt nói cho máy chủ biết nó muốn nghe kênh của phòng nào. Máy chủ không tin ngay: phòng ở đây là riêng tư, nên nó tra lại xem người này có thật sự là chủ phòng, đang ở trong phòng, hay đang chờ được duyệt. Không thuộc nhóm nào thì bị từ chối."
+              },
+              "2": {
+                "title": "Gửi thao tác lên, qua một cửa duy nhất",
+                "body": "Khi chủ phòng bấm play, trình duyệt gửi thao tác đó lên. Mọi thao tác đều bắt buộc đi qua phần xử lý nghiệp vụ, không có đường tắt nào cho phép bắn thẳng ra kênh chung. Thiếu ràng buộc này thì bất kỳ ai cũng có thể tự tạo tin giả rồi phát vào phòng, và những người trong phòng sẽ tin ngay vì tin giả trông y hệt tin thật."
+              },
+              "3": {
+                "title": "Kiểm tra tần suất trước khi tốn công xử lý",
+                "body": "Trước khi chạm vào nghiệp vụ, hệ thống xem người này có đang gửi quá nhanh không. Đặt chốt này ở đây chứ không đặt sau là có lý do: một kết nối bắn hàng trăm thao tác mỗi giây phải bị chặn trước khi nó kịp bắt cơ sở dữ liệu làm hàng trăm lượt tra cứu vô ích."
+              },
+              "4": {
+                "title": "Xử lý nghiệp vụ và ghi dữ liệu",
+                "body": "Đổi bài, tính lại vị trí phát, lưu xuống cơ sở dữ liệu. Trong suốt bước này chưa có thông báo nào được gửi đi cho ai cả."
+              },
+              "5": {
+                "title": "Ghi xong mới thông báo",
+                "body": "Chỉ khi dữ liệu đã được lưu thành công, sự kiện mới được đăng lên kênh của phòng và tới sáu người còn lại. Thứ tự này quan trọng: nếu báo trước rồi việc ghi thất bại, mọi người sẽ thấy một trạng thái không hề tồn tại. Kèm theo mỗi sự kiện là giờ của máy chủ, để các trình duyệt lấy đó làm mốc chung thay vì tin vào đồng hồ máy mình."
+              }
+            }
+          },
+          "channels": {
+            "title": "Các kênh đang dùng",
+            "lead": "Sáu kênh, chia làm hai nhóm đúng như mô hình ở mục trước.",
+            "head": {
+              "a": "Kênh",
+              "b": "Ai nhận",
+              "c": "Dùng để làm gì"
+            },
+            "rows": {
+              "0": {
+                "b": "Cả phòng",
+                "c": "Có người vào, rời đi, bị mời ra; sức chứa thay đổi; phòng mở hoặc đóng"
+              },
+              "1": {
+                "b": "Cả phòng",
+                "c": "Tin nhắn mới trong khung chat"
+              },
+              "2": {
+                "b": "Cả phòng",
+                "c": "Phát, dừng, tua, đổi bài, và bình luận gắn vào mốc thời gian trong bài"
+              },
+              "3": {
+                "b": "Một người",
+                "c": "Kết quả duyệt hoặc từ chối yêu cầu vào phòng; trạng thái hiện tại gửi riêng cho người vừa vào"
+              },
+              "4": {
+                "b": "Một người",
+                "c": "Phần trao đổi để hai trình duyệt dựng kết nối thoại trực tiếp với nhau"
+              },
+              "5": {
+                "b": "Một người",
+                "c": "Báo lỗi cho đúng thao tác người đó vừa làm"
+              }
+            }
+          }
+        }
+      },
+      "outbox": {
+        "title": "Hàng đợi sự kiện — Kafka và Outbox",
+        "intro": "Có những việc không thể bắt người dùng ngồi đợi. Mục này đi từ chỗ đó: vì sao phải xếp hàng, Kafka giải quyết được gì, chỗ nào Kafka một mình vẫn chưa đủ, và cách ghép nó với một bảng trong cơ sở dữ liệu để không bao giờ mất hay bịa ra một sự kiện nào.",
+        "toc": {
+          "label": "Nội dung phần này",
+          "items": {
+            "waiting": "Việc không thể bắt người dùng đợi",
+            "kafka": "Kafka là gì",
+            "dualwrite": "Chỗ Kafka một mình chưa đủ",
+            "outbox": "Outbox: ghi ý định gửi vào cùng giao dịch",
+            "system": "Áp dụng vào hệ thống của chúng ta"
+          }
+        },
+        "waiting": {
+          "eyebrow": "Mở đầu",
+          "title": "Có những việc không thể bắt người dùng ngồi đợi",
+          "lead": "Một thao tác của người dùng thường kéo theo những việc khác. Vấn đề là các việc kéo theo đó đôi khi chậm hơn hàng nghìn lần so với chính thao tác gốc.",
+          "jobs": {
+            "0": {
+              "cost": "Vài giây",
+              "title": "Gửi email xác thực khi đăng ký",
+              "body": "Tạo một tài khoản trong cơ sở dữ liệu mất vài mili giây. Gửi một email qua máy chủ thư thì phải mở kết nối ra ngoài internet, chờ bên kia trả lời, và mất vài giây là chuyện bình thường."
+            },
+            "1": {
+              "cost": "Hàng phút",
+              "title": "Ghép dấu tiếng nói vào bài hát",
+              "body": "Công cụ xử lý âm thanh phải giải mã cả bài, chèn tiếng, rồi mã hoá lại. Một bài dài mất vài phút. Không có cách nào bắt trình duyệt chờ ngần ấy."
+            }
+          },
+          "closing": "Nếu làm những việc này ngay trong lúc người dùng đang chờ, họ nhìn vòng xoay tải hàng phút. Tệ hơn: máy chủ thư đang hỏng thì thao tác đăng ký cũng hỏng theo, dù tài khoản đã tạo xong hoàn toàn bình thường. Một việc phụ làm chết một việc chính. Cách thoát là trả lời người dùng ngay, còn phần việc chậm thì xếp vào hàng đợi cho một tiến trình khác làm sau."
+        },
+        "kafka": {
+          "eyebrow": "Công cụ",
+          "title": "Kafka là gì",
+          "lead": "Kafka là chỗ để xếp hàng những việc như vậy. Nhưng nó không giống hàng đợi thông thường, và điểm khác biệt đó chính là lý do người ta chọn nó.",
+          "notebook": {
+            "title": "Hãy hình dung một cuốn sổ ghi chép, không phải một hộp thư",
+            "body": "Hộp thư thì lấy thư ra là hộp rỗng đi. Kafka thì giống một cuốn sổ: mỗi việc được ghi thêm một dòng vào cuối, theo đúng thứ tự, và lưu xuống đĩa. Người đọc chỉ đánh dấu mình đã đọc tới dòng nào — dòng đó vẫn nằm nguyên trong sổ. Nhờ vậy một bên xử lý chết giữa chừng thì khởi động lại vẫn đọc tiếp được từ chỗ cũ, và về sau muốn thêm một bên đọc nữa cũng không phải sửa gì ở bên ghi."
+          },
+          "ideas": {
+            "0": {
+              "title": "Kênh — mỗi loại việc một cuốn sổ riêng",
+              "body": "Việc gửi email và việc xử lý âm thanh không liên quan gì tới nhau, nên chúng nằm ở hai kênh khác nhau. Một kênh còn chia nhỏ được để nhiều bên đọc song song, mà vẫn giữ được thứ tự trong từng phần."
+            },
+            "1": {
+              "title": "Nhóm đọc — chia việc và tự bù cho nhau",
+              "body": "Nhiều tiến trình cùng đọc một kênh có thể gộp thành một nhóm. Kafka tự chia phần cho từng thành viên và bảo đảm một phần chỉ có đúng một người xử lý. Nếu một tiến trình chết, phần việc của nó được giao lại cho tiến trình còn sống."
+            },
+            "2": {
+              "title": "Sổ ghi việc hỏng — để một việc xấu không chặn cả hàng",
+              "body": "Có những việc thử bao nhiêu lần cũng hỏng, chẳng hạn nội dung sai định dạng ngay từ đầu. Nếu cứ thử lại mãi thì mọi việc phía sau bị kẹt lại chờ nó. Kafka cho phép chuyển hẳn những việc như vậy sang một kênh riêng để xem xét sau, và hàng đợi chính chạy tiếp."
+            }
+          },
+          "closing": "Đến đây tưởng như đã đủ: cứ ghi việc vào Kafka rồi trả lời người dùng ngay. Nhưng còn một chỗ hở, và nó không nằm ở Kafka."
+        },
+        "dualwrite": {
+          "eyebrow": "Chỗ khó",
+          "title": "Kafka một mình vẫn chưa đủ",
+          "lead": "Vấn đề nằm ở chỗ một thao tác giờ phải chạm vào hai hệ thống khác nhau cùng lúc: ghi dữ liệu xuống cơ sở dữ liệu, và xếp một việc vào Kafka.",
+          "setup": "Cơ sở dữ liệu có cơ chế giao dịch: nhiều thao tác ghi được gom lại, hoặc tất cả cùng thành công, hoặc tất cả cùng bị huỷ. Nhưng Kafka nằm ngoài cơ sở dữ liệu, nên nó không nằm trong giao dịch đó. Chỉ có hai chỗ để đặt lệnh gửi, và cả hai đều sai.",
+          "options": {
+            "0": {
+              "tag": "Cách 1",
+              "title": "Gửi vào Kafka trước khi giao dịch kết thúc",
+              "body": "Việc đã nằm trong Kafka. Nhưng ngay sau đó giao dịch gặp lỗi và bị huỷ toàn bộ — tài khoản không hề được tạo.",
+              "result": "Hậu quả: một email xác thực được gửi cho tài khoản không tồn tại. Sự kiện nói về chuyện chưa từng xảy ra."
+            },
+            "1": {
+              "tag": "Cách 2",
+              "title": "Gửi vào Kafka sau khi giao dịch đã xong",
+              "body": "Dữ liệu đã lưu an toàn. Nhưng giữa lúc lưu xong và lúc gửi, tiến trình bị tắt, máy chủ khởi động lại, hoặc mạng đứt.",
+              "result": "Hậu quả: tài khoản đã tạo nhưng email không bao giờ được xếp hàng. Người dùng ngồi đợi một mã xác thực không tồn tại."
+            }
+          },
+          "closing": "Không có cách thứ ba. Chừng nào lệnh gửi còn nằm ngoài giao dịch, luôn có một khoảnh khắc mà hai hệ thống nói hai chuyện khác nhau. Lối thoát không phải là chọn cách ít sai hơn, mà là làm cho việc gửi không còn nằm ngoài giao dịch nữa."
+        },
+        "outbox": {
+          "eyebrow": "Giải pháp",
+          "title": "Outbox — ghi ý định gửi vào cùng một giao dịch",
+          "lead": "Tên gọi lấy từ khay thư đi: bạn không tự mang thư ra bưu điện, bạn đặt nó vào khay, và người đưa thư sẽ lấy đi.",
+          "idea": {
+            "tag": "Cách hiểu gọn nhất",
+            "title": "Đừng gửi. Chỉ ghi lại rằng cần gửi — vào chính cơ sở dữ liệu đó",
+            "body": "Thay vì gọi sang Kafka, thao tác nghiệp vụ ghi thêm một dòng vào một bảng riêng, ngay bên cạnh dữ liệu nghiệp vụ, trong cùng một giao dịch. Dòng đó ghi rõ cần gửi gì và gửi vào kênh nào. Vì cả hai đều là lệnh ghi xuống cùng một cơ sở dữ liệu, chúng nằm gọn trong một giao dịch: hoặc cùng có, hoặc cùng không. Thế lưỡng nan ở mục trước biến mất, không phải vì được xử lý khéo hơn, mà vì nó không còn tồn tại."
+          },
+          "relay": {
+            "title": "Rồi ai mang thư đi?",
+            "lead": "Một tiến trình nền chạy đều đặn, đọc những dòng đang chờ trong bảng đó và gửi thật vào Kafka. Nghe đơn giản, nhưng có ba điều nó buộc phải làm đúng.",
+            "rules": {
+              "0": {
+                "title": "Không hai người cùng ôm một việc",
+                "body": "Khi nhận việc, tiến trình khoá đúng những dòng nó lấy và bỏ qua những dòng người khác đang giữ. Nhờ vậy chạy nhiều tiến trình song song cũng không có chuyện một email bị gửi hai lần."
+              },
+              "1": {
+                "title": "Việc bị bỏ rơi phải quay lại hàng",
+                "body": "Nếu tiến trình chết ngay sau khi nhận việc, những dòng đó sẽ kẹt lại mãi. Nên mỗi lần nhận, nó chỉ giữ chỗ trong một khoảng thời gian; hết hạn mà chưa xong thì người khác được phép nhặt lại. Và mỗi vòng chạy đều ưu tiên nhặt việc quá hạn trước rồi mới lấy việc mới — nếu không, một dòng chảy việc mới liên tục sẽ khiến việc cũ không bao giờ tới lượt."
+              },
+              "2": {
+                "title": "Không chờ hết năm giây mới chạy",
+                "body": "Tiến trình quét bảng theo chu kỳ, nhưng đó chỉ là lưới an toàn. Bình thường, ngay sau khi giao dịch kết thúc, hệ thống đánh tiếng cho nó chạy luôn — nên độ trễ gần như bằng không. Nếu tiếng gọi đó thất bại, vòng quét định kỳ vẫn nhặt được. Một cái để nhanh, một cái để chắc."
+              }
+            }
+          }
+        },
+        "system": {
+          "eyebrow": "Áp dụng",
+          "title": "Hệ thống của chúng ta ghép chúng lại thế nào",
+          "lead": "Ghép cả hai lại, đây là đường đi thật của một sự kiện. Sơ đồ dưới đây là toàn cảnh — chú ý hai khung nét đứt, vì ranh giới giữa chúng mới là điều đáng nhớ.",
+          "flow": {
+            "title": "Sáu bước, lấy ví dụ một lần đăng ký",
+            "lead": "Từ lúc bấm nút tới lúc email nằm trong hộp thư.",
+            "steps": {
+              "0": {
+                "title": "Người dùng bấm đăng ký",
+                "body": "Hệ thống tạo tài khoản, đồng thời soạn sẵn toàn bộ nội dung email — tiêu đề, phần chữ, phần HTML. Soạn ngay tại đây chứ không để bên nhận soạn, vì lúc này mới biết người dùng đang dùng ngôn ngữ nào."
+              },
+              "1": {
+                "title": "Ghi hai thứ trong cùng một giao dịch",
+                "body": "Tài khoản được ghi vào bảng của nó, và nội dung email vừa soạn được ghi thành một dòng trong bảng hàng chờ. Hai lệnh ghi, một giao dịch. Chưa có gì được gửi đi đâu cả."
+              },
+              "2": {
+                "title": "Người dùng nhận phản hồi ngay",
+                "body": "Giao dịch kết thúc, máy chủ trả lời “đã tạo tài khoản”. Toàn bộ phần còn lại diễn ra sau lưng, người dùng không phải chờ thêm mili giây nào."
+              },
+              "3": {
+                "title": "Tiến trình nền nhận việc và gửi vào Kafka",
+                "body": "Nó nhặt dòng đang chờ, đánh dấu đang xử lý, rồi mới gửi vào kênh tương ứng. Thứ tự này quan trọng: gửi trước khi đánh dấu thì bên nhận có thể xử lý xong trước khi dòng kịp được ghi nhận, và việc đó sẽ bị làm lại lần nữa."
+              },
+              "4": {
+                "title": "Bên nhận đọc và làm việc thật",
+                "body": "Với email: đọc nội dung, kiểm tra hợp lệ, gửi qua máy chủ thư — gửi kèm cả bản chữ thuần lẫn bản HTML để phần mềm đọc thư nào cũng hiển thị được. Với âm thanh: chạy công cụ ghép tiếng, có thể mất hàng phút."
+              },
+              "5": {
+                "title": "Hỏng thì thử lại, hỏng hẳn thì để riêng ra",
+                "body": "Máy chủ thư chập chờn thì bên nhận thử lại, giãn dần khoảng cách giữa các lần và bỏ cuộc sau khoảng một phút. Còn những lỗi thử lại cũng vô ích — nội dung sai định dạng chẳng hạn — thì bị đưa thẳng sang kênh chứa việc hỏng, không thử lần nào, để không chặn những việc phía sau."
+              }
+            }
+          },
+          "lanes": {
+            "title": "Hai làn đang chạy",
+            "lead": "Mọi việc chạy nền trong hệ thống đều đi qua đúng cơ chế trên, và hiện có hai làn.",
+            "items": {
+              "0": {
+                "title": "Thư đi",
+                "body": "Mã xác thực khi đăng ký, đặt lại mật khẩu, và các thông báo khác. Nội dung đã soạn sẵn từ trước nên bên nhận chỉ việc gửi."
+              },
+              "1": {
+                "title": "Xử lý âm thanh",
+                "body": "Ghép dấu tiếng nói vào bài hát. Vì mỗi bài mất hàng phút, làn này được nới thời gian cho phép xử lý lên rất nhiều — nếu không, hệ thống sẽ tưởng bên nhận đã chết và giao bài đó cho người khác, dẫn tới ghép hai lần."
+              }
+            }
+          },
+          "closing": "Có một cái giá phải trả, và nó là cố hữu chứ không phải lỗi: vì người dùng đã nhận phản hồi thành công từ bước ba, nếu máy chủ thư hỏng hẳn thì họ vẫn thấy thông báo “mã xác thực đã được gửi” trong khi email không bao giờ tới. Đó là điều bạn đánh đổi khi tách một việc ra chạy nền."
+        }
+      },
+      "topics": {
+        "questions": {
+          "what": "Nó là gì",
+          "why": "Vì sao phải dùng",
+          "when": "Khi nào dùng đến",
+          "how": "Triển khai ở đâu"
+        },
+        "redis": {
+          "title": "Bộ nhớ tạm — Redis",
+          "lead": "Có những dữ liệu chỉ sống vài phút rồi phải tự biến mất, và bị đọc ghi liên tục. Đưa chúng vào cơ sở dữ liệu chính là sai chỗ: mỗi lần kiểm tra là một lần chạm đĩa, và phải tự viết thêm việc dọn rác.",
+          "what": {
+            "body": "Redis là một kho dữ liệu nằm trên bộ nhớ trong. Không bảng, không quan hệ, không truy vấn phức tạp — chỉ có khoá và giá trị, đổi lại tốc độ đọc ghi dưới một phần nghìn giây.",
+            "points": {
+              "0": "Mỗi mục là một cặp khoá và giá trị; giá trị có thể là một chuỗi, một tập hợp hay một danh sách.",
+              "1": "Mỗi khoá gán được thời hạn sống. Hết hạn Redis tự xoá, không cần ai đi dọn và không cần logic kiểm tra hết hạn trong ứng dụng."
+            }
+          },
+          "why": {
+            "body": "Vì ba loại dữ liệu dưới đây đặt trong cơ sở dữ liệu chính đều trả giá đắt mà không được gì thêm.",
+            "points": {
+              "0": "Bộ đếm tần suất phải tăng và kiểm tra ở mỗi lượt gọi — đặt trong cơ sở dữ liệu chính thì mỗi lượt gọi thành thêm một lần ghi đĩa.",
+              "1": "Trạng thái ngắn hạn như phiên đăng nhập hay thời gian chờ chỉ sống vài phút tới vài tuần; đặt ở nơi lưu vĩnh viễn thì phải tự viết việc dọn dẹp.",
+              "2": "Có những chuỗi thao tác phải chạy liền một mạch không ai chen ngang được, và Redis làm được điều đó trong một lệnh duy nhất."
+            }
+          },
+          "when": {
+            "body": "Đúng ba mục đích, tất cả đều là trạng thái ngắn hạn. Quan trọng không kém là những gì cố ý không dùng tới.",
+            "points": {
+              "0": "Giữ phiên đăng nhập: danh sách phiên còn sống, dấu vết phiên đã xoay để chống dùng lại, và danh sách thẻ đã đăng xuất.",
+              "1": "Đếm tần suất và thời gian chờ: chặn gọi quá nhanh, chặn dò mật khẩu, ngăn gửi thư liên tục.",
+              "2": "Không dùng để lưu tạm dữ liệu đọc, không giữ phiên trình duyệt, không làm hàng đợi — ba việc đó đã có chỗ khác lo."
+            }
+          },
+          "how": {
+            "body": "Mười nhóm khoá, và không nhóm nào sống vĩnh viễn — tất cả đều có thời hạn. Đây cũng là chỗ đáng nhớ nhất về hệ thống: danh sách ai đang đăng nhập chỉ tồn tại ở đây, cơ sở dữ liệu chính hoàn toàn không biết.",
+            "points": {
+              "0": "Thẻ phiên được băm trước khi làm khoá, nên người đọc được Redis vẫn không mạo danh được ai — cùng nguyên tắc với việc băm mật khẩu.",
+              "1": "Xoá sạch Redis đồng nghĩa với đăng xuất toàn hệ thống. Đó là cái giá đã biết trước của việc để phiên sống ở đây."
+            }
+          },
+          "visualTitle": "Ba câu hỏi khác nhau, ba cách làm khác nhau",
+          "cards": {
+            "0": {
+              "tag": "Bao nhiêu lần trong một phút",
+              "title": "Bộ đếm chạy liền mạch",
+              "body": "Tăng bộ đếm, đặt hạn sống nếu là lần đầu, rồi so với ngưỡng — cả chuỗi chạy liền một mạch. Nếu tách rời, một tiến trình chết đúng khe giữa sẽ để lại bộ đếm không có hạn sống, và người dùng đó bị chặn vĩnh viễn."
+            },
+            "1": {
+              "tag": "Đã đủ lâu kể từ lần trước chưa",
+              "title": "Đặt chỗ nếu chưa ai đặt",
+              "body": "Câu hỏi khác hẳn bộ đếm, nên cách làm cũng khác: chỉ cần thử tạo một khoá có hạn sống. Tạo được nghĩa là đã đủ lâu; không tạo được nghĩa là còn phải chờ, và số giây còn lại chính là phần trả về."
+            },
+            "2": {
+              "tag": "Của người này gồm những gì",
+              "title": "Gom thành một tập hợp",
+              "body": "Mọi phiên của một người được gom vào một tập hợp, chỉ để phục vụ đúng một việc: thu hồi tất cả khi họ đổi mật khẩu. Không có nó thì phải quét toàn bộ kho để tìm, thay vì hỏi đúng một lần."
+            }
+          },
+          "table": {
+            "title": "Redis chết thì mỗi chỗ phản ứng một kiểu — và đó là chủ ý",
+            "head": {
+              "a": "Chỗ",
+              "b": "Redis chết thì",
+              "c": "Vì sao chọn như vậy"
+            },
+            "rows": {
+              "0": {
+                "a": "Giới hạn các thao tác đăng nhập",
+                "b": "Từ chối phục vụ",
+                "c": "Một bộ giới hạn mở toang thì không bảo vệ được gì, đúng vào lúc hệ thống đã yếu."
+              },
+              "1": {
+                "a": "Thời gian chờ giữa hai lần đặt lại mật khẩu",
+                "b": "Từ chối, không có ngoại lệ",
+                "c": "Đường này gửi thư tới một địa chỉ tuỳ ý. Để hở là biến nó thành trạm phát tán thư không ai đếm."
+              },
+              "2": {
+                "a": "Thời gian chờ khi đăng ký hoặc gửi lại mã",
+                "b": "Theo cấu hình chung",
+                "c": "Đủ quan trọng để chặn, nhưng không tới mức phải cứng nhắc như hai dòng trên."
+              },
+              "3": {
+                "a": "Giới hạn tần suất chung cho mọi lời gọi",
+                "b": "Cho qua, chỉ ghi cảnh báo",
+                "c": "Chặn toàn bộ hệ thống vì một rủi ro nhỏ hơn nhiều là làm hỏng sản phẩm."
+              },
+              "4": {
+                "a": "Chặn dò mã phòng nghe chung",
+                "b": "Cho qua, chỉ ghi cảnh báo",
+                "c": "Phía sau vẫn còn một lớp nữa: người dò có mã đúng thì vẫn phải chờ chủ phòng duyệt."
+              }
+            }
+          }
+        },
+        "storage": {
+          "title": "Lưu trữ tệp — kho ngoài và URL có hạn",
+          "lead": "Bài hát nặng tới hai trăm megabyte, và không tệp nào trong hệ thống được phép ai cũng mở được. Hai điều đó cùng lúc quyết định toàn bộ cách tệp được đưa lên, được đọc và được xoá.",
+          "what": {
+            "body": "Tệp không nằm trong cơ sở dữ liệu mà nằm ở một kho lưu trữ ngoài. Kho đó đóng kín hoàn toàn: không có đường nào mở một tệp bằng địa chỉ thẳng. Muốn đọc, phải xin một địa chỉ tạm có chữ ký và có hạn dùng.",
+            "points": {
+              "0": "Cơ sở dữ liệu chỉ giữ khoá của tệp, không giữ địa chỉ. Đổi kho hay đổi vùng đặt kho không phải sửa một dòng dữ liệu nào.",
+              "1": "Quyền được kiểm đúng ở chỗ cấp địa chỉ tạm — nơi duy nhất biết được ai đang hỏi và họ có được phép hay không."
+            }
+          },
+          "why": {
+            "body": "Vì cách làm hiển nhiên hơn — để kho mở và dùng địa chỉ cố định — đánh mất chỗ duy nhất có thể kiểm quyền.",
+            "points": {
+              "0": "Kho mở nghĩa là ai có địa chỉ cũng đọc được, và địa chỉ thì rò rỉ theo mọi cách: ảnh chụp màn hình, lịch sử trình duyệt, ai đó gửi cho bạn bè.",
+              "1": "Địa chỉ cố định lưu trong cơ sở dữ liệu nghĩa là đổi kho phải đi sửa lại toàn bộ dữ liệu cũ.",
+              "2": "Cái giá phải trả rất rõ và đã được chấp nhận: một địa chỉ tạm đã cấp thì ai cầm cũng dùng được, và không thu hồi lại được. Toàn bộ chính sách thời hạn tồn tại chỉ để thu hẹp hậu quả của điều đó."
+            }
+          },
+          "when": {
+            "body": "Bốn loại tệp, và không loại nào công khai.",
+            "points": {
+              "0": "Bài hát gốc người dùng tải lên, và bản đã được đóng dấu âm thanh.",
+              "1": "Các đoạn giọng đọc dùng làm dấu âm thanh.",
+              "2": "Ảnh đại diện. Riêng loại này có một điểm lắt léo: người đăng nhập bằng Google mang sẵn một địa chỉ ảnh của Google, nên cùng một chỗ lưu chứa hai loại giá trị khác hẳn nhau và mọi nơi đụng vào đều phải phân biệt được."
+            }
+          },
+          "how": {
+            "body": "Cách đưa tệp lên được chọn theo kích thước và theo việc có cần soi nội dung hay không. Nguyên tắc: tệp lớn thì để trình duyệt tự đẩy thẳng lên kho, tệp cần kiểm nội dung thì bắt buộc đi qua máy chủ.",
+            "points": {
+              "0": "Thời hạn của địa chỉ tạm không dùng chung một con số mà thay đổi theo ngữ cảnh, vì nhu cầu thật sự khác nhau.",
+              "1": "Xoá tệp luôn xảy ra sau khi ghi cơ sở dữ liệu xong. Ngược lại là bản ghi còn mà tệp mất — hỏng hẳn; còn thế này thì xấu nhất chỉ là tệp thừa nằm lại, vô hại.",
+              "2": "Đúng vì thế mà có rác, và hiện chưa có việc dọn rác nào. Ba nguồn rác đã biết đều chỉ tốn dung lượng chứ không làm sai dữ liệu — đó là lý do đánh đổi này chấp nhận được, nhưng dung lượng thì chỉ tăng."
+            }
+          },
+          "visualTitle": "Ba cách đưa tệp lên, chọn theo kích thước và theo nhu cầu kiểm tra",
+          "cards": {
+            "0": {
+              "tag": "Bài hát, tới 200 MB",
+              "title": "Trình duyệt đẩy thẳng lên kho",
+              "body": "Máy chủ chỉ cấp một địa chỉ tạm rồi đứng ngoài. Tệp không đi qua máy chủ nên không chiếm luồng xử lý và không tốn băng thông. Cái giá là máy chủ không nhìn thấy tệp, nên chỉ kiểm được gián tiếp."
+            },
+            "1": {
+              "tag": "Ảnh đại diện, tối đa 5 MB",
+              "title": "Chảy qua máy chủ theo dòng",
+              "body": "Cần kiểm định dạng nên phải đi qua. Nhưng đọc theo dòng thay vì nạp hết vào bộ nhớ, để mỗi lượt tải lên không chiếm trọn năm megabyte bộ nhớ máy chủ."
+            },
+            "2": {
+              "tag": "Đoạn giọng đọc, tối đa 10 MB",
+              "title": "Máy chủ cầm trọn tệp",
+              "body": "Nhỏ nhưng vẫn phải qua máy chủ, vì trước khi chấp nhận còn phải đo thời lượng thật của đoạn âm thanh — mà đo thì bắt buộc phải cầm được nội dung tệp trong tay."
+            }
+          },
+          "table": {
+            "title": "Thời hạn địa chỉ tạm — năm con số khác nhau, mỗi con số một lý do",
+            "head": {
+              "a": "Đường dùng",
+              "b": "Sống được bao lâu",
+              "c": "Vì sao đúng chừng đó"
+            },
+            "rows": {
+              "0": {
+                "a": "Tải bài hát lên",
+                "b": "Một giờ",
+                "c": "Hai trăm megabyte trên một đường mạng chậm cần đúng chừng đó thời gian."
+              },
+              "1": {
+                "a": "Ảnh đại diện, dùng thường",
+                "b": "Mười lăm phút",
+                "c": "Chỉ cần sống lâu hơn một lượt xem trang là đủ."
+              },
+              "2": {
+                "a": "Ảnh đại diện trong phòng nghe chung",
+                "b": "Mười hai giờ",
+                "c": "Phòng nhận địa chỉ một lần lúc vào, còn màn hình thì mở lâu hơn mười lăm phút rất nhiều."
+              },
+              "3": {
+                "a": "Nhạc trong phòng nghe chung",
+                "b": "Một giờ",
+                "c": "Một buổi nghe cùng nhau dài hơn một lượt xem trang thông thường."
+              },
+              "4": {
+                "a": "Xin địa chỉ nghe một bài",
+                "b": "Bên gọi chọn, từ một phút tới một ngày",
+                "c": "Nhu cầu khác nhau thật, nên có khoảng cho chọn — kèm trần chặn ở cả hai đầu."
+              }
+            }
+          }
+        },
+        "errors": {
+          "title": "Báo lỗi và đa ngôn ngữ",
+          "lead": "Một lỗi nghiệp vụ phải đi từ nơi sâu nhất của hệ thống — nơi không được phép biết HTTP là gì — ra tới một phản hồi có đúng mã trạng thái và đúng ngôn ngữ người dùng đang đọc. Cách duy nhất làm được là tách nó thành ba thứ rời nhau.",
+          "what": {
+            "body": "Mỗi lỗi mang một mã ngắn, và mã đó là thứ duy nhất tầng nghiệp vụ cần biết. Hai thứ còn lại được suy ra từ nó ở tầng ngoài cùng.",
+            "points": {
+              "0": "Mã lỗi do tầng nghiệp vụ đặt — nó chỉ nói “đây là lỗi không có quyền”, không nói gì về HTTP.",
+              "1": "Mã trạng thái được tra ra từ loại lỗi, ở tầng biết HTTP là gì.",
+              "2": "Câu chữ được tra ra từ mã, theo ngôn ngữ người dùng khai báo. Cùng một mã ra hai câu khác nhau cho hai người khác nhau."
+            }
+          },
+          "why": {
+            "body": "Vì nếu không tách, tầng nghiệp vụ phải tự biết mã trạng thái nào tương ứng với chuyện gì, và phải tự biết người đang gọi nói tiếng gì. Cả hai đều là chuyện của tầng ngoài cùng, và kéo chúng vào trong là buộc phần lõi phụ thuộc vào giao thức mà nó đang phục vụ — hôm nay là HTTP, mai có thể là một đường khác."
+          },
+          "when": {
+            "body": "Mọi lỗi trả về cho người dùng đều đi đường này. Nhưng có đúng hai đường ra, không phải một.",
+            "points": {
+              "0": "Đường gọi thông thường trả về một phản hồi có mã trạng thái.",
+              "1": "Đường realtime không có khái niệm mã trạng thái, nên lỗi được gửi ngược lại đúng người vừa gửi tin, trên một kênh riêng. Hai đường dùng chung bảng mã và chung bộ câu chữ, chỉ khác chỗ trả về."
+            }
+          },
+          "how": {
+            "body": "Mã được chia dải theo module, nên nhìn mã là biết lỗi đến từ đâu. Ngôn ngữ được đặt ở lớp chạy sớm nhất trong toàn bộ chuỗi xử lý, dù mãi tới lớp cuối cùng mới dùng tới — vì bất kỳ lớp nào ở giữa cũng có thể ném ra một lỗi cần dịch.",
+            "points": {
+              "0": "Mỗi mã có sẵn một câu tiếng Anh dự phòng. Nó cứu được trải nghiệm khi thiếu bản dịch, nhưng cũng chính là thứ khiến một bộ từ điển bị quên đăng ký hỏng hoàn toàn lặng lẽ: phản hồi vẫn thành công, nhật ký vẫn sạch, chỉ có câu chữ là rơi về tiếng Anh.",
+              "1": "Giao diện dịch lại lần nữa theo mã, và chỉ dùng câu chữ của máy chủ làm phương án dự phòng — vì giao diện còn phải chèn biến và đổi cách diễn đạt theo từng màn hình.",
+              "2": "Hệ quả: thêm một mã lỗi mới là phải sửa ba chỗ chứ không phải một. Quên chỗ thứ ba thì lỗi đó âm thầm hiện ra bằng tiếng Anh giữa một giao diện tiếng Việt."
+            }
+          },
+          "visualTitle": "Đường đi của một lỗi, từ tầng sâu nhất ra tới người dùng",
+          "flow": {
+            "0": {
+              "title": "Tầng nghiệp vụ ném ra một lỗi",
+              "body": "Kèm đúng một mã. Ở đây không có khái niệm HTTP, không có khái niệm ngôn ngữ — chỉ có “chuyện này sai, và đây là mã của nó”."
+            },
+            "1": {
+              "title": "Lớp ngoài cùng bắt lấy",
+              "body": "Một chỗ duy nhất bắt mọi lỗi thoát ra, thay vì mỗi nơi tự xử lý theo cách riêng. Nhờ vậy hình dạng phản hồi lỗi ở khắp hệ thống giống hệt nhau."
+            },
+            "2": {
+              "title": "Tra ra mã trạng thái",
+              "body": "Từ loại lỗi mà tầng nghiệp vụ đã khai báo. Đây là chỗ “không có quyền” được dịch thành con số mà giao thức hiểu."
+            },
+            "3": {
+              "title": "Tra ra câu chữ theo ngôn ngữ",
+              "body": "Dùng chính mã lỗi làm khoá tra cứu, với ngôn ngữ đã được ghi nhận từ lớp chạy sớm nhất. Không tìm thấy thì rơi về câu tiếng Anh dự phòng."
+            },
+            "4": {
+              "title": "Gộp lại thành một phản hồi",
+              "body": "Mã, câu chữ, và một mã truy vết để sau này lần lại được. Có thêm chi tiết thì đính kèm — chẳng hạn còn bao nhiêu giây nữa mới được thử lại, hay trường nào trong biểu mẫu không hợp lệ."
+            }
+          },
+          "table": {
+            "title": "Loại lỗi quyết định mã trạng thái — bảng tra này là toàn bộ chỗ nối giữa nghiệp vụ và giao thức",
+            "head": {
+              "a": "Loại lỗi tầng nghiệp vụ khai",
+              "b": "Mã trạng thái",
+              "c": "Nghĩa là gì"
+            },
+            "rows": {
+              "0": {
+                "a": "Dữ liệu gửi lên không hợp lệ",
+                "b": "400",
+                "c": "Sai ngay từ đầu vào, chưa cần xét tới nghiệp vụ."
+              },
+              "1": {
+                "a": "Chưa xác thực",
+                "b": "401",
+                "c": "Không biết bạn là ai, hoặc thẻ đã hết hiệu lực."
+              },
+              "2": {
+                "a": "Không đủ quyền",
+                "b": "403",
+                "c": "Biết bạn là ai, nhưng bạn không được phép làm việc này."
+              },
+              "3": {
+                "a": "Không tìm thấy",
+                "b": "404",
+                "c": "Thứ được hỏi tới không tồn tại."
+              },
+              "4": {
+                "a": "Xung đột",
+                "b": "409",
+                "c": "Trạng thái hiện tại không cho phép, ví dụ ai đó vừa sửa trước bạn."
+              },
+              "5": {
+                "a": "Quá nhiều lượt gọi",
+                "b": "429",
+                "c": "Đã vượt hạn mức; phản hồi kèm luôn số giây phải chờ."
+              },
+              "6": {
+                "a": "Nghiệp vụ từ chối",
+                "b": "422",
+                "c": "Dữ liệu đúng hình thức nhưng luật nghiệp vụ không cho."
+              },
+              "7": {
+                "a": "Lỗi nội bộ",
+                "b": "500",
+                "c": "Hệ thống hỏng chứ không phải người gọi sai."
+              }
+            }
+          }
+        },
+        "security": {
+          "title": "Bảo mật lời gọi và giới hạn tần suất",
+          "lead": "Mọi lời gọi vào hệ thống đều đi qua một dãy lớp kiểm tra xếp nối nhau. Thứ tự các lớp không phải chuyện thẩm mỹ — đặt sai một chỗ là cả lớp bảo vệ mất tác dụng mà không có lỗi nào được ghi ra.",
+          "what": {
+            "body": "Giới hạn tần suất là việc đếm số lời gọi trong một khoảng thời gian và từ chối khi vượt ngưỡng. Nghe đơn giản, nhưng hệ thống không dùng một cơ chế duy nhất mà dùng sáu, mỗi cơ chế trả lời một câu hỏi khác nhau và nằm ở một tầng khác nhau — chúng có thể cùng chặn một lời gọi."
+          },
+          "why": {
+            "body": "Vì thiếu nó thì ba chuyện dưới đây xảy ra mà không có gì cản.",
+            "points": {
+              "0": "Một người gọi liên tục làm chậm tất cả những người còn lại.",
+              "1": "Kẻ tấn công dò mật khẩu hoặc dò mã xác thực bằng cách thử liên tục cho tới khi trúng.",
+              "2": "Chi phí trượt khỏi tầm kiểm soát: có một chức năng mà mỗi lần bấm là một lần dịch vụ bên ngoài tính tiền."
+            }
+          },
+          "when": {
+            "body": "Lớp đếm chung áp cho mọi lời gọi, không phân biệt đã đăng nhập hay chưa. Bên cạnh đó là các lớp hẹp hơn đặt đúng vào những chỗ đáng ngờ: các thao tác đăng nhập, các thao tác gửi thư, và một chức năng gọi dịch vụ trả phí bên ngoài."
+          },
+          "how": {
+            "body": "Đếm theo tài khoản khi biết người gọi là ai, và chỉ lùi về đếm theo địa chỉ mạng khi không biết. Khác biệt này quan trọng hơn vẻ ngoài của nó: cả một toà nhà đi chung một đường mạng sẽ dùng chung một bộ đếm, và người bị chặn không có cách nào biết vì sao mình bị chặn.",
+            "points": {
+              "0": "Trần chung là năm trăm lượt mỗi phút cho mọi chức năng, và số lượt còn lại được trả về ngay trong phần đầu của mỗi phản hồi.",
+              "1": "Đúng một chức năng có luật riêng chặt hơn nhiều, và nó tồn tại vì tiền chứ không vì bảo mật: mỗi lần nghe thử giọng đọc là một lần bị tính phí.",
+              "2": "Địa chỉ người gọi do lớp proxy khai báo chỉ được tin khi lời gọi thật sự đến từ một proxy đã đăng ký trước. Tin vô điều kiện thì ai cũng tự khai địa chỉ của mình, và mọi giới hạn theo địa chỉ trở thành vô nghĩa."
+            }
+          },
+          "visualTitle": "Các lớp một lời gọi phải đi qua, theo đúng thứ tự",
+          "layers": {
+            "0": {
+              "title": "Ngôn ngữ và mã theo dõi",
+              "role": "Chạy trước mọi thứ",
+              "body": "Đặt ngôn ngữ phản hồi theo khai báo của trình duyệt, và gắn cho lời gọi một mã theo dõi để mọi dòng nhật ký sinh ra sau đó đều truy ngược được về đúng lời gọi này."
+            },
+            "1": {
+              "title": "Nhận diện người gọi",
+              "role": "Chỉ nhận diện, không chặn",
+              "body": "Đọc thẻ xác thực nếu có, kiểm tra thẻ đã bị thu hồi chưa, rồi ghi lại người gọi là ai. Lời gọi không mang thẻ vẫn đi tiếp bình thường — việc chặn thuộc về lớp cuối, không phải lớp này."
+            },
+            "2": {
+              "title": "Đếm tần suất",
+              "role": "Vị trí quyết định",
+              "body": "Phải nằm chính giữa hai lớp kia. Đặt lên trước lớp nhận diện thì chưa biết người gọi là ai nên mọi thứ đều bị đếm theo địa chỉ mạng, và những người dùng chung một đường mạng bị gộp bộ đếm. Đặt xuống sau lớp phân quyền thì lời gọi thiếu thẻ đã bị từ chối trước khi kịp đếm, và một đợt tấn công nặc danh thoát hoàn toàn khỏi bộ đếm."
+            },
+            "3": {
+              "title": "Kiểm tra quyền",
+              "role": "Chặn ở đây",
+              "body": "So người gọi vừa nhận diện được với danh sách chức năng công khai. Không nằm trong danh sách và không có thẻ hợp lệ thì dừng tại đây."
+            },
+            "4": {
+              "title": "Xử lý nghiệp vụ",
+              "role": "Đích đến",
+              "body": "Tới được đây nghĩa là đã biết người gọi là ai, đã chắc chắn họ chưa vượt hạn mức, và đã chắc chắn họ có quyền."
+            }
+          },
+          "table": {
+            "title": "Sáu lớp giới hạn, mỗi lớp trả lời một câu hỏi khác nhau",
+            "head": {
+              "a": "Lớp",
+              "b": "Câu hỏi nó trả lời",
+              "c": "Phạm vi"
+            },
+            "rows": {
+              "0": {
+                "a": "Đếm chung ở cửa vào",
+                "b": "Người này có gọi quá nhanh không?",
+                "c": "Mọi chức năng, cả nặc danh lẫn đã đăng nhập"
+              },
+              "1": {
+                "a": "Đếm theo từng thao tác xác thực",
+                "b": "Thao tác này có bị gọi quá nhiều không?",
+                "c": "Đăng nhập, làm mới phiên, xác minh mã"
+              },
+              "2": {
+                "a": "Thời gian chờ giữa hai lần",
+                "b": "Đã đủ lâu kể từ lần trước chưa?",
+                "c": "Đăng ký, gửi lại mã, đặt lại mật khẩu"
+              },
+              "3": {
+                "a": "Đếm số lần sai mật khẩu",
+                "b": "Có ai đang dò mật khẩu không?",
+                "c": "Riêng đăng nhập, khoá theo cả tài khoản lẫn địa chỉ"
+              },
+              "4": {
+                "a": "Chặn dò mã phòng",
+                "b": "Có ai đang thử mã phòng hàng loạt không?",
+                "c": "Tra mã phòng nghe chung"
+              },
+              "5": {
+                "a": "Chống lụt trên kênh realtime",
+                "b": "Kết nối này có bắn quá nhiều tin không?",
+                "c": "Kênh realtime, tách theo từng loại tin"
+              }
+            }
+          }
+        },
+        "deploy": {
+          "title": "Đóng gói và đưa lên máy chủ",
+          "lead": "Toàn bộ hệ thống chạy trên đúng một máy chủ nhỏ: bốn nhân, bảy phẩy sáu gigabyte bộ nhớ mà sáu trong số đó đã có chủ, và ổ đĩa chưa tới mười chín gigabyte. Gần như mọi quyết định triển khai đều là hệ quả trực tiếp của con số đó.",
+          "what": {
+            "body": "Mỗi lần đưa lên, mã nguồn được đóng thành hai gói chạy được — một cho máy chủ, một cho giao diện — rồi đẩy lên một kho gói chung. Máy chủ thật không tự đóng gói bao giờ; nó chỉ kéo gói đã đóng sẵn về và khởi động lại."
+          },
+          "why": {
+            "body": "Vì đóng gói ngay trên máy chủ đó sẽ hỏng theo ba cách cùng lúc.",
+            "points": {
+              "0": "Quá trình đóng gói tranh bộ nhớ với cơ sở dữ liệu và hàng đợi đang phục vụ người dùng thật, trên phần bộ nhớ vốn đã gần hết.",
+              "1": "Nó để lại vài gigabyte tệp tạm trên một ổ đĩa không còn chỗ cho chúng.",
+              "2": "Máy đóng gói thuê ngoài mạnh gấp đôi về bộ nhớ, không tốn tiền, và bị xoá sạch ngay sau khi xong — trong khi máy chủ thật chỉ phải tải về khoảng bảy trăm megabyte."
+            }
+          },
+          "when": {
+            "body": "Chỉ khi mã được đưa vào nhánh chính. Mọi nhánh khác dừng ở bước kiểm thử.",
+            "points": {
+              "0": "Đưa lên nhánh phát triển hoặc mở một yêu cầu gộp mã: chỉ chạy kiểm thử, không đụng tới máy chủ.",
+              "1": "Bộ kiểm thử nặng cần dựng cả cơ sở dữ liệu thật để chạy được tách ra một đường riêng, vì nó quá chậm để bắt mỗi lần đưa lên phải chờ."
+            }
+          },
+          "how": {
+            "body": "Mỗi gói được đánh dấu theo đúng phiên bản mã đã tạo ra nó, và dấu đó được ghi lại trên máy chủ. Nhờ vậy lùi về bản trước chỉ là sửa một dòng, và người đăng nhập vào máy gõ lệnh bằng tay cũng ra đúng phiên bản đang chạy chứ không vô tình kéo bản mới nhất.",
+            "points": {
+              "0": "Cây mã trên máy chủ bị ép về đúng nhánh chính thay vì gộp mã vào. Nghe thô bạo, nhưng mọi thứ riêng của máy đó đều nằm ngoài phạm vi quản lý mã nên không bị đụng tới — còn gộp mã thì chỉ cần một thay đổi vặt cũng đủ làm kẹt mọi lần đưa lên sau đó cho tới khi có người vào gỡ tay.",
+              "1": "Bước cuối cùng là chờ máy chủ tự báo khoẻ, thử lại ba mươi lần cách nhau mười giây. Đây mới là cổng chất lượng thật: việc nâng cấp cấu trúc cơ sở dữ liệu chạy lúc khởi động, nên một bước nâng cấp hỏng chỉ lộ ra ở đây. Không có bước chờ này thì lần đưa lên báo xanh trong khi trang đã hỏng.",
+              "2": "Ảnh cũ được dọn sau mỗi lần, nhưng giữ lại một tuần — vừa đủ chỗ trên đĩa, vừa còn đường lùi nếu bản mới có vấn đề."
+            }
+          },
+          "visualTitle": "Ba hệ quả trực tiếp của việc chỉ có một máy chủ nhỏ",
+          "cards": {
+            "0": {
+              "tag": "Đóng gói ở nơi khác",
+              "title": "Máy chủ chỉ kéo về",
+              "body": "Việc nặng được đẩy sang một máy thuê dùng một lần rồi vứt. Máy chủ thật không bao giờ phải vừa đóng gói vừa phục vụ người dùng bằng cùng một phần bộ nhớ."
+            },
+            "1": {
+              "tag": "Chặn trần từng dịch vụ",
+              "title": "Không dịch vụ nào được phình",
+              "body": "Mỗi thành phần bị chặn trần bộ nhớ riêng. Không có trần thì một thành phần rò rỉ bộ nhớ sẽ kéo cả máy xuống, thay vì chỉ tự nó chết và được khởi động lại."
+            },
+            "2": {
+              "tag": "Dọn sau mỗi lần",
+              "title": "Đĩa không tự đầy lên",
+              "body": "Mỗi lần đưa lên sinh thêm một cặp gói mới. Không dọn thì ổ đĩa chưa tới mười chín gigabyte sẽ đầy sau vài chục lần, và lần đầy đó rơi đúng vào giữa một lần đưa lên."
+            }
+          },
+          "table": {
+            "title": "Ba đường chạy tự động, chia theo tốc độ",
+            "head": {
+              "a": "Đường",
+              "b": "Chạy khi nào",
+              "c": "Làm gì"
+            },
+            "rows": {
+              "0": {
+                "a": "Kiểm thử nhanh",
+                "b": "Mở yêu cầu gộp mã, hoặc đưa lên nhánh phát triển",
+                "c": "Kiểm thử đơn vị cho máy chủ, cùng kiểm lỗi và kiểm thử cho giao diện. Không dựng gì nên chạy nhanh."
+              },
+              "1": {
+                "a": "Kiểm thử nặng",
+                "b": "Chạy riêng, không chắn đường",
+                "c": "Dựng cả cơ sở dữ liệu và hàng đợi thật để kiểm. Quá chậm để đứng chắn trước mỗi lần đưa lên."
+              },
+              "2": {
+                "a": "Đưa lên máy chủ",
+                "b": "Khi mã vào nhánh chính",
+                "c": "Chạy lại kiểm thử nhanh, đóng gói, đẩy lên kho, rồi ra lệnh cho máy chủ kéo về và chờ nó báo khoẻ."
+              }
+            }
+          }
+        }
+      },
+      "sections": {
+        "overview": {
+          "eyebrow": "Tổng quan",
+          "title": "Nhìn toàn hệ thống một lượt."
+        },
+        "modules": {
+          "eyebrow": "Ba module",
+          "title": "Ba module, một tiến trình."
+        },
+        "realtime": {
+          "eyebrow": "Realtime",
+          "title": "WebSocket và STOMP."
+        },
+        "infrastructure": {
+          "eyebrow": "Hạ tầng",
+          "title": "Những gì chạy bên dưới."
+        }
+      },
+      "cards": {
+        "modules": {
+          "iam": "IAM",
+          "audio": "Audio",
+          "liveroom": "Live Room"
+        },
+        "infra": {
+          "outbox": "Outbox & Kafka",
+          "redis": "Redis",
+          "storage": "Lưu trữ S3",
+          "errors": "Lỗi & i18n",
+          "security": "Bảo mật & rate limit",
+          "deploy": "Triển khai"
+        }
+      },
       "outro": {
         "eyebrow": "Tiếp theo",
         "title": "Đọc xong rồi thì nghe thử.",
@@ -777,13 +2233,13 @@
       "decisionLabel": "Đánh đổi",
       "library": {
         "title": "Đưa file 200 MB lên mà không bóp nghẹt API server",
-        "subtitle": "Upload trực tiếp bằng presigned URL, và tìm kiếm chịu được lỗi gõ.",
+        "subtitle": "Upload trực tiếp bằng presigned URL, và tìm kiếm lọc được nhiều tiêu chí cùng lúc.",
         "problem": "Cho file đi xuyên qua API server nghĩa là mỗi lần upload chiếm một luồng và một vùng nhớ của backend, rồi cùng lượng dữ liệu đó lại phải đi tiếp lên storage. Người dùng thì chỉ thấy một thanh tiến trình đứng im.",
         "approach": "Backend không chạm vào byte nào của file. Nó ký một URL có hạn, trình duyệt tải thẳng lên object storage, và chỉ khi upload xong backend mới ghi metadata.",
         "detail1": "Kiểm tra định dạng và dung lượng ở client trước khi xin URL — file sai bị chặn trước khi tốn băng thông.",
         "detail2": "Tiến trình đọc từ sự kiện progress của XHR, nên phần trăm hiển thị là số byte thật đã lên.",
         "detail3": "Metadata ghi trong một transaction sau khi upload thành công; upload dở dang không để lại bản ghi rác.",
-        "detail4": "Tìm kiếm chạy trên Elasticsearch với analyzer bỏ dấu và fuzzy matching, có đường lùi về truy vấn PostgreSQL khi Elasticsearch không phản hồi.",
+        "detail4": "Tìm kiếm chạy thẳng trên PostgreSQL: khớp chuỗi con trên tiêu đề, ghép cùng bộ lọc trạng thái, định dạng và khoảng thời lượng trong một truy vấn.",
         "decision": "Không làm resume upload. Chia chunk, theo dõi state từng phần và dọn phần thừa là ba thứ phải bảo trì mãi mãi, đổi lấy giá trị rất nhỏ ở quy mô một file demo."
       },
       "voiceTag": {

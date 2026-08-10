@@ -1,8 +1,8 @@
 # Build on a GitHub runner, ship the image, let the VPS only pull.
 #
 # The VPS is a 4 vCPU / 7.6GB box whose running stack already accounts for roughly 6GB, and its root
-# disk is 19GB. Building there means a Maven reactor and a Next build competing with Elasticsearch
-# and Kafka for the last gigabyte, plus several gigabytes of build layers on a disk that does not
+# disk is 19GB. Building there means a Maven reactor and a Next build competing with Postgres and
+# Kafka for the last gigabyte, plus several gigabytes of build layers on a disk that does not
 # have them to spare. A GitHub runner has 4 vCPU / 16GB and is discarded afterwards, so the VPS ends
 # up handling only a ~700MB pull.
 #
@@ -181,17 +181,3 @@ jobs:
             $COMPOSE logs --tail=120 backend
             echo "Roll back with:  ssh ubuntu@<host> 'cd ~/PWB_MiNi && echo IMAGE_TAG=<previous-sha-tag> > .env.deploy && docker compose -f docker-compose.prod.yml --env-file .env.prod --env-file .env.deploy up -d --no-build'"
             exit 1
-
-      - name: Verify search reached Elasticsearch
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ubuntu
-          key: ${{ secrets.VPS_SSH_KEY }}
-          # Not a gate. A misconfigured SPRING_ELASTICSEARCH_URIS leaves search working — queries
-          # silently fall back to Postgres — so it can never be caught by a health check. This
-          # surfaces the one startup line that distinguishes the two cases.
-          script: |
-            cd ~/PWB_MiNi
-            docker compose -f docker-compose.prod.yml --env-file .env.prod --env-file .env.deploy \
-              logs backend | grep 'SEARCH.startup' | tail -1 || echo "::warning::no SEARCH.startup line found"

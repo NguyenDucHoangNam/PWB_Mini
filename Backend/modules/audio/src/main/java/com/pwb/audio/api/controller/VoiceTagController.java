@@ -175,7 +175,7 @@ public class VoiceTagController {
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<VoiceTagResponse>>> listVoiceTags(
             @CurrentUser UUID userId,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Page<VoiceTagView> page = voiceTagUseCase.listVoiceTags(userId, pageable);
         PageResponse<VoiceTagResponse> body = PageResponses.from(page, VoiceTagResponse::from);
@@ -183,11 +183,11 @@ public class VoiceTagController {
     }
 
     /**
-     * Full-text search over the caller's own voice tags, ranked by relevance.
+     * Search over the caller's own voice tags.
      *
      * <p>Only the name is matched. The synthesis source text is not searched: a tag is found by what its
-     * owner called it, not by the words it happens to say. Matching tolerates typos and missing Vietnamese
-     * diacritics, and falls back to a plain database substring query when the engine is unavailable.
+     * owner called it, not by the words it happens to say. The name is matched as a plain substring, so
+     * there is no tolerance for typos or for missing Vietnamese diacritics.
      */
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<PageResponse<VoiceTagResponse>>> searchVoiceTags(
@@ -195,7 +195,7 @@ public class VoiceTagController {
             @RequestParam(required = false) String q,
             @RequestParam(required = false) VoiceTagType tagType,
             @RequestParam(required = false) String languageCode,
-            @PageableDefault(size = 20) Pageable pageable
+            @PageableDefault(size = 10) Pageable pageable
     ) {
         VoiceTagSearchCriteria criteria = new VoiceTagSearchCriteria(userId, q, tagType, languageCode);
         Page<VoiceTagView> page = voiceTagSearchUseCase.search(criteria, pageable);

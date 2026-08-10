@@ -49,7 +49,7 @@ Khi cần cho đối tác nghe thử bản demo, cách phổ biến hiện nay l
 | CSDL quan hệ | PostgreSQL 16 + Flyway migration |
 | Cache & khóa phân tán | Redis 7.2 |
 | Message broker | Apache Kafka 7.6 (KRaft mode) |
-| Tìm kiếm | Elasticsearch 8.12 (có fallback về Postgres) |
+| Tìm kiếm | PostgreSQL (JPA Specification, khớp chuỗi con) |
 | Lưu trữ file | AWS S3 (presigned URL) |
 | Xử lý audio | FFmpeg / FFprobe |
 | Text-to-Speech | Google Cloud TTS (tạo Voice Tag từ văn bản) |
@@ -79,7 +79,7 @@ Backend/
 ├── shared/
 │   ├── shared-kernel/          # Kiểu dữ liệu dùng chung, mã lỗi
 │   ├── shared-web/             # Xử lý exception, rate limit, CORS
-│   └── shared-infrastructure/  # Storage (S3), Mail, Outbox, Search
+│   └── shared-infrastructure/  # Storage (S3), Mail, Outbox, Kafka, Redis
 └── modules/
     ├── iam/                    # Định danh & phân quyền
     ├── audio/                  # Bài hát, Voice Tag, xử lý FFmpeg
@@ -88,9 +88,9 @@ Backend/
 
 **Giao tiếp bất đồng bộ** dùng **Outbox Pattern**: sự kiện được ghi vào bảng outbox trong **cùng transaction** với thay đổi nghiệp vụ, sau đó một scheduler đọc và đẩy sang Kafka. Bản ghi được đánh dấu `lease_until` khi xử lý, nên không bị publish trùng. Có retry với backoff và Dead Letter Topic.
 
-Luồng dùng Outbox: gửi email OTP, đánh index tìm kiếm.
+Luồng dùng Outbox: gửi email OTP, kích hoạt pipeline xử lý audio.
 
-**Tìm kiếm** đi qua Elasticsearch nhưng luôn có đường lui: khi cluster không phản hồi (timeout đặt rất ngắn — 1s kết nối, 2s socket), truy vấn tự động chuyển về Postgres. Vì vậy health check của Elasticsearch bị **tắt có chủ đích** — search chậm không được phép làm cả ứng dụng bị đánh dấu unhealthy.
+**Tìm kiếm** chạy thẳng trên Postgres bằng một truy vấn JPA Specification — khớp chuỗi con trên tiêu đề, tên hoặc email, cộng các bộ lọc tuỳ chọn. Hệ thống từng dùng Elasticsearch cho phần này (có xếp hạng, khớp gần đúng, bỏ dấu tiếng Việt) nhưng **đã gỡ hẳn ngày 2026-08-10** để lấy lại ~1.3GB RAM trên VPS. Cái giá: gõ `nguyen` không ra `Nguyễn`, và gõ sai một chữ là mất kết quả. Chi tiết ở [docs/technical/iam-06](docs/technical/iam-06-tim-kiem-nguoi-dung.md).
 
 ---
 
@@ -112,7 +112,7 @@ Luồng dùng Outbox: gửi email OTP, đánh index tìm kiếm.
 - Voice Tag từ hai nguồn: **tải file lên** hoặc **tạo bằng Google TTS**
 - Ghép Voice Tag vào bài hát bằng FFmpeg: khớp độ lớn (loudness matching), ducking nhạc nền, chèn theo chu kỳ
 - Xử lý bất đồng bộ qua Kafka, vòng đời trạng thái `UPLOADED → PROCESSING → PROCESSED / FAILED` kèm retry
-- Tìm kiếm bài hát và voice tag (hỗ trợ tiếng Việt có dấu)
+- Tìm kiếm bài hát và voice tag theo tiêu đề, kèm lọc theo trạng thái, định dạng và thời lượng — chỉ trong thư viện của chính mình
 
 📖 Chi tiết: [docs/audio-module.md](docs/audio-module.md)
 
@@ -175,7 +175,7 @@ PWB_MiNi/
 docker compose up -d
 ```
 
-Lệnh này dựng PostgreSQL (cổng **5433**), Redis, Kafka và Elasticsearch.
+Lệnh này dựng PostgreSQL (cổng **5433**), Redis và Kafka.
 
 ### Bước 2 — Cấu hình biến môi trường
 
@@ -234,7 +234,7 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api/v1 pnpm dev
 <details>
 <summary><b>Windows: mọi kết nối mạng của JVM đều lỗi <code>Unable to establish loopback connection</code></b></summary>
 
-Xảy ra khi đường dẫn thư mục tạm chứa dấu cách. Mọi `Selector` của NIO đều hỏng, kéo theo Kafka, S3 và Elasticsearch client cùng chết. Thêm cờ:
+Xảy ra khi đường dẫn thư mục tạm chứa dấu cách. Mọi `Selector` của NIO đều hỏng, kéo theo cả client Kafka lẫn S3 cùng chết. Thêm cờ:
 
 ```bash
 -Dspring-boot.run.jvmArguments="-Djdk.net.unixdomain.tmpdir="
@@ -351,7 +351,7 @@ The usual way to play a demo for a collaborator is a video call with **screen sh
 
 ## 🛠️ 2. Tech Stack
 
-**Backend** — Java 21, Spring Boot 3.5.16 (modular monolith), Spring Security, Spring WebSocket/STOMP, PostgreSQL 16 + Flyway, Redis 7.2, Apache Kafka 7.6 (KRaft), Elasticsearch 8.12 with Postgres fallback, AWS S3, FFmpeg, Google Cloud TTS.
+**Backend** — Java 21, Spring Boot 3.5.16 (modular monolith), Spring Security, Spring WebSocket/STOMP, PostgreSQL 16 + Flyway, Redis 7.2, Apache Kafka 7.6 (KRaft), AWS S3, FFmpeg, Google Cloud TTS.
 
 **Frontend** — Next.js 16 (App Router), React 19, TypeScript strict, TailwindCSS v4, shadcn/ui, Zustand, TanStack Query, `@stomp/stompjs`, next-intl, React Hook Form + Zod, Vitest.
 
@@ -366,14 +366,14 @@ Backend/
 └── modules/{iam,audio,liveroom}
 ```
 
-Async communication uses the **Outbox Pattern** — events are written in the same transaction as the business change, then a leased scheduler publishes them to Kafka with retry and a dead letter topic. Used for OTP email delivery and search indexing.
+Async communication uses the **Outbox Pattern** — events are written in the same transaction as the business change, then a leased scheduler publishes them to Kafka with retry and a dead letter topic. Used for OTP email delivery and the audio processing pipeline.
 
-Search goes through Elasticsearch but always has a fallback: with deliberately short timeouts (1s connect, 2s socket), a slow cluster degrades to a Postgres query. Its health check is therefore **disabled on purpose** — degraded search must never mark the whole application unhealthy.
+Search runs directly on Postgres as a JPA Specification query: substring matching on title, name or email, plus optional filters. Elasticsearch handled this until **2026-08-10**, when it was removed to reclaim ~1.3GB of RAM on the VPS. The cost is real — no ranking, no fuzzy matching, and `nguyen` no longer finds `Nguyễn`.
 
 ## 🎯 4. Modules
 
 - **IAM** — registration with email OTP (delivered async via Kafka), JWT + refresh token rotation, Google sign-in, password reset, account/IP lockout, per-endpoint Redis rate limiting, profile & avatar (S3 presigned, 15-min TTL), admin user management. Roles: `USER`, `PRO`, `ADMIN`.
-- **Audio** — direct-to-S3 upload via presigned URL (MP3/WAV/FLAC, up to 200 MB), voice tags from file upload or Google TTS, FFmpeg watermarking with loudness matching and ducking, async Kafka processing with `UPLOADED → PROCESSING → PROCESSED / FAILED` lifecycle and retry, Vietnamese-aware search.
+- **Audio** — direct-to-S3 upload via presigned URL (MP3/WAV/FLAC, up to 200 MB), voice tags from file upload or Google TTS, FFmpeg watermarking with loudness matching and ducking, async Kafka processing with `UPLOADED → PROCESSING → PROCESSED / FAILED` lifecycle and retry, and search over your own library filtered by status, format and duration.
 - **Live Room** — a review room, not a meeting room. Playback state (play / pause / seek / volume) is synced over STOMP with sequence numbers, and **every participant can control it** — only *starting* playback is blocked while the host is away. Feedback is captured as **timestamp-anchored track comments** (200 chars, 200 per song) rather than lost in chat. Also: code-based join gated by a waiting room, room creation restricted to the `PRO` role, empty-room cleanup after 5 minutes, in-room text chat (PostgreSQL, 90-day retention), WebRTC mesh voice (default capacity 7), moderation (kick with cooldown, remote mute), and STOMP-frame-level rate limiting.
 
 ## 🚀 5. Running Locally
@@ -381,7 +381,7 @@ Search goes through Elasticsearch but always has a fallback: with deliberately s
 **Prerequisites**: JDK 21, Node.js 20+ with pnpm, Docker Desktop, FFmpeg/FFprobe on PATH.
 
 ```bash
-# 1. Infrastructure (Postgres on port 5433, Redis, Kafka, Elasticsearch)
+# 1. Infrastructure (Postgres on port 5433, Redis, Kafka)
 docker compose up -d
 
 # 2. Create .env at the repo root — see the Vietnamese section for required keys

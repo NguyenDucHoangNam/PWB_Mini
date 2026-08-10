@@ -10,7 +10,7 @@ import java.util.List;
 
 public interface SongSearchUseCase {
 
-    /** Relevance-ordered, paged. Falls back to a database query when the search engine is unavailable. */
+    /** Paged. The title is matched as a plain substring; every other criterion narrows the result. */
     Page<SongView> search(SongSearchCriteria criteria, Pageable pageable);
 
     /** Search-as-you-type. Answers with at most {@code limit} titles. */
