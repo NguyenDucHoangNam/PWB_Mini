@@ -42,19 +42,6 @@ public class KafkaConfig {
                 .build();
     }
 
-    /**
-     * Partitioned by document id, so every change to one document lands on the same partition and the
-     * indexer can never apply an older version of it after a newer one.
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    public NewTopic searchIndexTopic(KafkaTopicProperties properties) {
-        return TopicBuilder.name(properties.getSearchIndex())
-                .partitions(3)
-                .replicas(1)
-                .build();
-    }
-
     @Bean
     @ConditionalOnMissingBean
     public ProducerFactory<String, String> producerFactory() {

@@ -9,4 +9,4 @@ export const API_BASE_URL =
 
 export const DEFAULT_STALE_TIME = 5 * 60 * 1000;
 
-export const DEFAULT_PAGE_SIZE = 20;
+export const DEFAULT_PAGE_SIZE = 10;

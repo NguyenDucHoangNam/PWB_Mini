@@ -38,8 +38,5 @@ public interface LiveRoomRepository {
     List<UUID> findEmptyRoomIds(Instant startedBefore);
 
 
-    List<LiveRoom> findAllByIdIn(Collection<UUID> ids);
-
-
     Page<LiveRoom> search(RoomSearchCriteria criteria, Pageable pageable);
 }

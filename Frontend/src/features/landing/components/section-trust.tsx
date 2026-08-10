@@ -28,7 +28,6 @@ const STACK = [
   "PostgreSQL",
   "Redis",
   "Kafka",
-  "Elasticsearch",
   "S3",
   "FFmpeg",
   "WebSocket",

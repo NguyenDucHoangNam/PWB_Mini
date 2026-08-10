@@ -777,13 +777,13 @@
       "decisionLabel": "Trade-off",
       "library": {
         "title": "Moving a 200 MB file without choking the API server",
-        "subtitle": "Direct upload with presigned URLs, and search that survives a typo.",
+        "subtitle": "Direct upload with presigned URLs, and search that filters on more than a keyword.",
         "problem": "Routing the file through the API server means every upload holds a thread and a buffer, and then the same bytes have to travel again to storage. All the user sees is a progress bar that does not move.",
         "approach": "The backend never touches a byte. It signs a short-lived URL, the browser uploads straight to object storage, and only once that succeeds does the backend write metadata.",
         "detail1": "Type and size are checked client-side before a URL is requested — a bad file is rejected before any bandwidth is spent.",
         "detail2": "Progress comes from the XHR progress event, so the percentage is bytes genuinely delivered.",
         "detail3": "Metadata is written in one transaction after the upload succeeds; a half-finished upload leaves no orphan row.",
-        "detail4": "Search runs on Elasticsearch with an accent-folding analyzer and fuzzy matching, falling back to a PostgreSQL query when Elasticsearch is unreachable.",
+        "detail4": "Search runs directly on PostgreSQL: substring matching on the title, combined with status, format and duration filters in a single query.",
         "decision": "No resumable uploads. Chunking, per-part state and orphan cleanup are three things to maintain forever, in exchange for very little at the scale of a single demo file."
       },
       "voiceTag": {

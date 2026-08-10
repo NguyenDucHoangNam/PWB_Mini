@@ -35,7 +35,6 @@ flowchart TB
         PG[("Postgres 16<br/>cổng 5433")]
         RD[("Redis 7.2<br/>cổng 6379")]
         KF[("Kafka 7.6<br/>cổng 9092")]
-        ES[("Elasticsearch 8.12<br/>cổng 9200")]
     end
 
     S3[("AWS S3<br/>ngoài mạng")]
@@ -46,7 +45,7 @@ flowchart TB
     FE <-->|"STOMP /ws"| APP
     FE -->|"tải/phát file qua URL ký sẵn"| S3
 
-    APP --> PG & RD & KF & ES
+    APP --> PG & RD & KF
     APP --> S3 & GG & SMTP
 ```
 
@@ -70,16 +69,15 @@ Phụ thuộc: `liveroom → audio` (lấy bài hát để phát) và `liveroom 
 
 ## 4. Toàn bộ bề mặt API
 
-**68 endpoint REST** trên 12 controller, cộng **11 destination STOMP**.
+**66 endpoint REST** trên 11 controller, cộng **11 destination STOMP**.
 
-### IAM — 24 endpoint
+### IAM — 22 endpoint
 
 | Nhóm | Endpoint |
 |---|---|
 | `/api/v1/auth` | `register` · `verify-otp` · `resend-otp` · `login` · `refresh` · `logout` · `google-login` · `forgot-password` · `reset-password` · `change-password` |
 | `/api/v1/profile` | `GET` xem · `PUT` sửa · `POST` đổi ảnh đại diện |
 | `/api/v1/admin/users` | danh sách · `search` · `suggest` · chi tiết · đổi role · `ban` · `unban` · xoá · `stats` |
-| `/api/v1/admin/search` | `indices` · `reindex` |
 
 ### Audio — 21 endpoint
 
@@ -104,13 +102,12 @@ Quy luật đáng nhớ: **cái gì cần bền vững hoặc cần phân trang 
 
 ## 5. Dữ liệu nằm ở đâu
 
-Năm nơi lưu trữ, mỗi nơi một vai trò rạch ròi:
+Bốn nơi lưu trữ, mỗi nơi một vai trò rạch ròi:
 
 | Nơi | Giữ cái gì | Mất thì sao |
 |---|---|---|
-| **Postgres** | Sự thật. 19 bảng. | Mất hết |
+| **Postgres** | Sự thật. 19 bảng. Cả tìm kiếm cũng chạy thẳng ở đây. | Mất hết |
 | **Redis** | Phiên đăng nhập, bộ đếm, khoá tạm | Mọi người phải đăng nhập lại; **không đăng nhập được** (fail-closed) |
-| **Elasticsearch** | Bản sao để tìm kiếm. 4 index. | Tìm kiếm lùi về truy vấn Postgres — [chấp nhận được, có chủ ý](01-architecture-overview.md) |
 | **S3** | File nhạc, voice tag, ảnh đại diện | Mất file, metadata vẫn còn |
 | **Kafka** | Việc cần làm sau, đang trên đường | Việc kẹt lại trong bảng `outbox_events`, chạy tiếp khi Kafka sống lại |
 
@@ -145,22 +142,18 @@ Chi tiết cả sáu họ ở [02 — Lát cắt dọc đăng nhập](02-lat-cat
 
 Live Room cũng dùng Redis cho throttle tra mã phòng, nhưng phần đếm frame STOMP thì **để trong bộ nhớ tiến trình**, không dùng Redis — một trong những lý do hệ thống hiện chỉ chạy được một instance ([13 §10](13-realtime-stomp.md)).
 
-### 5.3. Elasticsearch — 4 index, tiền tố `pwb`
-
-`pwb_users` · `pwb_songs` · `pwb_voice_tags` · `pwb_rooms`
-
-Đều là **bản sao chỉ đọc**. Không có gì tồn tại duy nhất ở đây. Timeout cố tình ngắn (kết nối 1s, đọc 2s) để một cluster chậm không giữ Tomcat worker và xếp hàng cả việc vào phòng phía sau.
-
-### 5.4. Kafka — 5 topic thật
+### 5.3. Kafka — 3 topic thật
 
 | Topic | Việc |
 |---|---|
 | `voice.processing.v1` | Đóng voice tag vào bài hát (FFmpeg, chạy phút) |
 | `notification.email.v1` | Gửi email (OTP, đặt lại mật khẩu) |
-| `search.index.v1` | Đồng bộ Elasticsearch |
-| `*.DLT` ×2 | Việc thất bại hết số lần thử |
+| `notification.email.v1.DLT` | Email thất bại hết số lần thử |
 
-> **Có một topic thừa:** `iam.audit.v1` tồn tại trong broker nhưng **không có dòng code nào** nhắc tới, và không có dòng outbox nào trỏ vào. Đây là dấu vết của tính năng nhật ký kiểm toán đã bị gỡ — migration `V5__create_iam_audit_logs.sql` tạo bảng, `V10__drop_iam_audit_logs.sql` xoá đi.
+> **Có hai topic thừa trong broker:**
+>
+> - `iam.audit.v1` — **không có dòng code nào** nhắc tới, và không có dòng outbox nào trỏ vào. Dấu vết của tính năng nhật ký kiểm toán đã bị gỡ: migration `V5__create_iam_audit_logs.sql` tạo bảng, `V10__drop_iam_audit_logs.sql` xoá đi.
+> - `search.index.v1` cùng `search.index.v1.DLT` — dấu vết của đồng bộ Elasticsearch, gỡ khỏi code ngày 2026-08-10. Broker đã tạo rồi thì vẫn còn; xoá tay bằng `kafka-topics --delete` nếu muốn dọn.
 
 ---
 
@@ -195,7 +188,7 @@ Bảng có đủ đồ nghề cho việc phát lại tin cậy: `status` · `ret
 
 Cấu hình: quét mỗi **5 giây**, lô **20** dòng, thử lại tối đa **3** lần với giãn cách **1s → 5s → 30s**.
 
-> **Chụp thật từ bảng — đủ ba đường, không thiếu đường nào:**
+> **Chụp thật từ bảng, đo trước ngày 2026-08-10:**
 >
 > | `event_type` | `topic` | số dòng |
 > |---|---|---|
@@ -203,7 +196,9 @@ Cấu hình: quét mỗi **5 giây**, lô **20** dòng, thử lại tối đa **
 > | `SongPersisted` | `voice.processing.v1` | 7 |
 > | `EmailPersisted` | `notification.email.v1` | 1 |
 >
-> Tất cả `SENT`. Con số 75 cho thấy đồng bộ tìm kiếm là nguồn phát sự kiện lớn nhất — mỗi lần lưu một user/bài hát/phòng đều sinh một dòng.
+> Tất cả `SENT`. Giữ lại bảng này vì nó cho thấy một điều đáng nhớ: đồng bộ tìm kiếm từng chiếm 75 trong 83 dòng — mỗi lần lưu một user, bài hát hay phòng đều sinh một dòng.
+>
+> **Loại sự kiện đó không còn nữa.** Elasticsearch bị gỡ ngày 2026-08-10, nên `SearchIndexPersisted` không bao giờ được ghi thêm; những dòng cũ vẫn nằm trong bảng ở trạng thái `SENT`. Chạy lại truy vấn ở [mục 11](#11-tự-kiểm-chứng) sẽ chỉ thấy hai loại còn lại.
 
 ### C. Realtime — chỉ Live Room
 
@@ -276,7 +271,6 @@ Mã nguồn chia theo tính năng: `Frontend/src/features/{auth,liveroom,voice,p
 | [Hạ tầng — Outbox & Kafka](infra-01-outbox-va-kafka.md) | Xương sống bất đồng bộ, lease, DLT | ✅ |
 | [Hạ tầng — Redis](infra-02-redis.md) | Bảy nhóm khoá, fail-open vs fail-closed | ✅ |
 | [Hạ tầng — Lưu trữ S3](infra-03-luu-tru-s3.md) | URL ký sẵn, thời hạn, dọn rác | ✅ |
-| [Hạ tầng — Elasticsearch](infra-04-elasticsearch.md) | Index, ba tầng bảo vệ, lệch phiên bản | ✅ |
 | [Hạ tầng — Lỗi & i18n](infra-05-loi-va-i18n.md) | Mã lỗi, `MessageSource`, dịch phía client | ✅ |
 | [Hạ tầng — Bảo mật & rate limit](infra-06-bao-mat-va-rate-limit.md) | Chuỗi filter, sáu tầng giới hạn, IP tin cậy | ✅ |
 | [Hạ tầng — Triển khai](infra-07-trien-khai.md) | CI/CD, Docker, Nginx, Flyway | ✅ |
@@ -292,6 +286,8 @@ Ghi lại để không mất công đi tìm:
 | Chỗ lệch | Thực tế |
 |---|---|
 | `iam.audit.v1` trong Kafka | Không code nào dùng; dấu vết tính năng audit đã gỡ (`V5` tạo, `V10` xoá) |
+| `search.index.v1` + `.DLT` trong Kafka | Không code nào dùng; dấu vết Elasticsearch đã gỡ ngày 2026-08-10 |
+| `SearchIndexPersisted` trong `outbox_events` | Dòng cũ còn nằm đó ở trạng thái `SENT`, không có dòng mới nào được ghi thêm |
 | `Backend/modules/module-development-standards.md` | Sai 6 điểm so với code — [01 §3.3](01-architecture-overview.md) |
 | `docs/audio-module.md`, `docs/liveroom-module.md` | Hướng dẫn sử dụng, không phải tài liệu kỹ thuật; chưa đối chiếu lại với code |
 | MapStruct trong `pom.xml` | Khai báo và cắm annotation processor, nhưng **0 file** dùng — mapper viết tay hết |
@@ -313,14 +309,10 @@ docker exec -e PGPASSWORD="$(grep -E '^POSTGRES_PASSWORD=' .env | cut -d= -f2-)"
 ```
 
 ```bash
-curl -s "http://localhost:9200/_cat/indices?h=index,docs.count,store.size&s=index"
-```
-
-```bash
 docker exec pwb-kafka kafka-topics --bootstrap-server localhost:9092 --list
 ```
 
-Xem ba đường bất đồng bộ trong một truy vấn:
+Xem các đường bất đồng bộ trong một truy vấn:
 
 ```bash
 docker exec -e PGPASSWORD="$(grep -E '^POSTGRES_PASSWORD=' .env | cut -d= -f2-)" pwb-postgres psql -U pwb_user -d pwb_db -c "SELECT event_type, topic, status, count(*) FROM outbox_events GROUP BY 1,2,3 ORDER BY 4 DESC;"

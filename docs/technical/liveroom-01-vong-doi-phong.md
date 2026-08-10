@@ -175,7 +175,7 @@ if (!room.isOwnedBy(actorId)) {
 
 Ném **`ROOM_NOT_FOUND`**, không phải `FORBIDDEN`. Cùng nguyên tắc "không rò rỉ sự tồn tại" như IAM ([iam-00 §4.1](iam-00-tour.md)): người ngoài không phân biệt được "phòng này không có" với "phòng này có nhưng không phải của bạn". Khuôn mẫu này lặp ở `approve`, `reject`, `end`, `undo-end`, `kick`.
 
-`GET /rooms/search` chạy trên Elasticsearch qua `RoomSearchPort`, cùng khuôn `Optional.empty()` → ngã về Postgres như [iam-06](iam-06-tim-kiem-nguoi-dung.md).
+`GET /rooms/search` gọi thẳng `liveRoomRepository.search`, cùng khuôn Specification như [iam-06](iam-06-tim-kiem-nguoi-dung.md). Từng đi qua `RoomSearchPort` ra Elasticsearch; cả port lẫn engine gỡ ngày 2026-08-10.
 
 ---
 

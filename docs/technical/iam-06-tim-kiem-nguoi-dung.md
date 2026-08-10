@@ -1,197 +1,143 @@
 # IAM — Tìm kiếm người dùng
 
-> `GET /admin/users/search` · `GET /admin/users/suggest` · `GET|POST /admin/search/indices|reindex`
+> `GET /admin/users/search` · `GET /admin/users/suggest`
 > Bối cảnh: [IAM — Tour](iam-00-tour.md)
-> Cơ chế đồng bộ mô tả ở đây **dùng chung** cho cả `pwb_songs`, `pwb_voice_tags`, `pwb_rooms`.
+> Cơ chế mô tả ở đây **dùng chung** cho tìm kiếm bài hát, voice tag và phòng live.
 
 ---
 
 ## 1. Bài toán
 
-Tìm người dùng theo từ khoá gõ dở, gõ sai chính tả, khớp một phần email. Postgres `LIKE '%…%'` làm được nhưng không xếp hạng được, không gợi ý được, và không dùng được index.
+Tìm người dùng theo email hoặc tên, kết hợp với vài bộ lọc: trạng thái tài khoản, vai trò, nhà cung cấp OAuth. Trang quản trị cần cả một danh sách phân trang lẫn một ô gợi ý gõ tới đâu hiện tới đó.
 
-Nhưng đưa tìm kiếm sang Elasticsearch tạo ra ba vấn đề mới:
+Hệ thống từng giải bài này bằng Elasticsearch — một bản sao dữ liệu riêng, đồng bộ qua outbox và Kafka, có xếp hạng theo độ liên quan, khớp gần đúng và analyzer bỏ dấu tiếng Việt. **Toàn bộ phần đó đã bị gỡ ngày 2026-08-10.** Nếu bạn đọc một tài liệu hay một comment nào còn nhắc tới nó, tài liệu đó cũ hơn code.
 
-1. **Hai bản sao dữ liệu** → chúng lệch nhau lúc nào?
-2. **Thêm một thứ có thể chết** → cluster sập thì trang quản trị có sập theo không?
-3. **Ghi vào ES lúc nào** → trong transaction nghiệp vụ, hay sau?
-
-Ba câu trả lời của hệ thống này đều là cùng một triết lý: **tìm kiếm là tiện ích, không phải sự thật.**
+Cái còn lại đơn giản hơn nhiều: một truy vấn JPA Specification chạy thẳng trên Postgres.
 
 ---
 
-## 2. Đồng bộ: ES không bao giờ được ghi trực tiếp
+## 2. Một truy vấn, dựng từ Specification
 
-```mermaid
-flowchart LR
-    A["UserRepositoryImpl.save"] --> B["Postgres commit"]
-    A --> C["SearchIndexPublisher.upsert"]
-    C --> D["outbox_events<br/><i>cùng transaction</i>"]
-    D --> E["scheduler 5s"] --> F["search.index.v1"] --> G["SearchIndexKafkaConsumer"] --> H[("Elasticsearch")]
-```
-
-Đây là **đường B** trong [bản đồ hệ thống](00-ban-do-he-thong.md), và nó là nguồn phát sự kiện lớn nhất — 75 trong 83 dòng outbox.
-
-Điểm mấu chốt nằm ở `SearchIndexPublisher.enqueue`:
+`UserSpecifications.fromCriteria` ghép từng điều kiện có mặt trong `UserSearchCriteria`:
 
 ```java
-/**
- * A search index that falls behind is a degraded search, not a failed write. Serialisation problems
- * are therefore logged rather than thrown — letting one bubble up would abort the transaction of the
- * business operation that triggered it.
- */
-private void enqueue(SearchIndexEvent event) {
-    if (!config.isEnabled()) return;
-    try {
-        outboxEnqueueHelper.enqueue(topicProperties.getSearchIndex(), AGGREGATE_TYPE, event.docId(), ...);
-    } catch (Exception ex) {
-        log.warn("SEARCH.enqueue failed: index={} id={} action={} reason={}", ...);
+public static Specification<UserJpaEntity> fromCriteria(UserSearchCriteria criteria) {
+    Specification<UserJpaEntity> spec = notDeleted();
+
+    if (criteria.status() != null)   spec = spec.and(hasStatus(criteria.status()));
+    if (criteria.role() != null)     spec = spec.and(hasRole(criteria.role().name()));
+    if (criteria.provider() != null) spec = spec.and(hasProvider(criteria.provider()));
+    if (criteria.keyword() != null && !criteria.keyword().isBlank()) {
+        spec = spec.and(keywordMatch(criteria.keyword()));
     }
+    return spec;
 }
 ```
 
-**Nuốt lỗi là cố ý.** Nếu ném, một sự cố tuần tự hoá JSON sẽ làm hỏng cả việc lưu người dùng — tìm kiếm lỗi kéo theo nghiệp vụ lỗi. Ưu tiên ngược lại: cứ lưu người dùng, index lệch thì sửa sau bằng `reindex`.
+Lý do dùng Specification thay vì một loạt method dẫn xuất: bốn tiêu chí đều tuỳ chọn, tức là **16 tổ hợp**. Specification phủ hết bằng một chỗ ghép; `findByStatusAndRole…` thì cần 16 method.
 
-`config.isEnabled()` cho phép tắt hẳn tìm kiếm bằng `pwb.search.enabled: false`. Khi tắt, không dòng outbox nào được ghi và consumer cũng không khởi động (`@ConditionalOnProperty`) — hệ thống vẫn chạy đủ, chỉ mất phần xếp hạng.
+`notDeleted()` luôn là điều kiện đầu tiên, không có nhánh nào bỏ qua được — tài khoản đã xoá mềm không bao giờ lọt ra trang quản trị.
+
+Phần khớp từ khoá:
+
+```java
+public static Specification<UserJpaEntity> keywordMatch(String keyword) {
+    return (root, query, cb) -> {
+        String pattern = "%" + keyword.toLowerCase() + "%";
+        return cb.or(
+                cb.like(cb.lower(root.get("email")), pattern),
+                cb.like(cb.lower(root.get("fullName")), pattern)
+        );
+    };
+}
+```
+
+Đây là toàn bộ những gì "tìm kiếm" nghĩa là bây giờ, và cần nói thẳng nó **không** làm được gì:
+
+| Không có | Hệ quả cụ thể |
+|---|---|
+| Bỏ dấu tiếng Việt | Gõ `nguyen` **không** ra `Nguyễn Văn A` |
+| Khớp gần đúng | Gõ sai một chữ là không ra kết quả nào |
+| Xếp hạng theo độ liên quan | Thứ tự do database quyết định, không phải độ khớp |
+| Dùng được index | `LIKE '%…%'` mở đầu bằng `%` nên Postgres phải quét toàn bảng |
+
+Số điện thoại **không** nằm trong phạm vi tìm — chỉ email và họ tên.
 
 ---
 
-## 3. Ngã về Postgres — cơ chế `Optional`
-
-Port tìm kiếm không trả về danh sách, nó trả về `Optional`:
+## 3. Use case: không còn nhánh nào
 
 ```java
-Optional<UserSearchHits> search(UserSearchCriteria criteria, int from, int size);
-Optional<List<UserSuggestion>> suggest(UserSearchCriteria criteria, int limit);
-```
-
-`Optional.empty()` nghĩa là *"engine không trả lời được"* — chứ không phải *"không có kết quả nào"*. Không tìm thấy gì là một `UserSearchHits` rỗng. Hai tình huống khác hẳn nhau và kiểu dữ liệu phân biệt được chúng.
-
-Use case chỉ việc xử lý hai nhánh:
-
-```java
-Optional<UserSearchHits> hits = userSearchPort.search(criteria, offset, pageSize);
-if (hits.isEmpty()) {
-    log.debug("SEARCH.users fallback to database");
+@Override
+public Page<AdminUserView> search(UUID adminId, UserSearchCriteria criteria, Pageable pageable) {
     return userJpaRepository
             .findAll(UserSpecifications.fromCriteria(criteria), pageable)
             .map(this::toView);
 }
-return toPage(hits.get(), pageable);
 ```
 
-Kết hợp với timeout ngắn của Elasticsearch — kết nối 1s, đọc 2s, có comment trong `application.yml` giải thích: *một request tìm kiếm giữ một Tomcat worker suốt thời gian nó chờ, nên một cluster chậm sẽ xếp hàng cả việc vào phòng lẫn điều khiển nhạc phía sau. Bỏ cuộc nhanh và trả lời từ Postgres là lựa chọn tốt hơn hẳn.*
+Trước đây chỗ này có hai nhánh: hỏi engine trước, `Optional.empty()` thì mới ngã về Postgres. Cả kiểu `Optional`, cả log `SEARCH.users fallback to database`, cả bước lấy id rồi hydrate lại từ Postgres — đều đã biến mất cùng engine. Còn đúng một đường đi.
 
-Và ở tầng healthcheck: `management.health.elasticsearch.enabled: false` — ES chết **không** làm container bị đánh dấu unhealthy và bị thay thế.
-
-Ba tầng bảo vệ nhất quán với nhau: timeout ngắn → ngã về Postgres → không tính vào sức khoẻ.
+Điều này cũng khiến một chi tiết cũ hết ý nghĩa: `total` không còn lệch với số dòng hiển thị. Trước kia tổng số là con số của engine còn danh sách đã bị lọc bớt những id không tìm thấy hàng trong database, nên một trang có thể ghi "20 kết quả" mà chỉ liệt kê 19 dòng. Giờ cả hai đều từ cùng một truy vấn.
 
 ---
 
-## 4. Elasticsearch xếp hạng, Postgres cung cấp dữ liệu
-
-Chi tiết quan trọng nhất của luồng đọc, và code có comment giải thích:
+## 4. Gợi ý gõ dở
 
 ```java
-/**
- * The engine ranked the ids; the rows come from Postgres so nothing renders from a stale copy.
- */
-private Page<AdminUserView> toPage(UserSearchHits hits, Pageable pageable) {
-    Map<UUID, UserJpaEntity> byId = userJpaRepository.findByIdInAndDeletedFalse(hits.ids()).stream()
-            .collect(Collectors.toMap(UserJpaEntity::getId, Function.identity()));
-
-    List<AdminUserView> ordered = hits.ids().stream()
-            .map(byId::get)
-            .filter(Objects::nonNull)
-            .map(this::toView)
-            .toList();
-
-    return new PageImpl<>(ordered, pageable, hits.total());
-}
-```
-
-**Elasticsearch chỉ trả về danh sách id theo thứ tự xếp hạng.** Nội dung hiển thị lấy từ Postgres. Nghĩa là index lệch không bao giờ khiến người dùng thấy dữ liệu cũ — nó chỉ khiến thứ tự hoặc thành phần kết quả hơi lệch.
-
-`.filter(Objects::nonNull)` xử lý trường hợp id có trong index nhưng không còn trong database (đã xoá, index chưa kịp cập nhật): bản ghi đó **âm thầm rơi khỏi trang**.
-
-Cái giá là một chỗ không nhất quán nhỏ: `hits.total()` là con số của Elasticsearch, nhưng danh sách trả về đã bị lọc bớt. Một trang có thể hiện "tìm thấy 20 kết quả" mà chỉ liệt kê 19 dòng.
-
-Bộ lọc `deleted = false` được áp **cả hai phía** — index không nhận bản ghi đã xoá, và `findByIdInAndDeletedFalse` lọc thêm lần nữa. Thừa có chủ ý, vì hai bên có thể lệch nhau.
-
----
-
-## 5. Gợi ý gõ dở
-
-`suggest` cũng có đường ngã về, nhưng khác một điểm:
-
-```java
-if (criteria.keyword() == null || criteria.keyword().isBlank()) {
-    return List.of();
-}
-int capped = Math.clamp(limit, 1, MAX_SUGGESTIONS);   // MAX_SUGGESTIONS = 20
-```
-
-Từ khoá rỗng thì **trả về rỗng ngay**, không chạm cả ES lẫn Postgres. Nếu không, ô gợi ý sẽ nã một truy vấn "lấy tất cả" mỗi lần người dùng xoá hết ô nhập.
-
-`Math.clamp(limit, 1, 20)` chặn client tự đặt `limit=10000`.
-
-Đường ngã về của `suggest` dùng cùng `UserSpecifications` như `search` — nghĩa là **cùng một bộ lọc, hai đường thực thi**, và chúng phải được giữ đồng bộ bằng tay.
-
----
-
-## 6. Consumer: phân biệt lỗi thử lại được và lỗi không
-
-```java
-/**
- * A payload that cannot be parsed will never parse on a retry, so it is raised as a non-retryable
- * failure and routed straight to the dead-letter topic.
- */
-private SearchIndexEvent parse(ConsumerRecord<String, String> record) {
-    try {
-        return objectMapper.readValue(record.value(), SearchIndexEvent.class);
-    } catch (Exception ex) {
-        throw new SearchIndexPayloadException(...);
+@Override
+public List<AdminUserSuggestionView> suggest(UUID adminId, UserSearchCriteria criteria, int limit) {
+    if (criteria.keyword() == null || criteria.keyword().isBlank()) {
+        return List.of();
     }
+    int capped = Math.clamp(limit, 1, MAX_SUGGESTIONS);   // MAX_SUGGESTIONS = 20
+
+    return userJpaRepository
+            .findAll(UserSpecifications.fromCriteria(criteria), PageRequest.of(0, capped))
+            .getContent().stream()
+            .map(entity -> new AdminUserSuggestionView(
+                    entity.getId(), entity.getEmail(), entity.getFullName()))
+            .toList();
 }
 ```
 
-Phân biệt này là cốt lõi của việc dùng hàng đợi cho đúng:
+Hai điểm đáng chú ý, cả hai đều là chặn tự bảo vệ:
 
-- **JSON hỏng** → thử lại 100 lần cũng hỏng → đi thẳng `search.index.v1.DLT`
-- **ES không trả lời** → lần sau có thể được → thử lại
+**Từ khoá rỗng trả rỗng ngay**, không chạm database. Không có dòng này thì mỗi lần người dùng xoá trắng ô nhập, ô gợi ý sẽ nã một truy vấn "lấy tất cả".
 
-Không phân biệt thì một payload hỏng sẽ chặn cứng cả partition, hoặc một sự cố mạng thoáng qua sẽ bị vứt vào DLT oan.
+**`Math.clamp(limit, 1, 20)`** chặn client tự đặt `limit=10000`. Controller cũng đã có `@Max(20)`, nên đây là lớp thứ hai — nó bảo vệ cả những người gọi use case không qua HTTP.
 
----
-
-## 7. Reindex
-
-`POST /admin/search/reindex` dựng lại index từ Postgres. Đây là **cách sửa mọi lệch lạc** — mất mát do `enqueue` nuốt lỗi ở mục 2, do payload rơi vào DLT ở mục 6, hay do ES bị xoá sạch.
-
-`GET /admin/search/indices` xem trạng thái index hiện tại.
-
-Kích thước trang khi reindex: `pwb.search.reindex-page-size: 200`, ghi theo lô `bulk-size: 100`.
-
-Tiền tố index là `pwb` (`index-prefix`), với comment giải thích: một cluster có thể phục vụ nhiều môi trường **miễn là chúng không dùng chung tiền tố**.
+`suggest` và `search` giờ dùng **chung một `Specification`**, nên không còn nguy cơ hai đường lọc lệch nhau như thời còn hai cách thực thi song song.
 
 ---
 
-## 8. Quyết định & đánh đổi
+## 5. Hai endpoint gần như trùng nhau
+
+Sau khi gỡ engine, `GET /admin/users` và `GET /admin/users/search` chạy **cùng một truy vấn** — cùng `UserSpecifications.fromCriteria`, cùng `userJpaRepository.findAll`. Khác nhau đúng hai chỗ:
+
+| | `GET /admin/users` | `GET /admin/users/search` |
+|---|---|---|
+| Tên tham số từ khoá | `keyword` | `q` |
+| Sắp xếp mặc định | `createdAt` giảm dần | không đặt — theo thứ tự database trả |
+
+Thời còn Elasticsearch sự tách bạch này có lý do rõ ràng: một bên đọc database và sắp theo ngày tạo, bên kia đọc engine và sắp theo độ liên quan. Lý do đó đã mất. Hai route được giữ nguyên vì giao diện quản trị đang gọi cả hai, nhưng **đây là chỗ đáng gộp** khi có dịp sửa cả frontend.
+
+---
+
+## 6. Quyết định & đánh đổi
 
 | Quyết định | Thay vì | Vì sao | Cái giá |
 |---|---|---|---|
-| ES chỉ xếp hạng, Postgres cấp dữ liệu | Đọc thẳng document trong ES | Không bao giờ hiển thị bản sao cũ | Thêm một truy vấn Postgres cho mỗi trang |
-| Ghi index qua outbox | Ghi thẳng ES trong use case | Không mất sự kiện, không kéo ES vào transaction | Index luôn trễ vài giây |
-| `enqueue` nuốt lỗi | Ném lên trên | Tìm kiếm lỗi không làm hỏng nghiệp vụ | Mất index âm thầm, phải reindex mới biết |
-| `Optional.empty()` = "không trả lời được" | Trả danh sách rỗng | Phân biệt được "hỏng" với "không có kết quả" | Người gọi phải nhớ xử lý hai nhánh |
-| Timeout 1s/2s | Chờ lâu hơn cho chắc | Không xếp hàng Tomcat worker sau một cluster chậm | Cluster hơi chậm là mất luôn xếp hạng |
-| ES không tính vào healthcheck | Tính như phụ thuộc bắt buộc | Container không bị thay thế vì một thứ có đường dự phòng | Cluster hỏng lâu ngày không ai để ý |
-| Lọc `deleted` ở cả hai phía | Chỉ lọc một phía | Hai bên lệch nhau không lộ dữ liệu đã xoá | `total` có thể lớn hơn số dòng thật hiển thị |
+| Gỡ hẳn Elasticsearch | Giữ và sửa | Bớt một dịch vụ ăn ~1.3GB RAM trên VPS 7.6GB, bớt một bản sao dữ liệu phải giữ đồng bộ | Mất bỏ dấu, khớp gần đúng, xếp hạng |
+| `LIKE '%…%'` trên Postgres | `unaccent` + `pg_trgm` | Không cần `CREATE EXTENSION`, không cần migration, không cần index mới | Không bỏ dấu được, và luôn quét toàn bảng |
+| Dùng Specification | Method dẫn xuất cho từng tổ hợp | Bốn tiêu chí tuỳ chọn là 16 tổ hợp | Truy vấn khó đọc hơn một `@Query` viết tay |
+| `notDeleted()` không thể bỏ qua | Để người gọi tự thêm | Một chỗ quên là lộ tài khoản đã xoá | — |
 | Từ khoá rỗng → trả rỗng ngay | Trả tất cả | Ô gợi ý không nã truy vấn khi bị xoá trắng | — |
+| Chặn `limit` ở cả controller lẫn use case | Chỉ chặn ở controller | Người gọi không qua HTTP cũng được bảo vệ | Cùng một hằng số nằm hai nơi |
 
 ---
 
-## 9. Tự kiểm chứng
+## 7. Tự kiểm chứng
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login -H "Content-Type: application/json" -d '{"email":"admin1@gmail.com","password":"@NamHoang511"}' | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
@@ -200,59 +146,45 @@ TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/login -H "Content-Type
 **Tìm kiếm và gợi ý:**
 
 ```bash
-curl -s "http://localhost:8080/api/v1/admin/users/search?keyword=demo" -H "Authorization: Bearer $TOKEN"
+curl -s "http://localhost:8080/api/v1/admin/users/search?q=demo" -H "Authorization: Bearer $TOKEN"
 ```
 
 ```bash
-curl -s "http://localhost:8080/api/v1/admin/users/suggest?keyword=us&limit=5" -H "Authorization: Bearer $TOKEN"
+curl -s "http://localhost:8080/api/v1/admin/users/suggest?q=us&limit=5" -H "Authorization: Bearer $TOKEN"
 ```
 
-**Xem index thật:**
+**Thấy giới hạn của việc không bỏ dấu** — tạo một người dùng tên có dấu rồi tìm bằng chuỗi không dấu:
 
 ```bash
-curl -s "http://localhost:9200/_cat/indices?h=index,docs.count,store.size&s=index"
+curl -s "http://localhost:8080/api/v1/admin/users/search?q=nguyen" -H "Authorization: Bearer $TOKEN"
 ```
 
-Bốn index `pwb_*`. Số document `pwb_users` phải khớp số hàng `iam_users` chưa xoá.
+Một tài khoản tên `Nguyễn Văn A` **sẽ không xuất hiện**. Đây là hành vi đúng như thiết kế hiện tại, không phải lỗi.
 
-**Xem một document trong index:**
+**Thấy hai endpoint trả cùng kết quả** — chỉ khác thứ tự:
 
 ```bash
-curl -s "http://localhost:9200/pwb_users/_search?size=1&pretty"
+curl -s "http://localhost:8080/api/v1/admin/users?keyword=demo" -H "Authorization: Bearer $TOKEN"
 ```
 
-**Thấy đường ngã về hoạt động** — tắt Elasticsearch rồi gọi lại `search`:
+**Thấy truy vấn thật Hibernate sinh ra** — bật log rồi gọi lại `search`:
 
 ```bash
-docker stop pwb-elasticsearch
+docker exec -e PGPASSWORD="$(grep -E '^POSTGRES_PASSWORD=' .env | cut -d= -f2-)" pwb-postgres psql -U pwb_user -d pwb_db -c "EXPLAIN ANALYZE SELECT * FROM iam_users WHERE deleted = false AND (lower(email) LIKE '%demo%' OR lower(full_name) LIKE '%demo%');"
 ```
 
-Endpoint vẫn trả 200 với kết quả từ Postgres, và log backend có dòng `SEARCH.users fallback to database`. Bật lại bằng `docker start pwb-elasticsearch`. Đây là thí nghiệm đáng làm nhất trong file này — nó chứng minh cả ba tầng bảo vệ ở mục 3 cùng lúc.
-
-**Thấy đường đồng bộ chạy** — đổi tên hồ sơ một người dùng, rồi trong vòng ~5 giây:
-
-```bash
-docker exec -e PGPASSWORD="$(grep -E '^POSTGRES_PASSWORD=' .env | cut -d= -f2-)" pwb-postgres psql -U pwb_user -d pwb_db -c "SELECT event_type, status, created_at FROM outbox_events WHERE event_type='SearchIndexPersisted' ORDER BY created_at DESC LIMIT 3;"
-```
-
-Rồi kiểm tên mới đã có trong `pwb_users` chưa.
-
-**Xem hàng chết:**
-
-```bash
-docker exec pwb-kafka kafka-run-class kafka.tools.GetOffsetShell --bootstrap-server localhost:9092 --topic search.index.v1.DLT
-```
+Kế hoạch sẽ là `Seq Scan` — bằng chứng cho dòng "luôn quét toàn bảng" ở mục 2.
 
 ---
 
-## 10. Giới hạn hiện tại
+## 8. Giới hạn hiện tại
 
 | Giới hạn | Chi tiết |
 |---|---|
-| Index luôn trễ vài giây | Scheduler quét 5s; sửa xong tìm ngay có thể chưa thấy |
-| Mất index âm thầm | `enqueue` nuốt lỗi, chỉ để lại một dòng log warn — mục 2 |
-| `total` có thể lệch số dòng hiển thị | Bản ghi bị lọc ra vẫn tính trong tổng của ES — mục 4 |
-| Bộ lọc tồn tại hai bản | `UserSpecifications` cho Postgres và truy vấn ES phải được giữ khớp bằng tay |
-| ES hỏng lâu không ai biết | Không tính vào healthcheck, không có cảnh báo — chỉ log debug mỗi lần ngã về |
-| Reindex không có tiến độ | Gọi xong không biết chạy tới đâu, xong chưa |
-| Không có `search`/`suggest` cho người dùng thường | Chỉ nhánh admin có; người dùng thường không tìm được ai |
+| Không bỏ dấu tiếng Việt | `nguyen` không ra `Nguyễn` — mục 2 |
+| Không chịu được gõ sai | Sai một ký tự là mất kết quả — mục 2 |
+| Không xếp hạng | Thứ tự do database quyết định, không theo độ khớp |
+| Luôn quét toàn bảng | `LIKE '%…%'` không dùng được B-tree index; chưa đau vì bảng còn nhỏ |
+| Hai endpoint gần trùng nhau | `GET /admin/users` và `/admin/users/search` chạy cùng truy vấn — mục 5 |
+| Không tìm được theo số điện thoại | Chỉ email và họ tên nằm trong phạm vi |
+| Không có `search`/`suggest` cho người dùng thường | Chỉ nhánh admin có |

@@ -9,7 +9,7 @@ const CASES = [
   {
     key: "library",
     index: "01",
-    stack: ["Next.js", "TanStack Query", "Spring Boot", "PostgreSQL", "S3", "Elasticsearch"],
+    stack: ["Next.js", "TanStack Query", "Spring Boot", "PostgreSQL", "S3"],
   },
   {
     key: "voiceTag",

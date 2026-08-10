@@ -33,13 +33,6 @@ spring:
       group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID:pwb-backend}
       auto-offset-reset: earliest
 
-  # No default: application.yml falls back to http://localhost:9200, which inside the backend
-  # container resolves to the container itself. Every query would then fail and fall through to
-  # Postgres — search keeps answering, so nothing surfaces the misconfiguration except the log line
-  # `SEARCH.* fallback to database` appearing on every request.
-  elasticsearch:
-    uris: ${SPRING_ELASTICSEARCH_URIS}
-
   mail:
     host: ${SPRING_MAIL_HOST}
     port: ${SPRING_MAIL_PORT:587}

@@ -11,14 +11,15 @@ Comment mở đầu `deploy.yml` nói thẳng con số:
 
 > *The VPS is a 4 vCPU / 7.6GB box whose running stack already accounts for roughly 6GB, and its root disk is 19GB.*
 
-Trên một chiếc máy như vậy phải chạy: Postgres, Redis, Kafka, Elasticsearch, coturn, backend, frontend, nginx, certbot. Gần như mọi quyết định triển khai dưới đây đều là hệ quả của việc **6GB trong 7.6GB đã có chủ**, và đĩa còn chưa tới 19GB.
+Trên một chiếc máy như vậy phải chạy: Postgres, Redis, Kafka, coturn, backend, frontend, nginx, certbot. Gần như mọi quyết định triển khai dưới đây đều là hệ quả của việc **6GB trong 7.6GB đã có chủ**, và đĩa còn chưa tới 19GB.
 
 Đó là lý do:
 
 - Build trên GitHub runner, VPS **chỉ pull**
 - Mọi container có `mem_limit`
 - Dọn image sau mỗi lần deploy
-- Elasticsearch bị loại khỏi healthcheck ([infra-04 §1](infra-04-elasticsearch.md)) — một dịch vụ ăn RAM mà đã có đường dự phòng
+
+> Sức ép RAM cũng chính là lý do **Elasticsearch bị gỡ hẳn ngày 2026-08-10**: nó chiếm `mem_limit: 1280m` — nhiều hơn cả Kafka — cho một tính năng mà Postgres đã trả lời được. Đọc [iam-06](iam-06-tim-kiem-nguoi-dung.md) để biết cái giá phải trả.
 
 ---
 
@@ -65,7 +66,7 @@ GitHub runner (4 vCPU / 16GB, dùng xong vứt)
 VPS: docker compose pull  (~700MB)
 ```
 
-Build trên VPS nghĩa là Maven reactor và Next build tranh RAM với Elasticsearch và Kafka, cộng vài GB layer trên một đĩa không có chỗ. Runner thì miễn phí và bị vứt sau đó.
+Build trên VPS nghĩa là Maven reactor và Next build tranh RAM với Postgres và Kafka, cộng vài GB layer trên một đĩa không có chỗ. Runner thì miễn phí và bị vứt sau đó.
 
 Ảnh được **gắn tag theo commit**, và tag ấy ghi vào một file riêng trên VPS:
 
@@ -177,14 +178,13 @@ Client kết nối tới đúng `/ws`, không có dấu gạch cuối ([13 §3.1
 
 ## 8. Compose production
 
-Chín service, mỗi cái có `restart: unless-stopped` và phần lớn có `healthcheck` + `mem_limit`:
+Tám service, mỗi cái có `restart: unless-stopped` và phần lớn có `healthcheck` + `mem_limit`:
 
 | Service | Ảnh | `mem_limit` |
 |---|---|---|
 | postgres | `postgres:16-alpine` | — |
 | redis | `redis:7.2-alpine` | — |
 | kafka | `confluentinc/cp-kafka:7.6.0` | 1g |
-| elasticsearch | `elasticsearch:8.12.0` | 1280m |
 | backend | `ghcr.io/…/pwb-backend:${IMAGE_TAG:-main}` | 1500m |
 | coturn | `coturn/coturn:4.6-alpine` | 256m |
 | frontend | `ghcr.io/…/pwb-frontend:${IMAGE_TAG:-main}` | — |
@@ -200,8 +200,6 @@ Một comment về bí mật:
 > *Never baked into the image: `Backend/.dockerignore` excludes the credential from the build*
 
 Credential Google (cho TTS) được gắn vào lúc chạy, không nằm trong ảnh. Ảnh đẩy lên GHCR thì ai kéo được cũng đọc được mọi layer.
-
-**Elasticsearch 8.12.0** ở đây chính là phía server của chuyện lệch phiên bản với client ở [infra-04 §4.2](infra-04-elasticsearch.md).
 
 ---
 

@@ -53,43 +53,41 @@ Mọi đường đều qua `requireOwnedSong` / `requireOwnedVoiceTag`, tức l�
 
 ---
 
-## 3. Tìm kiếm: giống IAM, khác một chỗ quan trọng
+## 3. Tìm kiếm: giống IAM, khác hai chỗ
 
-Cơ chế nền — outbox → Kafka → Elasticsearch, `Optional.empty()` nghĩa là "không trả lời được", ES xếp hạng và Postgres cấp dữ liệu — **giống hệt** và đã mô tả đầy đủ ở [iam-06](iam-06-tim-kiem-nguoi-dung.md). Không lặp lại ở đây.
+Cơ chế nền là một truy vấn JPA Specification chạy thẳng trên Postgres — **giống hệt** và đã mô tả đầy đủ ở [iam-06](iam-06-tim-kiem-nguoi-dung.md), gồm cả những gì `LIKE '%…%'` không làm được: không bỏ dấu tiếng Việt, không chịu được gõ sai, không xếp hạng. Không lặp lại ở đây.
 
-Ba điểm khác:
+> Trước ngày 2026-08-10 chặng này chạy trên Elasticsearch, và mục này từng mô tả một cái bẫy đáng nhớ: engine trả về id đã xếp hạng, nhưng `findAllByIdIn` lấy hàng về **theo thứ tự của Postgres**, nên phải duyệt theo danh sách id chứ không theo kết quả database — quên là mất sạch thứ hạng mà danh sách trông vẫn hợp lệ. Cái bẫy đó không còn chỗ tồn tại: không còn engine, không còn bước lấy id rồi hydrate lại.
 
-### 3.1. Thứ hạng được áp lại bằng tay
+Hai điểm khác so với IAM:
+
+### 3.1. Tìm kiếm bị giới hạn theo chủ sở hữu
+
+`SongSearchCriteria` mang `userId`, và `SongSpecifications.fromCriteria` bắt đầu bằng `ownedBy(criteria.userId())` — điều kiện này **không có nhánh nào bỏ qua được**, khác với bốn điều kiện còn lại đều tuỳ chọn:
 
 ```java
-/**
- * The engine ranked the ids; the rows come from Postgres so nothing renders from a stale copy. The
- * database returns them in its own order, so the ranking is re-applied here — losing it would leave
- * a "most relevant first" list sorted by nothing in particular.
- */
-List<Song> ordered = hits.ids().stream()
-        .map(byId::get)
-        .filter(Objects::nonNull)
-        .toList();
+public static Specification<SongJpaEntity> fromCriteria(SongSearchCriteria criteria) {
+    Specification<SongJpaEntity> spec = ownedBy(criteria.userId());
+
+    if (criteria.hasKeyword())          spec = spec.and(titleContains(criteria.keyword()));
+    if (!criteria.statuses().isEmpty()) spec = spec.and(statusIn(criteria.statuses()));
+    if (criteria.format() != null && !criteria.format().isBlank()) {
+        spec = spec.and(hasFormat(criteria.format()));
+    }
+    if (criteria.minDurationSeconds() != null || criteria.maxDurationSeconds() != null) {
+        spec = spec.and(durationBetween(criteria.minDurationSeconds(), criteria.maxDurationSeconds()));
+    }
+    return spec;
+}
 ```
 
-Vế thứ hai là chỗ dễ sai nhất khi cài đặt kiểu "ES xếp hạng, DB cấp dữ liệu": `findAllByIdIn` trả về theo thứ tự của Postgres, **không** theo thứ tự đã hỏi. Lấy thẳng kết quả đó ra hiển thị là mất toàn bộ công xếp hạng — danh sách trông vẫn hợp lệ nên bug này rất khó nhận ra.
+Người dùng chỉ tìm được **bài hát của chính mình**. Khác hẳn IAM, nơi tìm kiếm là công cụ của admin để duyệt toàn bộ người dùng. Ở Audio, tìm kiếm là công cụ cá nhân — không có tìm kiếm toàn cục, không có khám phá nhạc của người khác.
 
-Cách chữa: duyệt theo `hits.ids()` rồi tra map, không duyệt theo kết quả database.
+Đây cũng là chỗ Audio lọc nhiều hơn IAM hẳn: ngoài từ khoá còn có trạng thái (nhiều giá trị), định dạng file, và khoảng thời lượng — `durationBetween` xử lý cả ba trường hợp chỉ có cận dưới, chỉ có cận trên, hoặc có cả hai.
 
-`filter(Objects::nonNull)` xử lý id đã bị xoá, kèm comment: *"the index is eventually consistent, so it can briefly point at something that is already gone."*
+### 3.2. Truy vấn nằm trong repository, không ở tầng application
 
-Cùng vấn đề, cùng cách chữa như [iam-06 §4](iam-06-tim-kiem-nguoi-dung.md) — nhưng ở đây comment nói rõ **vì sao** phải áp lại thứ tự, còn bên IAM thì không.
-
-### 3.2. Tìm kiếm bị giới hạn theo chủ sở hữu
-
-`SongSearchCriteria` mang `userId`, và mọi truy vấn đều lọc theo nó. Người dùng chỉ tìm được **bài hát của chính mình**.
-
-Khác hẳn IAM, nơi tìm kiếm là công cụ của admin để duyệt toàn bộ người dùng. Ở Audio, tìm kiếm là công cụ cá nhân — không có tìm kiếm toàn cục, không có khám phá nhạc của người khác.
-
-### 3.3. Đường ngã về dùng Specification riêng
-
-`songRepository.search(criteria, pageable)` — Audio đóng gói đường ngã về vào repository, trong khi IAM gọi thẳng `UserSpecifications` từ tầng application. Kết quả giống nhau; Audio giữ được ranh giới tầng sạch hơn.
+`songRepository.search(criteria, pageable)` — Audio đóng gói truy vấn vào repository, trong khi IAM gọi thẳng `UserSpecifications` và `UserJpaRepository` từ tầng application. Kết quả giống nhau; Audio giữ được ranh giới tầng sạch hơn, use case không biết gì về JPA.
 
 Cả `search` lẫn `suggest` đều có `MAX_SUGGESTIONS = 20` và trả rỗng ngay khi không có từ khoá — giống IAM.
 
@@ -117,7 +115,7 @@ Hệ quả thực tế: mỗi người trong một phòng Live Room tự phân t
 | Trần 1 ngày | Dài hơn | URL ký sẵn không thu hồi được | Nhu cầu lâu hơn phải xin lại |
 | Chỉ chủ sở hữu xin được URL | Ai cũng xin được | Kiểm quyền ở chỗ cấp, không ở chỗ dùng | URL đã cấp thì ai cầm cũng dùng |
 | Tìm kiếm giới hạn theo người dùng | Tìm toàn cục | Nhạc chưa phát hành là riêng tư | Không có khám phá, không có tìm kiếm công khai |
-| Áp lại thứ hạng bằng tay | Dùng thứ tự Postgres trả về | Giữ được kết quả xếp hạng | Một vòng lặp phải nhớ viết ở mọi chỗ dùng khuôn này |
+| `ownedBy` là điều kiện không bỏ qua được | Để người gọi tự thêm bộ lọc chủ sở hữu | Một chỗ quên là lộ nhạc của người khác | — |
 | Vẽ waveform ở client | Tính trước ở server | Không cần thêm bước xử lý | Mỗi người trong phòng phân tích lại cùng một file |
 
 ---
@@ -152,19 +150,13 @@ curl -s "http://localhost:8080/api/v1/songs/search?keyword=intro" -H "Authorizat
 
 **Thấy tìm kiếm bị giới hạn theo chủ sở hữu** — đăng nhập bằng `pro2@gmail.com` và tìm cùng từ khoá. Không thấy bài của `pro1`.
 
-**Thấy đường ngã về:**
+**Thấy các bộ lọc cùng hoạt động** — từ khoá, trạng thái và khoảng thời lượng trong một lần gọi:
 
 ```bash
-docker stop pwb-elasticsearch
+curl -s "http://localhost:8080/api/v1/songs/search?keyword=intro&status=PROCESSED&minDuration=60&maxDuration=300" -H "Authorization: Bearer $T"
 ```
 
-`search` vẫn trả 200, log có `SEARCH.songs fallback to database`. Bật lại bằng `docker start pwb-elasticsearch`.
-
-**Đếm document trong index nhạc:**
-
-```bash
-curl -s "http://localhost:9200/pwb_songs/_count?pretty"
-```
+**Thấy giới hạn của việc không bỏ dấu** — đặt tên một bài có dấu rồi tìm bằng chuỗi không dấu. Bài đó **sẽ không xuất hiện**, đúng như thiết kế hiện tại.
 
 ---
 
@@ -175,7 +167,8 @@ curl -s "http://localhost:9200/pwb_songs/_count?pretty"
 | Bài `FAILED` phát ra bản không có dấu | Không cảnh báo ở tầng API — mục 1 |
 | URL đã cấp không thu hồi được | Bản chất của URL ký sẵn; chỉ hạn chế được bằng thời hạn |
 | `voice-tags/audio-url` không kiểm khoảng thời hạn | Bất đối xứng với `songs/audio-url` — mục 2 |
-| Không có tìm kiếm công khai | Chỉ tìm được nhạc của chính mình — mục 3.2 |
+| Không có tìm kiếm công khai | Chỉ tìm được nhạc của chính mình — mục 3.1 |
+| Tìm kiếm không bỏ dấu, không xếp hạng | `LIKE '%…%'` trên tiêu đề; chi tiết ở [iam-06 §2](iam-06-tim-kiem-nguoi-dung.md) |
 | Waveform tính lại ở mỗi client | Kế hoạch tính trước chưa cài đặt — mục 4 |
 | Không có phát trực tuyến theo đoạn | Client tải cả file; không hỗ trợ HLS hay range request do backend điều khiển |
 | Không đếm lượt nghe | Không có gì ghi lại việc một bài đã được phát |

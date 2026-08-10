@@ -25,13 +25,6 @@ spring:
     default-property-inclusion: non_null
   flyway:
     out-of-order: true
-  elasticsearch:
-    uris: ${SPRING_ELASTICSEARCH_URIS:http://localhost:9200}
-    # Deliberately short. A search request holds a Tomcat worker for as long as it waits, so a slow
-    # cluster would queue up joins, playback control and everything else behind it. Giving up quickly
-    # and answering from Postgres is strictly better than waiting.
-    connection-timeout: 1s
-    socket-timeout: 2s
   servlet:
     multipart:
       max-file-size: 100MB
@@ -55,11 +48,6 @@ management:
   endpoint:
     health:
       show-details: never
-  health:
-    elasticsearch:
-      # Search degrades to a database query when the cluster is gone, so its absence must not mark the
-      # whole application unhealthy and get the container replaced.
-      enabled: false
 
 logging:
   level:
@@ -92,12 +80,6 @@ pwb:
     retry:
       max-attempts: 3
       backoff-seconds: [1, 5, 30]
-  search:
-    enabled: true
-    # One cluster can host several environments as long as they do not share a prefix.
-    index-prefix: pwb
-    bulk-size: 100
-    reindex-page-size: 200
   iam:
     jwt:
       # No default on purpose: a fallback here is a signing key published in the repository, and an
@@ -176,12 +158,8 @@ pwb:
 kafka:
   topics:
     email: notification.email.v1
-    search-index: search.index.v1
   admin:
     new-topics:
       - name: notification.email.v1.DLT
-        partitions: 1
-        replicas: 1
-      - name: search.index.v1.DLT
         partitions: 1
         replicas: 1

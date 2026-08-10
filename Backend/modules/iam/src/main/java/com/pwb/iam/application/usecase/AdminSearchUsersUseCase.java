@@ -11,10 +11,7 @@ import java.util.UUID;
 
 public interface AdminSearchUsersUseCase {
 
-    /**
-     * Relevance-ordered admin search. Falls back to the same specification query the plain listing uses
-     * when the search engine is unavailable.
-     */
+    /** Admin search. Runs the same specification query the plain listing uses, with the keyword added. */
     Page<AdminUserView> search(UUID adminId, UserSearchCriteria criteria, Pageable pageable);
 
     List<AdminUserSuggestionView> suggest(UUID adminId, UserSearchCriteria criteria, int limit);

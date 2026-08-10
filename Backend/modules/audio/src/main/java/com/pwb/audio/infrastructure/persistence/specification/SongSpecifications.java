@@ -6,12 +6,11 @@ import com.pwb.audio.infrastructure.persistence.entity.SongJpaEntity;
 import org.springframework.data.jpa.domain.Specification;
 
 /**
- * The database stand-in for a song search, used when Elasticsearch is unreachable.
+ * How a song search is expressed against the database.
  *
- * <p>It matches on a substring of the title, which is a plainer thing than what the index does: no
- * tolerance for typos, and no matching "Hà Nội" from "ha noi", because a {@code LIKE} compares the
- * characters as stored. Every filter is still applied, so the result is a narrower set of the right
- * rows rather than the wrong ones.
+ * <p>It matches on a substring of the title, which is a plain thing: no tolerance for typos, and no
+ * matching "Hà Nội" from "ha noi", because a {@code LIKE} compares the characters as stored. Every
+ * filter is still applied, so the result is a narrower set of the right rows rather than the wrong ones.
  */
 public final class SongSpecifications {
 

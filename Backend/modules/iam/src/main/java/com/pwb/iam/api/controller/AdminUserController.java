@@ -86,12 +86,13 @@ public class AdminUserController {
     }
 
     /**
-     * Full-text search, ranked by relevance and tolerant of typos and missing Vietnamese diacritics, so
-     * "nguyen van a" finds "Nguyễn Văn A". Matches on email and full name; phone is not searched.
+     * Keyword search over email and full name; phone is not searched. Matching is a plain substring
+     * comparison against the characters as stored, so "nguyen van a" does not find "Nguyễn Văn A".
      *
-     * <p>The listing above stays as it is — it orders by creation date and answers straight from the
-     * database. This one falls back to exactly that query when the search engine is unavailable, so the
-     * endpoint keeps working with plainer matching rather than failing.
+     * <p>Since search stopped going through a separate engine this runs the same specification query as
+     * the listing above, which accepts the same keyword under the name {@code keyword}. What still
+     * differs is the default ordering: the listing defaults to newest first, this one to whatever the
+     * database returns. Kept as its own route because the admin UI calls both.
      */
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<PageResponse<AdminUserResponse>>> search(

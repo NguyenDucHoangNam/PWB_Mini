@@ -73,7 +73,7 @@ Kafka → worker → tải hai file về đĩa → đo độ to → dựng đồ
 
 ### Chặng 5 — Nghe và tìm
 
-URL ký sẵn để phát, Elasticsearch để tìm.
+URL ký sẵn để phát, một truy vấn Postgres để tìm.
 
 → [audio-05](audio-05-phat-nhac-va-tim-kiem.md)
 

@@ -777,13 +777,13 @@
       "decisionLabel": "Đánh đổi",
       "library": {
         "title": "Đưa file 200 MB lên mà không bóp nghẹt API server",
-        "subtitle": "Upload trực tiếp bằng presigned URL, và tìm kiếm chịu được lỗi gõ.",
+        "subtitle": "Upload trực tiếp bằng presigned URL, và tìm kiếm lọc được nhiều tiêu chí cùng lúc.",
         "problem": "Cho file đi xuyên qua API server nghĩa là mỗi lần upload chiếm một luồng và một vùng nhớ của backend, rồi cùng lượng dữ liệu đó lại phải đi tiếp lên storage. Người dùng thì chỉ thấy một thanh tiến trình đứng im.",
         "approach": "Backend không chạm vào byte nào của file. Nó ký một URL có hạn, trình duyệt tải thẳng lên object storage, và chỉ khi upload xong backend mới ghi metadata.",
         "detail1": "Kiểm tra định dạng và dung lượng ở client trước khi xin URL — file sai bị chặn trước khi tốn băng thông.",
         "detail2": "Tiến trình đọc từ sự kiện progress của XHR, nên phần trăm hiển thị là số byte thật đã lên.",
         "detail3": "Metadata ghi trong một transaction sau khi upload thành công; upload dở dang không để lại bản ghi rác.",
-        "detail4": "Tìm kiếm chạy trên Elasticsearch với analyzer bỏ dấu và fuzzy matching, có đường lùi về truy vấn PostgreSQL khi Elasticsearch không phản hồi.",
+        "detail4": "Tìm kiếm chạy thẳng trên PostgreSQL: khớp chuỗi con trên tiêu đề, ghép cùng bộ lọc trạng thái, định dạng và khoảng thời lượng trong một truy vấn.",
         "decision": "Không làm resume upload. Chia chunk, theo dõi state từng phần và dọn phần thừa là ba thứ phải bảo trì mãi mãi, đổi lấy giá trị rất nhỏ ở quy mô một file demo."
       },
       "voiceTag": {

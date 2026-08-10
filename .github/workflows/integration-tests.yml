@@ -1,6 +1,6 @@
 # The Testcontainers suites (**/*IT.java, run by failsafe) — deliberately NOT in the deploy path.
 #
-# They start real Postgres, Kafka, Redis and Elasticsearch containers, which takes minutes rather
+# They start real Postgres, Kafka and Redis containers, which takes minutes rather
 # than seconds. Putting that in front of every deploy would mean either waiting for it or learning
 # to ignore it, and on a private repository it would burn the free Actions minutes that the deploy
 # itself needs. Nightly plus on-demand catches the same regressions a day earlier than a demo would.
@@ -16,7 +16,7 @@ jobs:
   integration:
     name: Backend integration tests
     runs-on: ubuntu-latest
-    # A cold pull of the Elasticsearch and Kafka images dominates the first run.
+    # A cold pull of the Postgres and Kafka images dominates the first run.
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4

@@ -68,7 +68,6 @@ public class KafkaConsumerConfig {
         handler.addNotRetryableExceptions(
                 com.pwb.infra.mail.consumer.MailPayloadException.class,
                 com.pwb.infra.mail.consumer.MailTemplateException.class,
-                com.pwb.infra.search.consumer.SearchIndexPayloadException.class,
                 IllegalArgumentException.class);
         handler.setCommitRecovered(true);
 

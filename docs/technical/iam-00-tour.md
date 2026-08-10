@@ -93,7 +93,7 @@ Cấm, bỏ cấm, đổi vai trò, xoá. Ba trong bốn thao tác đó **thu h�
 
 ### Xuyên suốt — Tìm kiếm
 
-Danh sách người dùng phía admin chạy trên Elasticsearch, **ngã về Postgres** khi cluster không trả lời.
+Tìm kiếm và gợi ý phía admin chạy thẳng trên Postgres bằng một truy vấn JPA Specification. Từng chạy trên Elasticsearch; phần đó gỡ ngày 2026-08-10 và mất theo bỏ dấu, khớp gần đúng lẫn xếp hạng.
 
 → [iam-06 — Tìm kiếm](iam-06-tim-kiem-nguoi-dung.md)
 

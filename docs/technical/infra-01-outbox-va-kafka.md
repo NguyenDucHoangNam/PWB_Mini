@@ -125,7 +125,6 @@ DefaultErrorHandler handler = new DefaultErrorHandler(recoverer, backOff);
 handler.addNotRetryableExceptions(
         MailPayloadException.class,
         MailTemplateException.class,
-        SearchIndexPayloadException.class,
         IllegalArgumentException.class);
 handler.setCommitRecovered(true);
 factory.setConcurrency(1);
@@ -137,23 +136,24 @@ Năm quyết định trong khối này:
 
 **Danh sách lỗi không thử lại.** Đây là phần quan trọng nhất. Một payload JSON hỏng sẽ **không bao giờ** parse được, nên thử lại 60 giây chỉ tổ chặn partition. Nó đi thẳng DLT.
 
-Chú ý: danh sách này **liệt kê tên lớp cụ thể của từng module** — `MailPayloadException`, `SearchIndexPayloadException`. Cấu hình chung phải biết tên ngoại lệ của từng consumer. Thêm consumer mới có lỗi không-thử-lại-được thì phải sửa file này, và **quên là lỗi đó sẽ được thử lại vô ích rồi mới vào DLT sau 60 giây**.
+Chú ý: danh sách này **liệt kê tên lớp cụ thể của từng module** — `MailPayloadException`, `MailTemplateException`. Cấu hình chung phải biết tên ngoại lệ của từng consumer. Thêm consumer mới có lỗi không-thử-lại-được thì phải sửa file này, và **quên là lỗi đó sẽ được thử lại vô ích rồi mới vào DLT sau 60 giây**. Chiều ngược lại cũng phải nhớ: gỡ một consumer thì dòng tương ứng ở đây thành rác — `SearchIndexPayloadException` đã được xoá khỏi danh sách này cùng lúc gỡ Elasticsearch.
 
 **`.DLT` giữ nguyên partition.** Thứ tự trong một partition được bảo toàn cả ở hàng chết.
 
 **`setCommitRecovered(true)`** — sau khi đẩy vào DLT thì commit offset. Không có nó, consumer đọc lại đúng bản ghi đó mãi mãi.
 
-**`setConcurrency(1)`** — một luồng cho mỗi listener. Với `voice.processing.v1` thì bắt buộc (FFmpeg ăn CPU, xem [audio-04 §3](audio-04-pipeline-xu-ly.md)); với email và index thì đây là giới hạn thông lượng chưa cần gỡ.
+**`setConcurrency(1)`** — một luồng cho mỗi listener. Với `voice.processing.v1` thì bắt buộc (FFmpeg ăn CPU, xem [audio-04 §3](audio-04-pipeline-xu-ly.md)); với email thì đây là giới hạn thông lượng chưa cần gỡ.
 
-### 5.1. Ba consumer, ba tính cách
+### 5.1. Hai consumer, hai tính cách
 
 | Topic | Consumer group | Đặc thù |
 |---|---|---|
 | `notification.email.v1` | `pwb-mail-consumer` | Gửi SMTP; nội dung đã kết xuất sẵn |
-| `search.index.v1` | `pwb-search-indexer` | Ghi Elasticsearch; trễ là chấp nhận được |
 | `voice.processing.v1` | `audio-song-processor` | **Chạy hàng phút**; phải nới `max.poll.interval.ms` lên 30 phút |
 
-Cái thứ ba là ngoại lệ duy nhất không dùng mặc định — lý do ở [audio-04 §3](audio-04-pipeline-xu-ly.md).
+Cái thứ hai là ngoại lệ duy nhất không dùng mặc định — lý do ở [audio-04 §3](audio-04-pipeline-xu-ly.md).
+
+> Từng có consumer thứ ba, `pwb-search-indexer` trên `search.index.v1`, ghi vào Elasticsearch. Nó là nguồn phát sự kiện lớn nhất của bảng outbox — 75 trong 83 dòng — và biến mất cùng Elasticsearch ngày 2026-08-10.
 
 ---
 
@@ -200,7 +200,7 @@ Chuỗi `register` → 201 → outbox → Kafka → SMTP hỏng → DLT hoàn to
 | Backoff 1s→30s, bỏ cuộc sau 60s | Thử lại lâu hơn | Chập mạng thì qua được; hỏng thật thì không giữ partition | Sự cố dài hơn 60 giây đẩy mọi thứ vào DLT |
 | Danh sách lỗi không thử lại | Thử lại mọi lỗi | Payload hỏng không chặn partition | Cấu hình chung phải biết tên lớp của từng module |
 | `.DLT` giữ nguyên partition | Một partition | Thứ tự được bảo toàn ở hàng chết | — |
-| `concurrency = 1` | Nhiều luồng | Bắt buộc cho FFmpeg | Email và index cũng bị giới hạn theo |
+| `concurrency = 1` | Nhiều luồng | Bắt buộc cho FFmpeg | Email cũng bị giới hạn theo |
 | Kết xuất email trước khi xếp hàng | Kết xuất lúc gửi | Consumer không cần biết template hay ngôn ngữ | Payload lớn; sửa template không ảnh hưởng thư đang chờ |
 
 ---
@@ -259,7 +259,7 @@ Cột `LAG` là số bản ghi chưa xử lý.
 | Bảng `outbox_events` không được dọn | Hàng `SENT` giữ vĩnh viễn; chưa có scheduler nào xoá |
 | Trễ tối thiểu 5 giây | Chu kỳ quét; sự kiện cần nhanh hơn phải đi đường realtime |
 | Thông lượng 20 hàng / 5 giây | Khoảng 4 sự kiện/giây; đủ hiện tại, không đủ cho tải lớn |
-| `concurrency = 1` cho mọi consumer | Email và index bị giới hạn theo nhu cầu của FFmpeg — mục 5 |
+| `concurrency = 1` cho mọi consumer | Email bị giới hạn theo nhu cầu của FFmpeg — mục 5 |
 | Danh sách lỗi không-thử-lại phải cập nhật thủ công | Quên là chịu 60 giây thử lại vô ích — mục 5 |
 | Nhiều instance thì relay chạy trùng | Lease giảm nhẹ nhưng chưa có test; cùng vấn đề với [scheduler Live Room](liveroom-07-scheduler.md) |
 | Không đo được | Không có chỉ số cho độ sâu hàng đợi, tỉ lệ thử lại, tuổi hàng cũ nhất |

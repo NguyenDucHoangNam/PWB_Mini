@@ -65,7 +65,7 @@ Ba điều đọc ra được ngay từ đồ thị này:
 |---|---|---|
 | `shared-kernel` | Không gì cả — Java thuần | `DomainBaseEntity`, `ApiResponse`, `PageResponse`, `BusinessException`, `ErrorCode`, `ErrorCategory`, `SysErrorCode`, `ValidationException`, `DateTimeUtils`, `UuidGenerator` |
 | `shared-web` | Có HTTP | `GlobalExceptionHandler`, `WebErrorMapper`, `MessageSourceConfig` + `MessageResolver`, `LocaleFilter`, `CorrelationIdFilter`, `HttpRateLimitFilter` + `HttpRateLimitService`, `CookieUtils`, `@CurrentUser` / `@CurrentClientIp` / `@CurrentUserAgent` + argument resolver, `AuthenticatedUser`, `ClientIpResolver`, `ErrorResponseWriter`, `WebMvcConfig` |
-| `shared-infrastructure` | Có hạ tầng ngoài | `infra/kafka`, `infra/redis`, `infra/storage` (S3), `infra/mail` (consumer + template), `infra/outbox`, `infra/search` (consumer đồng bộ Elasticsearch) |
+| `shared-infrastructure` | Có hạ tầng ngoài | `infra/kafka`, `infra/redis`, `infra/storage` (S3), `infra/mail` (consumer + template), `infra/outbox` |
 
 Lý do tách `kernel` khỏi `web`: `ErrorCode` và `BusinessException` được domain layer ném ra, mà domain thì không được biết HTTP. Việc quy `ErrorCode` thành mã HTTP nằm ở `WebErrorMapper` bên `shared-web` — đúng chỗ biết HTTP là gì.
 
@@ -279,7 +279,7 @@ Kiểm chứng được bằng một lệnh grep: trong toàn bộ `modules/live
 
 Cái này mua được ba thứ: đổi nguồn dữ liệu chỉ cần viết adapter mới; test use case chỉ cần stub port; và khi cần tách module ra service riêng thì biết chính xác phải thay hai file nào.
 
-Port thứ ba, `RoomSearchPort`, cùng khuôn nhưng trỏ ra hạ tầng (Elasticsearch) thay vì module khác.
+Từng có một port thứ ba, `RoomSearchPort`, cùng khuôn nhưng trỏ ra hạ tầng (Elasticsearch) thay vì module khác. Nó biến mất cùng Elasticsearch ngày 2026-08-10 — tìm kiếm phòng giờ gọi thẳng `LiveRoomRepository`, vốn đã nằm trong domain của chính Live Room nên không cần port nào cả.
 
 ---
 
@@ -313,7 +313,7 @@ Tất cả dùng chung một Postgres. Việc chia sân nằm ở hai chỗ:
 | Port trong domain của bên gọi | Gọi thẳng repository module khác | Chỉ 2 file biết về module khác; stub được khi test | Thêm một interface + một adapter cho mỗi quan hệ |
 | Dải version Flyway | Schema Postgres riêng mỗi module | Join được, một connection pool, migration đơn giản | Phải nhớ dải; không có tường chặn thật ở tầng DB |
 | Rate limiter đặt trong security chain | Servlet filter đứng trước | Có principal → giới hạn theo tài khoản, không theo IP | Phụ thuộc thứ tự filter, phải khoá bằng test riêng |
-| Elasticsearch timeout 1s/2s, ngã về Postgres | Chờ cluster trả lời | Một search chậm giữ Tomcat worker, xếp hàng cả join phòng lẫn điều khiển nhạc phía sau | Kết quả tìm kiếm có lúc kém phong phú hơn |
+| Tìm kiếm chạy thẳng trên Postgres | Một search engine riêng | Bớt một dịch vụ ăn RAM và một bản sao dữ liệu phải giữ đồng bộ trên VPS 7.6GB | Mất bỏ dấu, khớp gần đúng và xếp hạng — [iam-06](iam-06-tim-kiem-nguoi-dung.md) |
 
 ---
 

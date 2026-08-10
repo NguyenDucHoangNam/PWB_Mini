@@ -8,7 +8,6 @@ import com.pwb.audio.infrastructure.persistence.entity.SongJpaEntity;
 import com.pwb.audio.infrastructure.persistence.mapper.SongMapper;
 import com.pwb.audio.infrastructure.persistence.repository.SongJpaRepository;
 import com.pwb.audio.infrastructure.persistence.specification.SongSpecifications;
-import com.pwb.audio.infrastructure.search.AudioSearchIndexWriter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,19 +24,12 @@ public class SongRepositoryImpl implements SongRepository {
 
     private final SongJpaRepository songJpaRepository;
     private final SongMapper songMapper;
-    private final AudioSearchIndexWriter searchIndexWriter;
 
-    /**
-     * The search index is refreshed from the saved aggregate, not the incoming one: only the persisted
-     * form carries the generated id and the audit timestamps the index sorts on.
-     */
     @Override
     public Song save(Song song) {
-        Song saved = song.isNew()
+        return song.isNew()
                 ? songMapper.toDomain(songJpaRepository.save(songMapper.toEntity(song)))
                 : songMapper.toDomain(songJpaRepository.save(applyToExisting(song)));
-        searchIndexWriter.songSaved(saved);
-        return saved;
     }
 
     @Override
@@ -65,16 +57,6 @@ public class SongRepositoryImpl implements SongRepository {
     }
 
     @Override
-    public List<Song> findAllByIdIn(Collection<UUID> ids) {
-        if (ids.isEmpty()) {
-            return List.of();
-        }
-        return songJpaRepository.findAllById(ids).stream()
-                .map(songMapper::toDomain)
-                .toList();
-    }
-
-    @Override
     public Page<Song> search(SongSearchCriteria criteria, Pageable pageable) {
         return songJpaRepository.findAll(SongSpecifications.fromCriteria(criteria), pageable)
                 .map(songMapper::toDomain);
@@ -83,7 +65,6 @@ public class SongRepositoryImpl implements SongRepository {
     @Override
     public void deleteById(UUID id) {
         songJpaRepository.deleteById(id);
-        searchIndexWriter.songDeleted(id);
     }
 
     private SongJpaEntity applyToExisting(Song song) {
