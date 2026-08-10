@@ -759,7 +759,10 @@
         "lead": "Đi qua kiến trúc tổng thể, ba module, tầng realtime và phần hạ tầng bên dưới — viết từ code, không viết từ bản đặc tả."
       },
       "nav": {
-        "title": "Trong trang này",
+        "title": "Các phần",
+        "pagerTitle": "Chuyển giữa các phần",
+        "previous": "Phần trước",
+        "next": "Phần tiếp theo",
         "overview": "Tổng quan",
         "modules": "Ba module",
         "realtime": "Realtime",

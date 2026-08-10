@@ -1,118 +1,67 @@
 "use client";
 
-import { useCallback, useEffect, useState, type MouseEvent } from "react";
-import { useReducedMotion } from "framer-motion";
+import { useCallback, useRef, type KeyboardEvent } from "react";
 import { useTranslations } from "next-intl";
-import { TECHNICAL_SECTIONS, TECHNICAL_SECTION_IDS } from "@/features/showcase/lib/technical-sections";
+import { TECHNICAL_SECTIONS } from "@/features/showcase/lib/technical-sections";
 
-/* Matches ANCHOR_OFFSET: a heading counts as "reached" once it clears the sticky
-   header plus this bar, which is where the reader's eye actually lands. */
-const ACTIVATION_LINE = 176;
-
-function useActiveSection(ids: readonly string[]): string {
-  const [active, setActive] = useState(ids[0]);
-
-  useEffect(() => {
-    let frame = 0;
-    let timer = 0;
-
-    const read = () => {
-      if (frame) window.cancelAnimationFrame(frame);
-      if (timer) window.clearTimeout(timer);
-      frame = 0;
-      timer = 0;
-
-      /* The last section is usually too short to ever cross the activation line, so the
-         bottom of the document has to claim it explicitly. */
-      const atBottom =
-        window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
-
-      if (atBottom) {
-        setActive(ids[ids.length - 1]);
-        return;
-      }
-
-      let current = ids[0];
-      for (const id of ids) {
-        const element = document.getElementById(id);
-        if (element && element.getBoundingClientRect().top <= ACTIVATION_LINE) {
-          current = id;
-        }
-      }
-      setActive(current);
-    };
-
-    /* rAF keeps the indicator in step with the scroll while the page is on screen, but it
-       is throttled to nothing in a background tab — and correctness must not hinge on the
-       frame loop running. So a timer is armed alongside it and whichever lands first does
-       the read, cancelling the other. */
-    const schedule = () => {
-      if (!frame) frame = window.requestAnimationFrame(read);
-      if (!timer) timer = window.setTimeout(read, 120);
-    };
-
-    read();
-    window.addEventListener("scroll", schedule, { passive: true });
-    window.addEventListener("resize", schedule);
-
-    return () => {
-      if (frame) window.cancelAnimationFrame(frame);
-      if (timer) window.clearTimeout(timer);
-      window.removeEventListener("scroll", schedule);
-      window.removeEventListener("resize", schedule);
-    };
-  }, [ids]);
-
-  return active;
+interface TechnicalNavProps {
+  active: string;
+  onSelect: (id: string) => void;
 }
 
-export function TechnicalNav() {
+/* One panel is mounted at a time, so this is a tablist, not a table of contents: the bar
+   is the only way back out of a section, which is why it stays stuck to the top. */
+export function TechnicalNav({ active, onSelect }: TechnicalNavProps) {
   const t = useTranslations("features.technical.nav");
-  const prefersReducedMotion = useReducedMotion();
-  const active = useActiveSection(TECHNICAL_SECTION_IDS);
+  const tabsRef = useRef<(HTMLButtonElement | null)[]>([]);
 
-  /* Plain hrefs stay the no-JS fallback; this only upgrades the jump to a smooth one
-     and keeps the hash in the URL so the link is still shareable. */
-  const handleJump = useCallback(
-    (event: MouseEvent<HTMLAnchorElement>, id: string) => {
-      const element = document.getElementById(id);
-      if (!element) return;
+  /* Automatic activation: arrows switch the panel outright rather than only moving focus.
+     Focus follows without scrolling — the panel swap already owns the scroll position. */
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLUListElement>) => {
+      const count = TECHNICAL_SECTIONS.length;
+      const current = TECHNICAL_SECTIONS.findIndex((section) => section.id === active);
+
+      let next = -1;
+      if (event.key === "ArrowRight") next = (current + 1) % count;
+      else if (event.key === "ArrowLeft") next = (current - 1 + count) % count;
+      else if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = count - 1;
+
+      if (next === -1) return;
 
       event.preventDefault();
-      const from = window.scrollY;
-      element.scrollIntoView({
-        behavior: prefersReducedMotion ? "auto" : "smooth",
-        block: "start",
-      });
-      window.history.replaceState(null, "", `#${id}`);
-
-      /* A smooth scroll is driven by the compositor, so anything that stops it producing
-         frames — a background tab, an extension, a browser that quietly ignores the hint —
-         leaves the reader exactly where they were, with the nav looking broken. If nothing
-         has moved by now the animation was never going to run, so take the jump instantly.
-         Any movement at all, animated or from the reader scrolling away, cancels this. */
-      window.setTimeout(() => {
-        if (window.scrollY === from) {
-          element.scrollIntoView({ behavior: "auto", block: "start" });
-        }
-      }, 600);
+      onSelect(TECHNICAL_SECTIONS[next].id);
+      tabsRef.current[next]?.focus({ preventScroll: true });
     },
-    [prefersReducedMotion],
+    [active, onSelect],
   );
 
   return (
-    <nav aria-label={t("title")} className="sticky top-24 z-30">
+    <div className="sticky top-24 z-30">
       <div className="neu-raised rounded-full bg-[#e0e5ec] p-2 dark:bg-[#1e222b]">
-        <ul className="neu-scroll-thin flex items-center gap-1.5 overflow-x-auto">
+        <ul
+          role="tablist"
+          aria-label={t("title")}
+          onKeyDown={handleKeyDown}
+          className="neu-scroll-thin flex items-center gap-1.5 overflow-x-auto"
+        >
           {TECHNICAL_SECTIONS.map(({ id, icon: Icon }, position) => {
             const isActive = id === active;
 
             return (
               <li key={id} className="shrink-0">
-                <a
-                  href={`#${id}`}
-                  onClick={(event) => handleJump(event, id)}
-                  aria-current={isActive ? "true" : undefined}
+                <button
+                  type="button"
+                  role="tab"
+                  id={`${id}-tab`}
+                  ref={(node) => {
+                    tabsRef.current[position] = node;
+                  }}
+                  aria-selected={isActive}
+                  aria-controls={id}
+                  tabIndex={isActive ? 0 : -1}
+                  onClick={() => onSelect(id)}
                   className={[
                     "group flex items-center gap-2.5 rounded-full px-4 py-2.5 text-sm font-semibold beat-16th transition-all",
                     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600",
@@ -137,12 +86,12 @@ export function TechnicalNav() {
                   <span className="font-mono text-[0.65rem] font-bold tabular-nums text-slate-400 dark:text-slate-500">
                     {String(position + 1).padStart(2, "0")}
                   </span>
-                </a>
+                </button>
               </li>
             );
           })}
         </ul>
       </div>
-    </nav>
+    </div>
   );
 }

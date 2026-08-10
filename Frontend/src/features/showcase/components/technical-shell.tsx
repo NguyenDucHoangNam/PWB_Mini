@@ -7,10 +7,6 @@ import { useTranslations } from "next-intl";
 import { Eyebrow, Reveal, SectionTitle } from "@/components/marketing/section-primitives";
 import { cn } from "@/lib/utils";
 
-/* Clears the sticky header (h-20) plus the section nav resting at top-24, so an
-   anchor jump never parks a heading underneath either of them. */
-export const ANCHOR_OFFSET = "scroll-mt-[10.5rem]";
-
 interface TechnicalSectionShellProps {
   id: string;
   index: number;
@@ -31,11 +27,15 @@ export function TechnicalSectionShell({
   className,
 }: TechnicalSectionShellProps) {
   return (
+    /* The panel holds no focusable content of its own, so it takes a tab stop — otherwise
+       a keyboard reader leaves the tab bar and lands past everything they just switched to. */
     <section
       id={id}
+      role="tabpanel"
+      aria-labelledby={`${id}-tab`}
+      tabIndex={0}
       className={cn(
-        "neu-raised rounded-3xl bg-[#e0e5ec] p-6 dark:bg-[#1e222b] sm:p-10",
-        ANCHOR_OFFSET,
+        "neu-raised rounded-3xl bg-[#e0e5ec] p-6 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-[#1e222b] sm:p-10",
         className,
       )}
     >

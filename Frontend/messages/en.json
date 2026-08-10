@@ -759,7 +759,10 @@
         "lead": "A read-through of the architecture, the three modules, the realtime layer and the infrastructure underneath — written from the code, not from a spec."
       },
       "nav": {
-        "title": "On this page",
+        "title": "Sections",
+        "pagerTitle": "Move between sections",
+        "previous": "Previous",
+        "next": "Next",
         "overview": "Overview",
         "modules": "Modules",
         "realtime": "Realtime",
