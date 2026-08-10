@@ -634,6 +634,26 @@
               }
             }
           },
+          "devices": {
+            "title": "Check your camera and microphone",
+            "body": "Before sending a request to join, you can preview and test your camera and microphone devices. This step is optional — you can choose to join with devices off and turn them on later.",
+            "note": "The app automatically remembers your device preferences for future room entries.",
+            "mediaHint": "Camera preview interface with toggle buttons for mic and camera before joining.",
+            "facts": {
+              "preview": {
+                "label": "Preview",
+                "value": "Live camera preview container"
+              },
+              "camera": {
+                "label": "Camera",
+                "value": "Optional toggle on/off before requesting"
+              },
+              "mic": {
+                "label": "Microphone",
+                "value": "Optional toggle on/off before entering"
+              }
+            }
+          },
           "door": {
             "title": "Wait for the host to let you in",
             "body": "Once you enter the code, your request shows up for the host, who presses Admit or Decline. Admitted, you are taken in after a short countdown, or you can press to go straight in. If the room fills up while you wait, the request is declined because there is no space.",
@@ -675,22 +695,22 @@
             }
           },
           "listen": {
-            "title": "Listen to a track together",
-            "body": "Pick a track from your library and the whole room hears the same moment of it. Play, pause, seeking and volume apply to everyone. Under the waveform, anyone can pin a comment to a specific moment, and it pops up when the music reaches it.",
-            "note": "You can only pick tracks from your own library, and only ones that have finished processing. While the host is away the music stays paused until they come back.",
-            "mediaHint": "Short video: pick a track, the music plays, and a comment pops up at its moment.",
+            "title": "Voice, Chat & Synchronized Listening",
+            "body": "Inside the Live Room, participants can turn on mic/camera for direct conversation, exchange instant messages in Chat, and listen to music together. Playback, pause, seeking, and timestamped comments are all synced in real-time for everyone.",
+            "note": "You can freely toggle your microphone, camera, or send chat messages at any time. When music is playing, everyone listens at the exact same timestamp.",
+            "mediaHint": "Live Room in action: displaying participant videos, realtime chat panel, and synchronized music player.",
             "facts": {
               "source": {
-                "label": "Track source",
-                "value": "The library of whoever picks it"
+                "label": "Voice & Chat",
+                "value": "Directly via Mic, Camera & Chat Panel"
               },
               "sync": {
-                "label": "In sync",
-                "value": "Everyone hears the same position"
+                "label": "Synced Listening",
+                "value": "Everyone listens at the exact same timestamp"
               },
               "comments": {
-                "label": "Pinned comments",
-                "value": "Up to 200 characters"
+                "label": "Timestamp Comments",
+                "value": "Pin feedback to specific audio moments"
               }
             }
           },

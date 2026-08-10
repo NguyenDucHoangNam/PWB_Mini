@@ -634,6 +634,26 @@
               }
             }
           },
+          "devices": {
+            "title": "Kiểm tra camera và micro",
+            "body": "Trước khi gửi yêu cầu tham gia phòng, bạn có thể kiểm tra và xem trước thiết bị camera, micro của mình. Bước này hoàn toàn tuỳ chọn — bạn có thể chọn tắt hết thiết bị rồi vào phòng và bật lên sau.",
+            "note": "Ứng dụng tự động lưu lựa chọn thiết bị của bạn cho các lần tham gia phòng tiếp theo.",
+            "mediaHint": "Giao diện xem trước camera và các nút bật/tắt mic/camera trước khi xin vào phòng.",
+            "facts": {
+              "preview": {
+                "label": "Xem trước",
+                "value": "Khung xem trực tiếp tín hiệu camera"
+              },
+              "camera": {
+                "label": "Camera",
+                "value": "Tùy chọn bật/tắt trước khi xin vào"
+              },
+              "mic": {
+                "label": "Micro",
+                "value": "Tùy chọn bật/tắt trước khi xin vào"
+              }
+            }
+          },
           "door": {
             "title": "Chờ chủ phòng cho vào",
             "body": "Nhập mã xong, yêu cầu của bạn hiện ra trước mặt chủ phòng và chủ phòng bấm Cho vào hoặc Từ chối. Được duyệt, bạn vào phòng sau một nhịp đếm ngược ngắn, hoặc bấm để vào ngay. Nếu phòng vừa đầy trong lúc bạn chờ, yêu cầu sẽ bị từ chối vì hết chỗ.",
@@ -675,22 +695,22 @@
             }
           },
           "listen": {
-            "title": "Nghe nhạc cùng nhau",
-            "body": "Chọn một bài trong thư viện của bạn, cả phòng sẽ nghe ở đúng cùng một vị trí. Phát, tạm dừng, tua và âm lượng đều áp dụng cho mọi người. Ngay dưới dạng sóng, ai cũng ghim được bình luận vào một mốc thời gian, và bình luận đó hiện lên khi nhạc chạy tới nơi.",
-            "note": "Bạn chỉ chọn được bài trong thư viện của chính mình và bài đã xử lý xong. Khi chủ phòng thoát ra, nhạc tạm dừng cho tới lúc chủ phòng quay lại.",
-            "mediaHint": "Video ngắn: chọn một bài, nhạc chạy, và một bình luận hiện lên đúng mốc của nó.",
+            "title": "Nói chuyện, chat và nghe nhạc cùng nhau",
+            "body": "Trong phòng Live Room, các thành viên có thể bật micro/camera để trao đổi trực tiếp, nhắn tin nhanh qua khung Chat và cùng nghe nhạc đồng bộ. Mọi thao tác phát, tạm dừng, tua bài hay ghim bình luận theo mốc thời gian đều được đồng bộ thời gian thực cho cả phòng.",
+            "note": "Bạn có thể tự do bật/tắt micro, camera hoặc gửi tin nhắn chat bất cứ lúc nào. Khi phát nhạc, tất cả mọi người sẽ cùng nghe chính xác tại một mốc thời gian.",
+            "mediaHint": "Hình ảnh phòng Live Room hoạt động: hiển thị video thành viên, khung chat realtime và trình phát nhạc đồng bộ.",
             "facts": {
               "source": {
-                "label": "Nguồn nhạc",
-                "value": "Thư viện của người chọn bài"
+                "label": "Nói chuyện & Chat",
+                "value": "Trực tiếp qua Micro, Camera & Khung chat"
               },
               "sync": {
-                "label": "Đồng bộ",
-                "value": "Cả phòng nghe cùng một vị trí"
+                "label": "Nghe nhạc đồng bộ",
+                "value": "Cả phòng nghe cùng một mốc thời gian thực"
               },
               "comments": {
-                "label": "Bình luận theo mốc",
-                "value": "Tối đa 200 ký tự"
+                "label": "Ghim bình luận",
+                "value": "Ghim nhận xét theo từng mốc phát bài hát"
               }
             }
           },
