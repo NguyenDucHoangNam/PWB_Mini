@@ -6,7 +6,6 @@ import { TECHNICAL_SECTION_IDS } from "@/features/showcase/lib/technical-section
 import { TechnicalHero } from "./technical-hero";
 import { TechnicalInfra } from "./technical-infra";
 import { TechnicalNav } from "./technical-nav";
-import { TechnicalOutro } from "./technical-outro";
 import { TechnicalOverview } from "./technical-overview";
 import { TechnicalPager } from "./technical-pager";
 import { TechnicalRealtime } from "./technical-realtime";
@@ -16,8 +15,6 @@ const PANELS: Record<string, ComponentType> = {
   realtime: TechnicalRealtime,
   infrastructure: TechnicalInfra,
 };
-
-const LAST_SECTION_ID = TECHNICAL_SECTION_IDS[TECHNICAL_SECTION_IDS.length - 1];
 
 /* Each section runs long enough that stacking all four turned the page into one endless
    scroll where the reader lost track of which one they were in. Only the selected panel is
@@ -83,8 +80,6 @@ export function TechnicalContent() {
       <ActivePanel />
 
       <TechnicalPager active={active} onSelect={select} />
-
-      {active === LAST_SECTION_ID ? <TechnicalOutro /> : null}
     </div>
   );
 }

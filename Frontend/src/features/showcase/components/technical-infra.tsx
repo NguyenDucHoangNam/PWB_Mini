@@ -4,10 +4,9 @@ import { Server } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Reveal } from "@/components/marketing/section-primitives";
 import { DEPLOYMENT_DIAGRAM, PIPELINE_DIAGRAM } from "@/features/showcase/lib/technical-diagrams";
-import { INFRA_TOPICS } from "@/features/showcase/lib/technical-topics";
 import { TechnicalDiagram } from "./technical-diagram";
 import { TechnicalOutbox } from "./technical-outbox";
-import { TechnicalTopic } from "./technical-topic";
+import { TechnicalRedis } from "./technical-redis";
 import { TechnicalSectionShell } from "./technical-shell";
 
 export function TechnicalInfra() {
@@ -38,10 +37,11 @@ export function TechnicalInfra() {
         <TechnicalOutbox />
       </div>
 
-      <div className="mt-8 flex flex-col gap-8">
-        {INFRA_TOPICS.map((topic) => (
-          <TechnicalTopic key={topic.id} spec={topic} />
-        ))}
+      {/* Redis follows for the same reason and in the same format. It is the other piece every
+          module touches, and "an in-memory key-value store" means nothing until the reader has
+          seen the data it holds — which is an argument, not four answers in four boxes. */}
+      <div className="mt-8">
+        <TechnicalRedis />
       </div>
     </TechnicalSectionShell>
   );

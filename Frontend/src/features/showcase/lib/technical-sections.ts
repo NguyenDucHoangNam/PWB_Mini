@@ -5,9 +5,7 @@ import {
   Layers,
   Music4,
   Radio,
-  Rocket,
   Server,
-  ShieldCheck,
   Siren,
   Workflow,
   type LucideIcon,
@@ -42,6 +40,4 @@ export const MODULE_CARDS = [
 export const INFRA_CARDS = [
   { key: "outbox", icon: Workflow },
   { key: "redis", icon: Database },
-  { key: "security", icon: ShieldCheck },
-  { key: "deploy", icon: Rocket },
 ] as const;
