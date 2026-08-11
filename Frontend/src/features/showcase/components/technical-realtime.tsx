@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { Reveal, RevealGroup, RevealItem } from "@/components/marketing/section-primitives";
 import { PUBSUB_DIAGRAM, REALTIME_DIAGRAM } from "@/features/showcase/lib/technical-diagrams";
 import {
-  CHANNELS,
   FLOW_STEPS,
   PROBLEM_POINTS,
   PUBSUB_KINDS,
@@ -262,56 +261,6 @@ function SystemChapter() {
           body={(index) => t(`flow.steps.${index}.body`)}
         />
       </RevealGroup>
-
-      <Reveal className="mt-10">
-        <h4 className="font-heading text-lg font-bold tracking-tight text-slate-900 dark:text-slate-50">
-          {t("channels.title")}
-        </h4>
-        <p className="mt-3 max-w-3xl text-pretty text-base leading-relaxed text-slate-600 dark:text-slate-300">
-          {t("channels.lead")}
-        </p>
-      </Reveal>
-
-      {/* A destination can be wider than a phone, so the table scrolls inside its own box
-          rather than pushing the page sideways. */}
-      <div className="neu-scroll-thin mt-5 overflow-x-auto">
-        <table className="w-full min-w-[36rem] border-collapse text-left">
-          <thead>
-            <tr>
-              {["a", "b", "c"].map((col) => (
-                <th
-                  key={col}
-                  scope="col"
-                  className={`border-b pb-2.5 pr-5 font-mono text-[0.62rem] font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400 ${RULE}`}
-                >
-                  {t(`channels.head.${col}`)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {CHANNELS.map((destination, row) => (
-              <tr key={destination}>
-                <td
-                  className={`border-b py-3 pr-5 align-top font-mono text-[0.78rem] font-semibold text-slate-800 dark:text-slate-100 ${RULE}`}
-                >
-                  {destination}
-                </td>
-                <td
-                  className={`border-b py-3 pr-5 align-top text-sm text-slate-600 dark:text-slate-300 ${RULE}`}
-                >
-                  {t(`channels.rows.${row}.b`)}
-                </td>
-                <td
-                  className={`border-b py-3 align-top text-sm text-slate-600 dark:text-slate-300 ${RULE}`}
-                >
-                  {t(`channels.rows.${row}.c`)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
 
     </Chapter>
   );

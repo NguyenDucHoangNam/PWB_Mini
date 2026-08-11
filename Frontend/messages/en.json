@@ -1398,6 +1398,51 @@
               "tech": "[after the write]"
             }
           }
+        },
+        "security": {
+          "title": "Security",
+          "summary": "Every request passes through six independent layers before it reaches any business code. Edge security terminates TLS and blocks spoofed headers. Frontend headers prevent framing, injection and protocol downgrade. The Spring Security filter chain authenticates, throttles and authorizes. Application-level rate limiting enforces per-operation ceilings. Token management handles issuance, rotation and revocation. WebSocket security carries its own authentication, scope checks and per-session throttling.",
+          "boundaries": {
+            "edge": "Layer 1 — Edge (Nginx)",
+            "frontend": "Layer 2 — Frontend (Next.js)",
+            "chain": "Layer 3 — Spring Security Filter Chain",
+            "application": "Layer 4 — Application Rate Limiting",
+            "tokens": "Layer 5 — Token Management",
+            "websocket": "Layer 6 — WebSocket Security"
+          },
+          "legend": {
+            "actor": "Rate limiting",
+            "app": "Filter / Guard",
+            "data": "Token / Identity"
+          },
+          "nodes": {
+            "client": { "name": "Client", "type": "[Browser]", "desc": "Sends HTTP or WebSocket requests" },
+            "tls": { "name": "TLS 1.2/1.3", "type": "[Termination]", "desc": "Encrypts every connection" },
+            "ipOverwrite": { "name": "X-Forwarded-For", "type": "[Overwrite]", "desc": "Replaces with real client IP" },
+            "actuatorBlock": { "name": "Actuator block", "type": "[403]", "desc": "Monitoring endpoints unreachable" },
+            "serverTokens": { "name": "server_tokens off", "type": "[Hide]", "desc": "Version info stripped from headers" },
+            "csp": { "name": "Content-Security-Policy", "type": "[Build-time]", "desc": "Validated at build, not at deploy" },
+            "hsts": { "name": "HSTS", "type": "[2 years + preload]", "desc": "Forces HTTPS, no downgrade" },
+            "xFrame": { "name": "X-Frame-Options DENY", "type": "[+ frame-ancestors]", "desc": "Cannot be framed by any page" },
+            "permissions": { "name": "Permissions-Policy", "type": "[Restrict]", "desc": "Camera, mic, geolocation blocked" },
+            "correlationId": { "name": "CorrelationId", "type": "[First]", "desc": "Trace ID on every log line" },
+            "cors": { "name": "CORS", "type": "[Origins]", "desc": "Only allowed origins pass" },
+            "jwtAuth": { "name": "JWT Auth", "type": "[HMAC + Blacklist]", "desc": "Verifies signature, checks Redis" },
+            "httpRateLimit": { "name": "HTTP Rate Limit", "type": "[Lua + Redis]", "desc": "Per-user/IP bucket, 500/min" },
+            "authorization": { "name": "Authorization", "type": "[@PreAuthorize]", "desc": "RBAC: ADMIN, PRO, USER" },
+            "globalLimit": { "name": "Global ceiling", "type": "[Fail-open]", "desc": "500 req/min per caller" },
+            "endpointRules": { "name": "Endpoint rules", "type": "[Configurable]", "desc": "Tighter limits for costly APIs" },
+            "iamGuards": { "name": "IAM guards", "type": "[Fail-closed]", "desc": "5–30 req/min, dual-key" },
+            "bruteForce": { "name": "Brute-force lock", "type": "[Email + IP]", "desc": "5 wrong → 15 min, 20 → 30 min" },
+            "jwtAccess": { "name": "JWT Access Token", "type": "[HMAC-SHA, blacklistable]", "desc": "Short-lived, revocable by JTI" },
+            "refreshToken": { "name": "Refresh Token", "type": "[SHA-256, Redis]", "desc": "Rotated on every use" },
+            "reuseDetect": { "name": "Reuse Detection", "type": "[Revoke all]", "desc": "Stolen token → all sessions killed" },
+            "stompAuth": { "name": "STOMP Auth", "type": "[JWT on CONNECT]", "desc": "Verified once at handshake" },
+            "subscriptionScope": { "name": "Subscription Scope", "type": "[Room membership]", "desc": "Only members can subscribe" },
+            "wsRateLimit": { "name": "WS Rate Limit", "type": "[3 buckets]", "desc": "RTC, chat, other — sliding window" },
+            "business": { "name": "Business Logic", "type": "[Controller]", "desc": "Safe to execute" }
+          },
+          "edges": {}
         }
       },
       "realtime": {
@@ -1537,41 +1582,6 @@
               "5": {
                 "title": "Announce only once the write succeeded",
                 "body": "Only after the data is safely stored is the event posted to the room's channel and delivered to the other six. The order matters: announce first and then fail to write, and everyone sees a state that never existed. Each event also carries the server's clock, so browsers use that as the shared reference instead of trusting their own."
-              }
-            }
-          },
-          "channels": {
-            "title": "The channels in use",
-            "lead": "Six channels, split into the two groups from the model above.",
-            "head": {
-              "a": "Channel",
-              "b": "Who receives",
-              "c": "What it is for"
-            },
-            "rows": {
-              "0": {
-                "b": "Whole room",
-                "c": "People joining, leaving, being removed; capacity changes; the room opening or closing"
-              },
-              "1": {
-                "b": "Whole room",
-                "c": "New messages in the chat panel"
-              },
-              "2": {
-                "b": "Whole room",
-                "c": "Play, pause, seek, track changes, and comments pinned to a moment in the track"
-              },
-              "3": {
-                "b": "One person",
-                "c": "Approval or refusal of a join request; current state sent privately to someone who just arrived"
-              },
-              "4": {
-                "b": "One person",
-                "c": "The exchange two browsers use to set up a direct voice connection"
-              },
-              "5": {
-                "b": "One person",
-                "c": "An error for the specific action that person just took"
               }
             }
           }

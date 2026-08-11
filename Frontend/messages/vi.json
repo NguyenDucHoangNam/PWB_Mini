@@ -1398,6 +1398,51 @@
               "tech": "[sau khi ghi xong]"
             }
           }
+        },
+        "security": {
+          "title": "Bảo mật",
+          "summary": "Mỗi request phải đi qua sáu lớp phòng thủ độc lập trước khi tới được code nghiệp vụ. Edge security chấm dứt TLS và chặn header giả mạo. Header frontend ngăn framing, injection và hạ cấp giao thức. Chuỗi filter Spring Security xác thực, throttle và phân quyền. Rate limiting cấp ứng dụng áp trần cho từng thao tác. Token management xử lý cấp phát, luân chuyển và thu hồi. Bảo mật WebSocket mang theo cơ chế xác thực, kiểm tra phạm vi và throttling riêng.",
+          "boundaries": {
+            "edge": "Lớp 1 — Edge (Nginx)",
+            "frontend": "Lớp 2 — Frontend (Next.js)",
+            "chain": "Lớp 3 — Chuỗi Filter Spring Security",
+            "application": "Lớp 4 — Rate Limiting cấp Ứng dụng",
+            "tokens": "Lớp 5 — Quản lý Token",
+            "websocket": "Lớp 6 — Bảo mật WebSocket"
+          },
+          "legend": {
+            "actor": "Rate limiting",
+            "app": "Filter / Guard",
+            "data": "Token / Định danh"
+          },
+          "nodes": {
+            "client": { "name": "Client", "type": "[Trình duyệt]", "desc": "Gửi request HTTP hoặc WebSocket" },
+            "tls": { "name": "TLS 1.2/1.3", "type": "[Chấm dứt]", "desc": "Mã hóa mọi kết nối" },
+            "ipOverwrite": { "name": "X-Forwarded-For", "type": "[Ghi đè]", "desc": "Thay bằng IP thật của client" },
+            "actuatorBlock": { "name": "Chặn Actuator", "type": "[403]", "desc": "Endpoint giám sát không truy cập được" },
+            "serverTokens": { "name": "server_tokens off", "type": "[Ẩn]", "desc": "Loại bỏ thông tin phiên bản" },
+            "csp": { "name": "Content-Security-Policy", "type": "[Build-time]", "desc": "Validate lúc build, không phải lúc deploy" },
+            "hsts": { "name": "HSTS", "type": "[2 năm + preload]", "desc": "Bắt buộc HTTPS, không hạ cấp" },
+            "xFrame": { "name": "X-Frame-Options DENY", "type": "[+ frame-ancestors]", "desc": "Không thể bị nhúng bởi trang khác" },
+            "permissions": { "name": "Permissions-Policy", "type": "[Hạn chế]", "desc": "Camera, mic, geolocation bị chặn" },
+            "correlationId": { "name": "CorrelationId", "type": "[Đầu tiên]", "desc": "Mã truy vết trên mọi dòng log" },
+            "cors": { "name": "CORS", "type": "[Origin]", "desc": "Chỉ origin được phép mới qua" },
+            "jwtAuth": { "name": "JWT Auth", "type": "[HMAC + Blacklist]", "desc": "Xác minh chữ ký, kiểm tra Redis" },
+            "httpRateLimit": { "name": "HTTP Rate Limit", "type": "[Lua + Redis]", "desc": "Bucket theo user/IP, 500/phút" },
+            "authorization": { "name": "Authorization", "type": "[@PreAuthorize]", "desc": "RBAC: ADMIN, PRO, USER" },
+            "globalLimit": { "name": "Trần toàn cục", "type": "[Fail-open]", "desc": "500 req/phút mỗi caller" },
+            "endpointRules": { "name": "Rule theo endpoint", "type": "[Cấu hình được]", "desc": "Giới hạn chặt hơn cho API tốn kém" },
+            "iamGuards": { "name": "Guard IAM", "type": "[Fail-closed]", "desc": "5–30 req/phút, dual-key" },
+            "bruteForce": { "name": "Khóa brute-force", "type": "[Email + IP]", "desc": "5 lần sai → 15 phút, 20 → 30 phút" },
+            "jwtAccess": { "name": "JWT Access Token", "type": "[HMAC-SHA, blacklist được]", "desc": "Ngắn hạn, thu hồi được theo JTI" },
+            "refreshToken": { "name": "Refresh Token", "type": "[SHA-256, Redis]", "desc": "Luân chuyển mỗi lần dùng" },
+            "reuseDetect": { "name": "Phát hiện tái sử dụng", "type": "[Thu hồi hết]", "desc": "Token bị đánh cắp → hủy mọi session" },
+            "stompAuth": { "name": "STOMP Auth", "type": "[JWT khi CONNECT]", "desc": "Xác minh một lần khi bắt tay" },
+            "subscriptionScope": { "name": "Phạm vi Subscription", "type": "[Thành viên phòng]", "desc": "Chỉ thành viên mới subscribe được" },
+            "wsRateLimit": { "name": "WS Rate Limit", "type": "[3 bucket]", "desc": "RTC, chat, khác — sliding window" },
+            "business": { "name": "Logic nghiệp vụ", "type": "[Controller]", "desc": "An toàn để thực thi" }
+          },
+          "edges": {}
         }
       },
       "realtime": {
@@ -1537,41 +1582,6 @@
               "5": {
                 "title": "Ghi xong mới thông báo",
                 "body": "Chỉ khi dữ liệu đã được lưu thành công, sự kiện mới được đăng lên kênh của phòng và tới sáu người còn lại. Thứ tự này quan trọng: nếu báo trước rồi việc ghi thất bại, mọi người sẽ thấy một trạng thái không hề tồn tại. Kèm theo mỗi sự kiện là giờ của máy chủ, để các trình duyệt lấy đó làm mốc chung thay vì tin vào đồng hồ máy mình."
-              }
-            }
-          },
-          "channels": {
-            "title": "Các kênh đang dùng",
-            "lead": "Sáu kênh, chia làm hai nhóm đúng như mô hình ở mục trước.",
-            "head": {
-              "a": "Kênh",
-              "b": "Ai nhận",
-              "c": "Dùng để làm gì"
-            },
-            "rows": {
-              "0": {
-                "b": "Cả phòng",
-                "c": "Có người vào, rời đi, bị mời ra; sức chứa thay đổi; phòng mở hoặc đóng"
-              },
-              "1": {
-                "b": "Cả phòng",
-                "c": "Tin nhắn mới trong khung chat"
-              },
-              "2": {
-                "b": "Cả phòng",
-                "c": "Phát, dừng, tua, đổi bài, và bình luận gắn vào mốc thời gian trong bài"
-              },
-              "3": {
-                "b": "Một người",
-                "c": "Kết quả duyệt hoặc từ chối yêu cầu vào phòng; trạng thái hiện tại gửi riêng cho người vừa vào"
-              },
-              "4": {
-                "b": "Một người",
-                "c": "Phần trao đổi để hai trình duyệt dựng kết nối thoại trực tiếp với nhau"
-              },
-              "5": {
-                "b": "Một người",
-                "c": "Báo lỗi cho đúng thao tác người đó vừa làm"
               }
             }
           }
