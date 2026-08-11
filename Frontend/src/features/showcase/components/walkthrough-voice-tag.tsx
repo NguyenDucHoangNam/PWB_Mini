@@ -13,14 +13,14 @@ const SPEC: ModuleSpec = {
     {
       key: "open",
       slot: "VT-01",
-      media: { kind: "image", src: "/images/walkthrough/vt-01.png" },
+      media: { kind: "image", src: "/images/walkthrough/vt-01.webp" },
       factKeys: ["place", "plan"],
       note: true,
     },
     {
       key: "create",
       slot: "VT-02",
-      media: { kind: "image", src: "/images/walkthrough/vt-02.png" },
+      media: { kind: "image", src: "/images/walkthrough/vt-02.webp" },
     },
     {
       key: "fork",
@@ -28,13 +28,13 @@ const SPEC: ModuleSpec = {
         {
           key: "tts",
           slot: "VT-03",
-          media: { kind: "image", src: "/images/walkthrough/vt-03.png" },
+          media: { kind: "image", src: "/images/walkthrough/vt-03.webp" },
           factKeys: ["name", "text", "language", "voice"],
         },
         {
           key: "upload",
           slot: "VT-04",
-          media: { kind: "image", src: "/images/walkthrough/vt-04.png" },
+          media: { kind: "image", src: "/images/walkthrough/vt-04.webp" },
           factKeys: ["formats", "length", "size", "name"],
         },
       ],
@@ -42,19 +42,19 @@ const SPEC: ModuleSpec = {
     {
       key: "preview",
       slot: "VT-05",
-      media: { kind: "image", src: "/images/walkthrough/vt-05.png" },
+      media: { kind: "image", src: "/images/walkthrough/vt-05.webp" },
       note: true,
     },
     {
       key: "save",
       slot: "VT-06",
-      media: { kind: "image", src: "/images/walkthrough/vt-06.png" },
+      media: { kind: "image", src: "/images/walkthrough/vt-06.webp" },
       factKeys: ["result"],
     },
     {
       key: "manage",
       slot: "VT-07",
-      media: { kind: "image", src: "/images/walkthrough/vt-07.png" },
+      media: { kind: "image", src: "/images/walkthrough/vt-07.webp" },
       factKeys: ["rename", "remove"],
       note: true,
     },

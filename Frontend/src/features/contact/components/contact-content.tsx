@@ -51,15 +51,17 @@ export function ContactContent() {
     >
       <div className={`neu-raised w-full rounded-[2rem] p-5 sm:p-8 lg:p-10 ${SURFACE}`}>
         <div className="grid gap-7 sm:grid-cols-[13rem_minmax(0,1fr)] sm:gap-9 sm:items-center lg:grid-cols-[20rem_minmax(0,1fr)] lg:gap-12">
-          <Image
-            src={CONTACT_PORTRAIT.src}
-            width={CONTACT_PORTRAIT.width}
-            height={CONTACT_PORTRAIT.height}
-            alt={t("photoAlt")}
-            sizes="(min-width: 1024px) 20rem, (min-width: 640px) 13rem, 100vw"
-            priority
-            className="mx-auto aspect-[10/13] w-full max-w-[20rem] rounded-[1.4rem] object-cover shadow-[6px_6px_14px_var(--neu-dark-shadow)]"
-          />
+          <div className="group relative mx-auto aspect-[10/13] w-full max-w-[20rem] overflow-hidden rounded-[1.4rem] shadow-[6px_6px_14px_var(--neu-dark-shadow)]">
+            <Image
+              src={CONTACT_PORTRAIT.src}
+              width={CONTACT_PORTRAIT.width}
+              height={CONTACT_PORTRAIT.height}
+              alt={t("photoAlt")}
+              sizes="(min-width: 1024px) 20rem, (min-width: 640px) 13rem, 100vw"
+              priority
+              className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.025]"
+            />
+          </div>
 
           <div className="min-w-0">
             <Eyebrow>{t("eyebrow")}</Eyebrow>
