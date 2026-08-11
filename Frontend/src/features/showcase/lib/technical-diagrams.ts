@@ -424,3 +424,61 @@ export const PIPELINE_DIAGRAM: DiagramSpec = {
   ],
   legend: ["app", "external", "actor"],
 };
+
+export const SECURITY_DIAGRAM: DiagramSpec = {
+  id: "security",
+  width: 1100,
+  height: 1400,
+  boundaries: [
+    { key: "edge", x: 20, y: 130, w: 1060, h: 130 },
+    { key: "frontend", x: 20, y: 320, w: 1060, h: 130 },
+    { key: "chain", x: 20, y: 510, w: 1060, h: 130 },
+    { key: "application", x: 20, y: 700, w: 1060, h: 130 },
+    { key: "tokens", x: 20, y: 890, w: 1060, h: 130 },
+    { key: "websocket", x: 20, y: 1080, w: 1060, h: 130 },
+  ],
+  nodes: [
+    { key: "client", kind: "actor", x: 420, y: 16, w: 260, h: 76 },
+
+    { key: "tls", kind: "app", x: 50, y: 170, w: 220, h: 70 },
+    { key: "ipOverwrite", kind: "app", x: 310, y: 170, w: 260, h: 70 },
+    { key: "actuatorBlock", kind: "app", x: 610, y: 170, w: 220, h: 70 },
+    { key: "serverTokens", kind: "app", x: 870, y: 170, w: 200, h: 70 },
+
+    { key: "csp", kind: "app", x: 50, y: 360, w: 220, h: 70 },
+    { key: "hsts", kind: "app", x: 310, y: 360, w: 220, h: 70 },
+    { key: "xFrame", kind: "app", x: 570, y: 360, w: 240, h: 70 },
+    { key: "permissions", kind: "app", x: 850, y: 360, w: 220, h: 70 },
+
+    { key: "correlationId", kind: "app", x: 50, y: 550, w: 170, h: 70 },
+    { key: "cors", kind: "app", x: 240, y: 550, w: 140, h: 70 },
+    { key: "jwtAuth", kind: "data", x: 400, y: 550, w: 200, h: 70 },
+    { key: "httpRateLimit", kind: "actor", x: 620, y: 550, w: 220, h: 70 },
+    { key: "authorization", kind: "app", x: 860, y: 550, w: 210, h: 70 },
+
+    { key: "globalLimit", kind: "actor", x: 50, y: 740, w: 240, h: 70 },
+    { key: "endpointRules", kind: "actor", x: 310, y: 740, w: 240, h: 70 },
+    { key: "iamGuards", kind: "actor", x: 570, y: 740, w: 240, h: 70 },
+    { key: "bruteForce", kind: "actor", x: 830, y: 740, w: 240, h: 70 },
+
+    { key: "jwtAccess", kind: "data", x: 50, y: 930, w: 300, h: 70 },
+    { key: "refreshToken", kind: "data", x: 390, y: 930, w: 300, h: 70 },
+    { key: "reuseDetect", kind: "data", x: 730, y: 930, w: 340, h: 70 },
+
+    { key: "stompAuth", kind: "app", x: 50, y: 1120, w: 300, h: 70 },
+    { key: "subscriptionScope", kind: "app", x: 390, y: 1120, w: 300, h: 70 },
+    { key: "wsRateLimit", kind: "actor", x: 730, y: 1120, w: 340, h: 70 },
+
+    { key: "business", kind: "data", x: 420, y: 1260, w: 260, h: 60 },
+  ],
+  edges: [
+    { key: "clientEdge", from: "client", to: "tls", x1: 550, y1: 92, x2: 550, y2: 130 },
+    { key: "edgeFrontend", from: "tls", to: "csp", x1: 550, y1: 260, x2: 550, y2: 320 },
+    { key: "frontendChain", from: "csp", to: "correlationId", x1: 550, y1: 450, x2: 550, y2: 510 },
+    { key: "chainApp", from: "correlationId", to: "globalLimit", x1: 550, y1: 640, x2: 550, y2: 700 },
+    { key: "appTokens", from: "globalLimit", to: "jwtAccess", x1: 550, y1: 830, x2: 550, y2: 890 },
+    { key: "tokensWs", from: "jwtAccess", to: "stompAuth", x1: 550, y1: 1020, x2: 550, y2: 1080 },
+    { key: "wsBusiness", from: "stompAuth", to: "business", x1: 550, y1: 1210, x2: 550, y2: 1260 },
+  ],
+  legend: ["actor", "app", "data"],
+};

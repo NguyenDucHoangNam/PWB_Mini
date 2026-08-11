@@ -46,12 +46,3 @@ export const PUBSUB_KINDS = 2;
    answer a question nobody asked. */
 export const FLOW_STEPS = 6;
 
-/** Rows in the channel map. */
-export const CHANNELS: readonly string[] = [
-  "/topic/liveroom/{id}",
-  "/topic/liveroom/{id}/chat",
-  "/topic/liveroom/{id}/music",
-  "/user/queue/liveroom",
-  "/user/queue/liveroom/rtc",
-  "/user/queue/liveroom/errors",
-];

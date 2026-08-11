@@ -1398,6 +1398,51 @@
               "tech": "[sau khi ghi xong]"
             }
           }
+        },
+        "security": {
+          "title": "Bảo mật",
+          "summary": "Mỗi request phải đi qua sáu lớp phòng thủ độc lập trước khi tới được code nghiệp vụ. Edge security chấm dứt TLS và chặn header giả mạo. Header frontend ngăn framing, injection và hạ cấp giao thức. Chuỗi filter Spring Security xác thực, throttle và phân quyền. Rate limiting cấp ứng dụng áp trần cho từng thao tác. Token management xử lý cấp phát, luân chuyển và thu hồi. Bảo mật WebSocket mang theo cơ chế xác thực, kiểm tra phạm vi và throttling riêng.",
+          "boundaries": {
+            "edge": "Lớp 1 — Edge (Nginx)",
+            "frontend": "Lớp 2 — Frontend (Next.js)",
+            "chain": "Lớp 3 — Chuỗi Filter Spring Security",
+            "application": "Lớp 4 — Rate Limiting cấp Ứng dụng",
+            "tokens": "Lớp 5 — Quản lý Token",
+            "websocket": "Lớp 6 — Bảo mật WebSocket"
+          },
+          "legend": {
+            "actor": "Rate limiting",
+            "app": "Filter / Guard",
+            "data": "Token / Định danh"
+          },
+          "nodes": {
+            "client": { "name": "Client", "type": "[Trình duyệt]", "desc": "Gửi request HTTP hoặc WebSocket" },
+            "tls": { "name": "TLS 1.2/1.3", "type": "[Chấm dứt]", "desc": "Mã hóa mọi kết nối" },
+            "ipOverwrite": { "name": "X-Forwarded-For", "type": "[Ghi đè]", "desc": "Thay bằng IP thật của client" },
+            "actuatorBlock": { "name": "Chặn Actuator", "type": "[403]", "desc": "Endpoint giám sát không truy cập được" },
+            "serverTokens": { "name": "server_tokens off", "type": "[Ẩn]", "desc": "Loại bỏ thông tin phiên bản" },
+            "csp": { "name": "Content-Security-Policy", "type": "[Build-time]", "desc": "Validate lúc build, không phải lúc deploy" },
+            "hsts": { "name": "HSTS", "type": "[2 năm + preload]", "desc": "Bắt buộc HTTPS, không hạ cấp" },
+            "xFrame": { "name": "X-Frame-Options DENY", "type": "[+ frame-ancestors]", "desc": "Không thể bị nhúng bởi trang khác" },
+            "permissions": { "name": "Permissions-Policy", "type": "[Hạn chế]", "desc": "Camera, mic, geolocation bị chặn" },
+            "correlationId": { "name": "CorrelationId", "type": "[Đầu tiên]", "desc": "Mã truy vết trên mọi dòng log" },
+            "cors": { "name": "CORS", "type": "[Origin]", "desc": "Chỉ origin được phép mới qua" },
+            "jwtAuth": { "name": "JWT Auth", "type": "[HMAC + Blacklist]", "desc": "Xác minh chữ ký, kiểm tra Redis" },
+            "httpRateLimit": { "name": "HTTP Rate Limit", "type": "[Lua + Redis]", "desc": "Bucket theo user/IP, 500/phút" },
+            "authorization": { "name": "Authorization", "type": "[@PreAuthorize]", "desc": "RBAC: ADMIN, PRO, USER" },
+            "globalLimit": { "name": "Trần toàn cục", "type": "[Fail-open]", "desc": "500 req/phút mỗi caller" },
+            "endpointRules": { "name": "Rule theo endpoint", "type": "[Cấu hình được]", "desc": "Giới hạn chặt hơn cho API tốn kém" },
+            "iamGuards": { "name": "Guard IAM", "type": "[Fail-closed]", "desc": "5–30 req/phút, dual-key" },
+            "bruteForce": { "name": "Khóa brute-force", "type": "[Email + IP]", "desc": "5 lần sai → 15 phút, 20 → 30 phút" },
+            "jwtAccess": { "name": "JWT Access Token", "type": "[HMAC-SHA, blacklist được]", "desc": "Ngắn hạn, thu hồi được theo JTI" },
+            "refreshToken": { "name": "Refresh Token", "type": "[SHA-256, Redis]", "desc": "Luân chuyển mỗi lần dùng" },
+            "reuseDetect": { "name": "Phát hiện tái sử dụng", "type": "[Thu hồi hết]", "desc": "Token bị đánh cắp → hủy mọi session" },
+            "stompAuth": { "name": "STOMP Auth", "type": "[JWT khi CONNECT]", "desc": "Xác minh một lần khi bắt tay" },
+            "subscriptionScope": { "name": "Phạm vi Subscription", "type": "[Thành viên phòng]", "desc": "Chỉ thành viên mới subscribe được" },
+            "wsRateLimit": { "name": "WS Rate Limit", "type": "[3 bucket]", "desc": "RTC, chat, khác — sliding window" },
+            "business": { "name": "Logic nghiệp vụ", "type": "[Controller]", "desc": "An toàn để thực thi" }
+          },
+          "edges": {}
         }
       },
       "realtime": {
@@ -1537,41 +1582,6 @@
               "5": {
                 "title": "Ghi xong mới thông báo",
                 "body": "Chỉ khi dữ liệu đã được lưu thành công, sự kiện mới được đăng lên kênh của phòng và tới sáu người còn lại. Thứ tự này quan trọng: nếu báo trước rồi việc ghi thất bại, mọi người sẽ thấy một trạng thái không hề tồn tại. Kèm theo mỗi sự kiện là giờ của máy chủ, để các trình duyệt lấy đó làm mốc chung thay vì tin vào đồng hồ máy mình."
-              }
-            }
-          },
-          "channels": {
-            "title": "Các kênh đang dùng",
-            "lead": "Sáu kênh, chia làm hai nhóm đúng như mô hình ở mục trước.",
-            "head": {
-              "a": "Kênh",
-              "b": "Ai nhận",
-              "c": "Dùng để làm gì"
-            },
-            "rows": {
-              "0": {
-                "b": "Cả phòng",
-                "c": "Có người vào, rời đi, bị mời ra; sức chứa thay đổi; phòng mở hoặc đóng"
-              },
-              "1": {
-                "b": "Cả phòng",
-                "c": "Tin nhắn mới trong khung chat"
-              },
-              "2": {
-                "b": "Cả phòng",
-                "c": "Phát, dừng, tua, đổi bài, và bình luận gắn vào mốc thời gian trong bài"
-              },
-              "3": {
-                "b": "Một người",
-                "c": "Kết quả duyệt hoặc từ chối yêu cầu vào phòng; trạng thái hiện tại gửi riêng cho người vừa vào"
-              },
-              "4": {
-                "b": "Một người",
-                "c": "Phần trao đổi để hai trình duyệt dựng kết nối thoại trực tiếp với nhau"
-              },
-              "5": {
-                "b": "Một người",
-                "c": "Báo lỗi cho đúng thao tác người đó vừa làm"
               }
             }
           }
@@ -1732,99 +1742,104 @@
           "closing": "Có một cái giá phải trả, và nó là cố hữu chứ không phải lỗi: vì người dùng đã nhận phản hồi thành công từ bước ba, nếu máy chủ thư hỏng hẳn thì họ vẫn thấy thông báo “mã xác thực đã được gửi” trong khi email không bao giờ tới. Đó là điều bạn đánh đổi khi tách một việc ra chạy nền."
         }
       },
+      "redis": {
+        "title": "Trạng thái ngắn hạn — Redis",
+        "intro": "Có những dữ liệu chỉ sống vài chục giây rồi phải tự biến mất, mà lại bị đọc và ghi ở gần như mọi lời gọi. Mục này đi từ chỗ đó: vì sao chúng không hợp với cơ sở dữ liệu chính, Redis là gì, và dự án dùng nó vào đúng những việc nào.",
+        "toc": {
+          "label": "Nội dung phần này",
+          "items": {
+            "problem": "Loại dữ liệu không hợp với cơ sở dữ liệu chính",
+            "what": "Redis là gì",
+            "usage": "Dự án dùng Redis vào đúng ba việc"
+          }
+        },
+        "problem": {
+          "eyebrow": "Mở đầu",
+          "title": "Có những dữ liệu mà cơ sở dữ liệu chính là chỗ sai",
+          "lead": "Cơ sở dữ liệu chính lưu xuống đĩa, giữ dữ liệu vĩnh viễn, và trả lời được những câu hỏi phức tạp. Ba điểm mạnh đó đúng là ba thứ mà loại dữ liệu dưới đây không cần tới — trong khi cái giá của chúng thì vẫn phải trả đủ.",
+          "traits": {
+            "0": {
+              "tag": "Bị chạm ở mọi lời gọi",
+              "title": "Bộ đếm tần suất",
+              "body": "Muốn biết một người đã gọi bao nhiêu lần trong phút vừa rồi thì phải tăng bộ đếm rồi đọc lại nó, ở từng lời gọi một. Đặt bộ đếm trong cơ sở dữ liệu chính nghĩa là mỗi lần chỉ đọc dữ liệu cũng kéo theo một lần ghi xuống đĩa, chỉ để đếm."
+            },
+            "1": {
+              "tag": "Sống một lúc rồi phải mất",
+              "title": "Trạng thái tự hết hạn",
+              "body": "Thời gian chờ giữa hai lần gửi mã là sáu mươi giây. Một phiên đăng nhập sống mười bốn ngày. Sau đó không còn gì đáng giữ lại. Nhưng nơi lưu vĩnh viễn thì không tự quên: phải có người viết thêm việc dọn dẹp, và mỗi lần kiểm tra vẫn là một truy vấn."
+            },
+            "2": {
+              "tag": "Không được ai chen ngang",
+              "title": "Chuỗi thao tác liền mạch",
+              "body": "Tăng bộ đếm, so với ngưỡng, rồi quyết định cho qua hay chặn. Nếu một lời gọi khác chen vào giữa ba bước đó, cả hai cùng thấy mình chưa vượt ngưỡng và cả hai cùng được cho qua. Thứ cần ở đây là cả chuỗi chạy như một bước duy nhất."
+            }
+          },
+          "closing": "Cả ba đều là dữ liệu ngắn hạn, hình dạng đơn giản, và cần rất nhanh. Đó gần như là định nghĩa của một kho khoá–giá trị nằm trên bộ nhớ trong."
+        },
+        "what": {
+          "eyebrow": "Công cụ",
+          "title": "Redis là gì",
+          "lead": "Redis là một kho dữ liệu nằm hoàn toàn trên bộ nhớ trong thay vì trên đĩa. Không bảng, không quan hệ, không câu truy vấn — đổi lại, mỗi thao tác đọc hay ghi mất chưa tới một phần nghìn giây.",
+          "board": {
+            "title": "Hãy hình dung một tấm bảng ghi tạm, không phải một tủ hồ sơ",
+            "body": "Tủ hồ sơ giữ mọi thứ lâu dài, có mục lục, tra cứu chéo được — nhưng mỗi lần lấy ra cất vào đều mất công. Tấm bảng thì ngược lại: mỗi dòng chỉ có một cái tên và một nội dung, viết và xoá gần như tức thì, và mỗi dòng có thể tự xoá khi hết giờ. Không ai dùng bảng để lưu hồ sơ; cũng không ai kéo tủ hồ sơ ra chỉ để đếm xem ai vừa gõ cửa mấy lần."
+          },
+          "ideas": {
+            "0": {
+              "title": "Chỉ có khoá và giá trị",
+              "body": "Mỗi mục là một cái tên và một nội dung. Nội dung có thể là một con số, một đoạn chữ, hay một tập hợp các phần tử. Không có bảng để nối, không có câu truy vấn để lọc — muốn đọc gì thì phải biết trước tên của nó. Chính sự nghèo nàn đó là thứ được đổi lấy tốc độ."
+            },
+            "1": {
+              "title": "Mỗi khoá có thể tự hết hạn",
+              "body": "Khi ghi một khoá, có thể gán cho nó luôn một thời hạn sống. Hết hạn, Redis tự xoá. Không cần tiến trình dọn dẹp, không cần thêm cột “hết hạn lúc nào” rồi so với đồng hồ ở mỗi lần đọc. Dữ liệu ngắn hạn tự biến mất là hành vi có sẵn, không phải thứ phải tự viết."
+            },
+            "2": {
+              "title": "Các lệnh xếp hàng, không chồng lên nhau",
+              "body": "Redis xử lý lệnh lần lượt, nên một nhóm lệnh gửi kèm nhau sẽ chạy trọn vẹn từ đầu tới cuối mà không lời gọi nào chen được vào giữa. Nhờ vậy “tăng bộ đếm rồi kiểm tra ngưỡng” trở thành một bước duy nhất, thay vì hai bước có khe hở ở giữa."
+            }
+          },
+          "closing": "Đổi lại, Redis không thay được cơ sở dữ liệu chính: không truy vấn phức tạp, không quan hệ, và dữ liệu nằm trên bộ nhớ nên đây không phải chỗ để giữ thứ không được phép mất. Vì vậy toàn bộ dữ liệu nghiệp vụ — người dùng, bài hát, phòng nghe — vẫn nằm nguyên ở cơ sở dữ liệu chính. Redis chỉ giữ phần ngắn hạn. Và một điều dễ hiểu nhầm nên nói thẳng: ở dự án này Redis không hề làm bộ nhớ đệm — không chỗ nào đọc dữ liệu từ cơ sở dữ liệu chính rồi cất một bản sao sang đây cho lần đọc sau. Nó là nơi duy nhất giữ những dữ liệu ở mục tiếp theo, chứ không đứng đệm trước ai cả."
+        },
+        "usage": {
+          "eyebrow": "Áp dụng",
+          "title": "Trong dự án này, Redis làm đúng ba việc",
+          "lead": "Không nhiều hơn ba. Cả ba đều là trạng thái ngắn hạn, nhưng mỗi việc hỏi một câu hỏi khác nhau — nên mỗi việc dùng một kiểu khoá và một cách làm khác nhau.",
+          "facts": {
+            "holds": "Giữ gì",
+            "life": "Sống bao lâu",
+            "how": "Làm bằng cách nào"
+          },
+          "uses": {
+            "0": {
+              "title": "Giữ phiên đăng nhập",
+              "body": "Trong hệ thống này, “ai đang đăng nhập” là câu hỏi chỉ Redis trả lời được. Mỗi phiên còn sống là một khoá. Khi một phiên được làm mới, phiên cũ để lại một dấu vết: nếu về sau có ai dùng lại đúng thẻ đã cũ đó thì gần như chắc chắn nó đã bị đánh cắp, và hệ thống thu hồi toàn bộ phiên của người đó thay vì chỉ từ chối lần gọi này. Khi đăng xuất, thẻ truy cập còn hạn được ghi vào danh sách cấm cho tới đúng lúc nó hết hạn.",
+              "holds": "Phiên đang sống, dấu vết phiên đã làm mới, và thẻ truy cập đã đăng xuất.",
+              "life": "Mười bốn ngày; riêng thẻ đã đăng xuất chỉ giữ tới đúng lúc nó tự hết hạn.",
+              "how": "Mọi phiên của một người được gom vào một tập hợp, để thu hồi tất cả chỉ bằng một lần hỏi thay vì quét cả kho."
+            },
+            "1": {
+              "title": "Đếm tần suất lời gọi",
+              "body": "Mọi lời gọi vào hệ thống đều đi qua một bộ đếm chung: năm trăm lượt mỗi phút, tính theo tài khoản nếu đã đăng nhập và theo địa chỉ mạng nếu chưa. Đếm theo tài khoản là có chủ ý — nếu chỉ đếm theo địa chỉ mạng thì cả một toà nhà dùng chung một đường ra internet sẽ dùng chung một bộ đếm. Vài đường riêng chặt hơn nhiều: đăng nhập mười lượt mỗi phút, nghe thử giọng đọc hai mươi lượt mỗi phút vì mỗi lượt là một lần trả tiền cho dịch vụ bên ngoài.",
+              "holds": "Số lượt gọi trong cửa sổ một phút, theo tài khoản hoặc theo địa chỉ mạng.",
+              "life": "Một phút, rồi bộ đếm tự về không.",
+              "how": "Tăng, đặt hạn nếu là lượt đầu tiên, so với ngưỡng — cả ba chạy như một bước, và trả về luôn số giây phải chờ."
+            },
+            "2": {
+              "title": "Chặn thao tác lặp lại quá nhanh",
+              "body": "Câu hỏi ở đây khác hẳn việc đếm: không phải “bao nhiêu lượt trong một phút” mà “đã đủ lâu kể từ lần trước chưa”. Gửi lại mã xác thực hay yêu cầu đặt lại mật khẩu phải cách nhau sáu mươi giây. Sai mật khẩu năm lần thì tài khoản bị khoá mười lăm phút; sai hai mươi lần từ cùng một địa chỉ mạng thì chính địa chỉ đó bị khoá ba mươi phút. Tra mã phòng nghe sai quá hai mươi lần trong mười lăm phút cũng bị chặn theo cách tương tự.",
+              "holds": "Một chỗ đã bị chiếm — sự tồn tại của khoá chính là câu trả lời.",
+              "life": "Sáu mươi giây với thời gian chờ; mười lăm tới ba mươi phút với các khoá tạm.",
+              "how": "Chỉ tạo khoá nếu chưa ai tạo. Tạo được nghĩa là đã đủ lâu; không tạo được thì thời hạn còn lại của khoá chính là số giây phải chờ."
+            }
+          }
+        }
+      },
       "topics": {
         "questions": {
           "what": "Nó là gì",
           "why": "Vì sao phải dùng",
           "when": "Khi nào dùng đến",
           "how": "Triển khai ở đâu"
-        },
-        "redis": {
-          "title": "Bộ nhớ tạm — Redis",
-          "lead": "Có những dữ liệu chỉ sống vài phút rồi phải tự biến mất, và bị đọc ghi liên tục. Đưa chúng vào cơ sở dữ liệu chính là sai chỗ: mỗi lần kiểm tra là một lần chạm đĩa, và phải tự viết thêm việc dọn rác.",
-          "what": {
-            "body": "Redis là một kho dữ liệu nằm trên bộ nhớ trong. Không bảng, không quan hệ, không truy vấn phức tạp — chỉ có khoá và giá trị, đổi lại tốc độ đọc ghi dưới một phần nghìn giây.",
-            "points": {
-              "0": "Mỗi mục là một cặp khoá và giá trị; giá trị có thể là một chuỗi, một tập hợp hay một danh sách.",
-              "1": "Mỗi khoá gán được thời hạn sống. Hết hạn Redis tự xoá, không cần ai đi dọn và không cần logic kiểm tra hết hạn trong ứng dụng."
-            }
-          },
-          "why": {
-            "body": "Vì ba loại dữ liệu dưới đây đặt trong cơ sở dữ liệu chính đều trả giá đắt mà không được gì thêm.",
-            "points": {
-              "0": "Bộ đếm tần suất phải tăng và kiểm tra ở mỗi lượt gọi — đặt trong cơ sở dữ liệu chính thì mỗi lượt gọi thành thêm một lần ghi đĩa.",
-              "1": "Trạng thái ngắn hạn như phiên đăng nhập hay thời gian chờ chỉ sống vài phút tới vài tuần; đặt ở nơi lưu vĩnh viễn thì phải tự viết việc dọn dẹp.",
-              "2": "Có những chuỗi thao tác phải chạy liền một mạch không ai chen ngang được, và Redis làm được điều đó trong một lệnh duy nhất."
-            }
-          },
-          "when": {
-            "body": "Đúng ba mục đích, tất cả đều là trạng thái ngắn hạn. Quan trọng không kém là những gì cố ý không dùng tới.",
-            "points": {
-              "0": "Giữ phiên đăng nhập: danh sách phiên còn sống, dấu vết phiên đã xoay để chống dùng lại, và danh sách thẻ đã đăng xuất.",
-              "1": "Đếm tần suất và thời gian chờ: chặn gọi quá nhanh, chặn dò mật khẩu, ngăn gửi thư liên tục.",
-              "2": "Không dùng để lưu tạm dữ liệu đọc, không giữ phiên trình duyệt, không làm hàng đợi — ba việc đó đã có chỗ khác lo."
-            }
-          },
-          "how": {
-            "body": "Mười nhóm khoá, và không nhóm nào sống vĩnh viễn — tất cả đều có thời hạn. Đây cũng là chỗ đáng nhớ nhất về hệ thống: danh sách ai đang đăng nhập chỉ tồn tại ở đây, cơ sở dữ liệu chính hoàn toàn không biết.",
-            "points": {
-              "0": "Thẻ phiên được băm trước khi làm khoá, nên người đọc được Redis vẫn không mạo danh được ai — cùng nguyên tắc với việc băm mật khẩu.",
-              "1": "Xoá sạch Redis đồng nghĩa với đăng xuất toàn hệ thống. Đó là cái giá đã biết trước của việc để phiên sống ở đây."
-            }
-          },
-          "visualTitle": "Ba câu hỏi khác nhau, ba cách làm khác nhau",
-          "cards": {
-            "0": {
-              "tag": "Bao nhiêu lần trong một phút",
-              "title": "Bộ đếm chạy liền mạch",
-              "body": "Tăng bộ đếm, đặt hạn sống nếu là lần đầu, rồi so với ngưỡng — cả chuỗi chạy liền một mạch. Nếu tách rời, một tiến trình chết đúng khe giữa sẽ để lại bộ đếm không có hạn sống, và người dùng đó bị chặn vĩnh viễn."
-            },
-            "1": {
-              "tag": "Đã đủ lâu kể từ lần trước chưa",
-              "title": "Đặt chỗ nếu chưa ai đặt",
-              "body": "Câu hỏi khác hẳn bộ đếm, nên cách làm cũng khác: chỉ cần thử tạo một khoá có hạn sống. Tạo được nghĩa là đã đủ lâu; không tạo được nghĩa là còn phải chờ, và số giây còn lại chính là phần trả về."
-            },
-            "2": {
-              "tag": "Của người này gồm những gì",
-              "title": "Gom thành một tập hợp",
-              "body": "Mọi phiên của một người được gom vào một tập hợp, chỉ để phục vụ đúng một việc: thu hồi tất cả khi họ đổi mật khẩu. Không có nó thì phải quét toàn bộ kho để tìm, thay vì hỏi đúng một lần."
-            }
-          },
-          "table": {
-            "title": "Redis chết thì mỗi chỗ phản ứng một kiểu — và đó là chủ ý",
-            "head": {
-              "a": "Chỗ",
-              "b": "Redis chết thì",
-              "c": "Vì sao chọn như vậy"
-            },
-            "rows": {
-              "0": {
-                "a": "Giới hạn các thao tác đăng nhập",
-                "b": "Từ chối phục vụ",
-                "c": "Một bộ giới hạn mở toang thì không bảo vệ được gì, đúng vào lúc hệ thống đã yếu."
-              },
-              "1": {
-                "a": "Thời gian chờ giữa hai lần đặt lại mật khẩu",
-                "b": "Từ chối, không có ngoại lệ",
-                "c": "Đường này gửi thư tới một địa chỉ tuỳ ý. Để hở là biến nó thành trạm phát tán thư không ai đếm."
-              },
-              "2": {
-                "a": "Thời gian chờ khi đăng ký hoặc gửi lại mã",
-                "b": "Theo cấu hình chung",
-                "c": "Đủ quan trọng để chặn, nhưng không tới mức phải cứng nhắc như hai dòng trên."
-              },
-              "3": {
-                "a": "Giới hạn tần suất chung cho mọi lời gọi",
-                "b": "Cho qua, chỉ ghi cảnh báo",
-                "c": "Chặn toàn bộ hệ thống vì một rủi ro nhỏ hơn nhiều là làm hỏng sản phẩm."
-              },
-              "4": {
-                "a": "Chặn dò mã phòng nghe chung",
-                "b": "Cho qua, chỉ ghi cảnh báo",
-                "c": "Phía sau vẫn còn một lớp nữa: người dò có mã đúng thì vẫn phải chờ chủ phòng duyệt."
-              }
-            }
-          }
         },
         "storage": {
           "title": "Lưu trữ tệp — kho ngoài và URL có hạn",
@@ -2016,173 +2031,6 @@
               }
             }
           }
-        },
-        "security": {
-          "title": "Bảo mật lời gọi và giới hạn tần suất",
-          "lead": "Mọi lời gọi vào hệ thống đều đi qua một dãy lớp kiểm tra xếp nối nhau. Thứ tự các lớp không phải chuyện thẩm mỹ — đặt sai một chỗ là cả lớp bảo vệ mất tác dụng mà không có lỗi nào được ghi ra.",
-          "what": {
-            "body": "Giới hạn tần suất là việc đếm số lời gọi trong một khoảng thời gian và từ chối khi vượt ngưỡng. Nghe đơn giản, nhưng hệ thống không dùng một cơ chế duy nhất mà dùng sáu, mỗi cơ chế trả lời một câu hỏi khác nhau và nằm ở một tầng khác nhau — chúng có thể cùng chặn một lời gọi."
-          },
-          "why": {
-            "body": "Vì thiếu nó thì ba chuyện dưới đây xảy ra mà không có gì cản.",
-            "points": {
-              "0": "Một người gọi liên tục làm chậm tất cả những người còn lại.",
-              "1": "Kẻ tấn công dò mật khẩu hoặc dò mã xác thực bằng cách thử liên tục cho tới khi trúng.",
-              "2": "Chi phí trượt khỏi tầm kiểm soát: có một chức năng mà mỗi lần bấm là một lần dịch vụ bên ngoài tính tiền."
-            }
-          },
-          "when": {
-            "body": "Lớp đếm chung áp cho mọi lời gọi, không phân biệt đã đăng nhập hay chưa. Bên cạnh đó là các lớp hẹp hơn đặt đúng vào những chỗ đáng ngờ: các thao tác đăng nhập, các thao tác gửi thư, và một chức năng gọi dịch vụ trả phí bên ngoài."
-          },
-          "how": {
-            "body": "Đếm theo tài khoản khi biết người gọi là ai, và chỉ lùi về đếm theo địa chỉ mạng khi không biết. Khác biệt này quan trọng hơn vẻ ngoài của nó: cả một toà nhà đi chung một đường mạng sẽ dùng chung một bộ đếm, và người bị chặn không có cách nào biết vì sao mình bị chặn.",
-            "points": {
-              "0": "Trần chung là năm trăm lượt mỗi phút cho mọi chức năng, và số lượt còn lại được trả về ngay trong phần đầu của mỗi phản hồi.",
-              "1": "Đúng một chức năng có luật riêng chặt hơn nhiều, và nó tồn tại vì tiền chứ không vì bảo mật: mỗi lần nghe thử giọng đọc là một lần bị tính phí.",
-              "2": "Địa chỉ người gọi do lớp proxy khai báo chỉ được tin khi lời gọi thật sự đến từ một proxy đã đăng ký trước. Tin vô điều kiện thì ai cũng tự khai địa chỉ của mình, và mọi giới hạn theo địa chỉ trở thành vô nghĩa."
-            }
-          },
-          "visualTitle": "Các lớp một lời gọi phải đi qua, theo đúng thứ tự",
-          "layers": {
-            "0": {
-              "title": "Ngôn ngữ và mã theo dõi",
-              "role": "Chạy trước mọi thứ",
-              "body": "Đặt ngôn ngữ phản hồi theo khai báo của trình duyệt, và gắn cho lời gọi một mã theo dõi để mọi dòng nhật ký sinh ra sau đó đều truy ngược được về đúng lời gọi này."
-            },
-            "1": {
-              "title": "Nhận diện người gọi",
-              "role": "Chỉ nhận diện, không chặn",
-              "body": "Đọc thẻ xác thực nếu có, kiểm tra thẻ đã bị thu hồi chưa, rồi ghi lại người gọi là ai. Lời gọi không mang thẻ vẫn đi tiếp bình thường — việc chặn thuộc về lớp cuối, không phải lớp này."
-            },
-            "2": {
-              "title": "Đếm tần suất",
-              "role": "Vị trí quyết định",
-              "body": "Phải nằm chính giữa hai lớp kia. Đặt lên trước lớp nhận diện thì chưa biết người gọi là ai nên mọi thứ đều bị đếm theo địa chỉ mạng, và những người dùng chung một đường mạng bị gộp bộ đếm. Đặt xuống sau lớp phân quyền thì lời gọi thiếu thẻ đã bị từ chối trước khi kịp đếm, và một đợt tấn công nặc danh thoát hoàn toàn khỏi bộ đếm."
-            },
-            "3": {
-              "title": "Kiểm tra quyền",
-              "role": "Chặn ở đây",
-              "body": "So người gọi vừa nhận diện được với danh sách chức năng công khai. Không nằm trong danh sách và không có thẻ hợp lệ thì dừng tại đây."
-            },
-            "4": {
-              "title": "Xử lý nghiệp vụ",
-              "role": "Đích đến",
-              "body": "Tới được đây nghĩa là đã biết người gọi là ai, đã chắc chắn họ chưa vượt hạn mức, và đã chắc chắn họ có quyền."
-            }
-          },
-          "table": {
-            "title": "Sáu lớp giới hạn, mỗi lớp trả lời một câu hỏi khác nhau",
-            "head": {
-              "a": "Lớp",
-              "b": "Câu hỏi nó trả lời",
-              "c": "Phạm vi"
-            },
-            "rows": {
-              "0": {
-                "a": "Đếm chung ở cửa vào",
-                "b": "Người này có gọi quá nhanh không?",
-                "c": "Mọi chức năng, cả nặc danh lẫn đã đăng nhập"
-              },
-              "1": {
-                "a": "Đếm theo từng thao tác xác thực",
-                "b": "Thao tác này có bị gọi quá nhiều không?",
-                "c": "Đăng nhập, làm mới phiên, xác minh mã"
-              },
-              "2": {
-                "a": "Thời gian chờ giữa hai lần",
-                "b": "Đã đủ lâu kể từ lần trước chưa?",
-                "c": "Đăng ký, gửi lại mã, đặt lại mật khẩu"
-              },
-              "3": {
-                "a": "Đếm số lần sai mật khẩu",
-                "b": "Có ai đang dò mật khẩu không?",
-                "c": "Riêng đăng nhập, khoá theo cả tài khoản lẫn địa chỉ"
-              },
-              "4": {
-                "a": "Chặn dò mã phòng",
-                "b": "Có ai đang thử mã phòng hàng loạt không?",
-                "c": "Tra mã phòng nghe chung"
-              },
-              "5": {
-                "a": "Chống lụt trên kênh realtime",
-                "b": "Kết nối này có bắn quá nhiều tin không?",
-                "c": "Kênh realtime, tách theo từng loại tin"
-              }
-            }
-          }
-        },
-        "deploy": {
-          "title": "Đóng gói và đưa lên máy chủ",
-          "lead": "Toàn bộ hệ thống chạy trên đúng một máy chủ nhỏ: bốn nhân, bảy phẩy sáu gigabyte bộ nhớ mà sáu trong số đó đã có chủ, và ổ đĩa chưa tới mười chín gigabyte. Gần như mọi quyết định triển khai đều là hệ quả trực tiếp của con số đó.",
-          "what": {
-            "body": "Mỗi lần đưa lên, mã nguồn được đóng thành hai gói chạy được — một cho máy chủ, một cho giao diện — rồi đẩy lên một kho gói chung. Máy chủ thật không tự đóng gói bao giờ; nó chỉ kéo gói đã đóng sẵn về và khởi động lại."
-          },
-          "why": {
-            "body": "Vì đóng gói ngay trên máy chủ đó sẽ hỏng theo ba cách cùng lúc.",
-            "points": {
-              "0": "Quá trình đóng gói tranh bộ nhớ với cơ sở dữ liệu và hàng đợi đang phục vụ người dùng thật, trên phần bộ nhớ vốn đã gần hết.",
-              "1": "Nó để lại vài gigabyte tệp tạm trên một ổ đĩa không còn chỗ cho chúng.",
-              "2": "Máy đóng gói thuê ngoài mạnh gấp đôi về bộ nhớ, không tốn tiền, và bị xoá sạch ngay sau khi xong — trong khi máy chủ thật chỉ phải tải về khoảng bảy trăm megabyte."
-            }
-          },
-          "when": {
-            "body": "Chỉ khi mã được đưa vào nhánh chính. Mọi nhánh khác dừng ở bước kiểm thử.",
-            "points": {
-              "0": "Đưa lên nhánh phát triển hoặc mở một yêu cầu gộp mã: chỉ chạy kiểm thử, không đụng tới máy chủ.",
-              "1": "Bộ kiểm thử nặng cần dựng cả cơ sở dữ liệu thật để chạy được tách ra một đường riêng, vì nó quá chậm để bắt mỗi lần đưa lên phải chờ."
-            }
-          },
-          "how": {
-            "body": "Mỗi gói được đánh dấu theo đúng phiên bản mã đã tạo ra nó, và dấu đó được ghi lại trên máy chủ. Nhờ vậy lùi về bản trước chỉ là sửa một dòng, và người đăng nhập vào máy gõ lệnh bằng tay cũng ra đúng phiên bản đang chạy chứ không vô tình kéo bản mới nhất.",
-            "points": {
-              "0": "Cây mã trên máy chủ bị ép về đúng nhánh chính thay vì gộp mã vào. Nghe thô bạo, nhưng mọi thứ riêng của máy đó đều nằm ngoài phạm vi quản lý mã nên không bị đụng tới — còn gộp mã thì chỉ cần một thay đổi vặt cũng đủ làm kẹt mọi lần đưa lên sau đó cho tới khi có người vào gỡ tay.",
-              "1": "Bước cuối cùng là chờ máy chủ tự báo khoẻ, thử lại ba mươi lần cách nhau mười giây. Đây mới là cổng chất lượng thật: việc nâng cấp cấu trúc cơ sở dữ liệu chạy lúc khởi động, nên một bước nâng cấp hỏng chỉ lộ ra ở đây. Không có bước chờ này thì lần đưa lên báo xanh trong khi trang đã hỏng.",
-              "2": "Ảnh cũ được dọn sau mỗi lần, nhưng giữ lại một tuần — vừa đủ chỗ trên đĩa, vừa còn đường lùi nếu bản mới có vấn đề."
-            }
-          },
-          "visualTitle": "Ba hệ quả trực tiếp của việc chỉ có một máy chủ nhỏ",
-          "cards": {
-            "0": {
-              "tag": "Đóng gói ở nơi khác",
-              "title": "Máy chủ chỉ kéo về",
-              "body": "Việc nặng được đẩy sang một máy thuê dùng một lần rồi vứt. Máy chủ thật không bao giờ phải vừa đóng gói vừa phục vụ người dùng bằng cùng một phần bộ nhớ."
-            },
-            "1": {
-              "tag": "Chặn trần từng dịch vụ",
-              "title": "Không dịch vụ nào được phình",
-              "body": "Mỗi thành phần bị chặn trần bộ nhớ riêng. Không có trần thì một thành phần rò rỉ bộ nhớ sẽ kéo cả máy xuống, thay vì chỉ tự nó chết và được khởi động lại."
-            },
-            "2": {
-              "tag": "Dọn sau mỗi lần",
-              "title": "Đĩa không tự đầy lên",
-              "body": "Mỗi lần đưa lên sinh thêm một cặp gói mới. Không dọn thì ổ đĩa chưa tới mười chín gigabyte sẽ đầy sau vài chục lần, và lần đầy đó rơi đúng vào giữa một lần đưa lên."
-            }
-          },
-          "table": {
-            "title": "Ba đường chạy tự động, chia theo tốc độ",
-            "head": {
-              "a": "Đường",
-              "b": "Chạy khi nào",
-              "c": "Làm gì"
-            },
-            "rows": {
-              "0": {
-                "a": "Kiểm thử nhanh",
-                "b": "Mở yêu cầu gộp mã, hoặc đưa lên nhánh phát triển",
-                "c": "Kiểm thử đơn vị cho máy chủ, cùng kiểm lỗi và kiểm thử cho giao diện. Không dựng gì nên chạy nhanh."
-              },
-              "1": {
-                "a": "Kiểm thử nặng",
-                "b": "Chạy riêng, không chắn đường",
-                "c": "Dựng cả cơ sở dữ liệu và hàng đợi thật để kiểm. Quá chậm để đứng chắn trước mỗi lần đưa lên."
-              },
-              "2": {
-                "a": "Đưa lên máy chủ",
-                "b": "Khi mã vào nhánh chính",
-                "c": "Chạy lại kiểm thử nhanh, đóng gói, đẩy lên kho, rồi ra lệnh cho máy chủ kéo về và chờ nó báo khoẻ."
-              }
-            }
-          }
         }
       },
       "sections": {
@@ -2213,17 +2061,8 @@
           "outbox": "Outbox & Kafka",
           "redis": "Redis",
           "storage": "Lưu trữ S3",
-          "errors": "Lỗi & i18n",
-          "security": "Bảo mật & rate limit",
-          "deploy": "Triển khai"
+          "errors": "Lỗi & i18n"
         }
-      },
-      "outro": {
-        "eyebrow": "Tiếp theo",
-        "title": "Đọc xong rồi thì nghe thử.",
-        "lead": "Quay lại phần hướng dẫn để xem luồng dùng, hoặc tạo tài khoản và tự chạy thử.",
-        "primaryCta": "Xem hướng dẫn",
-        "secondaryCta": "Tạo tài khoản"
       }
     },
     "engineering": {

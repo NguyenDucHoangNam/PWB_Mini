@@ -1398,6 +1398,51 @@
               "tech": "[after the write]"
             }
           }
+        },
+        "security": {
+          "title": "Security",
+          "summary": "Every request passes through six independent layers before it reaches any business code. Edge security terminates TLS and blocks spoofed headers. Frontend headers prevent framing, injection and protocol downgrade. The Spring Security filter chain authenticates, throttles and authorizes. Application-level rate limiting enforces per-operation ceilings. Token management handles issuance, rotation and revocation. WebSocket security carries its own authentication, scope checks and per-session throttling.",
+          "boundaries": {
+            "edge": "Layer 1 — Edge (Nginx)",
+            "frontend": "Layer 2 — Frontend (Next.js)",
+            "chain": "Layer 3 — Spring Security Filter Chain",
+            "application": "Layer 4 — Application Rate Limiting",
+            "tokens": "Layer 5 — Token Management",
+            "websocket": "Layer 6 — WebSocket Security"
+          },
+          "legend": {
+            "actor": "Rate limiting",
+            "app": "Filter / Guard",
+            "data": "Token / Identity"
+          },
+          "nodes": {
+            "client": { "name": "Client", "type": "[Browser]", "desc": "Sends HTTP or WebSocket requests" },
+            "tls": { "name": "TLS 1.2/1.3", "type": "[Termination]", "desc": "Encrypts every connection" },
+            "ipOverwrite": { "name": "X-Forwarded-For", "type": "[Overwrite]", "desc": "Replaces with real client IP" },
+            "actuatorBlock": { "name": "Actuator block", "type": "[403]", "desc": "Monitoring endpoints unreachable" },
+            "serverTokens": { "name": "server_tokens off", "type": "[Hide]", "desc": "Version info stripped from headers" },
+            "csp": { "name": "Content-Security-Policy", "type": "[Build-time]", "desc": "Validated at build, not at deploy" },
+            "hsts": { "name": "HSTS", "type": "[2 years + preload]", "desc": "Forces HTTPS, no downgrade" },
+            "xFrame": { "name": "X-Frame-Options DENY", "type": "[+ frame-ancestors]", "desc": "Cannot be framed by any page" },
+            "permissions": { "name": "Permissions-Policy", "type": "[Restrict]", "desc": "Camera, mic, geolocation blocked" },
+            "correlationId": { "name": "CorrelationId", "type": "[First]", "desc": "Trace ID on every log line" },
+            "cors": { "name": "CORS", "type": "[Origins]", "desc": "Only allowed origins pass" },
+            "jwtAuth": { "name": "JWT Auth", "type": "[HMAC + Blacklist]", "desc": "Verifies signature, checks Redis" },
+            "httpRateLimit": { "name": "HTTP Rate Limit", "type": "[Lua + Redis]", "desc": "Per-user/IP bucket, 500/min" },
+            "authorization": { "name": "Authorization", "type": "[@PreAuthorize]", "desc": "RBAC: ADMIN, PRO, USER" },
+            "globalLimit": { "name": "Global ceiling", "type": "[Fail-open]", "desc": "500 req/min per caller" },
+            "endpointRules": { "name": "Endpoint rules", "type": "[Configurable]", "desc": "Tighter limits for costly APIs" },
+            "iamGuards": { "name": "IAM guards", "type": "[Fail-closed]", "desc": "5–30 req/min, dual-key" },
+            "bruteForce": { "name": "Brute-force lock", "type": "[Email + IP]", "desc": "5 wrong → 15 min, 20 → 30 min" },
+            "jwtAccess": { "name": "JWT Access Token", "type": "[HMAC-SHA, blacklistable]", "desc": "Short-lived, revocable by JTI" },
+            "refreshToken": { "name": "Refresh Token", "type": "[SHA-256, Redis]", "desc": "Rotated on every use" },
+            "reuseDetect": { "name": "Reuse Detection", "type": "[Revoke all]", "desc": "Stolen token → all sessions killed" },
+            "stompAuth": { "name": "STOMP Auth", "type": "[JWT on CONNECT]", "desc": "Verified once at handshake" },
+            "subscriptionScope": { "name": "Subscription Scope", "type": "[Room membership]", "desc": "Only members can subscribe" },
+            "wsRateLimit": { "name": "WS Rate Limit", "type": "[3 buckets]", "desc": "RTC, chat, other — sliding window" },
+            "business": { "name": "Business Logic", "type": "[Controller]", "desc": "Safe to execute" }
+          },
+          "edges": {}
         }
       },
       "realtime": {
@@ -1537,41 +1582,6 @@
               "5": {
                 "title": "Announce only once the write succeeded",
                 "body": "Only after the data is safely stored is the event posted to the room's channel and delivered to the other six. The order matters: announce first and then fail to write, and everyone sees a state that never existed. Each event also carries the server's clock, so browsers use that as the shared reference instead of trusting their own."
-              }
-            }
-          },
-          "channels": {
-            "title": "The channels in use",
-            "lead": "Six channels, split into the two groups from the model above.",
-            "head": {
-              "a": "Channel",
-              "b": "Who receives",
-              "c": "What it is for"
-            },
-            "rows": {
-              "0": {
-                "b": "Whole room",
-                "c": "People joining, leaving, being removed; capacity changes; the room opening or closing"
-              },
-              "1": {
-                "b": "Whole room",
-                "c": "New messages in the chat panel"
-              },
-              "2": {
-                "b": "Whole room",
-                "c": "Play, pause, seek, track changes, and comments pinned to a moment in the track"
-              },
-              "3": {
-                "b": "One person",
-                "c": "Approval or refusal of a join request; current state sent privately to someone who just arrived"
-              },
-              "4": {
-                "b": "One person",
-                "c": "The exchange two browsers use to set up a direct voice connection"
-              },
-              "5": {
-                "b": "One person",
-                "c": "An error for the specific action that person just took"
               }
             }
           }
@@ -1732,99 +1742,104 @@
           "closing": "There is a price, and it is inherent rather than a bug: because the user already got a success response at stage three, a mail server that is properly down leaves them looking at “your verification code has been sent” while the email never arrives. That is what you trade away when you move work into the background."
         }
       },
+      "redis": {
+        "title": "Short-lived state — Redis",
+        "intro": "Some data lives for tens of seconds and then has to vanish by itself, while being read and written on almost every call. This section starts there: why that data does not belong in the main database, what Redis is, and the jobs we actually use it for.",
+        "toc": {
+          "label": "In this section",
+          "items": {
+            "problem": "The data the main database is wrong for",
+            "what": "What Redis is",
+            "usage": "The three jobs we use it for"
+          }
+        },
+        "problem": {
+          "eyebrow": "Starting point",
+          "title": "Some data has no business being in the main database",
+          "lead": "The main database writes to disk, keeps data forever, and answers complicated questions. Those three strengths are exactly the three things the data below has no use for — while its costs still have to be paid in full.",
+          "traits": {
+            "0": {
+              "tag": "Touched on every call",
+              "title": "A rate counter",
+              "body": "Knowing how many calls somebody made in the last minute means incrementing a counter and reading it back, on every single call. Put that counter in the main database and even a plain read turns into a disk write, purely for the counting."
+            },
+            "1": {
+              "tag": "Alive briefly, then gone",
+              "title": "State that expires by itself",
+              "body": "The wait between two verification codes is sixty seconds. A login session lives fourteen days. After that there is nothing worth keeping. But somewhere permanent never forgets on its own: somebody has to write the cleanup, and every check is still a query."
+            },
+            "2": {
+              "tag": "Nothing may slip in between",
+              "title": "A sequence that runs in one piece",
+              "body": "Increment the counter, compare it against the limit, then allow or block. If another call slips in between those three steps, both see themselves under the limit and both get through. What is needed here is the whole chain behaving as a single step."
+            }
+          },
+          "closing": "All three are short-lived, simply shaped, and needed fast. That is very nearly the definition of an in-memory key–value store."
+        },
+        "what": {
+          "eyebrow": "The tool",
+          "title": "What Redis is",
+          "lead": "Redis is a data store that lives entirely in memory rather than on disk. No tables, no relationships, no queries — in exchange, every read and write takes less than a thousandth of a second.",
+          "board": {
+            "title": "Picture a whiteboard, not a filing cabinet",
+            "body": "A filing cabinet keeps everything for years, has an index, and can be cross-referenced — but every trip to it costs something. A whiteboard is the opposite: each line is one name and one value, writing and wiping are instant, and a line can rub itself out when its time is up. Nobody files records on a whiteboard; nobody opens the filing cabinet just to count how many times somebody knocked."
+          },
+          "ideas": {
+            "0": {
+              "title": "Keys and values, nothing more",
+              "body": "Each entry is a name and a value. The value can be a number, a piece of text, or a set of items. There are no tables to join and no query to filter with — to read something you have to know its name in advance. That poverty is precisely what buys the speed."
+            },
+            "1": {
+              "title": "Every key can expire on its own",
+              "body": "A key can be given a lifetime as it is written. When that runs out Redis deletes it. No cleanup process, no extra “expires at” column to compare against the clock on every read. Short-lived data disappearing by itself is built-in behaviour, not something to write."
+            },
+            "2": {
+              "title": "Commands queue up, they do not overlap",
+              "body": "Redis handles commands one at a time, so a group of commands sent together runs from start to finish with no other call able to land in the middle. That is what turns “increment, then check the limit” into a single step instead of two steps with a gap between them."
+            }
+          },
+          "closing": "The trade is that Redis cannot stand in for the main database: no complex queries, no relationships, and data in memory is not where anything that must not be lost belongs. So every piece of business data — accounts, tracks, listening rooms — stays exactly where it was. Redis holds only the short-lived part. And one thing worth saying plainly, because the name invites the opposite assumption: Redis is not a cache here — nowhere in the system reads from the main database and stashes a copy here for next time. It is the only home the data in the next section has, not a layer standing in front of anything."
+        },
+        "usage": {
+          "eyebrow": "Applied",
+          "title": "In this project Redis does exactly three jobs",
+          "lead": "No more than three. All of them are short-lived state, but each asks a different question — so each uses a different kind of key and a different technique.",
+          "facts": {
+            "holds": "What it holds",
+            "life": "How long",
+            "how": "How it works"
+          },
+          "uses": {
+            "0": {
+              "title": "Holding login sessions",
+              "body": "In this system, “who is signed in right now” is a question only Redis can answer. Each live session is a key. When a session is refreshed the old one leaves a trace behind: if that retired token is ever presented again it was almost certainly stolen, so every session for that account is revoked rather than just refusing the one call. On sign-out, an access token that has not expired yet is written to a deny list for exactly as long as it had left.",
+              "holds": "Live sessions, traces of refreshed ones, and access tokens that have been signed out.",
+              "life": "Fourteen days; a signed-out token only until the moment it would have expired anyway.",
+              "how": "All of one person's sessions are grouped into a set, so revoking every one of them is a single question rather than a scan of the whole store."
+            },
+            "1": {
+              "title": "Counting how often calls arrive",
+              "body": "Every call into the system passes one shared counter: five hundred per minute, counted per account when the caller is signed in and per network address when they are not. Counting per account is deliberate — count only by address and a whole building behind one internet connection shares a single budget. A few paths are far tighter: ten sign-in attempts a minute, and twenty voice previews a minute because each one is a paid call to an outside service.",
+              "holds": "How many calls arrived inside a one-minute window, per account or per network address.",
+              "life": "One minute, then the counter falls back to zero on its own.",
+              "how": "Increment, set the lifetime if this is the first one, compare against the limit — all three as one step, returning the seconds to wait along with the answer."
+            },
+            "2": {
+              "title": "Blocking anything repeated too fast",
+              "body": "The question here is nothing like counting: not “how many in a minute” but “has it been long enough since last time”. Resending a verification code or asking for a password reset has to be sixty seconds apart. Five wrong passwords lock the account for fifteen minutes; twenty from the same network address lock that address for thirty. Guessing more than twenty room codes in fifteen minutes is blocked the same way.",
+              "holds": "A slot that is already taken — the existence of the key is the whole answer.",
+              "life": "Sixty seconds for a cooldown; fifteen to thirty minutes for a lock.",
+              "how": "Create the key only if nobody else has. Creating it means enough time has passed; failing to means the time left on that key is the number of seconds to wait."
+            }
+          }
+        }
+      },
       "topics": {
         "questions": {
           "what": "What it is",
           "why": "Why it has to exist",
           "when": "When it gets used",
           "how": "How it is put together"
-        },
-        "redis": {
-          "title": "The short-term store — Redis",
-          "lead": "Some data lives for a few minutes and then has to vanish by itself, while being read and written constantly. Putting it in the main database is the wrong home: every check becomes a trip to disk, and somebody has to write the cleanup.",
-          "what": {
-            "body": "Redis is a data store that lives in memory. No tables, no relationships, no complex queries — just keys and values, in exchange for reads and writes under a thousandth of a second.",
-            "points": {
-              "0": "Each entry is a key and a value; the value can be a string, a set or a list.",
-              "1": "Every key can be given a lifetime. When it expires Redis deletes it — nobody has to sweep up, and the application needs no expiry logic of its own."
-            }
-          },
-          "why": {
-            "body": "Because the three kinds of data below all pay a heavy price in the main database and gain nothing for it.",
-            "points": {
-              "0": "A rate counter has to be incremented and checked on every single call — in the main database that turns every call into another disk write.",
-              "1": "Short-lived state like a login session or a cooldown lives for minutes to weeks; kept somewhere permanent, somebody has to write the cleanup.",
-              "2": "Some sequences of steps have to run start to finish with nothing slipping in between, and Redis does exactly that in a single command."
-            }
-          },
-          "when": {
-            "body": "Three purposes, all of them short-lived state. What is deliberately not kept here matters just as much.",
-            "points": {
-              "0": "Holding login sessions: which sessions are alive, traces of rotated sessions so an old one cannot be reused, and which tokens have been signed out.",
-              "1": "Counting and cooling down: blocking calls that come too fast, blocking password guessing, stopping repeated mail.",
-              "2": "Not used to cache read data, not used to hold browser sessions, not used as a queue — all three have a home elsewhere."
-            }
-          },
-          "how": {
-            "body": "Ten groups of keys, and none of them lives forever — every one has a lifetime. This is also the single most worth-remembering fact about the system: the list of who is currently signed in exists only here, and the main database has no idea.",
-            "points": {
-              "0": "Session tokens are hashed before being used as keys, so somebody who can read Redis still cannot impersonate anybody — the same principle as hashing passwords.",
-              "1": "Wiping Redis therefore signs out the entire system. That is a known and accepted price for keeping sessions here."
-            }
-          },
-          "visualTitle": "Three different questions, three different techniques",
-          "cards": {
-            "0": {
-              "tag": "How many times in a minute",
-              "title": "A counter that runs in one piece",
-              "body": "Increment, set the lifetime if this is the first one, compare against the limit — the whole chain runs as a single uninterruptible step. Split apart, a process dying in the gap leaves a counter with no lifetime, and that user is blocked forever."
-            },
-            "1": {
-              "tag": "Has it been long enough since last time",
-              "title": "Claim the slot if nobody holds it",
-              "body": "A different question from counting, so a different technique: just try to create a key with a lifetime. Creating it means enough time has passed; failing to means there is still a wait, and the seconds remaining are the answer."
-            },
-            "2": {
-              "tag": "What belongs to this person",
-              "title": "Group them into a set",
-              "body": "All of one person's sessions are grouped together for exactly one purpose: revoking all of them when they change their password. Without it you would have to scan the whole store to find them, instead of asking once."
-            }
-          },
-          "table": {
-            "title": "When Redis is down each place reacts differently — and that is deliberate",
-            "head": {
-              "a": "Where",
-              "b": "If Redis is down",
-              "c": "Why that choice"
-            },
-            "rows": {
-              "0": {
-                "a": "Limits on sign-in operations",
-                "b": "Refuse to serve",
-                "c": "A limiter that is wide open protects nothing, precisely when the system is already weak."
-              },
-              "1": {
-                "a": "Cooldown between password resets",
-                "b": "Refuse, no exceptions",
-                "c": "This path sends mail to an arbitrary address. Left open it becomes an unmetered mail relay."
-              },
-              "2": {
-                "a": "Cooldown on signup and resending a code",
-                "b": "Follow the general setting",
-                "c": "Important enough to block, not important enough to be as rigid as the two rows above."
-              },
-              "3": {
-                "a": "The general limit on every call",
-                "b": "Let it through, log a warning",
-                "c": "Blocking the whole system over a much smaller risk is breaking the product."
-              },
-              "4": {
-                "a": "Blocking room-code guessing",
-                "b": "Let it through, log a warning",
-                "c": "There is another layer behind it: even a correct guess still has to be approved by the room owner."
-              }
-            }
-          }
         },
         "storage": {
           "title": "File storage — an external store and expiring links",
@@ -2016,173 +2031,6 @@
               }
             }
           }
-        },
-        "security": {
-          "title": "Securing calls, and limiting how fast they come",
-          "lead": "Every call into the system passes through a chain of checks stacked one after another. The order is not a matter of taste — put one in the wrong place and a whole layer of protection stops working, with no error logged anywhere.",
-          "what": {
-            "body": "Rate limiting is counting calls within a window of time and refusing them past a threshold. Simple enough in principle, but the system does not use one mechanism — it uses six, each answering a different question at a different layer, and more than one can refuse the same call."
-          },
-          "why": {
-            "body": "Because without it the three things below happen with nothing standing in the way.",
-            "points": {
-              "0": "One caller hammering the system slows it down for everybody else.",
-              "1": "An attacker guesses passwords or verification codes by trying over and over until one lands.",
-              "2": "Costs run away: one feature bills an external service every single time somebody presses it."
-            }
-          },
-          "when": {
-            "body": "The general counter applies to every call, signed in or not. Around it sit narrower layers placed at the specific spots worth suspecting: the sign-in operations, the operations that send mail, and the one feature that calls a paid external service."
-          },
-          "how": {
-            "body": "Count against the account when the caller is known, and only fall back to counting against the network address when they are not. That distinction matters more than it looks: a whole building sharing one connection shares one counter, and the person who gets blocked has no way to find out why.",
-            "points": {
-              "0": "The general ceiling is five hundred calls a minute across every feature, and the number remaining comes back in the header of every response.",
-              "1": "Exactly one feature has a much tighter rule of its own, and it exists because of money rather than security: every preview of a generated voice is a billed call.",
-              "2": "A caller address declared by a proxy is trusted only when the call genuinely arrives from a proxy registered in advance. Trust it unconditionally and anybody can declare their own address, which makes every address-based limit meaningless."
-            }
-          },
-          "visualTitle": "The layers a call passes through, in order",
-          "layers": {
-            "0": {
-              "title": "Language and tracking id",
-              "role": "Runs before everything",
-              "body": "Sets the response language from what the browser asked for, and attaches a tracking id so that every log line produced afterwards can be traced back to this exact call."
-            },
-            "1": {
-              "title": "Identify the caller",
-              "role": "Identifies only, never blocks",
-              "body": "Reads the token if one is present, checks whether it has been revoked, and records who the caller is. A call with no token still carries on — blocking belongs to the last layer, not this one."
-            },
-            "2": {
-              "title": "Count the calls",
-              "role": "The position is the point",
-              "body": "It has to sit exactly between the other two. Move it ahead of identification and nobody is known yet, so everything is counted against the network address and people sharing a connection share a counter. Move it behind authorisation and a call with no token has already been refused before it could be counted, so an anonymous flood escapes the counter entirely."
-            },
-            "3": {
-              "title": "Check permissions",
-              "role": "Blocking happens here",
-              "body": "Compares the caller just identified against the list of public features. Not on the list and without a valid token, the call stops here."
-            },
-            "4": {
-              "title": "Business logic",
-              "role": "The destination",
-              "body": "Reaching this point means the caller is known, is under their limit, and is allowed."
-            }
-          },
-          "table": {
-            "title": "Six limiting layers, each answering a different question",
-            "head": {
-              "a": "Layer",
-              "b": "The question it answers",
-              "c": "Scope"
-            },
-            "rows": {
-              "0": {
-                "a": "The general counter at the door",
-                "b": "Is this caller going too fast?",
-                "c": "Every feature, anonymous and signed in alike"
-              },
-              "1": {
-                "a": "Per-operation counters on auth",
-                "b": "Is this operation being called too often?",
-                "c": "Sign-in, session refresh, code verification"
-              },
-              "2": {
-                "a": "Cooldown between attempts",
-                "b": "Has it been long enough since last time?",
-                "c": "Signup, resending a code, password reset"
-              },
-              "3": {
-                "a": "Failed password counter",
-                "b": "Is somebody guessing a password?",
-                "c": "Sign-in only, locking by account and by address"
-              },
-              "4": {
-                "a": "Room-code guess throttle",
-                "b": "Is somebody trying room codes in bulk?",
-                "c": "Looking up a listening room by code"
-              },
-              "5": {
-                "a": "Flood control on the realtime channel",
-                "b": "Is this connection sending too much?",
-                "c": "The realtime channel, split by kind of message"
-              }
-            }
-          }
-        },
-        "deploy": {
-          "title": "Packaging and shipping to the server",
-          "lead": "The whole system runs on exactly one small server: four cores, seven and a half gigabytes of memory of which six are already spoken for, and a disk under nineteen gigabytes. Almost every deployment decision follows directly from those numbers.",
-          "what": {
-            "body": "On each release the source is packaged into two runnable bundles — one for the server, one for the interface — and pushed to a shared registry. The real server never packages anything; it only pulls a ready-made bundle and restarts."
-          },
-          "why": {
-            "body": "Because packaging on that server would fail in three ways at once.",
-            "points": {
-              "0": "The packaging competes for memory with the database and the queue that are serving real users, out of a budget that is already nearly gone.",
-              "1": "It leaves several gigabytes of intermediate files on a disk that has no room for them.",
-              "2": "A rented build machine has twice the memory, costs nothing, and is destroyed the moment it finishes — while the real server only has to download around seven hundred megabytes."
-            }
-          },
-          "when": {
-            "body": "Only when code reaches the main branch. Every other branch stops at the testing stage.",
-            "points": {
-              "0": "Pushing to the development branch or opening a merge request runs the tests only, and never touches the server.",
-              "1": "The heavy tests, the ones that need real databases stood up to run at all, are split onto their own track — they are far too slow to make every release wait on them."
-            }
-          },
-          "how": {
-            "body": "Each bundle is stamped with the exact revision that produced it, and that stamp is recorded on the server. Rolling back is therefore a one-line change, and somebody logging in and running a command by hand gets the version actually running rather than accidentally pulling the newest one.",
-            "points": {
-              "0": "The source tree on the server is forced back to match the main branch rather than merged into. It looks brutal, but everything specific to that machine sits outside version control and is left untouched — whereas merging jams every later release on the first trivial difference until somebody logs in and clears it by hand.",
-              "1": "The last step waits for the server to report itself healthy, retrying thirty times ten seconds apart. This is the real quality gate: database structure upgrades run during startup, so a broken upgrade only surfaces here. Without the wait, a release reports green while the site is already broken.",
-              "2": "Old bundles are pruned after each release but kept for a week — enough to free the disk, and enough to still have somewhere to roll back to."
-            }
-          },
-          "visualTitle": "Three direct consequences of having only one small server",
-          "cards": {
-            "0": {
-              "tag": "Package elsewhere",
-              "title": "The server only pulls",
-              "body": "The heavy work is pushed onto a machine rented for one run and thrown away. The real server never has to package and serve users out of the same memory budget."
-            },
-            "1": {
-              "tag": "Cap every service",
-              "title": "Nothing is allowed to balloon",
-              "body": "Each component gets its own memory ceiling. Without one, a component that leaks memory takes the whole machine down with it instead of dying alone and being restarted."
-            },
-            "2": {
-              "tag": "Prune every time",
-              "title": "The disk does not silently fill",
-              "body": "Every release adds another pair of bundles. Unpruned, a disk under nineteen gigabytes fills after a few dozen releases — and it fills in the middle of one."
-            }
-          },
-          "table": {
-            "title": "Three automated tracks, split by how slow they are",
-            "head": {
-              "a": "Track",
-              "b": "Runs when",
-              "c": "What it does"
-            },
-            "rows": {
-              "0": {
-                "a": "Fast tests",
-                "b": "On a merge request, or a push to the development branch",
-                "c": "Unit tests for the server, plus linting and tests for the interface. Nothing has to be stood up, so it is quick."
-              },
-              "1": {
-                "a": "Heavy tests",
-                "b": "On their own track, blocking nothing",
-                "c": "Stands up real databases and queues to test against. Far too slow to sit in front of every release."
-              },
-              "2": {
-                "a": "Release",
-                "b": "When code reaches the main branch",
-                "c": "Reruns the fast tests, packages, pushes to the registry, then tells the server to pull and waits for it to report healthy."
-              }
-            }
-          }
         }
       },
       "sections": {
@@ -2213,17 +2061,8 @@
           "outbox": "Outbox & Kafka",
           "redis": "Redis",
           "storage": "S3 storage",
-          "errors": "Errors & i18n",
-          "security": "Security & rate limiting",
-          "deploy": "Deployment"
+          "errors": "Errors & i18n"
         }
-      },
-      "outro": {
-        "eyebrow": "Next",
-        "title": "Enough reading. Go listen.",
-        "lead": "Head back to the walkthrough for the usage flow, or create an account and try it yourself.",
-        "primaryCta": "See the walkthrough",
-        "secondaryCta": "Create an account"
       }
     },
     "engineering": {
