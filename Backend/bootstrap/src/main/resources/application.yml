@@ -71,6 +71,18 @@ pwb:
         methods: [POST]
         limit: 20
         window-seconds: 60
+  audio:
+    tts:
+      # Synthesis is the one call in this service billed per character, and picking a voice means
+      # replaying the same phrase across several of them, so only the first play should cost anything.
+      # This is a deliberate narrowing of the rule that a rejected preview leaves no trace: the audio
+      # now outlives the request by the TTL below. Turn `enabled` off to restore that rule in full.
+      preview-cache:
+        enabled: true
+        ttl: 15m
+        # A preview is a few seconds of speech. Anything near this ceiling is not the case this
+        # endpoint serves, and not a request that gets replayed, so it is returned but never stored.
+        max-bytes: 1048576
   outbox:
     enabled: true
     relay:
