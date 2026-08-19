@@ -5,6 +5,7 @@ import com.pwb.audio.infrastructure.audio.properties.AudioUploadProperties;
 import com.pwb.audio.infrastructure.audio.properties.VoiceTagUploadProperties;
 import com.pwb.audio.infrastructure.processor.properties.SongProcessorProperties;
 import com.pwb.audio.infrastructure.tts.properties.GoogleTtsProperties;
+import com.pwb.audio.infrastructure.tts.properties.TtsPreviewCacheProperties;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurationPackage;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -17,6 +18,7 @@ import org.springframework.context.annotation.ComponentScan;
         AudioUploadProperties.class,
         VoiceTagUploadProperties.class,
         GoogleTtsProperties.class,
+        TtsPreviewCacheProperties.class,
         SongProcessorProperties.class
 })
 @ComponentScan(basePackages = {

@@ -13,8 +13,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties("app.storage")
 public class StorageProperties {
 
-    private long maxFileSizeBytes;
-
+    // A `maxFileSizeBytes` used to sit here, set to 10 MB in both profiles and read by nothing. The
+    // limit that actually applies is `pwb.audio.upload.max-file-size-bytes`; leaving a second, inert
+    // knob next to it meant an operator could tighten the wrong one and believe uploads were capped.
     private S3 s3;
 
     @Data

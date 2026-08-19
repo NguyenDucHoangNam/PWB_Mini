@@ -23,13 +23,20 @@ export const SONGS_KEY = "voice-songs" as const;
 export const songKey = (songId: string) =>
   ["voice-songs", songId] as const;
 
+/**
+ * `sizeBytes` is required: the server signs it into the URL, so storage refuses a body of any other
+ * size. That is the only point at which an upload can be bounded — once the bytes have arrived they are
+ * already transferred and billed, and a limit checked afterwards only decides what gets registered.
+ */
 export const getPresignedUploadUrl = ({
   format,
+  sizeBytes,
 }: {
   format: string;
+  sizeBytes: number;
 }): Promise<ApiResponse<UploadUrlResponse>> =>
   apiClient
-    .post("/songs/upload-url", { format })
+    .post("/songs/upload-url", { format, sizeBytes })
     .then((res) => res.data);
 
 export const createSong = (

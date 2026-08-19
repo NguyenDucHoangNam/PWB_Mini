@@ -18,7 +18,11 @@ import java.util.UUID;
 
 public interface SongUseCase {
 
-    UploadUrlView createUploadUrl(UUID userId, String format);
+    /**
+     * @param sizeBytes the exact size of the file to be uploaded, signed into the returned URL so storage
+     *                  refuses anything larger. Rejected up front when it exceeds the configured limit.
+     */
+    UploadUrlView createUploadUrl(UUID userId, String format, long sizeBytes);
 
     SongView createSong(CreateSongCommand command);
 
@@ -45,6 +49,11 @@ public interface SongUseCase {
     /** Re-runs a merge that failed. Rejected for any other status: a finished song is never re-rendered. */
     SongView retryProcessing(UUID userId, UUID songId);
 
-    /** The song's only playable rendition — merged if it has a voice tag, the plain upload otherwise. */
-    AudioUrlView getAudioUrl(UUID userId, UUID songId, Duration expiration);
+    /**
+     * The song's only playable rendition — merged if it has a voice tag, the plain upload otherwise.
+     *
+     * <p>The lifetime is fixed server-side rather than taken from the caller: the URL it returns is a
+     * bearer credential nothing can revoke, so how long it lives is not a client preference.
+     */
+    AudioUrlView getAudioUrl(UUID userId, UUID songId);
 }

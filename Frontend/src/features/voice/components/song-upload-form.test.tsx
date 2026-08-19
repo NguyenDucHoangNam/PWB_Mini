@@ -52,11 +52,14 @@ class StubXhr {
   static instances: StubXhr[] = [];
   upload = { addEventListener: vi.fn() };
   status = 200;
+  headers: Record<string, string> = {};
   private listeners: Record<string, () => void> = {};
   addEventListener(event: string, handler: () => void) {
     this.listeners[event] = handler;
   }
-  setRequestHeader() {}
+  setRequestHeader(name: string, value: string) {
+    this.headers[name] = value;
+  }
   open() {}
   send() {
     queueMicrotask(() => this.listeners.load?.());
@@ -142,7 +145,11 @@ describe("SongUploadForm — waiting out the voice tag merge", () => {
 
     getPresignedUploadUrl.mockResolvedValue({
       success: true,
-      data: { storageKey: "songs/raw/1.mp3", url: "https://s3.example/put" },
+      data: {
+        storageKey: "songs/raw/1.mp3",
+        url: "https://s3.example/put",
+        contentType: "audio/mpeg",
+      },
     });
     createSong.mockResolvedValue({
       success: true,
@@ -153,6 +160,21 @@ describe("SongUploadForm — waiting out the voice tag merge", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  /**
+   * Both values are signed into the presigned URL, so storage rejects the PUT if either differs. The
+   * content type in particular must be the server's, not the browser's guess from the file: those
+   * disagree per platform for the same extension, and previously the client picked it freely, which is
+   * what let an upload be labelled `text/html`.
+   */
+  it("declares the file's real size and sends back exactly the content type that was signed", async () => {
+    getSong.mockResolvedValue({ success: true, data: { id: SONG_ID, status: "PROCESSING" } });
+
+    await submitUpload();
+
+    expect(getPresignedUploadUrl).toHaveBeenCalledWith({ format: "mp3", sizeBytes: 1024 });
+    expect(StubXhr.instances[0].headers["Content-Type"]).toBe("audio/mpeg");
   });
 
   it("does not navigate or claim success while the merge is still running", async () => {

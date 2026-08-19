@@ -79,7 +79,7 @@ public class LiveroomConfig {
     @Setter
     public static class Music {
 
-        private Duration audioUrlTtl = Duration.ofHours(1);
+        private Duration audioUrlTtl = Duration.ofMinutes(15);
     }
 
     @Getter

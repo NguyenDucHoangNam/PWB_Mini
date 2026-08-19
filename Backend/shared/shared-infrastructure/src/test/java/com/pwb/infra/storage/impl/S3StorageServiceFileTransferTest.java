@@ -60,7 +60,6 @@ class S3StorageServiceFileTransferTest {
     @BeforeEach
     void setUp() {
         StorageProperties properties = StorageProperties.builder()
-                .maxFileSizeBytes(50L * 1024 * 1024)
                 .s3(StorageProperties.S3.builder().bucket("pwb-test").build())
                 .build();
         service = new S3StorageServiceImpl(s3Client, transferManager, presigner, properties);

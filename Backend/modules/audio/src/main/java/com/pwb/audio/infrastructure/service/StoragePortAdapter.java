@@ -31,8 +31,21 @@ public class StoragePortAdapter implements StoragePort {
     }
 
     @Override
-    public PresignedUrl presignUpload(String storageKey, Duration expiration) {
-        return toPresignedUrl(storageService.generatePresignedUploadUrl(storageKey, null, expiration));
+    public PresignedUrl presignUpload(String storageKey, String contentType, long contentLength, Duration expiration) {
+        return toPresignedUrl(
+                storageService.generatePresignedUploadUrl(storageKey, contentType, contentLength, expiration));
+    }
+
+    @Override
+    public byte[] readHead(String storageKey, int maxBytes) {
+        try {
+            return storageService.readHead(storageKey, maxBytes);
+        } catch (StorageException ex) {
+            if (ex.getErrorCode() == StorageErrorCode.STORAGE_OBJECT_NOT_FOUND) {
+                return new byte[0];
+            }
+            throw new AudioBusinessException(AudioErrorCode.STORAGE_ERROR, ex);
+        }
     }
 
     @Override
@@ -48,6 +61,15 @@ public class StoragePortAdapter implements StoragePort {
             if (ex.getErrorCode() == StorageErrorCode.STORAGE_OBJECT_NOT_FOUND) {
                 return Optional.empty();
             }
+            throw new AudioBusinessException(AudioErrorCode.STORAGE_ERROR, ex);
+        }
+    }
+
+    @Override
+    public void copy(String sourceKey, String destinationKey) {
+        try {
+            storageService.copy(sourceKey, destinationKey);
+        } catch (StorageException ex) {
             throw new AudioBusinessException(AudioErrorCode.STORAGE_ERROR, ex);
         }
     }

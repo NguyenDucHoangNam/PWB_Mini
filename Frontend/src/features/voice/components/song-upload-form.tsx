@@ -288,7 +288,16 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
     toast.info(t("uploadCancelled"));
   }, [t]);
 
-  const uploadToStorage = (presignedUrl: string, audioFile: File): Promise<void> => {
+  /**
+   * `contentType` comes from the server, not from `audioFile.type`. It is signed into the URL, and the
+   * browser's own guess varies by platform for the same extension (`audio/wave`, `audio/x-flac`), so
+   * sending the file's type would fail the signature check for anything but MP3.
+   */
+  const uploadToStorage = (
+    presignedUrl: string,
+    audioFile: File,
+    contentType: string,
+  ): Promise<void> => {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhrRef.current = xhr;
@@ -319,7 +328,7 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
       });
 
       xhr.open("PUT", presignedUrl);
-      xhr.setRequestHeader("Content-Type", audioFile.type || "audio/mpeg");
+      xhr.setRequestHeader("Content-Type", contentType);
       xhr.send(audioFile);
     });
   };
@@ -378,16 +387,19 @@ export function SongUploadForm({ onCancel, onSuccess }: SongUploadFormProps) {
       setUploadProgress(0);
 
       const ext = file.name.split(".").pop()?.toLowerCase() || "mp3";
-      const presignedRes = await getPresignedUploadUrl({ format: ext });
+      const presignedRes = await getPresignedUploadUrl({
+        format: ext,
+        sizeBytes: file.size,
+      });
 
       if (!presignedRes.success || !presignedRes.data) {
         throw new Error(presignedRes.message || tCommon("error"));
       }
 
-      const { storageKey, url } = presignedRes.data;
+      const { storageKey, url, contentType } = presignedRes.data;
 
       setUploadStep("uploading");
-      await uploadToStorage(url, file);
+      await uploadToStorage(url, file, contentType);
 
       setUploadStep("creating");
 

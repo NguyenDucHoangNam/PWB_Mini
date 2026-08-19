@@ -19,4 +19,6 @@ public interface SongJpaRepository extends AudioJpaRepository<SongJpaEntity> {
     Page<SongJpaEntity> findAllByUserId(UUID userId, Pageable pageable);
 
     Page<SongJpaEntity> findAllByUserIdAndStatusIn(UUID userId, Collection<SongStatus> statuses, Pageable pageable);
+
+    boolean existsByOriginalS3Key(String originalS3Key);
 }

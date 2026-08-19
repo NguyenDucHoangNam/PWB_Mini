@@ -37,6 +37,7 @@ const EXACT_ERROR_CODE_TO_I18N_KEY: Record<string, string> = {
   AUDIO_026: "voice.errors.retryNotAllowed",
   AUDIO_027: "voice.errors.voiceTagTooLong",
   AUDIO_028: "voice.errors.processingTimedOut",
+  AUDIO_029: "voice.errors.uploadAlreadyRegistered",
 
   LR_001: "liveroom.errors.roomNotFound",
   LR_002: "liveroom.errors.roomEnded",

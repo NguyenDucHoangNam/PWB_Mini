@@ -47,7 +47,6 @@ spring:
 
 app:
   storage:
-    max-file-size-bytes: 10485760
     s3:
       bucket: ${STORAGE_S3_BUCKET}
       region: ${STORAGE_S3_REGION}
@@ -124,7 +123,8 @@ pwb:
       # it stands out — raise it if tags still get lost, lower it if they sit on top of the music.
       voice-tag-headroom-db: ${PWB_AUDIO_VOICE_TAG_HEADROOM_DB:3.0}
     upload:
-      # Verified against object storage, not trusted from the client. Keep working-dir sized to roughly
+      # Signed into the presigned PUT, so storage refuses a larger body before accepting any of it —
+      # and re-checked against storage afterwards as a backstop. Keep working-dir sized to roughly
       # 2.5x this value, since one job holds the source, the voice tag and the render at the same time.
       max-file-size-bytes: ${PWB_AUDIO_MAX_FILE_SIZE_BYTES:209715200}
   outbox:

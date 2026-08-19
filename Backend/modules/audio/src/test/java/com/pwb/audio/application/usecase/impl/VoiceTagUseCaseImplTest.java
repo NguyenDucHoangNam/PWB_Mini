@@ -12,6 +12,7 @@ import com.pwb.audio.domain.repository.SongTagConfigRepository;
 import com.pwb.audio.domain.repository.VoiceTagRepository;
 import com.pwb.audio.domain.service.StoragePort;
 import com.pwb.audio.domain.service.TextToSpeechPort;
+import com.pwb.audio.domain.service.TtsPreviewCache;
 import com.pwb.audio.domain.service.TtsRequest;
 import com.pwb.audio.domain.service.TtsResult;
 import com.pwb.audio.domain.service.TtsVoice;
@@ -24,11 +25,13 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -44,6 +47,7 @@ class VoiceTagUseCaseImplTest {
     private static final UUID USER_ID = UUID.randomUUID();
 
     private TextToSpeechPort textToSpeechPort;
+    private TtsPreviewCache ttsPreviewCache;
     private VoiceTagRepository voiceTagRepository;
     private StoragePort storagePort;
     private AudioProbeService audioProbe;
@@ -52,6 +56,7 @@ class VoiceTagUseCaseImplTest {
     @BeforeEach
     void setUp() {
         textToSpeechPort = mock(TextToSpeechPort.class);
+        ttsPreviewCache = mock(TtsPreviewCache.class);
         voiceTagRepository = mock(VoiceTagRepository.class);
         storagePort = mock(StoragePort.class);
         audioProbe = mock(AudioProbeService.class);
@@ -62,11 +67,13 @@ class VoiceTagUseCaseImplTest {
                 storagePort,
                 mock(StorageCleaner.class),
                 textToSpeechPort,
+                ttsPreviewCache,
                 audioProbe,
                 new VoiceTagUploadProperties()
         );
 
         when(textToSpeechPort.availableVoices(VI)).thenReturn(List.of(VI_FEMALE));
+        when(ttsPreviewCache.find(any())).thenReturn(Optional.empty());
     }
 
     @Nested
@@ -129,6 +136,63 @@ class VoiceTagUseCaseImplTest {
 
             verifyNoInteractions(storagePort);
             verifyNoInteractions(voiceTagRepository);
+        }
+
+        @Test
+        @DisplayName("stores a freshly synthesised preview so the next identical play is free")
+        void cachesWhatItSynthesised() {
+            TtsResult synthesised = new TtsResult(AUDIO, 7, "audio/mpeg");
+            when(textToSpeechPort.synthesize(any())).thenReturn(synthesised);
+
+            useCase.previewVoiceTagTts("xin chào", VI, VI_FEMALE.name());
+
+            ArgumentCaptor<TtsRequest> captor = ArgumentCaptor.forClass(TtsRequest.class);
+            verify(ttsPreviewCache).put(captor.capture(), eq(synthesised));
+            assertThat(captor.getValue().text()).isEqualTo("xin chào");
+            assertThat(captor.getValue().voiceName()).isEqualTo(VI_FEMALE.name());
+        }
+    }
+
+    @Nested
+    @DisplayName("replaying a phrase that was already synthesised")
+    class PreviewCaching {
+
+        @Test
+        @DisplayName("serves the cached audio without paying for a second synthesis")
+        void cacheHitSkipsTheProvider() {
+            when(ttsPreviewCache.find(any()))
+                    .thenReturn(Optional.of(new TtsResult(AUDIO, 7, "audio/mpeg")));
+
+            TtsPreview preview = useCase.previewVoiceTagTts("xin chào", VI, VI_FEMALE.name());
+
+            assertThat(preview.audioBytes()).isEqualTo(AUDIO);
+            assertThat(preview.contentType()).isEqualTo("audio/mpeg");
+            assertThat(preview.durationSeconds()).isEqualTo(7);
+
+            verify(textToSpeechPort, never()).synthesize(any());
+            verify(ttsPreviewCache, never()).put(any(), any());
+        }
+
+        @Test
+        @DisplayName("an unavailable cache reads as a miss rather than a failure")
+        void cacheMissStillSynthesises() {
+            when(ttsPreviewCache.find(any())).thenReturn(Optional.empty());
+            when(textToSpeechPort.synthesize(any()))
+                    .thenReturn(new TtsResult(AUDIO, 7, "audio/mpeg"));
+
+            TtsPreview preview = useCase.previewVoiceTagTts("xin chào", VI, VI_FEMALE.name());
+
+            assertThat(preview.audioBytes()).isEqualTo(AUDIO);
+            verify(textToSpeechPort).synthesize(any());
+        }
+
+        @Test
+        @DisplayName("a rejected voice never reaches the cache either")
+        void invalidVoiceIsRejectedBeforeTheCache() {
+            assertThatThrownBy(() -> useCase.previewVoiceTagTts("xin chào", VI, "en-US-Neural2-D"))
+                    .isInstanceOf(AudioBusinessException.class);
+
+            verifyNoInteractions(ttsPreviewCache);
         }
     }
 

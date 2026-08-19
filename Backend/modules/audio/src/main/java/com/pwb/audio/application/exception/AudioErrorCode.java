@@ -31,7 +31,8 @@ public enum AudioErrorCode implements ErrorCode {
     TTS_VOICE_NOT_SUPPORTED   (ErrorCategory.VALIDATION,        "AUDIO_025", "The requested voice is not available for this language."),
     RETRY_NOT_ALLOWED         (ErrorCategory.BUSINESS,          "AUDIO_026", "Only a song whose processing failed can be reprocessed."),
     VOICE_TAG_TOO_LONG        (ErrorCategory.VALIDATION,        "AUDIO_027", "The voice tag clip is longer than the allowed limit."),
-    PROCESSING_TIMED_OUT      (ErrorCategory.INTERNAL,          "AUDIO_028", "Audio processing took longer than allowed and was stopped.");
+    PROCESSING_TIMED_OUT      (ErrorCategory.INTERNAL,          "AUDIO_028", "Audio processing took longer than allowed and was stopped."),
+    UPLOAD_ALREADY_REGISTERED (ErrorCategory.CONFLICT,          "AUDIO_029", "This upload has already been registered as a song.");
 
     AudioErrorCode(ErrorCategory category, String code, String defaultMessage) {
         this.category = category;

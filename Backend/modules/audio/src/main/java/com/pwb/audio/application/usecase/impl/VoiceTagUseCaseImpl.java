@@ -18,6 +18,7 @@ import com.pwb.audio.domain.repository.VoiceTagRepository;
 import com.pwb.audio.domain.service.PresignedUrl;
 import com.pwb.audio.domain.service.StoragePort;
 import com.pwb.audio.domain.service.TextToSpeechPort;
+import com.pwb.audio.domain.service.TtsPreviewCache;
 import com.pwb.audio.domain.service.TtsRequest;
 import com.pwb.audio.domain.service.TtsResult;
 import com.pwb.audio.domain.service.TtsVoice;
@@ -45,6 +46,7 @@ public class VoiceTagUseCaseImpl implements VoiceTagUseCase {
     private final StoragePort storagePort;
     private final StorageCleaner storageCleaner;
     private final TextToSpeechPort textToSpeechPort;
+    private final TtsPreviewCache ttsPreviewCache;
     private final AudioProbeService audioProbe;
     private final VoiceTagUploadProperties voiceTagUploadProperties;
 
@@ -132,16 +134,27 @@ public class VoiceTagUseCaseImpl implements VoiceTagUseCase {
     }
 
     /**
-     * Not transactional and deliberately touching nothing but the provider: a preview exists so the user can
-     * reject it, and rejected audio should leave no trace in storage or the database.
+     * Not transactional, and still writes nothing to object storage or the database: a preview exists so
+     * the user can reject it, and rejected audio must leave no permanent trace.
+     *
+     * <p>The bytes do now reach Redis under a TTL, which narrows that rule rather than keeping it whole.
+     * It buys the one saving available here: every synthesis is a billed Google call, and choosing a voice
+     * means replaying the same phrase across several of them, so the second play onwards is free. Rejected
+     * audio therefore outlives its rejection by {@code pwb.audio.tts.preview-cache.ttl} and then expires
+     * on its own. Set {@code pwb.audio.tts.preview-cache.enabled: false} to get the original behaviour.
      */
     @Override
     public TtsPreview previewVoiceTagTts(String text, String languageCode, String voiceName) {
         assertVoiceAvailable(languageCode, voiceName);
 
-        TtsResult result = textToSpeechPort.synthesize(new TtsRequest(text, languageCode, voiceName));
-        log.debug("TTS preview synthesised: language={}, voice={}, bytes={}",
-                languageCode, voiceName, result.audioBytes().length);
+        TtsRequest request = new TtsRequest(text, languageCode, voiceName);
+        TtsResult result = ttsPreviewCache.find(request).orElseGet(() -> {
+            TtsResult synthesised = textToSpeechPort.synthesize(request);
+            ttsPreviewCache.put(request, synthesised);
+            log.debug("TTS preview synthesised: language={}, voice={}, bytes={}",
+                    languageCode, voiceName, synthesised.audioBytes().length);
+            return synthesised;
+        });
 
         return new TtsPreview(result.audioBytes(), result.contentType(), result.durationSeconds());
     }
@@ -252,8 +265,18 @@ public class VoiceTagUseCaseImpl implements VoiceTagUseCase {
                 userId, safeName(name), UUID.randomUUID(), format.value());
     }
 
+    /**
+     * Runs of dots are collapsed as well as the obvious characters. A single dot is harmless in a key, but
+     * two adjacent ones make the whole key look like traversal and the storage layer rejects it outright —
+     * on the TTS path that rejection lands after the billed synthesis has already happened, so an ordinary
+     * name like {@code "demo..v2"} cost a Google call and returned a storage error.
+     */
     private String safeName(String name) {
-        return (name == null) ? UUID.randomUUID().toString() : name.replaceAll("[^a-zA-Z0-9._-]", "_");
+        if (name == null) {
+            return UUID.randomUUID().toString();
+        }
+        String sanitized = name.replaceAll("[^a-zA-Z0-9._-]", "_").replaceAll("\\.{2,}", ".");
+        return sanitized.isBlank() ? UUID.randomUUID().toString() : sanitized;
     }
 
     /**

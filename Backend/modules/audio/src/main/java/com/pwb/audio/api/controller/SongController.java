@@ -44,7 +44,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
@@ -85,10 +84,6 @@ public class SongController {
     private static final String MSG_PROCESSING_TRIGGERED = "AUDIO_PROCESSING_TRIGGERED";
     private static final String MSG_PRESIGNED_URL = "AUDIO_PRESIGNED_URL_GENERATED";
 
-    private static final String DEFAULT_EXPIRES_IN_SECONDS = "3600";
-    private static final long MIN_EXPIRES_IN_SECONDS = 60L;
-    private static final long MAX_EXPIRES_IN_SECONDS = 86_400L;
-
     private static final int MAX_SUGGESTION_LIMIT = 20;
 
     private final SongUseCase songUseCase;
@@ -101,7 +96,7 @@ public class SongController {
             @CurrentUser UUID userId,
             @Valid @RequestBody UploadUrlRequest request
     ) {
-        UploadUrlView view = songUseCase.createUploadUrl(userId, request.format());
+        UploadUrlView view = songUseCase.createUploadUrl(userId, request.format(), request.sizeBytes());
         UploadUrlResponse body = UploadUrlResponse.from(view);
         return ResponseEntity.ok(ApiResponse.success(messageResolver.get(MSG_PRESIGNED_URL), body));
     }
@@ -253,16 +248,19 @@ public class SongController {
     /**
      * The song's single playable rendition: merged with its voice tag when it has one, the plain upload
      * otherwise. Callers do not choose — a song is whatever its owner uploaded it to be.
+     *
+     * <p>Nor do they choose how long the returned URL lives. An {@code expiresIn} parameter used to sit
+     * here accepting anything up to 24 hours, which handed the caller control over a credential that
+     * cannot be revoked once issued: deleting the song, ending the subscription or disabling the account
+     * does not stop a URL already handed out. The lifetime is now a server-side constant, and the client
+     * never passed anything but the default anyway.
      */
     @GetMapping("/{songId}/audio-url")
     public ResponseEntity<ApiResponse<AudioUrlResponse>> getAudioUrl(
             @CurrentUser UUID userId,
-            @PathVariable UUID songId,
-            @RequestParam(defaultValue = DEFAULT_EXPIRES_IN_SECONDS)
-            @Min(MIN_EXPIRES_IN_SECONDS)
-            @Max(MAX_EXPIRES_IN_SECONDS) long expiresIn
+            @PathVariable UUID songId
     ) {
-        AudioUrlView view = songUseCase.getAudioUrl(userId, songId, Duration.ofSeconds(expiresIn));
+        AudioUrlView view = songUseCase.getAudioUrl(userId, songId);
         AudioUrlResponse body = AudioUrlResponse.from(view);
         return ResponseEntity.ok(ApiResponse.success(messageResolver.get(MSG_PRESIGNED_URL), body));
     }
