@@ -63,6 +63,11 @@ public class SongRepositoryImpl implements SongRepository {
     }
 
     @Override
+    public boolean existsByOriginalS3Key(String originalS3Key) {
+        return songJpaRepository.existsByOriginalS3Key(originalS3Key);
+    }
+
+    @Override
     public void deleteById(UUID id) {
         songJpaRepository.deleteById(id);
     }

@@ -4,6 +4,7 @@ import com.pwb.infra.storage.exception.StorageErrorCode;
 import com.pwb.infra.storage.exception.StorageException;
 import lombok.experimental.UtilityClass;
 
+import java.util.Set;
 import java.util.regex.Pattern;
 
 @UtilityClass
@@ -11,6 +12,12 @@ public class MediaTypeUtils {
 
     private static final Pattern VALID_KEY_PATTERN = Pattern.compile("^[a-zA-Z0-9/_\\-\\.]+$");
     private static final int MAX_KEY_LENGTH = 1024;
+
+    /** Enough for every signature {@link #detectFromBytes} knows about, with room to spare. */
+    public static final int MAGIC_BYTE_COUNT = 16;
+
+    private static final Set<String> AUDIO_TYPES =
+            Set.of("audio/mpeg", "audio/wav", "audio/flac", "audio/ogg");
 
     public String detectFromBytes(byte[] head) {
         if (head == null || head.length < 4) {
@@ -49,6 +56,17 @@ public class MediaTypeUtils {
         }
 
         return "application/octet-stream";
+    }
+
+    /**
+     * Whether the leading bytes are one of the audio containers this system accepts.
+     *
+     * <p>Deliberately reads the bytes rather than a declared type: a content type is chosen by whoever
+     * uploaded the file, and an extension is chosen by whoever named it, so neither says anything about
+     * what the file actually is.
+     */
+    public boolean isAudio(byte[] head) {
+        return AUDIO_TYPES.contains(detectFromBytes(head));
     }
 
     public void validateKey(String key) {

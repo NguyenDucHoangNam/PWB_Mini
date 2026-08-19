@@ -19,6 +19,7 @@ import com.pwb.audio.application.view.TtsPreview;
 import com.pwb.audio.application.view.VoiceTagView;
 import com.pwb.audio.domain.enums.VoiceTagType;
 import com.pwb.audio.domain.repository.VoiceTagSearchCriteria;
+import com.pwb.audio.infrastructure.audio.properties.VoiceTagUploadProperties;
 import com.pwb.shared.dto.ApiResponse;
 import com.pwb.shared.dto.PageResponse;
 import com.pwb.web.dto.PageResponses;
@@ -88,6 +89,7 @@ public class VoiceTagController {
     private final VoiceTagUseCase voiceTagUseCase;
     private final VoiceTagSearchUseCase voiceTagSearchUseCase;
     private final MessageResolver messageResolver;
+    private final VoiceTagUploadProperties voiceTagUploadProperties;
 
     @PostMapping("/tts")
     @PreAuthorize("hasRole('PRO')")
@@ -125,10 +127,20 @@ public class VoiceTagController {
                 .body(ApiResponse.success(messageResolver.get(MSG_UPLOADED_VOICE_TAG_CREATED), body));
     }
 
-    /** Adapts Spring's multipart type into the framework-free record the application layer works with. */
+    /**
+     * Adapts Spring's multipart type into the framework-free record the application layer works with.
+     *
+     * <p>The size is checked against the voice tag limit <em>before</em> {@code getBytes()}, not after.
+     * Spring's own ceiling is {@code spring.servlet.multipart.max-file-size}, ten times this limit, so
+     * reading first meant a handful of concurrent oversized posts each allocated a hundred-megabyte array
+     * and only then learned the upload was never going to be accepted.
+     */
     private VoiceTagAudioUpload toUpload(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new AudioBusinessException(AudioErrorCode.FILE_EMPTY);
+        }
+        if (file.getSize() > voiceTagUploadProperties.getMaxFileSizeBytes()) {
+            throw new AudioBusinessException(AudioErrorCode.FILE_TOO_LARGE);
         }
         try {
             return new VoiceTagAudioUpload(

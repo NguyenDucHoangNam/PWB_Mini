@@ -62,22 +62,34 @@ public class SongProcessingTransactions {
         ));
     }
 
+    /**
+     * @return {@code true} when the object the render just uploaded is now orphaned and the caller must
+     *         delete it. That is only the case when the song row is gone: it was deleted while the merge
+     *         was still running, and {@code deleteSong} cleaned up its keys at a moment when the merged
+     *         key did not exist yet, so nothing will ever reference or find that object again.
+     *
+     *         <p>A duplicate result is emphatically <em>not</em> such a case. The output key is derived
+     *         from the song id, so the second render wrote to the same key the song already points at —
+     *         deleting it there would delete the audio that is currently being served.
+     */
     @Transactional
-    public void markProcessed(UUID songId, String outputKey, Integer durationSeconds) {
+    public boolean markProcessed(UUID songId, String outputKey, Integer durationSeconds) {
         Optional<Song> found = songRepository.findById(songId);
         if (found.isEmpty()) {
-            log.warn("Song vanished before its result could be stored: songId={}", songId);
-            return;
+            log.warn("Song vanished before its result could be stored, discarding render: songId={}, outputKey={}",
+                    songId, outputKey);
+            return true;
         }
 
         Song song = found.get();
         if (song.isProcessed()) {
             log.debug("Ignoring duplicate processing result: songId={}", songId);
-            return;
+            return false;
         }
 
         song.markProcessed(outputKey, durationSeconds);
         songRepository.save(song);
+        return false;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

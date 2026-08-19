@@ -17,6 +17,7 @@ import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
@@ -28,6 +29,7 @@ import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.model.ServerSideEncryption;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
@@ -59,12 +61,14 @@ public class S3StorageServiceImpl implements StorageService {
     private final S3Presigner presigner;
     private final StorageProperties properties;
 
+    /**
+     * Deliberately <em>not</em> {@code @Retryable}, unlike every other method here. A stream is consumed
+     * by the first attempt and cannot be rewound, so a second attempt would read from EOF and fail
+     * against the {@code contentLength} already declared — replacing the real S3 error with a confusing
+     * length mismatch and never succeeding. Callers that need retries should hand over a {@code byte[]}
+     * or a {@link Path}, both of which can be re-read.
+     */
     @Override
-    @Retryable(
-            retryFor = {S3Exception.class, IOException.class},
-            maxAttempts = 3,
-            backoff = @Backoff(delay = 1000, multiplier = 3, maxDelay = 10000)
-    )
     public UploadResult upload(String key, InputStream content, long sizeBytes, String contentType) {
         MediaTypeUtils.validateKey(key);
         String bucket = bucket();
@@ -104,6 +108,7 @@ public class S3StorageServiceImpl implements StorageService {
                             .bucket(bucket)
                             .key(key)
                             .contentType(contentType)
+                            .serverSideEncryption(ServerSideEncryption.AES256)
                             .build())
                     .build();
 
@@ -177,6 +182,69 @@ public class S3StorageServiceImpl implements StorageService {
                 throw new StorageException(StorageErrorCode.STORAGE_OBJECT_NOT_FOUND, e);
             }
             throw new StorageException(StorageErrorCode.STORAGE_DOWNLOAD_FAILED, e);
+        }
+    }
+
+    @Override
+    @Retryable(
+            retryFor = {S3Exception.class, IOException.class},
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 1000, multiplier = 3, maxDelay = 10000)
+    )
+    public byte[] readHead(String key, int maxBytes) {
+        MediaTypeUtils.validateKey(key);
+        if (maxBytes <= 0) {
+            return new byte[0];
+        }
+        String bucket = bucket();
+
+        try (InputStream stream = s3Client.getObject(GetObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                // Inclusive on both ends, so the last byte wanted is maxBytes - 1.
+                .range("bytes=0-" + (maxBytes - 1))
+                .build())) {
+            return stream.readNBytes(maxBytes);
+        } catch (NoSuchKeyException e) {
+            throw new StorageException(StorageErrorCode.STORAGE_OBJECT_NOT_FOUND, e);
+        } catch (S3Exception e) {
+            if (e.statusCode() == 404) {
+                throw new StorageException(StorageErrorCode.STORAGE_OBJECT_NOT_FOUND, e);
+            }
+            throw new StorageException(StorageErrorCode.STORAGE_DOWNLOAD_FAILED, e);
+        } catch (IOException e) {
+            throw new StorageException(StorageErrorCode.STORAGE_DOWNLOAD_FAILED, e);
+        }
+    }
+
+    @Override
+    @Retryable(
+            retryFor = {S3Exception.class},
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 1000, multiplier = 3, maxDelay = 10000)
+    )
+    public void copy(String sourceKey, String destinationKey) {
+        MediaTypeUtils.validateKey(sourceKey);
+        MediaTypeUtils.validateKey(destinationKey);
+        String bucket = bucket();
+
+        try {
+            s3Client.copyObject(CopyObjectRequest.builder()
+                    .sourceBucket(bucket)
+                    .sourceKey(sourceKey)
+                    .destinationBucket(bucket)
+                    .destinationKey(destinationKey)
+                    // Default MetadataDirective is COPY, which carries the source's content type over —
+                    // that content type was pinned by the upload signature, so it is worth keeping.
+                    .serverSideEncryption(ServerSideEncryption.AES256)
+                    .build());
+        } catch (NoSuchKeyException e) {
+            throw new StorageException(StorageErrorCode.STORAGE_OBJECT_NOT_FOUND, e);
+        } catch (S3Exception e) {
+            if (e.statusCode() == 404) {
+                throw new StorageException(StorageErrorCode.STORAGE_OBJECT_NOT_FOUND, e);
+            }
+            throw new StorageException(StorageErrorCode.STORAGE_UPLOAD_FAILED, e);
         }
     }
 
@@ -274,6 +342,15 @@ public class S3StorageServiceImpl implements StorageService {
         }
     }
 
+    /**
+     * The response is forced to {@code Content-Disposition: attachment}.
+     *
+     * <p>An object's stored content type is decided by whoever uploaded it, so without this a file that
+     * claims to be {@code text/html} is rendered — and its script executed — on the bucket's own origin
+     * when the URL is opened. {@code <audio>} and {@code <img>} ignore the header entirely, so playback
+     * and avatars are unaffected; only a direct navigation changes, and a direct navigation is exactly
+     * the case being closed.
+     */
     @Override
     public PresignedUrlResult generatePresignedUrl(String key, Duration expiration) {
         MediaTypeUtils.validateKey(key);
@@ -285,6 +362,7 @@ public class S3StorageServiceImpl implements StorageService {
                     .getObjectRequest(GetObjectRequest.builder()
                             .bucket(bucket)
                             .key(key)
+                            .responseContentDisposition("attachment")
                             .build())
                     .build();
 
@@ -296,18 +374,29 @@ public class S3StorageServiceImpl implements StorageService {
     }
 
     @Override
-    public PresignedUrlResult generatePresignedUploadUrl(String key, String contentType, Duration expiration) {
+    public PresignedUrlResult generatePresignedUploadUrl(
+            String key, String contentType, long contentLength, Duration expiration) {
         MediaTypeUtils.validateKey(key);
         String bucket = bucket();
 
         try {
+            // No serverSideEncryption here on purpose, unlike the server-side uploads below: it would
+            // become a signed header the browser has to reproduce exactly, and a mismatch surfaces as an
+            // opaque 403. Encryption at rest for this path comes from the bucket's default encryption
+            // setting instead — see docs/storage/bucket-configuration.md.
+            PutObjectRequest.Builder put = PutObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(key);
+            if (contentType != null && !contentType.isBlank()) {
+                put.contentType(contentType);
+            }
+            if (contentLength > 0) {
+                put.contentLength(contentLength);
+            }
+
             PutObjectPresignRequest request = PutObjectPresignRequest.builder()
                     .signatureDuration(expiration)
-                    .putObjectRequest(PutObjectRequest.builder()
-                            .bucket(bucket)
-                            .key(key)
-                            .contentType(contentType)
-                            .build())
+                    .putObjectRequest(put.build())
                     .build();
 
             PresignedPutObjectRequest presigned = presigner.presignPutObject(request);
@@ -325,6 +414,7 @@ public class S3StorageServiceImpl implements StorageService {
                             .key(key)
                             .contentType(contentType)
                             .contentLength(sizeBytes)
+                            .serverSideEncryption(ServerSideEncryption.AES256)
                             .build())
                     .requestBody(AsyncRequestBody.fromInputStream(content, sizeBytes, null))
                     .build();
@@ -352,6 +442,7 @@ public class S3StorageServiceImpl implements StorageService {
                     .key(key)
                     .contentType(contentType)
                     .contentLength(sizeBytes)
+                    .serverSideEncryption(ServerSideEncryption.AES256)
                     .build();
             PutObjectResponse response = s3Client.putObject(request, RequestBody.fromInputStream(content, sizeBytes));
             return new UploadResult(

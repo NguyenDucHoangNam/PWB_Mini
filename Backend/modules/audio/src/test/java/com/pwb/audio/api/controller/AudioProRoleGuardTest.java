@@ -6,6 +6,7 @@ import com.pwb.audio.application.usecase.VoiceTagSearchUseCase;
 import com.pwb.audio.application.usecase.VoiceTagUseCase;
 import com.pwb.audio.application.view.TtsPreview;
 import com.pwb.audio.application.view.UploadUrlView;
+import com.pwb.audio.infrastructure.audio.properties.VoiceTagUploadProperties;
 import com.pwb.web.message.MessageResolver;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -96,10 +98,17 @@ class AudioProRoleGuardTest {
         }
 
         @Bean
+        VoiceTagUploadProperties voiceTagUploadProperties() {
+            return new VoiceTagUploadProperties();
+        }
+
+        @Bean
         VoiceTagController voiceTagController(VoiceTagUseCase voiceTagUseCase,
                                               VoiceTagSearchUseCase voiceTagSearchUseCase,
-                                              MessageResolver messageResolver) {
-            return new VoiceTagController(voiceTagUseCase, voiceTagSearchUseCase, messageResolver);
+                                              MessageResolver messageResolver,
+                                              VoiceTagUploadProperties voiceTagUploadProperties) {
+            return new VoiceTagController(
+                    voiceTagUseCase, voiceTagSearchUseCase, messageResolver, voiceTagUploadProperties);
         }
     }
 
@@ -205,11 +214,12 @@ class AudioProRoleGuardTest {
         @DisplayName("PRO reaches the upload URL")
         void should_allow_pro_upload_url() throws Exception {
             authenticateAs("ROLE_PRO");
-            when(songUseCase.createUploadUrl(any(), any())).thenReturn(new UploadUrlView(
-                    "audio/originals/k.mp3", java.net.URI.create("https://s3/put").toURL(), Instant.now()));
+            when(songUseCase.createUploadUrl(any(), any(), anyLong())).thenReturn(new UploadUrlView(
+                    "audio/staging/k.mp3", java.net.URI.create("https://s3/put").toURL(),
+                    "audio/mpeg", Instant.now()));
 
             assertThatCode(() -> songController.createUploadUrl(
-                    USER_ID, new com.pwb.audio.api.dto.request.UploadUrlRequest("mp3")))
+                    USER_ID, new com.pwb.audio.api.dto.request.UploadUrlRequest("mp3", 1024L)))
                     .doesNotThrowAnyException();
         }
 

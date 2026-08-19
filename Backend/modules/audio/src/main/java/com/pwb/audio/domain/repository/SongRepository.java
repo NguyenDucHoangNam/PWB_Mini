@@ -29,6 +29,12 @@ public interface SongRepository {
     /** Applies every criterion, matching the title as a plain substring. */
     Page<Song> search(SongSearchCriteria criteria, Pageable pageable);
 
+    /**
+     * Whether some song already claims this stored object. One object backs one song, so a second
+     * registration of the same key would leave two rows whose audio disappears when either is deleted.
+     */
+    boolean existsByOriginalS3Key(String originalS3Key);
+
     /** Hard delete: songs carry no soft-delete state, removal is permanent. */
     void deleteById(UUID id);
 }

@@ -2759,6 +2759,7 @@
       "intervalShorterThanTag": "Khoảng lặp phải dài hơn chính đoạn voice tag",
       "retryNotAllowed": "Chỉ bài hát xử lý thất bại mới có thể xử lý lại",
       "processingTimedOut": "Xử lý quá lâu và đã bị dừng. Vui lòng thử lại.",
+      "uploadAlreadyRegistered": "Tệp này đã được lưu thành một bài hát. Hãy tải lên lại nếu bạn muốn thêm một bản nữa.",
       "voiceTagTooLong": "Đoạn voice tag dài hơn giới hạn cho phép",
       "textRequired": "Vui lòng nhập nội dung cần đọc",
       "ttsFailed": "Tổng hợp giọng nói thất bại. Vui lòng thử lại.",

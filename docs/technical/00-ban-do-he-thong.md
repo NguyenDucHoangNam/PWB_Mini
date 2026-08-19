@@ -271,6 +271,7 @@ Mã nguồn chia theo tính năng: `Frontend/src/features/{auth,liveroom,voice,p
 | [Hạ tầng — Outbox & Kafka](infra-01-outbox-va-kafka.md) | Xương sống bất đồng bộ, lease, DLT | ✅ |
 | [Hạ tầng — Redis](infra-02-redis.md) | Bảy nhóm khoá, fail-open vs fail-closed | ✅ |
 | [Hạ tầng — Lưu trữ S3](infra-03-luu-tru-s3.md) | URL ký sẵn, thời hạn, dọn rác | ✅ |
+| [Hạ tầng — Cấu hình bucket S3](../storage/bucket-configuration.md) | Chặn công khai, mã hoá, lifecycle, CORS — những thứ không nằm trong code | ✅ |
 | [Hạ tầng — Lỗi & i18n](infra-05-loi-va-i18n.md) | Mã lỗi, `MessageSource`, dịch phía client | ✅ |
 | [Hạ tầng — Bảo mật & rate limit](infra-06-bao-mat-va-rate-limit.md) | Chuỗi filter, sáu tầng giới hạn, IP tin cậy | ✅ |
 | [Hạ tầng — Triển khai](infra-07-trien-khai.md) | CI/CD, Docker, Nginx, Flyway | ✅ |

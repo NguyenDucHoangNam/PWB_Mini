@@ -2759,6 +2759,7 @@
       "intervalShorterThanTag": "Interval must be longer than the voice tag itself",
       "retryNotAllowed": "Only a song whose processing failed can be reprocessed",
       "processingTimedOut": "Processing took too long and was stopped. Please try again.",
+      "uploadAlreadyRegistered": "This upload has already been saved as a song. Upload the file again to add another copy.",
       "voiceTagTooLong": "The voice tag clip is longer than the allowed limit",
       "textRequired": "Please enter the text to synthesize",
       "ttsFailed": "Speech synthesis failed. Please try again.",

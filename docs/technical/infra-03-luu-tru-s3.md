@@ -11,7 +11,8 @@ Ba loại tệp nằm trên S3, và **không loại nào truy cập được cô
 
 | Loại | Tiền tố khoá | Ai cấp URL |
 |---|---|---|
-| Bài hát gốc | `audio/originals/{userId}/{uuid}.{ext}` | Audio |
+| Tệp vừa tải lên, chưa đăng ký | `audio/staging/{userId}/{uuid}.{ext}` | Audio |
+| Bài hát gốc (đã đăng ký) | `audio/originals/{userId}/{uuid}.{ext}` | Audio |
 | Bài hát đã đóng dấu | `audio/processed/…` | Audio |
 | Voice tag | `audio/voice-tags/{userId}/{tts\|upload}-…` | Audio |
 | Ảnh đại diện | `avatars/{userId}/…` | IAM |
@@ -47,18 +48,15 @@ Cấu hình `StorageProperties` có phần điều khiển multipart, kèm comme
 | Tải bài hát lên | **1 giờ** | 200 MB trên mạng chậm cần thời gian |
 | Ảnh đại diện (thường) | **15 phút** | Chỉ cần sống lâu hơn một lượt xem trang |
 | Ảnh đại diện trong Live Room | **12 giờ** | Phòng nhận URL một lần, màn hình sống lâu hơn 15 phút |
-| Nhạc trong Live Room | **1 giờ** | Một buổi nghe dài hơn một lượt xem trang |
-| `GET /songs/{id}/audio-url` | **client chọn**, 1 phút – 1 ngày | Nhu cầu khác nhau thật |
+| Nhạc trong Live Room | **15 phút** | Client tự gia hạn trước khi hết, nên không cần dài hơn |
+| `GET /songs/{id}/audio-url` | **15 phút** cố định | UseCase quyết định, client không chọn được |
 | `GET /voice-tags/{id}/audio-url` | **1 giờ** cố định | Controller quyết định, client không chọn được |
 
-Hai cách khác nhau để giải cùng một vấn đề:
+Không đường nào để **client** chọn thời hạn nữa. Chỗ duy nhất còn nhận TTL từ bên gọi là **IAM** (`resolve(stored, Duration)`), và bên gọi ở đó là server — Live Room tự xin 12 giờ cho ảnh đại diện.
 
-- **IAM** để **bên gọi** truyền TTL vào (`resolve(stored, Duration)`) — Live Room tự xin 12 giờ.
-- **Audio** để **client** chọn qua tham số, có kiểm khoảng.
+Lý do bỏ: URL ký sẵn **là** credential, và không thu hồi được (mục 1). Thời hạn của nó vì thế là một thiết lập bảo mật, không phải sở thích của client. `GET /songs/{id}/audio-url` từng nhận `expiresIn` tới **86 400 giây**, nghĩa là bất kỳ ai gọi được endpoint đều tự cấp cho mình một đường dẫn công khai sống trọn một ngày — xoá bài, huỷ gói hay khoá tài khoản đều không làm nó ngừng hoạt động. Client thực tế chưa bao giờ truyền tham số đó, nó chỉ dùng mặc định.
 
-Cách của IAM an toàn hơn: client không tự nâng thời hạn được. Cách của Audio linh hoạt hơn nhưng cần chặn khoảng.
-
-> **Chỗ bất đối xứng:** `GET /songs/{id}/audio-url` cho client chọn TTL qua tham số `expiresIn`, kiểm khoảng 1 phút – 1 ngày (cả `@Min`/`@Max` ở Controller lẫn `assertExpirationInRange` ở UseCase). Còn `GET /voice-tags/{id}/audio-url` cố định 1 giờ tại Controller, không nhận tham số từ client. Hai endpoint phục vụ cùng mục đích nhưng chọn cách tiếp cận khác nhau mà không có lý do rõ ràng.
+15 phút đủ vì `usePresignedUrl` (Frontend) gia hạn trước hạn 5 phút, nên người nghe để trang mở cả buổi vẫn không đứt — cái ngắn lại chỉ là khoảng sống của một URL lỡ lọt ra ngoài.
 
 Cạm bẫy đi kèm cách IAM: **quên truyền TTL dài là hỏng lặng lẽ.** URL ảnh đại diện trong phòng hết hạn sau 15 phút sẽ không báo lỗi — nó chỉ trở thành ảnh vỡ, và client rơi về hiển thị chữ cái đầu tên.
 
@@ -83,13 +81,24 @@ if (!TransactionSynchronizationManager.isSynchronizationActive()) {
 
 Thứ tự bắt buộc: **commit trước, xoá tệp sau**. Xoá trước rồi rollback là bản ghi còn mà tệp mất — hỏng hẳn. Xoá sau commit thì xấu nhất là bản ghi mất mà tệp còn — rác, vô hại.
 
-**Không có công việc dọn rác nào tồn tại.** Ba nguồn rác đã biết:
+**Không có công việc dọn rác nào chạy trong ứng dụng** — việc đó đẩy sang lifecycle rule của bucket, và code được sắp lại để rule đó an toàn.
 
-1. Tệp tải lên rồi bị `POST /songs` từ chối vì quá to ([audio-01 §9](audio-01-tai-len-bai-hat.md)) — URL ký sẵn không mang giới hạn kích thước
-2. Ảnh đại diện cũ không xoá được
-3. Đối tượng mồ côi khi việc ghi database hỏng giữa chừng
+Chìa khoá là **tách tiền tố**. Tệp mới `PUT` lên nằm ở `audio/staging/`; `POST /songs` copy nó sang `audio/originals/` (copy phía S3, bytes không qua backend) rồi mới ghi hàng, và chỉ xoá bản staging **sau khi commit**. Nhờ vậy không hàng nào trong database trỏ vào `audio/staging/`, nên **mọi thứ còn lại ở đó theo định nghĩa là rác** và hết hạn sau một ngày — xem [cấu hình bucket](../storage/bucket-configuration.md).
 
-Cả ba đều chỉ tốn dung lượng, không làm sai dữ liệu — đó là lý do đánh đổi này chấp nhận được. Nhưng dung lượng thì chỉ tăng.
+Thứ tự hai chiều đều có lý do: copy **trước** khi ghi, để không có hàng nào trỏ vào đối tượng chưa tồn tại; xoá bản staging **sau** commit, để rollback trả tệp về đúng chỗ client đặt nó thay vì phá mất.
+
+Ba nguồn rác đã bịt:
+
+- **Tệp tải lên rồi không đăng ký:** nay nằm trong `audio/staging/` và hết hạn sau một ngày.
+- **Tệp quá to nằm lại bucket:** trần kích thước nay ký vào URL, nên tệp vượt hạn mức không lên được bucket ngay từ đầu.
+- **Bản render mồ côi khi bài bị xoá giữa lúc ghép:** `markProcessed` nay báo lại cho `SongProcessorWorker` rằng hàng đã biến mất, và worker xoá tệp vừa tải lên. Trường hợp *kết quả trùng lặp* thì cố ý **không** xoá — khoá đầu ra suy ra từ `songId`, nên nó chính là tệp bài hát đang phát.
+
+Còn lại:
+
+1. Ảnh đại diện cũ không xoá được (S3 lỗi lúc thay ảnh)
+2. Đối tượng mồ côi khi việc ghi database hỏng giữa chừng — bao gồm cả trường hợp hiếm là copy xong mà commit ngã, để lại bản copy trong `audio/originals/`, ngoài tầm lifecycle rule
+
+Cả hai chỉ tốn dung lượng, không làm sai dữ liệu — đó là lý do đánh đổi này chấp nhận được.
 
 ---
 
@@ -97,7 +106,7 @@ Cả ba đều chỉ tốn dung lượng, không làm sai dữ liệu — đó l
 
 | Module | Cổng | Ghi chú |
 |---|---|---|
-| Audio | `StoragePort` (`domain/service`) | `presignUpload`, `presignDownload`, `findMetadata`, `uploadBytes`, `uploadFromPath`, `downloadToPath`, `delete` |
+| Audio | `StoragePort` (`domain/service`) | `presignUpload`, `presignDownload`, `findMetadata`, `readHead`, `copy`, `uploadBytes`, `uploadFromPath`, `downloadToPath`, `delete` |
 | IAM | `StorageService` | `upload`, `delete`, `generatePresignedUrl` |
 | Live Room | *không có cổng riêng* | Mượn `StoragePort` của Audio qua `AudioSongCatalogAdapter` |
 
@@ -138,8 +147,12 @@ Cùng một quy tắc, viết ở hai nơi, không dùng chung hàm nào. Thêm 
 | Bài hát: client tự tải lên | Qua backend | Không tốn băng thông server | Backend không thấy tệp, phải kiểm gián tiếp |
 | Voice tag: qua backend | URL ký sẵn | Cần bytes để đo ffprobe | Chiếm luồng Tomcat, nhưng chỉ ≤10 MB |
 | Thời hạn khác nhau theo ngữ cảnh | Một giá trị chung | Nhu cầu thật sự khác nhau | Bốn con số phải nhớ; quên là ảnh vỡ lặng lẽ |
-| IAM: TTL do bên gọi truyền | Client chọn | Client không tự nâng thời hạn | Bên gọi phải nhớ truyền |
-| Audio Song: TTL do client chọn, có trần | Server quyết định | Linh hoạt cho nhiều loại màn hình | Phải kiểm khoảng; voice tag chọn cách khác (cố định) không rõ lý do |
+| IAM: TTL do bên gọi (server) truyền | Client chọn | Client không tự nâng thời hạn | Bên gọi phải nhớ truyền |
+| Audio: TTL cố định phía server | Client chọn qua tham số | URL là credential không thu hồi được, nên thời hạn là thiết lập bảo mật | Màn hình cần lâu hơn phải gia hạn, không xin dài |
+| Ký cả `Content-Type` và `Content-Length` vào URL tải lên | Chỉ ký khoá | S3 tự từ chối tệp sai loại hoặc quá cỡ **trước khi** nhận bytes | Client phải khai đúng kích thước trước, và gửi lại đúng content type server trả về |
+| `Content-Disposition: attachment` trên mọi URL tải xuống | Để trình duyệt tự xử theo content type đã lưu | Nội dung là do người tải lên quyết định; ép tải về thì HTML lưu trong bucket không chạy được | Không mở trực tiếp trên tab được nữa (thẻ `<audio>`/`<img>` không bị ảnh hưởng) |
+| Một đối tượng ứng đúng một bài hát (unique index) | Không ràng buộc | Đăng ký trùng khoá thì xoá bài này làm mất tiếng bài kia | Thêm một index, và một nhánh lỗi `AUDIO_029` |
+| Tải lên vào `audio/staging/`, copy sang `audio/originals/` khi đăng ký | Để nguyên một tiền tố | Tách xong thì mọi thứ còn trong staging chắc chắn là rác, nên lifecycle rule xoá được mà không sợ chạm nhạc thật | Một lệnh copy S3 mỗi bài, và một cửa sổ hẹp lúc commit ngã để lại bản copy mồ côi |
 | Xoá tệp sau commit | Trong transaction | Rollback không làm mất tệp | Sinh rác khi commit rồi xoá hỏng |
 | Xoá hỏng chỉ log | Ném lỗi | Ảnh/bài mới đã sống, không có gì để undo | Rác tích tụ, không ai dọn |
 | Hai cổng cho một dịch vụ | Một cổng chung | Mỗi module khai báo đúng cái mình cần | Hai adapter bọc cùng một client |
@@ -155,10 +168,26 @@ T=$(curl -s -X POST http://localhost:8080/api/v1/auth/login -H "Content-Type: ap
 **Xem một URL ký sẵn và thời hạn của nó:**
 
 ```bash
-curl -s -X POST http://localhost:8080/api/v1/songs/upload-url -H "Authorization: Bearer $T" -H "Content-Type: application/json" -d '{"format":"mp3"}'
+curl -s -X POST http://localhost:8080/api/v1/songs/upload-url -H "Authorization: Bearer $T" -H "Content-Type: application/json" -d '{"format":"mp3","sizeBytes":4096}'
 ```
 
-`expiresAt` cách hiện tại đúng 1 giờ. Phần query của URL chứa `X-Amz-Signature`, `X-Amz-Expires` — đó là chữ ký.
+`expiresAt` cách hiện tại đúng 1 giờ. Phần query của URL chứa `X-Amz-Signature`, `X-Amz-Expires` — đó là chữ ký — và `X-Amz-SignedHeaders=content-length;content-type;host`: hai header đó nằm **trong** chữ ký, nên S3 sẽ từ chối một `PUT` khai khác đi. Response cũng trả `contentType`, là giá trị client bắt buộc gửi lại y nguyên.
+
+**Thấy chữ ký thật sự ràng buộc** — xin URL cho 4096 byte rồi `PUT` một body khác cỡ:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" -X PUT "<url>" -H "Content-Type: audio/mpeg" --data-binary @<tệp-khác-cỡ>
+```
+
+`403` kèm `SignatureDoesNotMatch`. Đổi `Content-Type` sang `text/html` cũng vậy — đó là chỗ bịt lại việc lưu HTML vào bucket.
+
+**Thấy trần kích thước chặn từ trước** — xin URL cho tệp vượt hạn mức:
+
+```bash
+curl -s -X POST http://localhost:8080/api/v1/songs/upload-url -H "Authorization: Bearer $T" -H "Content-Type: application/json" -d '{"format":"mp3","sizeBytes":999999999}'
+```
+
+`AUDIO_005` (`FILE_TOO_LARGE`) — bị từ chối khi **chưa** có byte nào rời khỏi máy client, khác với trước đây là tệp lên tới bucket rồi mới bị từ chối lúc đăng ký.
 
 **Thấy bucket thật sự kín** — lấy phần URL **trước dấu `?`** rồi mở:
 
@@ -180,13 +209,21 @@ docker exec -e PGPASSWORD="$(grep -E '^POSTGRES_PASSWORD=' .env | cut -d= -f2-)"
 
 Ở bảng thứ hai: giá trị bắt đầu bằng `avatars/` là khoá S3, bắt đầu bằng `https://` là ảnh Google — đúng hai loại ở mục 6.
 
-**Thấy chỗ bất đối xứng về thời hạn** — xin URL nhạc với thời hạn 2 ngày:
+**Thấy client không chọn được thời hạn** — thử xin URL nhạc sống 2 ngày:
 
 ```bash
 curl -s "http://localhost:8080/api/v1/songs/<songId>/audio-url?expiresIn=172800" -H "Authorization: Bearer $T"
 ```
 
-Bị từ chối (vượt trần 86 400 giây). Gọi `GET /voice-tags/{id}/audio-url` thì không có tham số để chọn — endpoint luôn trả URL 1 giờ cố định, bất kể client muốn gì.
+Tham số bị bỏ qua hoàn toàn: `expiresAt` trả về vẫn là 15 phút. Endpoint không còn đọc `expiresIn` nữa.
+
+**Thấy một đối tượng chỉ ứng một bài** — đăng ký cùng một `originalS3Key` hai lần:
+
+```bash
+curl -s -X POST http://localhost:8080/api/v1/songs -H "Authorization: Bearer $T" -H "Content-Type: application/json" -d '{"title":"lan 2","originalS3Key":"<khoá đã đăng ký>","durationSeconds":10,"format":"mp3"}'
+```
+
+`AUDIO_029` (`UPLOAD_ALREADY_REGISTERED`).
 
 **Thấy URL hết hạn** — lấy một URL ảnh đại diện (15 phút), mở được ngay; chờ quá 15 phút rồi mở lại, S3 trả `AccessDenied` kèm `Request has expired`.
 
@@ -198,12 +235,12 @@ Bị từ chối (vượt trần 86 400 giây). Gọi `GET /voice-tags/{id}/audi
 
 | Giới hạn | Chi tiết |
 |---|---|
-| **Không có công việc dọn rác** | Ba nguồn rác đã biết, không cái nào được dọn — mục 4 |
-| URL ký sẵn không thu hồi được | Chỉ giới hạn được bằng thời hạn |
-| URL tải lên không mang giới hạn kích thước | Tệp quá to lên được bucket rồi mới bị từ chối, và nằm lại |
-| `voice-tags/audio-url` cố định 1 giờ, không cho client tuỳ chỉnh | Song cho chọn, voice tag không — mục 3 |
+| **Dọn rác nằm ở phía bucket, không ở code** | Code tách `audio/staging/` ra để rule an toàn, nhưng bản thân rule là cấu hình bucket — không test nào bắt được nếu ai đó tắt nó, xem [cấu hình bucket](../storage/bucket-configuration.md) |
+| Mỗi lần đăng ký bài tốn thêm một lần copy S3 | Giá phải trả cho việc tách tiền tố; copy chạy phía S3 nên không tốn băng thông backend, nhưng vẫn là một lệnh gọi có thể hỏng |
+| URL ký sẵn không thu hồi được | Chỉ giới hạn được bằng thời hạn — nay là 15 phút cho nhạc |
+| Cấu hình bucket không nằm trong repo | Mã hoá mặc định, chặn truy cập công khai, lifecycle, CORS đều là thao tác tay; không có IaC nào kiểm chứng — xem [cấu hình bucket](../storage/bucket-configuration.md) |
 | Quên truyền TTL dài là ảnh vỡ lặng lẽ | Mục 3 |
 | Logic "khoá vs URL ngoài" nằm hai chỗ | Mục 6 |
-| Không kiểm nội dung tệp bài hát | Chỉ kiểm phần mở rộng và kích thước; tệp giả chỉ lộ khi FFmpeg chạy |
-| Không có hạn ngạch dung lượng | Không giới hạn tổng dung lượng mỗi người dùng |
+| Kiểm nội dung bài hát chỉ đọc magic bytes | Đủ để loại tệp không phải audio; không chứng minh tệp giải mã được — cái đó chỉ lộ khi FFmpeg chạy |
+| Không có hạn ngạch dung lượng | Trần theo **từng tệp** đã có (ký vào URL), nhưng tổng dung lượng mỗi người dùng thì không giới hạn |
 | Không có phiên bản đối tượng | Ghi đè là mất bản cũ; khoá có UUID nên hiếm, nhưng không có lưới an toàn |

@@ -265,8 +265,18 @@ public class VoiceTagUseCaseImpl implements VoiceTagUseCase {
                 userId, safeName(name), UUID.randomUUID(), format.value());
     }
 
+    /**
+     * Runs of dots are collapsed as well as the obvious characters. A single dot is harmless in a key, but
+     * two adjacent ones make the whole key look like traversal and the storage layer rejects it outright —
+     * on the TTS path that rejection lands after the billed synthesis has already happened, so an ordinary
+     * name like {@code "demo..v2"} cost a Google call and returned a storage error.
+     */
     private String safeName(String name) {
-        return (name == null) ? UUID.randomUUID().toString() : name.replaceAll("[^a-zA-Z0-9._-]", "_");
+        if (name == null) {
+            return UUID.randomUUID().toString();
+        }
+        String sanitized = name.replaceAll("[^a-zA-Z0-9._-]", "_").replaceAll("\\.{2,}", ".");
+        return sanitized.isBlank() ? UUID.randomUUID().toString() : sanitized;
     }
 
     /**

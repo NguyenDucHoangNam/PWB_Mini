@@ -1,5 +1,6 @@
 package com.pwb.audio.infrastructure.processor;
 
+import com.pwb.audio.application.support.StorageCleaner;
 import com.pwb.audio.domain.model.AudioProcessingRequest;
 import com.pwb.audio.domain.model.AudioProcessingResult;
 import com.pwb.audio.domain.service.AudioProcessorPort;
@@ -22,6 +23,7 @@ public class SongProcessorWorker {
 
     private final SongProcessingTransactions transactions;
     private final AudioProcessorPort audioProcessorPort;
+    private final StorageCleaner storageCleaner;
 
     public void process(UUID songId) {
         log.info("Processing song: songId={}", songId);
@@ -34,7 +36,11 @@ public class SongProcessorWorker {
             }
 
             AudioProcessingResult result = audioProcessorPort.embedWatermark(pending.get());
-            transactions.markProcessed(songId, result.outputKey(), result.durationSeconds());
+            boolean orphaned = transactions.markProcessed(songId, result.outputKey(), result.durationSeconds());
+            if (orphaned) {
+                storageCleaner.deleteNow(result.outputKey());
+                return;
+            }
 
             log.info("Song processed: songId={}, outputKey={}, duration={}",
                     songId, result.outputKey(), result.durationSeconds());

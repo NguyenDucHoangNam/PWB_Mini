@@ -26,20 +26,25 @@ sequenceDiagram
     participant S3 as S3
 
     Note over C,S3: Nhịp 1 — xin chữ ký
-    C->>B: POST /songs/upload-url {format}
-    B->>B: sinh khoá audio/originals/{userId}/{uuid}.{ext}
-    B->>S3: presignUpload(key, 1 giờ)
-    B-->>C: {storageKey, url, expiresAt}
+    C->>B: POST /songs/upload-url {format, sizeBytes}
+    B->>B: sizeBytes có vượt trần không
+    B->>B: sinh khoá audio/staging/{userId}/{uuid}.{ext}
+    B->>S3: presignUpload(key, contentType, sizeBytes, 1 giờ)
+    B-->>C: {storageKey, url, contentType, expiresAt}
 
     Note over C,S3: Nhịp 2 — client tự tải lên
-    C->>S3: PUT <url> + nội dung file
-    S3-->>C: 200
+    C->>S3: PUT <url> + nội dung file (đúng contentType, đúng cỡ)
+    S3-->>C: 200 — hoặc 403 nếu khai sai một trong hai
 
     Note over C,S3: Nhịp 3 — báo lại
     C->>B: POST /songs {originalS3Key, title, format, durationSeconds, voiceTagConfig?}
     B->>B: khoá này có thuộc về bạn không
+    B->>B: khoá này đã có bài nào nhận chưa
     B->>S3: findMetadata(key) — có thật không, to bao nhiêu
-    B->>B: tạo Song, và nếu có voiceTagConfig thì startProcessing()
+    B->>S3: readHead(key, 16) — bytes đầu có phải audio không
+    B->>S3: copy staging → audio/originals/{userId}/{uuid}.{ext}
+    B->>B: tạo Song trỏ vào khoá mới, nếu có voiceTagConfig thì startProcessing()
+    B->>S3: sau commit — xoá bản ở staging
     B-->>C: SongView
 ```
 
@@ -57,7 +62,7 @@ Nhịp 1 **không có transaction và không ghi gì**. Nó chỉ là một phé
  * Only keys under the caller's own prefix — with no traversal segments — are accepted.
  */
 private void assertKeyBelongsToUser(UUID userId, String s3Key) {
-    String expectedPrefix = ORIGINAL_KEY_ROOT + userId + "/";
+    String expectedPrefix = STAGING_KEY_ROOT + userId + "/";
     if (s3Key == null || !s3Key.startsWith(expectedPrefix) || s3Key.contains("..")) {
         throw new AudioBusinessException(AudioErrorCode.UNAUTHORIZED_ACCESS);
     }
@@ -66,9 +71,19 @@ private void assertKeyBelongsToUser(UUID userId, String s3Key) {
 
 Không có kiểm tra này, ai cũng gọi `POST /songs` với khoá của người khác và **tạo một bản ghi trỏ tới file người ta**. Từ đó `GET /songs/{id}/audio-url` sẽ ký URL cho phép tải bài hát đó về.
 
-`contains("..")` chặn khoá kiểu `audio/originals/<myId>/../<yourId>/bai.mp3` — chuỗi này *bắt đầu* đúng tiền tố nhưng trỏ ra ngoài. Kiểm tiền tố suông là chưa đủ.
+`contains("..")` chặn khoá kiểu `audio/staging/<myId>/../<yourId>/bai.mp3` — chuỗi này *bắt đầu* đúng tiền tố nhưng trỏ ra ngoài. Kiểm tiền tố suông là chưa đủ.
 
-Chú ý cấu trúc khoá: `audio/originals/{userId}/{uuid}.{ext}`. **UUID ngẫu nhiên, không phải tên file người dùng đặt** — nên không có chuyện tên file lạ làm hỏng đường dẫn, và hai bài trùng tên không đè lên nhau.
+Chú ý cấu trúc khoá: `audio/staging/{userId}/{uuid}.{ext}`. **UUID ngẫu nhiên, không phải tên file người dùng đặt** — nên không có chuyện tên file lạ làm hỏng đường dẫn, và hai bài trùng tên không đè lên nhau.
+
+Giới hạn ở **tiền tố staging** cũng đóng luôn một đường khác: một khoá đã đăng ký nằm ở `audio/originals/`, nên không khai lại được để đăng ký lần hai.
+
+### 3.1b. Đăng ký cũng là "chuyển nhà"
+
+`POST /songs` không để tệp nằm nguyên chỗ nó được tải lên. Nó copy sang `audio/originals/{userId}/{uuid}.{ext}` (cùng chủ, cùng tên, khác tiền tố), ghi hàng trỏ vào khoá mới, rồi **sau khi commit** mới xoá bản ở staging.
+
+Lý do không nằm ở luồng này mà ở chỗ dọn rác: chừng nào tệp bỏ dở và nhạc thật còn chung một tiền tố thì không lifecycle rule nào xoá được cái thứ nhất mà không đe doạ cái thứ hai. Tách ra rồi thì **mọi thứ còn lại trong `audio/staging/` chắc chắn là rác** — xem [cấu hình bucket](../storage/bucket-configuration.md).
+
+Thứ tự có chủ ý ở cả hai đầu: copy **trước** khi ghi, để không có hàng nào trỏ vào đối tượng chưa tồn tại; xoá staging **sau** commit, để rollback trả tệp về đúng chỗ client đặt nó. Ghi hỏng thì bản copy bị thu hồi ngay — trừ khi hỏng vì đụng unique index, lúc đó bản copy là nhạc đang phát của người thắng cuộc đua chứ không phải của mình.
 
 ### 3.2. S3 là nguồn sự thật về kích thước
 
@@ -87,13 +102,16 @@ private StoredObject requireUploadedFile(String storageKey) {
     if (uploaded.sizeBytes() == 0) {
         throw new AudioBusinessException(AudioErrorCode.FILE_EMPTY);
     }
+    assertReallyAudio(storageKey);
     return uploaded;
 }
 ```
 
-Ba điều được quyết định bởi S3, không bởi request: **file có tồn tại không**, **to bao nhiêu**, và có phải file rỗng không.
+Bốn điều được quyết định bởi S3, không bởi request: **file có tồn tại không**, **to bao nhiêu**, có phải file rỗng không, và **bytes đầu tiên có thật sự là audio không**.
 
-Trần 200 MB (`pwb.audio.upload.max-file-size-bytes`). Chú ý điểm yếu cố hữu của thiết kế này: **file đã nằm trên S3 rồi** mới bị từ chối. URL ký sẵn không mang giới hạn kích thước, nên một file 2 GB vẫn lên được bucket và chỉ bị chặn ở bước tạo bản ghi — rồi **nằm lại đó vĩnh viễn** vì không ai xoá. Xem mục 7.
+Điều cuối là một lần đọc `Range: bytes=0-15` rồi đối chiếu magic bytes (`ID3`, `RIFF`, `fLaC`, `OggS`, hay frame sync MP3). Trước đó **không gì trong luồng này từng nhìn vào nội dung file**: phần mở rộng nằm trong khoá là do client chọn, `Content-Type` là header do client gửi — cả hai chỉ nói lên *người tải lên bảo rằng* đó là gì. Bài không gắn voice tag thì cũng không bao giờ được giải mã phía server, nên nếu không kiểm ở đây thì bytes tuỳ ý vẫn đăng ký được thành bài hát và phát lại cho người nghe.
+
+Trần 200 MB (`pwb.audio.upload.max-file-size-bytes`) **được kiểm hai lần**, và lần quan trọng hơn nằm ở nhịp 1: `sizeBytes` client khai được ký thẳng vào URL, nên S3 từ chối một body khác cỡ **trước khi** nhận byte nào. Lần kiểm ở đây là lưới đỡ cho đối tượng ghi bằng URL cũ hoặc bằng đường khác. Trước khi có chữ ký đó, một file 2 GB vẫn lên được bucket và chỉ bị chặn lúc tạo bản ghi — rồi nằm lại vĩnh viễn.
 
 ### 3.3. Thứ duy nhất được tin từ client
 
@@ -193,10 +211,33 @@ T=$(curl -s -X POST http://localhost:8080/api/v1/auth/login -H "Content-Type: ap
 **Xin URL tải lên và xem hình dạng khoá:**
 
 ```bash
-curl -s -X POST http://localhost:8080/api/v1/songs/upload-url -H "Authorization: Bearer $T" -H "Content-Type: application/json" -d '{"format":"mp3"}'
+curl -s -X POST http://localhost:8080/api/v1/songs/upload-url -H "Authorization: Bearer $T" -H "Content-Type: application/json" -d '{"format":"mp3","sizeBytes":4096}'
 ```
 
-`storageKey` có dạng `audio/originals/<userId>/<uuid>.mp3`, `url` là URL S3 kèm chữ ký, `expiresAt` cách hiện tại 1 giờ.
+`storageKey` có dạng `audio/staging/<userId>/<uuid>.mp3`, `url` là URL S3 kèm chữ ký, `contentType` là `audio/mpeg`, `expiresAt` cách hiện tại 1 giờ. Trong phần query của `url` có `X-Amz-SignedHeaders=content-length;content-type;host` — hai header đó nằm trong chữ ký.
+
+**Thử tải lên một file khác cỡ với cái đã khai** — dùng nguyên `url` vừa xin nhưng `PUT` một file không phải 4096 byte: S3 trả `403 SignatureDoesNotMatch`. Đổi `-H "Content-Type: text/html"` cũng vậy.
+
+**Thử khai một kích thước vượt trần:**
+
+```bash
+curl -s -X POST http://localhost:8080/api/v1/songs/upload-url -H "Authorization: Bearer $T" -H "Content-Type: application/json" -d '{"format":"mp3","sizeBytes":999999999}'
+```
+
+`AUDIO_005 FILE_TOO_LARGE` — và chưa có URL nào được cấp, nên không có cách nào đưa file đó lên bucket.
+
+**Thử đăng ký một file không phải audio** — xin URL, `PUT` lên 4096 byte văn bản thường, rồi gọi `POST /songs` với khoá đó. Nhận `AUDIO_014 INVALID_AUDIO_FILE`: `findMetadata` đã qua (file có thật, đúng cỡ), nhưng magic bytes không khớp container nào.
+
+**Thử đăng ký hai lần cùng một khoá** — gọi `POST /songs` lần nữa với `originalS3Key` vừa dùng. Nhận `AUDIO_029 UPLOAD_ALREADY_REGISTERED`.
+
+**Thấy tệp đã chuyển nhà** — sau khi đăng ký xong, so hai chỗ:
+
+```bash
+aws s3 ls "s3://<bucket>/audio/staging/<userId>/"    # không còn khoá vừa dùng
+aws s3 ls "s3://<bucket>/audio/originals/<userId>/"  # khoá đó nằm ở đây
+```
+
+Và trong database, `original_s3_key` của bài vừa tạo bắt đầu bằng `audio/originals/` chứ không phải `audio/staging/`.
 
 **Thử khai khoá của người khác** — lấy URL như trên, đổi `userId` trong `storageKey` thành một UUID khác rồi gọi `POST /songs`. Nhận `AUDIO_012 UNAUTHORIZED_ACCESS`, và **không có truy vấn S3 nào** vì kiểm tiền tố chạy trước.
 
@@ -220,10 +261,9 @@ docker exec -e PGPASSWORD="$(grep -E '^POSTGRES_PASSWORD=' .env | cut -d= -f2-)"
 
 | Giới hạn | Chi tiết |
 |---|---|
-| **File bị từ chối vẫn nằm lại trên S3** | URL ký sẵn không giới hạn kích thước; một file quá to lên được bucket rồi bị `POST /songs` từ chối, và không ai xoá nó — mục 3.2 |
-| URL ký sẵn xin xong không dùng cũng không ai biết | Không có bản ghi nào theo dõi khoá đã cấp |
+| **File tải lên rồi không đăng ký thì nằm lại vĩnh viễn** | Không bản ghi nào theo dõi khoá đã cấp, nên không code nào tìm lại được; chỉ lifecycle rule của bucket dọn được — [cấu hình bucket](../storage/bucket-configuration.md) |
 | Không đổi được voice tag của bài đã tạo | Chỉ gắn được lúc tạo — [audio-03 §5](audio-03-cau-hinh-ghep-tag.md) |
-| Không kiểm nội dung file thật sự là audio | Chỉ kiểm phần mở rộng và kích thước; file giả chỉ lộ ra khi `ffprobe` chạy ở bước xử lý, tức là sau khi đã tạo bản ghi |
+| Kiểm nội dung chỉ đọc 16 byte đầu | Đủ để loại file không phải audio, nhưng không chứng minh file giải mã được — một MP3 cụt đầu đúng magic vẫn qua, và chỉ hỏng khi `ffprobe` chạy |
 | `durationSeconds` của bài chưa xử lý là do client khai | Mục 3.3 |
 | Không giới hạn số bài hát mỗi người | Người dùng PRO tải lên bao nhiêu cũng được |
 | `UPLOADED → PROCESSING` không có API | Sơ đồ trạng thái có mũi tên đó nhưng không đường nào đi tới |

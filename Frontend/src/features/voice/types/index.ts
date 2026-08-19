@@ -85,6 +85,11 @@ export interface AudioUrl {
 export interface UploadUrlResponse {
   storageKey: string;
   url: string;
+  /**
+   * Signed into `url`, so the PUT must carry exactly this as its `Content-Type`. Sending anything else —
+   * including the browser's own guess from the file — makes storage reject the upload.
+   */
+  contentType: string;
   expiresAt: string;
 }
 
