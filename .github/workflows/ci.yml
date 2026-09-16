@@ -27,6 +27,11 @@ jobs:
   backend:
     name: Backend unit tests
     runs-on: ubuntu-latest
+    # The default is six hours. A run that stalls burns all of them, and when this workflow is the
+    # `test` job inside Deploy it also holds the deploy-production concurrency slot for that long
+    # before reporting "cancelled" — which reads as noise rather than as a deploy that never shipped.
+    # The suite itself is ~65s; 15 minutes is well clear of that and of a cold Maven cache.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -40,8 +45,24 @@ jobs:
       # binary has to exist on the runner. It is not part of the base image on every runner
       # generation, and when it is missing those tests fail on a message about the process, not
       # about the package — installing it unconditionally is cheaper than diagnosing that later.
+      #
+      # apt has no network timeout of its own, so a degraded archive mirror does not fail here — it
+      # waits. On 2026-08-19 this step went 21s, then 12m, then hung until the job hit its six-hour
+      # ceiling with the tests never started. Acquire::http::Timeout bounds each request and the
+      # step timeout bounds the whole thing, so a bad mirror now costs five minutes and a red step
+      # that says which step it was.
       - name: Install ffmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        timeout-minutes: 5
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          if command -v ffprobe >/dev/null && command -v ffmpeg >/dev/null; then
+            echo "already on the image"
+            exit 0
+          fi
+          APT_OPTS="-o Acquire::Retries=3 -o Acquire::http::Timeout=20"
+          sudo apt-get update $APT_OPTS
+          sudo apt-get install -y $APT_OPTS ffmpeg
 
       - name: Unit tests
         working-directory: Backend
@@ -50,6 +71,8 @@ jobs:
   frontend:
     name: Frontend lint and tests
     runs-on: ubuntu-latest
+    # Runs in about a minute; same reasoning as the backend job's ceiling.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
