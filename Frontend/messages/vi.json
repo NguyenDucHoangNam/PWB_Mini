@@ -224,8 +224,8 @@
         "lead": "Voice tag là đoạn âm thanh ngắn dùng làm chữ ký cho bản nhạc của bạn. Hướng dẫn này đi hết một lượt: từ lúc mở tab Voice Tags đến khi có một tag sẵn sàng để gắn vào bài hát.",
         "specs": {
           "plan": {
-            "label": "Gói",
-            "value": "Pro"
+            "label": "Truy cập",
+            "value": "Mọi tài khoản đã đăng nhập"
           },
           "ways": {
             "label": "Cách tạo",
@@ -244,7 +244,7 @@
           "open": {
             "title": "Mở tab Voice Tags",
             "body": "Đăng nhập, vào Dashboard rồi mở tab Voice Tags. Đây là nơi chứa toàn bộ voice tag của bạn, và bạn nghe thử được ngay trong danh sách. Lần đầu vào, danh sách còn trống và chỉ có một nút Create.",
-            "note": "Voice Tags là tính năng của gói Pro. Nếu đang dùng gói thường, bạn sẽ thấy lời mời nâng cấp thay cho danh sách.",
+            "note": "Mọi tài khoản đã đăng nhập đều tạo và nghe được voice tag, không cần vượt qua gói trả phí nào.",
             "mediaHint": "Tab Voice Tags khi chưa có tag nào, kèm nút Create.",
             "facts": {
               "place": {
@@ -253,7 +253,7 @@
               },
               "plan": {
                 "label": "Yêu cầu",
-                "value": "Tài khoản Pro đã đăng nhập"
+                "value": "Tài khoản đã đăng nhập"
               }
             }
           },
@@ -360,8 +360,8 @@
         "lead": "Đây là nơi voice tag không còn là một đoạn clip rời mà trở thành một phần của bản nhạc. Bảy bước: chọn file, quyết định có gắn tag hay không, chỉnh cách tag xuất hiện trong bài, rồi nghe lại kết quả.",
         "specs": {
           "plan": {
-            "label": "Gói",
-            "value": "Pro"
+            "label": "Truy cập",
+            "value": "Mọi tài khoản đã đăng nhập"
           },
           "formats": {
             "label": "Nhận file",
@@ -553,8 +553,8 @@
         "lead": "Mỗi phòng có một mã sáu ký tự, chứa tối đa bảy người, và mọi người nghe ở đúng cùng một vị trí trong bài. Hướng dẫn chia theo hai vai: bạn mở phòng, hoặc bạn được mời vào phòng.",
         "specs": {
           "plan": {
-            "label": "Gói",
-            "value": "Pro để mở phòng, vào phòng thì không cần"
+            "label": "Truy cập",
+            "value": "Mọi tài khoản đã đăng nhập, mở hay vào phòng đều được"
           },
           "capacity": {
             "label": "Số người",
@@ -573,7 +573,7 @@
           "open": {
             "title": "Mở tab Live rooms",
             "body": "Vào Dashboard rồi mở tab Live rooms. Danh sách chia thành phòng Đang mở và Đã kết thúc, kèm ô tìm theo tên phòng. Phía trên có hai nút: Tạo phòng và Vào bằng mã.",
-            "note": "Mở phòng cần gói Pro, nhưng vào phòng của người khác thì không. Ai đã đăng nhập cũng vào được bằng mã, nên bạn mời khách nghe duyệt bài rất tiện.",
+            "note": "Mở phòng và vào phòng của người khác đều chỉ cần một tài khoản đã đăng nhập. Ai có mã cũng vào được, nên bạn mời khách nghe duyệt bài rất tiện.",
             "mediaHint": "Danh sách Live rooms: tab Đang mở và Đã kết thúc, kèm hai nút Tạo phòng và Vào bằng mã.",
             "facts": {
               "place": {
@@ -582,7 +582,7 @@
               },
               "plan": {
                 "label": "Yêu cầu",
-                "value": "Gói Pro để tạo phòng"
+                "value": "Tài khoản đã đăng nhập"
               }
             }
           },
@@ -1429,7 +1429,7 @@
             "cors": { "name": "CORS", "type": "[Origin]", "desc": "Chỉ origin được phép mới qua" },
             "jwtAuth": { "name": "JWT Auth", "type": "[HMAC + Blacklist]", "desc": "Xác minh chữ ký, kiểm tra Redis" },
             "httpRateLimit": { "name": "HTTP Rate Limit", "type": "[Lua + Redis]", "desc": "Bucket theo user/IP, 500/phút" },
-            "authorization": { "name": "Authorization", "type": "[@PreAuthorize]", "desc": "RBAC: ADMIN, PRO, USER" },
+            "authorization": { "name": "Authorization", "type": "[@PreAuthorize]", "desc": "RBAC: ADMIN, USER" },
             "globalLimit": { "name": "Trần toàn cục", "type": "[Fail-open]", "desc": "500 req/phút mỗi caller" },
             "endpointRules": { "name": "Rule theo endpoint", "type": "[Cấu hình được]", "desc": "Giới hạn chặt hơn cho API tốn kém" },
             "iamGuards": { "name": "Guard IAM", "type": "[Fail-closed]", "desc": "5–30 req/phút, dual-key" },
@@ -2340,7 +2340,6 @@
     "role": "Vai trò",
     "roleValue": {
       "ADMIN": "Quản trị viên",
-      "PRO": "Pro",
       "USER": "Người dùng"
     },
     "fullName": "Họ và tên *",
@@ -2739,7 +2738,6 @@
       "alreadyProcessed": "Bài hát đã được xử lý. Thay đổi cấu hình để xử lý lại.",
       "streamNotReady": "Phiên bản đã xử lý chưa sẵn sàng",
       "processingInProgress": "Bài hát đang được xử lý",
-      "proOnly": "Tính năng voice tag chỉ dành cho người dùng PRO",
       "voiceTagInUse": "Voice tag đang được sử dụng, vui lòng gỡ trước khi xóa",
       "titleRequired": "Tiêu đề không được để trống",
       "intervalInvalid": "Khoảng cách phải từ 1 đến 60 giây",
@@ -2826,8 +2824,6 @@
       "submitting": "Đang tạo…",
       "success": "Đã tạo phòng",
       "cancel": "Hủy",
-      "proOnly": "Tạo phòng là tính năng của tài khoản PRO",
-      "proOnlyHint": "Bạn vẫn vào được mọi phòng nếu có mã.",
       "capacityInvalid": "Sức chứa phải từ 1 đến 7 người",
       "graceInvalid": "Thời gian chờ phải từ 30 đến 1800 giây"
     },
@@ -3043,7 +3039,6 @@
       "graceInvalid": "Thời gian chờ phải từ 30 đến 1800 giây",
       "forceEndedRoleChange": "Phòng đã kết thúc do chủ phòng mất quyền truy cập",
       "notOwner": "Chỉ chủ phòng mới làm được việc này",
-      "proRequired": "Chỉ tài khoản PRO mới tạo được phòng",
       "selfJoin": "Bạn là chủ phòng này — vào thẳng phòng",
       "requestNotFound": "Không tìm thấy yêu cầu",
       "requestExpired": "Yêu cầu này không còn hiệu lực",

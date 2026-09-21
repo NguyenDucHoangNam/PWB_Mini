@@ -50,7 +50,6 @@ const EXACT_ERROR_CODE_TO_I18N_KEY: Record<string, string> = {
   LR_009: "liveroom.errors.graceInvalid",
   LR_010: "liveroom.errors.forceEndedRoleChange",
   LR_020: "liveroom.errors.notOwner",
-  LR_021: "liveroom.errors.proRequired",
   LR_022: "liveroom.errors.selfJoin",
   LR_030: "liveroom.errors.requestNotFound",
   LR_031: "liveroom.errors.requestExpired",

@@ -20,8 +20,6 @@ import {
   NeuScreen,
   neuButton,
 } from "@/components/ui/neu";
-import { useProGuard } from "@/features/auth/hooks/use-pro-guard";
-import { ProUpgradePrompt } from "@/features/voice/components/pro-upgrade-prompt";
 import { SongDeleteDialog } from "@/features/voice/components/song-delete-dialog";
 import { SongStatusBadge, SongVoiceTagBadge } from "@/features/voice/components/song-status-badge";
 import { AudioPlayer } from "@/features/voice/components/audio-player";
@@ -64,7 +62,6 @@ export default function SongDetailPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const songId = (params?.songId as string) ?? "";
-  const { isPro } = useProGuard();
   const t = useTranslations("voice.songs.detail");
   const tConfig = useTranslations("voice.config");
   const tActions = useTranslations("voice.actions");
@@ -137,10 +134,6 @@ export default function SongDetailPage() {
       }),
     },
   });
-
-  if (!isPro) {
-    return <ProUpgradePrompt />;
-  }
 
   if (isLoading) {
     return (

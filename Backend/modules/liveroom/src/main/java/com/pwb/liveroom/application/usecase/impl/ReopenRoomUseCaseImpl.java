@@ -44,10 +44,6 @@ public class ReopenRoomUseCaseImpl implements ReopenRoomUseCase {
     @Override
     @Transactional
     public RoomView execute(Actor actor, UUID roomId) {
-        if (!actor.isPro()) {
-            throw new LiveroomBusinessException(LiveroomErrorCode.PRO_REQUIRED);
-        }
-
         LiveRoom room = roomLoader.requireOwned(roomId, actor.userId());
         if (!room.isEnded()) {
             throw new LiveroomBusinessException(LiveroomErrorCode.CANNOT_REOPEN);

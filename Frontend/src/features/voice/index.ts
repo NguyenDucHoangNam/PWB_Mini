@@ -43,7 +43,6 @@ export {
 } from "./api/song-stream";
 export { usePresignedUrl } from "./hooks/use-presigned-url";
 export { useFileValidation, MAX_AUDIO_FILE_SIZE } from "./hooks/use-file-validation";
-export { ProUpgradePrompt } from "./components/pro-upgrade-prompt";
 export { VoiceTagCard } from "./components/voice-tag-card";
 export { VoiceTagDeleteDialog } from "./components/voice-tag-delete-dialog";
 export { VoiceTagPreview } from "./components/voice-tag-preview";

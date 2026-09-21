@@ -221,7 +221,6 @@ export function ProfilePage() {
         fullName={profile.fullName ?? null}
         avatarUrl={profile.avatarUrl ?? null}
         roleLabel={getRoleLabel(profile.role)}
-        role={profile.role}
         avatarTitle={t("avatarTitle")}
         isUploading={uploadAvatarMutation.isPending}
         uploadPercent={avatarPercent}

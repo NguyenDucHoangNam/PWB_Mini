@@ -30,7 +30,6 @@ public class AdminUserStatsUseCaseImpl implements AdminUserStatsUseCase {
         long pendingVerificationUsers = userRepository.countByStatus(UserStatus.PENDING_VERIFICATION);
 
         long userRoleCount = userRepository.countByRole(RoleName.USER);
-        long proRoleCount = userRepository.countByRole(RoleName.PRO);
         long adminRoleCount = userRepository.countByRole(RoleName.ADMIN);
 
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
@@ -49,7 +48,6 @@ public class AdminUserStatsUseCaseImpl implements AdminUserStatsUseCase {
                 pendingDeletionUsers,
                 pendingVerificationUsers,
                 userRoleCount,
-                proRoleCount,
                 adminRoleCount,
                 newUsersToday,
                 newUsersThisWeek,

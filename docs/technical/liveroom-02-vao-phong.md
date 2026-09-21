@@ -181,10 +181,10 @@ Vì sao không ném: ném exception sẽ **rollback chính thay đổi mà chủ
 
 ## 8. Tự kiểm chứng
 
-Cần hai tài khoản: `pro1@gmail.com` (chủ phòng) và `user1@gmail.com` (người xin vào).
+Cần hai tài khoản: `user1@gmail.com` (chủ phòng) và `user1@gmail.com` (người xin vào).
 
 ```bash
-TO=$(curl -s -X POST http://localhost:8080/api/v1/auth/login -H "Content-Type: application/json" -d '{"email":"pro1@gmail.com","password":"@NamHoang511"}' | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
+TO=$(curl -s -X POST http://localhost:8080/api/v1/auth/login -H "Content-Type: application/json" -d '{"email":"user1@gmail.com","password":"@NamHoang511"}' | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
 ```
 
 ```bash

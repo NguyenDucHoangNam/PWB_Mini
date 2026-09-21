@@ -1,8 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import { Camera, Crown, Loader2, Lock, Mail } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Camera, Loader2, Lock, Mail } from "lucide-react";
 import { ALLOWED_AVATAR_TYPES } from "../constants";
 
 export interface ProfileHeroProps {
@@ -10,7 +9,6 @@ export interface ProfileHeroProps {
   fullName: string | null;
   avatarUrl: string | null;
   roleLabel: string;
-  role?: string | null;
   avatarTitle: string;
   onGoSecurity: () => void;
   onAvatarChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -27,7 +25,6 @@ export function ProfileHero({
   fullName,
   avatarUrl,
   roleLabel,
-  role,
   avatarTitle,
   onGoSecurity,
   onAvatarChange,
@@ -42,18 +39,12 @@ export function ProfileHero({
   const fallbackInitial =
     fullName?.trim().charAt(0).toUpperCase() ?? email?.charAt(0).toUpperCase() ?? "?";
   const resolvedFullName = fullName?.trim() || email || "—";
-  const isPro = role === "PRO" || roleLabel === "PRO";
 
   return (
     <section className="neu-raised relative overflow-hidden rounded-3xl bg-[#e0e5ec] p-6 sm:p-8 dark:bg-[#1e222b]">
       <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">
         <div className="relative shrink-0">
-          <div
-            className={cn(
-              "neu-pressed relative flex size-24 items-center justify-center rounded-full p-2 transition-all sm:size-28",
-              isPro && "ring-2 ring-indigo-500/80 dark:ring-indigo-400/80",
-            )}
-          >
+          <div className="neu-pressed relative flex size-24 items-center justify-center rounded-full p-2 transition-all sm:size-28">
             <div className="flex size-full items-center justify-center overflow-hidden rounded-full bg-[#e0e5ec] text-2xl font-extrabold text-slate-800 dark:bg-[#1e222b] dark:text-slate-100">
               {avatarUrl ? (
                 <img src={avatarUrl} alt={resolvedFullName} className="h-full w-full object-cover" />
@@ -61,11 +52,6 @@ export function ProfileHero({
                 fallbackInitial
               )}
             </div>
-            {isPro && (
-              <span className="neu-raised absolute top-0 right-0 z-10 flex size-8 items-center justify-center rounded-full bg-[#e0e5ec] text-amber-500 dark:bg-[#1e222b] dark:text-amber-400">
-                <Crown className="size-4 text-amber-500 dark:text-amber-400" aria-hidden="true" />
-              </span>
-            )}
           </div>
           {isUploading && (
             <div
@@ -107,16 +93,9 @@ export function ProfileHero({
         </div>
 
         <div className="min-w-0 flex-1">
-          {isPro ? (
-            <span className="neu-raised-sm inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-              <Crown className="size-3.5 text-amber-500 dark:text-amber-400" aria-hidden="true" />
-              {roleLabel}
-            </span>
-          ) : (
-            <span className="neu-pressed-sm inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">
-              {roleLabel}
-            </span>
-          )}
+          <span className="neu-pressed-sm inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+            {roleLabel}
+          </span>
           <h1 className="mt-3 truncate text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-slate-50">
             {resolvedFullName}
           </h1>

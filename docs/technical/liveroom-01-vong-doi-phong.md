@@ -15,27 +15,20 @@ Một phòng không phải bản ghi tạo ra rồi để đó. Nó có thể k�
 
 ## 2. Tạo phòng
 
-```java
-if (!command.actor().isPro()) {
-    throw new LiveroomBusinessException(LiveroomErrorCode.PRO_REQUIRED);
-}
-```
-
-Chỉ **PRO** mới tạo được phòng — cùng ranh giới trả phí như tải nhạc lên ([audio-00 §4.5](audio-00-tour.md)). Nhưng ở đây nó là một phép kiểm nghiệp vụ trong use case, không phải `@PreAuthorize` như bên Audio. Hai cách cài cùng một quy tắc trong cùng một codebase.
+`CreateRoomUseCaseImpl` mở đầu bằng một phép kiểm quyền: trước đây use case gọi `command.actor().isPro()` và ném `PRO_REQUIRED` nếu không phải tài khoản trả phí — cùng ranh giới với tải nhạc lên bên Audio, nhưng cài trong use case thay vì bằng `@PreAuthorize`. Gói PRO đã bị gỡ khỏi hệ thống, nên phép kiểm đó không còn; ai đăng nhập cũng tạo được phòng ([audio-00 §4.5](audio-00-tour.md)).
 
 Sáu bước, tất cả trong một transaction:
 
 ```java
-1 · kiểm PRO
-2 · kiểm tên không trùng — trong phạm vi một chủ phòng (existsByOwnerIdAndNormalizedName)
-3 · cấp mã phòng
-4 · lưu phòng
-5 · mở phiên đầu tiên (sessionCycleStarter.open)
-6 · xếp chỗ cho chính chủ phòng (admissions.admit … OWNER)
-7 · ghi lịch sử sở hữu (INITIAL_CREATE)
+1 · kiểm tên không trùng — trong phạm vi một chủ phòng (existsByOwnerIdAndNormalizedName)
+2 · cấp mã phòng
+3 · lưu phòng
+4 · mở phiên đầu tiên (sessionCycleStarter.open)
+5 · xếp chỗ cho chính chủ phòng (admissions.admit … OWNER)
+6 · ghi lịch sử sở hữu (INITIAL_CREATE)
 ```
 
-Bước 6 đáng chú ý: **chủ phòng được ngồi vào phòng ngay lúc tạo**, đi qua đúng `Admissions.admit` như mọi người khác. Không có đường riêng cho chủ phòng.
+Bước 5 đáng chú ý: **chủ phòng được ngồi vào phòng ngay lúc tạo**, đi qua đúng `Admissions.admit` như mọi người khác. Không có đường riêng cho chủ phòng.
 
 Tên phòng được lưu hai lần: `room_name` (nguyên bản) và `normalized_name` (dùng để so trùng). Trùng tên chỉ bị chặn **trong phạm vi một chủ phòng** — hai người khác nhau đặt cùng tên là bình thường.
 
@@ -186,7 +179,6 @@ Ném **`ROOM_NOT_FOUND`**, không phải `FORBIDDEN`. Cùng nguyên tắc "khôn
 | Tách phiên khỏi phòng | Mọi thứ gắn vào phòng | Mở lại không kéo theo người và tin nhắn cũ | Mọi truy vấn phải nhớ dùng `cycleId` |
 | `was_approved` gắn với phòng | Gắn với phiên | Buổi sau không phải xin duyệt lại | Duyệt một lần là vào được mãi mãi |
 | Chủ phòng ngồi qua `Admissions.admit` | Đường riêng cho chủ | Một chỗ duy nhất xếp chỗ | — |
-| Kiểm PRO trong use case | `@PreAuthorize` như Audio | — | Hai cách cài cùng một quy tắc |
 | Sinh mã rồi thử lại 5 lần | Sinh tuần tự / mã dài hơn | Đơn giản, mã ngắn dễ đọc qua điện thoại | Tỉ lệ trùng tăng thì tạo phòng hỏng ngẫu nhiên |
 | Throttle mã phòng riêng, trên Redis | Dùng `HttpRateLimitFilter` | Cửa sổ 15 phút không lây sang toàn bộ API | Thêm một adapter |
 | Throttle mã phòng fail-open | Fail-closed như IAM | Redis chết không làm hỏng cả sản phẩm | Redis chết là mất lớp chống dò |
@@ -202,7 +194,7 @@ Ném **`ROOM_NOT_FOUND`**, không phải `FORBIDDEN`. Cùng nguyên tắc "khôn
 ## 9. Tự kiểm chứng
 
 ```bash
-T=$(curl -s -X POST http://localhost:8080/api/v1/auth/login -H "Content-Type: application/json" -d '{"email":"pro1@gmail.com","password":"@NamHoang511"}' | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
+T=$(curl -s -X POST http://localhost:8080/api/v1/auth/login -H "Content-Type: application/json" -d '{"email":"user1@gmail.com","password":"@NamHoang511"}' | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
 ```
 
 **Tạo phòng và xem mã:**
@@ -213,7 +205,7 @@ curl -s -X POST http://localhost:8080/api/v1/liveroom/rooms -H "Authorization: B
 
 **Thử tạo trùng tên** — gọi lại y hệt, nhận `ROOM_NAME_DUPLICATE`.
 
-**Thử bằng tài khoản thường** — dùng token của `user1@gmail.com`, nhận `PRO_REQUIRED`.
+**Thử khi chưa đăng nhập** — gọi cùng endpoint mà bỏ header `Authorization`, nhận `401`.
 
 **Xem phiên tăng lên khi mở lại:**
 
@@ -250,6 +242,6 @@ docker exec pwb-redis redis-cli -a "$(grep -E '^REDIS_PASSWORD=' .env | cut -d= 
 | `GET /rooms/{id}` chỉ chủ phòng | Mục 7 |
 | Undo chỉ dành cho kết thúc thủ công | Phòng bị scheduler đóng thì chỉ còn cách reopen |
 | Bình luận timeline không sống sót qua undo | Mục 4 |
-| Không giới hạn số phòng mỗi người | Một PRO tạo bao nhiêu phòng cũng được |
+| Không giới hạn số phòng mỗi người | Một tài khoản tạo bao nhiêu phòng cũng được |
 | Không xoá được phòng | Chỉ kết thúc; bản ghi và mã phòng giữ vĩnh viễn |
 | `reopened_count` không có trần | Một phòng mở lại vô hạn lần, tích luỹ vô hạn phiên |

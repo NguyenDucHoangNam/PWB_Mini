@@ -18,7 +18,6 @@ public enum LiveroomErrorCode implements ErrorCode {
     ROOM_FORCE_ENDED_ROLE_CHANGE (ErrorCategory.CONFLICT,          "LR_010", "Room ended due to owner role change."),
 
     NOT_OWNER                    (ErrorCategory.FORBIDDEN,         "LR_020", "Only the owner can perform this action."),
-    PRO_REQUIRED                 (ErrorCategory.FORBIDDEN,         "LR_021", "Only PRO accounts can create rooms."),
     SELF_JOIN_NOT_ALLOWED        (ErrorCategory.VALIDATION,        "LR_022", "You already own this room and do not need to request access."),
 
     REQUEST_NOT_FOUND            (ErrorCategory.NOT_FOUND,         "LR_030", "Join request not found."),

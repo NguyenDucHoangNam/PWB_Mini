@@ -208,4 +208,4 @@ Xem những gì Redis đang giữ hộ IAM:
 docker exec pwb-redis redis-cli -a "$(grep -E '^REDIS_PASSWORD=' .env | cut -d= -f2-)" --no-auth-warning --scan --pattern 'iam:*' | sed -E 's/:[a-f0-9]{8,}.*//' | sort | uniq -c
 ```
 
-Tài khoản demo có sẵn ở `application-dev-users.yml` (profile `dev`): `user1@gmail.com`, `pro1@gmail.com`, `admin1@gmail.com` — mật khẩu chung `@NamHoang511`.
+Tài khoản demo có sẵn ở `application-dev-users.yml` (profile `dev`): `user1@gmail.com`, `user2@gmail.com`, `admin1@gmail.com`, `admin2@gmail.com` — mật khẩu chung `@NamHoang511`.

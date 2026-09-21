@@ -42,7 +42,6 @@ public enum IamErrorCode implements ErrorCode {
     ADMIN_USER_ALREADY_BANNED        (ErrorCategory.CONFLICT,         "IAM_ADMIN_003", "User is already banned."),
     ADMIN_USER_NOT_BANNED            (ErrorCategory.CONFLICT,         "IAM_ADMIN_004", "User is not currently banned."),
     ADMIN_USER_ALREADY_PENDING_DELETION (ErrorCategory.CONFLICT,      "IAM_ADMIN_005", "User is already pending deletion."),
-    ADMIN_INVALID_ROLE_ASSIGNMENT    (ErrorCategory.VALIDATION,       "IAM_ADMIN_006", "Cannot assign ADMIN role through this endpoint."),
     ADMIN_BAN_REASON_REQUIRED        (ErrorCategory.VALIDATION,       "IAM_ADMIN_007", "Ban reason is required.");
 
     IamErrorCode(ErrorCategory category, String code, String defaultMessage) {

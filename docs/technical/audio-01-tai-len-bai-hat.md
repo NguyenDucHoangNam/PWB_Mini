@@ -205,7 +205,7 @@ Khác với IAM, xoá bài hát là **xoá cứng** — không có `deleted` fla
 ## 8. Tự kiểm chứng
 
 ```bash
-T=$(curl -s -X POST http://localhost:8080/api/v1/auth/login -H "Content-Type: application/json" -d '{"email":"pro1@gmail.com","password":"@NamHoang511"}' | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
+T=$(curl -s -X POST http://localhost:8080/api/v1/auth/login -H "Content-Type: application/json" -d '{"email":"user1@gmail.com","password":"@NamHoang511"}' | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
 ```
 
 **Xin URL tải lên và xem hình dạng khoá:**
@@ -265,5 +265,5 @@ docker exec -e PGPASSWORD="$(grep -E '^POSTGRES_PASSWORD=' .env | cut -d= -f2-)"
 | Không đổi được voice tag của bài đã tạo | Chỉ gắn được lúc tạo — [audio-03 §5](audio-03-cau-hinh-ghep-tag.md) |
 | Kiểm nội dung chỉ đọc 16 byte đầu | Đủ để loại file không phải audio, nhưng không chứng minh file giải mã được — một MP3 cụt đầu đúng magic vẫn qua, và chỉ hỏng khi `ffprobe` chạy |
 | `durationSeconds` của bài chưa xử lý là do client khai | Mục 3.3 |
-| Không giới hạn số bài hát mỗi người | Người dùng PRO tải lên bao nhiêu cũng được |
+| Không giới hạn số bài hát mỗi người | Tài khoản nào tải lên bao nhiêu cũng được |
 | `UPLOADED → PROCESSING` không có API | Sơ đồ trạng thái có mũi tên đó nhưng không đường nào đi tới |

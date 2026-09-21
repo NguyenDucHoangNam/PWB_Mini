@@ -39,7 +39,6 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -60,15 +59,16 @@ import java.util.UUID;
 /**
  * Every route below is authenticated by the security filter chain, so {@code userId} is always present.
  *
- * <p>The routes that mint new audio additionally require the PRO role — see {@link SongController} for the
- * reasoning behind guarding creation rather than everything. Both synthesis routes matter more than the
- * rest put together: each call is a billed Google request, and {@code /tts/preview} stores nothing, so
- * before this guard existed any authenticated account could spend the project's TTS budget in a loop with
- * nothing to show for it afterwards. The per-endpoint rate limit in {@code application.yml} narrows that
- * tap; it does not decide who is allowed to open it.
+ * <p>The routes that mint new audio used to require the PRO role on top of that — see {@link SongController}
+ * for why the paid tier went away. The two synthesis routes are the ones that still deserve a second look:
+ * each call is a billed Google request, and {@code /tts/preview} stores nothing, so an authenticated
+ * account can spend the project's TTS budget in a loop with nothing to show for it afterwards. What now
+ * bounds that is the per-endpoint rate limit in {@code application.yml} alone, which is a throttle rather
+ * than a gate — it decides how fast, not who. On a demo deployment that is the intended trade; on anything
+ * with a real bill attached, this is the first place to put a check back.
  *
- * <p>{@code /tts/voices} is deliberately left to any authenticated caller: it returns a hard-coded catalog
- * from {@code GoogleTtsAdapter} without contacting Google, so it costs nothing and reveals nothing.
+ * <p>{@code /tts/voices} costs nothing either way: it returns a hard-coded catalog from
+ * {@code GoogleTtsAdapter} without contacting Google.
  */
 @RestController
 @RequestMapping("/api/v1/voice-tags")
@@ -92,7 +92,6 @@ public class VoiceTagController {
     private final VoiceTagUploadProperties voiceTagUploadProperties;
 
     @PostMapping("/tts")
-    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<VoiceTagResponse>> createVoiceTagTts(
             @CurrentUser UUID userId,
             @Valid @RequestBody CreateVoiceTagTtsRequest request
@@ -115,7 +114,6 @@ public class VoiceTagController {
      * the duration before it will accept them.
      */
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<ApiResponse<VoiceTagResponse>> createVoiceTagUpload(
             @CurrentUser UUID userId,
             @RequestParam("name") @NotBlank @Size(max = 100) String name,
@@ -158,7 +156,6 @@ public class VoiceTagController {
      * and nothing was stored that a URL could point at.
      */
     @PostMapping("/tts/preview")
-    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<byte[]> previewVoiceTagTts(
             @Valid @RequestBody PreviewVoiceTagTtsRequest request
     ) {

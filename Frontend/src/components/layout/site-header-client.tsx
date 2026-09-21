@@ -11,7 +11,6 @@ import { LocaleSwitcher } from "./locale-switcher";
 import { User as UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
-import { useProGuard } from "@/features/auth/hooks/use-pro-guard";
 import { useLogout } from "@/features/auth/api/account";
 import { abortRefresh } from "@/lib/auth-refresh";
 import { useAuthChannelSync, broadcastAuthMessage } from "@/lib/use-auth-channel";
@@ -44,7 +43,6 @@ export function SiteHeaderClient() {
   const user = useAuthStore((state) => state.user);
   const accessToken = useAuthStore((state) => state.accessToken);
   const isLoggedIn = !!accessToken;
-  const { isPro } = useProGuard();
 
   const { mutate: logoutMutate } = useLogout();
   const queryClient = useQueryClient();
@@ -138,13 +136,8 @@ export function SiteHeaderClient() {
               <nav className="flex items-center gap-4 mr-2">
                 <DesktopNav
                   items={[
-                    ...(isPro
-                      ? [{ label: t("dashboard"), href: "/dashboard/songs" }]
-                      : []),
-                    {
-                      label: tLiveroom("liveroom"),
-                      href: isPro ? "/dashboard/liveroom" : "/dashboard/liveroom/join",
-                    },
+                    { label: t("dashboard"), href: "/dashboard/songs" },
+                    { label: tLiveroom("liveroom"), href: "/dashboard/liveroom" },
                   ]}
                   pathname={pathname}
                 />
@@ -156,7 +149,6 @@ export function SiteHeaderClient() {
               (isLoggedIn ? (
                 <UserDropdown
                   user={user}
-                  isPro={isPro}
                   labels={{
                     logout: t("logout"),
                     account: t("account"),
@@ -206,7 +198,6 @@ export function SiteHeaderClient() {
             (isLoggedIn ? (
               <MobileAuthenticated
                 user={user}
-                isPro={isPro}
                 publicItems={publicItems}
                 labels={{
                   dashboard: t("dashboard"),
@@ -318,14 +309,12 @@ interface MobileMenuLabels {
 
 function MobileAuthenticated({
   user,
-  isPro,
   publicItems,
   labels,
   onLogout,
   onNavigate,
 }: {
   user: ReturnType<typeof useAuthStore.getState>["user"];
-  isPro: boolean;
   publicItems: NavItem[];
   labels: MobileMenuLabels;
   onLogout: () => void;
@@ -345,16 +334,10 @@ function MobileAuthenticated({
           {item.label}
         </Link>
       ))}
-      {isPro && (
-        <Link href="/dashboard/songs" onClick={onNavigate} className={linkClass}>
-          {labels.dashboard}
-        </Link>
-      )}
-      <Link
-        href={isPro ? "/dashboard/liveroom" : "/dashboard/liveroom/join"}
-        onClick={onNavigate}
-        className={linkClass}
-      >
+      <Link href="/dashboard/songs" onClick={onNavigate} className={linkClass}>
+        {labels.dashboard}
+      </Link>
+      <Link href="/dashboard/liveroom" onClick={onNavigate} className={linkClass}>
         {labels.liveroom}
       </Link>
       <Link href="/dashboard/profile" onClick={onNavigate} className={linkClass}>

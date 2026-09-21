@@ -1,19 +1,16 @@
 package com.pwb.iam.api.controller;
 
 import com.pwb.iam.api.dto.request.BanUserRequest;
-import com.pwb.iam.api.dto.request.ChangeRoleRequest;
 import com.pwb.iam.api.dto.request.DeleteUserRequest;
 import com.pwb.iam.api.dto.response.AdminUserResponse;
 import com.pwb.iam.api.dto.response.AdminUserStatsResponse;
 import com.pwb.iam.api.dto.response.AdminUserSuggestionResponse;
 import com.pwb.iam.application.command.AdminBanUserCommand;
-import com.pwb.iam.application.command.AdminChangeRoleCommand;
 import com.pwb.iam.application.command.AdminDeleteUserCommand;
 import com.pwb.iam.application.command.AdminUnbanUserCommand;
 import com.pwb.iam.application.dto.AdminUserStatsView;
 import com.pwb.iam.application.dto.AdminUserView;
 import com.pwb.iam.application.usecase.AdminBanUserUseCase;
-import com.pwb.iam.application.usecase.AdminChangeRoleUseCase;
 import com.pwb.iam.application.usecase.AdminDeleteUserUseCase;
 import com.pwb.iam.application.usecase.AdminGetUserDetailUseCase;
 import com.pwb.iam.application.usecase.AdminListUsersUseCase;
@@ -41,7 +38,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -64,7 +60,6 @@ public class AdminUserController {
     private final AdminListUsersUseCase listUsers;
     private final AdminSearchUsersUseCase searchUsers;
     private final AdminGetUserDetailUseCase getUserDetail;
-    private final AdminChangeRoleUseCase changeRole;
     private final AdminBanUserUseCase banUser;
     private final AdminUnbanUserUseCase unbanUser;
     private final AdminDeleteUserUseCase deleteUser;
@@ -129,18 +124,6 @@ public class AdminUserController {
             @PathVariable UUID userId
     ) {
         AdminUserView view = getUserDetail.execute(adminId, userId);
-        return ResponseEntity.ok(ApiResponse.success(AdminUserResponse.from(view)));
-    }
-
-    @PatchMapping("/{userId}/role")
-    public ResponseEntity<ApiResponse<AdminUserResponse>> changeRole(
-            @CurrentUser UUID adminId,
-            @PathVariable UUID userId,
-            @Valid @RequestBody ChangeRoleRequest request
-    ) {
-        RoleName newRole = RoleName.valueOf(request.role().toUpperCase());
-        AdminChangeRoleCommand command = new AdminChangeRoleCommand(adminId, userId, newRole);
-        AdminUserView view = changeRole.execute(command);
         return ResponseEntity.ok(ApiResponse.success(AdminUserResponse.from(view)));
     }
 

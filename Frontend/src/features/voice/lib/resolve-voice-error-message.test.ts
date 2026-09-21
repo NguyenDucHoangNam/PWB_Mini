@@ -70,14 +70,6 @@ describe("resolveVoiceErrorMessage", () => {
     );
   });
 
-  it("turns the PRO guard's 403 into an upgrade prompt", () => {
-    // The backend answers the generic IAM code here; without this the user is told "access denied" on a
-    // screen they reached expecting the feature to work.
-    expect(resolveVoiceErrorMessage(asApiError("IAM_ACCESS_001"), tErrors, tCommon)).toBe(
-      "errors:proOnly",
-    );
-  });
-
   it("falls back to the server message for an unknown code", () => {
     const error = Object.assign(new Error("x"), {
       code: "SOMETHING_NEW",
