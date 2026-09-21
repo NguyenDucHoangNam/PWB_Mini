@@ -7,7 +7,6 @@ public record AdminUserStatsView(
         long pendingDeletionUsers,
         long pendingVerificationUsers,
         long userRoleCount,
-        long proRoleCount,
         long adminRoleCount,
         long newUsersToday,
         long newUsersThisWeek,

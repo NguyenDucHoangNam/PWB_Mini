@@ -123,7 +123,7 @@ Hệ quả thực tế: mỗi người trong một phòng Live Room tự phân t
 ## 6. Tự kiểm chứng
 
 ```bash
-T=$(curl -s -X POST http://localhost:8080/api/v1/auth/login -H "Content-Type: application/json" -d '{"email":"pro1@gmail.com","password":"@NamHoang511"}' | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
+T=$(curl -s -X POST http://localhost:8080/api/v1/auth/login -H "Content-Type: application/json" -d '{"email":"user1@gmail.com","password":"@NamHoang511"}' | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
 ```
 
 **Lấy URL phát nhạc:**
@@ -148,7 +148,7 @@ Bài `PROCESSED` phải cho URL trỏ tới `audio/processed/…`; bài khác tr
 curl -s "http://localhost:8080/api/v1/songs/search?keyword=intro" -H "Authorization: Bearer $T"
 ```
 
-**Thấy tìm kiếm bị giới hạn theo chủ sở hữu** — đăng nhập bằng `pro2@gmail.com` và tìm cùng từ khoá. Không thấy bài của `pro1`.
+**Thấy tìm kiếm bị giới hạn theo chủ sở hữu** — đăng nhập bằng `user2@gmail.com` và tìm cùng từ khoá. Không thấy bài của `pro1`.
 
 **Thấy các bộ lọc cùng hoạt động** — từ khoá, trạng thái và khoảng thời lượng trong một lần gọi:
 

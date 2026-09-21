@@ -123,13 +123,13 @@ Module này đo bằng `ffprobe` ở nhiều chỗ thay vì tin metadata:
 - Thời lượng bài hát và voice tag — đo lại từ file, không lấy con số client khai
 - **Độ to (LUFS)** của cả hai — dùng để cân âm lượng tag so với nhạc, xem [audio-04 §4](audio-04-pipeline-xu-ly.md)
 
-### 4.5. Chỉ PRO mới tạo được
+### 4.5. Đăng nhập là đủ
 
-Ba endpoint mang `@PreAuthorize("hasRole('PRO')")`: `upload-url`, tạo bài hát, `retry-processing`. Đọc/sửa/xoá thì `USER` thường làm được.
+Ba endpoint `upload-url`, tạo bài hát và `retry-processing` từng mang `@PreAuthorize("hasRole('PRO')")` — đó là ranh giới trả phí cũ. Gói PRO đã bị gỡ khỏi hệ thống để ai đăng nhập cũng demo được đầy đủ tính năng, nên giờ không còn annotation nào trên các method này.
 
-> **Kiểm chứng thật:** `user1@gmail.com` gọi `POST /songs/upload-url` nhận `ACCESS_DENIED`; `pro1@gmail.com` gọi cùng endpoint nhận về URL ký sẵn.
+Thứ chặn chúng là chuỗi filter: `SecurityConfig` chỉ có hai luật — danh sách `pwb.iam.security.public-endpoints` được `permitAll`, còn lại `anyRequest().authenticated()`. Các route audio không nằm trong danh sách đó, nên phải có token.
 
-Đây là ranh giới trả phí của sản phẩm, và nó được cài ngay ở tầng annotation chứ không trong logic nghiệp vụ.
+> **Kiểm chứng thật:** gọi `POST /songs/upload-url` không kèm `Authorization` nhận `401`. `PublicEndpointExposureTest` (module `bootstrap`) khoá danh sách public lại, để một pattern thêm vào `application.yml` không âm thầm mở các route này.
 
 ### 4.6. Mọi thứ đều có trần
 
@@ -167,13 +167,13 @@ Bốn mã in đậm không tồn tại ở IAM và chỉ có nghĩa với một 
 
 ## 6. Tự kiểm chứng
 
-Lấy token PRO (chỉ PRO mới tạo được):
+Lấy token (tài khoản nào cũng tạo được):
 
 ```bash
-T=$(curl -s -X POST http://localhost:8080/api/v1/auth/login -H "Content-Type: application/json" -d '{"email":"pro1@gmail.com","password":"@NamHoang511"}' | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
+T=$(curl -s -X POST http://localhost:8080/api/v1/auth/login -H "Content-Type: application/json" -d '{"email":"user1@gmail.com","password":"@NamHoang511"}' | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
 ```
 
-**Xem ranh giới PRO** — gọi cùng endpoint bằng token của `user1@gmail.com`, nhận `ACCESS_DENIED`.
+**Xem ranh giới xác thực** — gọi cùng endpoint mà bỏ header `Authorization`, nhận `401`.
 
 **Xem trạng thái các bài hát:**
 

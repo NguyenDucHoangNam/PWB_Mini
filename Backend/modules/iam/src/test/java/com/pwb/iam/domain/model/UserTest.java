@@ -383,7 +383,7 @@ class UserTest {
                     "avatar.png",
                     "0123",
                     UserStatus.ACTIVE,
-                    "PRO",
+                    "ADMIN",
                     OAuthProvider.LOCAL,
                     null,
                     null,
@@ -394,7 +394,7 @@ class UserTest {
             assertThat(user.getUserId()).isEqualTo(userId);
             assertThat(user.getEmail().value()).isEqualTo("user@example.com");
             assertThat(user.getFullName()).isEqualTo("Name");
-            assertThat(user.getRole()).isEqualTo(RoleName.PRO);
+            assertThat(user.getRole()).isEqualTo(RoleName.ADMIN);
             assertThat(user.getStatus()).isEqualTo(UserStatus.ACTIVE);
         }
 

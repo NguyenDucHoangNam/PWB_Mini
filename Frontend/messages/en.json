@@ -224,8 +224,8 @@
         "lead": "A voice tag is the short audio signature you stamp on your tracks. This guide covers the whole thing: from opening the Voice Tags tab to having a tag ready to attach to a song.",
         "specs": {
           "plan": {
-            "label": "Plan",
-            "value": "Pro"
+            "label": "Access",
+            "value": "Any signed-in account"
           },
           "ways": {
             "label": "How to create",
@@ -244,7 +244,7 @@
           "open": {
             "title": "Open the Voice Tags tab",
             "body": "Sign in, go to Dashboard, then open the Voice Tags tab. This is where all your voice tags live, and you can play any of them straight from the list. The first time, the list is empty and offers a single Create button.",
-            "note": "Voice Tags is a Pro feature. On a free account you will see an upgrade prompt instead of the list.",
+            "note": "Every signed-in account can create and play voice tags — there is no paid tier to clear first.",
             "mediaHint": "The Voice Tags tab with no tags yet, and the Create button.",
             "facts": {
               "place": {
@@ -253,7 +253,7 @@
               },
               "plan": {
                 "label": "You need",
-                "value": "A signed-in Pro account"
+                "value": "A signed-in account"
               }
             }
           },
@@ -360,8 +360,8 @@
         "lead": "This is where a voice tag stops being a separate clip and becomes part of the track. Seven steps: pick a file, decide whether to attach a tag, set how the tag sits in the music, then listen to the result.",
         "specs": {
           "plan": {
-            "label": "Plan",
-            "value": "Pro"
+            "label": "Access",
+            "value": "Any signed-in account"
           },
           "formats": {
             "label": "Accepts",
@@ -553,8 +553,8 @@
         "lead": "A room is a six-character code, up to seven people, and one track everyone hears at the same position. The guide splits by the role you are in: you open the room, or you are invited into one.",
         "specs": {
           "plan": {
-            "label": "Plan",
-            "value": "Pro to open a room, free to join one"
+            "label": "Access",
+            "value": "Any signed-in account, to open or to join"
           },
           "capacity": {
             "label": "People",
@@ -573,7 +573,7 @@
           "open": {
             "title": "Open the Live rooms tab",
             "body": "Go to Dashboard, then open the Live rooms tab. The list splits into Open and Ended rooms and can be searched by name. Two buttons sit above it: Create room and Join with a code.",
-            "note": "Opening a room needs Pro, but joining someone else's does not. Anyone signed in can walk in with the code, which is what makes a room work for a review session with a client.",
+            "note": "Opening a room and joining someone else's both need nothing more than a signed-in account. Anyone can walk in with the code, which is what makes a room work for a review session with a client.",
             "mediaHint": "The Live rooms list: the Open and Ended tabs, plus the Create room and Join buttons.",
             "facts": {
               "place": {
@@ -582,7 +582,7 @@
               },
               "plan": {
                 "label": "You need",
-                "value": "Pro to create a room"
+                "value": "A signed-in account"
               }
             }
           },
@@ -1429,7 +1429,7 @@
             "cors": { "name": "CORS", "type": "[Origins]", "desc": "Only allowed origins pass" },
             "jwtAuth": { "name": "JWT Auth", "type": "[HMAC + Blacklist]", "desc": "Verifies signature, checks Redis" },
             "httpRateLimit": { "name": "HTTP Rate Limit", "type": "[Lua + Redis]", "desc": "Per-user/IP bucket, 500/min" },
-            "authorization": { "name": "Authorization", "type": "[@PreAuthorize]", "desc": "RBAC: ADMIN, PRO, USER" },
+            "authorization": { "name": "Authorization", "type": "[@PreAuthorize]", "desc": "RBAC: ADMIN, USER" },
             "globalLimit": { "name": "Global ceiling", "type": "[Fail-open]", "desc": "500 req/min per caller" },
             "endpointRules": { "name": "Endpoint rules", "type": "[Configurable]", "desc": "Tighter limits for costly APIs" },
             "iamGuards": { "name": "IAM guards", "type": "[Fail-closed]", "desc": "5–30 req/min, dual-key" },
@@ -2340,7 +2340,6 @@
     "role": "Role",
     "roleValue": {
       "ADMIN": "Admin",
-      "PRO": "Pro",
       "USER": "User"
     },
     "fullName": "Full Name *",
@@ -2739,7 +2738,6 @@
       "alreadyProcessed": "Song is already processed. Modify config to re-process.",
       "streamNotReady": "Processed version not ready yet",
       "processingInProgress": "Song is already being processed",
-      "proOnly": "Voice tag feature is available for PRO users only",
       "voiceTagInUse": "Voice tag is currently in use. Remove it from songs before deleting.",
       "titleRequired": "Title is required",
       "intervalInvalid": "Interval must be between 1 and 60 seconds",
@@ -2826,8 +2824,6 @@
       "submitting": "Creating…",
       "success": "Room created",
       "cancel": "Cancel",
-      "proOnly": "Creating rooms is a PRO feature",
-      "proOnlyHint": "You can still join any room you have a code for.",
       "capacityInvalid": "Capacity must be between 1 and 7",
       "graceInvalid": "Grace period must be between 30 and 1800 seconds"
     },
@@ -3043,7 +3039,6 @@
       "graceInvalid": "The grace period must be between 30 and 1800 seconds",
       "forceEndedRoleChange": "The room ended because the host lost access",
       "notOwner": "Only the host can do that",
-      "proRequired": "Only PRO accounts can create rooms",
       "selfJoin": "You own this room — just open it",
       "requestNotFound": "Request not found",
       "requestExpired": "That request is no longer valid",

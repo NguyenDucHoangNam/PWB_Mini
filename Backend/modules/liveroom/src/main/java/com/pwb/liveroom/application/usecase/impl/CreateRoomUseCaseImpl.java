@@ -41,10 +41,6 @@ public class CreateRoomUseCaseImpl implements CreateRoomUseCase {
     @Override
     @Transactional
     public RoomView execute(CreateRoomCommand command) {
-        if (!command.actor().isPro()) {
-            throw new LiveroomBusinessException(LiveroomErrorCode.PRO_REQUIRED);
-        }
-
         RoomName roomName = parseName(command.roomName());
         if (liveRoomRepository.existsByOwnerIdAndNormalizedName(command.actor().userId(), roomName.normalized())) {
             throw new LiveroomBusinessException(LiveroomErrorCode.ROOM_NAME_DUPLICATE);

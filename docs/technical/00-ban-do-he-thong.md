@@ -59,7 +59,7 @@ flowchart TB
 
 | Module | Chịu trách nhiệm | Khái niệm chính | Bảng |
 |---|---|---|---|
-| **IAM** | Danh tính, phiên đăng nhập, hồ sơ, quản trị người dùng | User, Role (USER/PRO/ADMIN), OtpCode, PasswordResetToken | 5 |
+| **IAM** | Danh tính, phiên đăng nhập, hồ sơ, quản trị người dùng | User, Role (USER/ADMIN), OtpCode, PasswordResetToken | 5 |
 | **Audio** | Bài hát, voice tag, đóng dấu âm thanh | Song + `SongStatus`, VoiceTag, SongTagConfig | 3 |
 | **Live Room** | Phòng nghe chung, duyệt vào phòng, chat, phát nhạc đồng bộ, gọi video | LiveRoom, SessionCycle, Participant, JoinRequest, PlaybackState | 9 |
 

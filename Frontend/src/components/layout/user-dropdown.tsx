@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { memo } from "react";
-import { ChevronDown, LogOut, Crown } from "lucide-react";
+import { ChevronDown, LogOut } from "lucide-react";
 import { useDropdownMenu, type DropdownItem } from "@/hooks/use-dropdown-menu";
 import { useAvatarUrl } from "@/features/profile/api/use-avatar-url";
 import type { AuthUser } from "@/features/auth/stores/use-auth-store";
@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 
 interface UserDropdownProps {
   user: AuthUser | null;
-  isPro?: boolean;
   labels: {
     logout: string;
     account: string;
@@ -26,7 +25,7 @@ function getInitials(value: string | null | undefined): string {
   return trimmed.charAt(0).toUpperCase();
 }
 
-function UserDropdownImpl({ user, isPro = false, labels, items }: UserDropdownProps) {
+function UserDropdownImpl({ user, labels, items }: UserDropdownProps) {
   const { isOpen, focusedIndex, triggerRef, containerRef, onKeyDown, toggle, close } =
     useDropdownMenu(items);
 
@@ -52,12 +51,7 @@ function UserDropdownImpl({ user, isPro = false, labels, items }: UserDropdownPr
         aria-haspopup="menu"
         aria-expanded={isOpen}
       >
-        <div
-          className={cn(
-            "neu-pressed relative flex size-9 items-center justify-center rounded-full p-0.5 transition-all bg-[#e0e5ec] dark:bg-[#1e222b]",
-            isPro && "ring-2 ring-indigo-500/80 dark:ring-indigo-400/80",
-          )}
-        >
+        <div className="neu-pressed relative flex size-9 items-center justify-center rounded-full p-0.5 transition-all bg-[#e0e5ec] dark:bg-[#1e222b]">
           <div className="flex size-full items-center justify-center overflow-hidden rounded-full bg-[#e0e5ec] text-xs font-bold text-slate-800 dark:bg-[#1e222b] dark:text-slate-100">
             {avatarUrl ? (
               <img
@@ -70,11 +64,6 @@ function UserDropdownImpl({ user, isPro = false, labels, items }: UserDropdownPr
               initials
             )}
           </div>
-          {isPro && (
-            <span className="neu-raised absolute -top-1 -right-1 z-10 flex size-4 items-center justify-center rounded-full bg-[#e0e5ec] text-amber-500 dark:bg-[#1e222b] dark:text-amber-400">
-              <Crown className="size-2.5 text-amber-500 dark:text-amber-400" aria-hidden="true" />
-            </span>
-          )}
         </div>
         <ChevronDown
           className={cn(
@@ -91,12 +80,7 @@ function UserDropdownImpl({ user, isPro = false, labels, items }: UserDropdownPr
           className="neu-raised absolute right-0 z-50 mt-3 w-64 origin-top-right rounded-3xl bg-[#e0e5ec] p-3 dark:bg-[#1e222b] border-none shadow-neu-raised animate-in fade-in zoom-in-95 duration-150"
         >
           <div className="neu-pressed flex items-center gap-3 rounded-2xl bg-[#e0e5ec] p-3 dark:bg-[#1e222b] border-none">
-            <div
-              className={cn(
-                "relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e0e5ec] text-sm font-bold text-slate-700 dark:bg-[#1e222b] dark:text-slate-200",
-                isPro && "ring-2 ring-indigo-500/80",
-              )}
-            >
+            <div className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e0e5ec] text-sm font-bold text-slate-700 dark:bg-[#1e222b] dark:text-slate-200">
               {avatarUrl ? (
                 <img
                   src={avatarUrl}
@@ -109,18 +93,11 @@ function UserDropdownImpl({ user, isPro = false, labels, items }: UserDropdownPr
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                {showFullName && (
-                  <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-50">
-                    {fullName}
-                  </p>
-                )}
-                {isPro && (
-                  <span className="neu-raised-sm inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
-                    <Crown className="size-2.5 text-amber-500 dark:text-amber-400" aria-hidden="true" /> PRO
-                  </span>
-                )}
-              </div>
+              {showFullName && (
+                <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-50">
+                  {fullName}
+                </p>
+              )}
               <p
                 className={cn(
                   "truncate text-xs font-medium text-slate-500 dark:text-slate-400",
